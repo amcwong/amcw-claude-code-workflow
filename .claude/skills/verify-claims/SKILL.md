@@ -1,6 +1,6 @@
 ---
 name: verify-claims
-description: Run Chain-of-Verification (CoVe) on a draft or a block of text with factual claims. Spawns the `claim-verifier` agent in a forked (fresh) context so it never sees the draft — then reports which claims are supported, contradicted, or unverifiable. Use when user says "verify these citations", "check the claims in X", "did I hallucinate anything", "fact-check this draft", "run CoVe on this", or after any text generation that asserts facts about papers, datasets, or numerical results. NOT for style/grammar review (use `/proofread`) or substance review (use `/review-paper`).
+description: Run Chain-of-Verification (CoVe) on a draft or a block of text with factual claims. Spawns the `claim-verifier` agent in a forked (fresh) context so it never sees the draft — then reports which claims are supported, contradicted, or unverifiable. Use when user says "verify these citations", "check the claims in X", "did I hallucinate anything", "fact-check this draft", "run CoVe on this", or after any text generation that asserts facts about papers, datasets, or numerical results. NOT for style/grammar review (use `/proofread`) or substance review (use `/review-paper`). NOT for course-notes audits (use `/course-notes audit`).
 argument-hint: "[file-or-text-path] [--source <path-or-url>] [--no-fail-closed]"
 allowed-tools: ["Read", "Grep", "Glob", "Agent", "Task", "Write"]
 disallowed-tools: ["Edit", "MultiEdit"]
@@ -22,6 +22,7 @@ Fact-check a draft using the **Post-Flight Verification protocol** ([`.claude/ru
 - **`/proofread`** — grammar, typos, overflow. Different lens.
 - **`/review-paper`** (default mode) — full manuscript review, not just claim verification.
 - **`/validate-bib`** — checks citations *exist* and are well-formed (structural + DOI). This skill checks they *hold* (the cited paper supports the attributed claim). Complementary — run both before submission.
+- **`/course-notes audit`** — cold audit of course week notes, glossary, and notebook (definitions, Wikipedia links, markdown↔notebook drift). Different artifact; different agent (`fact-auditor`).
 
 ## How it works
 

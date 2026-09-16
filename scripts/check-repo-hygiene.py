@@ -28,6 +28,11 @@ ROOT_ALLOW_DIRS = {
     ".claude", ".git", ".github", ".githooks", ".vscode", "Figures", "Preambles",
     "Quarto", "Slides", "docs", "explorations", "guide", "master_supporting_docs",
     "quality_reports", "scripts", "templates",
+    # Per-course learner notes: markdown source of truth + derived notebook
+    # (`/course-notes`). Binaries stay in gitignored courses/*/sources/.
+    "courses",
+    # Local planning + changelog (gitignored except aw-local/changelog.md).
+    "aw-local",
 }
 
 # Names that mean "I was experimenting". These must not live in tracked source.

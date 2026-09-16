@@ -6,6 +6,24 @@ If you have forked this template, see the **Upgrading** section at the bottom fo
 
 ---
 
+## v2.5.2 — 2026-09-16
+
+### Added — `/course-notes` learner workflow
+
+Ports the old standalone study-notes kit into this template’s skill / agent / rule / template machinery, scoped to **courses** (not a generic notes family):
+
+- **`.claude/skills/course-notes/`** — `init` / `add` / `audit` for week notes under `courses/<slug>/`. `disable-model-invocation: true`; markdown is source of truth, `notebook.html` is derived. Never commits.
+- **`.claude/agents/fact-auditor.md`** — Opus cold auditor of week notes, glossary, notebook (definitions, numbers, Wikipedia links, markdown↔notebook drift). Invoked **only** by `/course-notes audit`; reports findings; the skill applies corrections.
+- **`.claude/rules/course-notes.md`** — path-scoped to `courses/**` (homework-answer ban, inline definitions, design lock).
+- **`.claude/references/course-notes-workflow.md`** — human rationale for the four layers.
+- **Templates:** `week-course-notes.md`, `course.md`, `glossary.md`, `course-notes-readme.md`, `notebook.html`, `fact-audit.md`.
+- Reciprocal `NOT for` fencing on `/create-lecture` and `/verify-claims`. Hygiene allowlists `courses/` (and `aw-local/` for the local changelog). `.gitignore` ignores `courses/*/sources/`.
+
+**Inventory at release: 61 skills, 19 agents, 38 rules, 8 hooks, 10 gates**
+(was 60 / 18 / 37 / 8 / 10 at v2.5.1).
+
+---
+
 ## v2.5.1 — 2026-08-24
 
 An **enforcement release.** Disciplines that had been working conventions in the owner's

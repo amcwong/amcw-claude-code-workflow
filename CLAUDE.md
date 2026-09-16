@@ -75,6 +75,7 @@ Nothing clears work until it has a row in [`quality_reports/qualification/LEDGER
 ├── quality_reports/             # Plans, session logs, merge reports, decision records
 ├── explorations/                # Research sandbox (see rules)
 ├── templates/                   # Session log, quality report templates
+├── courses/                     # Per-course notes (`/course-notes`; markdown SoT + derived notebook)
 └── master_supporting_docs/      # Papers and existing slides
 ```
 
@@ -124,7 +125,7 @@ Enforced by `/commit` (halts + asks for override) **and** — once you run `./sc
 
 The full table of all skills lives in [README.md](README.md#skills-claudeskills). Most-used, by workflow:
 
-- **Slides / teaching:** `/create-lecture` `/compile-latex` `/deploy` `/qa-quarto` `/slide-excellence` `/syllabus` `/teach-from-paper` `/scaffold-exercises`
+- **Slides / teaching:** `/create-lecture` `/compile-latex` `/deploy` `/qa-quarto` `/slide-excellence` `/syllabus` `/teach-from-paper` `/scaffold-exercises` `/course-notes`
 - **Papers / review:** `/review-paper` (`--peer`) `/seven-pass-review` `/respond-to-referees` `/verify-claims` `/proofread` `/humanize` `/submission-disclosures`
 - **Data / reproducibility:** `/data-analysis` `/simulation-study` `/audit-reproducibility` `/diagnose` `/replication-package` `/capture-environment` `/power-analysis` `/disclosure-check`
 - **Research / writing:** `/interview-me` `/lit-review` `/research-ideation` `/preregister` `/grant-proposal` `/data-management-plan`

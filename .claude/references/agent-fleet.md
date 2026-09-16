@@ -1,6 +1,6 @@
 # Agent Fleet Manifest
 
-The 18 specialist subagents, what each is for, the model tier it runs at ([`model-routing.md`](../rules/model-routing.md)), and which skill dispatches it. This makes the fleet legible — when a fan-out skill picks a lens, this is the roster it picks from. Reviewers are **read-only** (they report `FINDING`s per [`orchestration-schemas.md`](orchestration-schemas.md)); only the fixer edits files.
+The 19 specialist subagents, what each is for, the model tier it runs at ([`model-routing.md`](../rules/model-routing.md)), and which skill dispatches it. This makes the fleet legible — when a fan-out skill picks a lens, this is the roster it picks from. Reviewers are **read-only** (they report `FINDING`s per [`orchestration-schemas.md`](orchestration-schemas.md)); only the fixer edits files.
 
 > **Keep this in sync** with `.claude/agents/*.md` frontmatter (`model:` / `effort:`) and with `model-routing.md`. The surface-sync gate counts agents; it does not yet diff this table row-for-row, so update it when you add or retier an agent. (It is a `references/` file, so it is not itself counted as an agent.)
 
@@ -14,6 +14,7 @@ A wrong "looks fine" from one of these is expensive (a desk-reject, a hallucinat
 | `domain-referee` | Substance referee (contribution, positioning, external validity) | read-only | yes (6-way taxonomy) | `/review-paper --peer` |
 | `methods-referee` | Methodology referee (paper-type-aware identification/inference) | read-only | yes (6-way taxonomy) | `/review-paper --peer` |
 | `claim-verifier` | Fresh-context CoVe verifier (citations, numbers, novelty) | read-only | no | `/verify-claims`, post-flight in `/lit-review` · `/research-ideation` · `/respond-to-referees` · `/review-paper --peer`; hallucination gate |
+| `fact-auditor` | Cold audit of course week notes, glossary, notebook (definitions, numbers, wiki links, md↔notebook drift) | read-only | no | `/course-notes audit` only — not proactive; the skill applies corrections |
 | `domain-reviewer` | Field-specific substance review of slides (5 lenses; **template — customize**) | read-only | no | `/slide-excellence`, `/seven-pass-review` (methods lens) |
 | `quarto-critic` | Adversarial Beamer↔Quarto parity critic | read-only | no | `/qa-quarto`, `/slide-excellence` (parity) |
 | `tikz-reviewer` | Measurement-based TikZ collision/aesthetic audit | read-only | no | `/slide-excellence` (if TikZ), `/extract-tikz`, `/new-diagram` |
