@@ -15,6 +15,8 @@ Produce beginner-facing notes for one lecture week of a course under `courses/<s
 
 Instructor RevealJS lives in `Quarto/` and is out of scope. Never write course notes there.
 
+Two optional Claude Code plugins (`superpowers`, `document-skills`) are intended to support this workflow.
+
 ## When to pick this skill
 
 - **`/course-notes`** (this skill) — learner notes for a **course** with lecture weeks, homework-depth, and a term-length glossary + book.
@@ -57,7 +59,7 @@ Slug must be kebab-case (`imaging-2026`). Reject path separators or `..`.
 
 Read `COURSE.md`, prior `lectures/week*.qmd`, `glossary.qmd`, and everything in `courses/<slug>/sources/weekN/` (or `weekNN/` if that is how the user laid it out).
 
-**Sparse slide PDFs:** try the Read tool first. For diagram/formula slides whose extracted text looks empty or suspicious, render those pages to images (`pdftoppm` or PyMuPDF) and look at the images before trusting a number or label. Skip logistics slides (schedule, grading, staff, policies).
+**Sparse slide PDFs:** try the Read tool first. For diagram/formula slides whose extracted text looks empty or suspicious, use the `document-skills` plugin's PDF skill to pull the slide images and look at the images before trusting a number or label; fall back to rendering pages with `pdftoppm`/PyMuPDF if the plugin fails. Skip logistics slides (schedule, grading, staff, policies).
 
 Emit, then **stop and wait for approval**. Do not write notes yet:
 
