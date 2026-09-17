@@ -1,8 +1,8 @@
-# Fact audit: [COURSE-CODE]
+# Fact audit: CSC412/2506
 
-**Last audited:** [YYYY-MM-DD]
-**Summary:** [N] confirmed / [N] corrected / [N] unverifiable
-**Internal consistency / Wikipedia links:** [none / listed below]
+**Last audited:** (not yet run)
+**Summary:** placeholder until `/course-notes audit CSC2506`
+**Internal consistency / Wikipedia links:** (not yet run)
 
 Written only by `/course-notes audit`. Regenerated in full each run (current state, not accumulated history). The `fact-auditor` agent reports findings; the skill applies accepted corrections.
 
@@ -12,4 +12,4 @@ Written only by `/course-notes audit`. Regenerated in full each run (current sta
 
 ## Consistency
 
-- [none, or: week01 said X, glossary said Y, resolved to Z]
+- none yet

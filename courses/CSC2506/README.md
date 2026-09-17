@@ -1,6 +1,6 @@
-# [COURSE-CODE] [Course Name]: Course Notes
+# CSC412/2506 Probabilistic Machine Learning: Course Notes
 
-Index of this course's note files. Fill `[BRACKETED]` placeholders after `/course-notes init`.
+Index of this course's note files.
 
 - **Rulebook:** `COURSE.md` (audience, course URL, design tokens)
 - **Book:** `_quarto.yml` (Quarto project). Preview with `quarto preview`, or open `_site/index.html` after `quarto render`
@@ -9,4 +9,4 @@ Index of this course's note files. Fill `[BRACKETED]` placeholders after `/cours
 - **Audit:** `FACT_AUDIT.md` (written only by `/course-notes audit`)
 - **Sources:** `sources/weekN/` (slides and readings; binaries gitignored)
 
-Add a week with `/course-notes add <slug> <N>`. Do not commit or push from that skill; use `/commit`.
+Add a week with `/course-notes add CSC2506 <N>`. Do not commit or push from that skill; use `/commit`.

@@ -1,5 +1,15 @@
-# Changelog
+## 2026-09-16 — Course-notes surfaces: white page, grey sidebar
 
+- Stopped auto-importing `custom-dark.css` on `prefers-color-scheme: dark` (it painted the reading column navy).
+- Locked page chrome: white main column (`#ffffff`), light-grey left sidebar (`#f0f0f0`); navy stays on headings, links, and borders.
+
+## 2026-09-16 — Course notes: Quarto book + Raffel-like voice
+
+- Replaced `notebook.html` + week markdown with a Quarto book under `courses/<slug>/` (`templates/course-notes-book/`, `lectures/weekNN.qmd` SoT, gitignored `_site/`).
+- Voice: motivate then define; no invented analogies; no em dashes. Navy `#002A5C` / Source Serif 4 / Source Code Pro.
+- Skill: `--no-render`; lecture-order pre-flight; fact-auditor reads `.qmd` chapters.
+- Migrated CSC2506 Week 1 to `lectures/week01.qmd` and rendered `_site/` successfully.
+- Deleted `templates/notebook.html` and the old CSC2506 markdown/html pair.
 ## 2026-09-16 — Course-notes user guide (local)
 
 - Added `aw-local/course-note-workflow/README.md` — how to run `/course-notes` (init / weekly loop / audit / troubleshooting).

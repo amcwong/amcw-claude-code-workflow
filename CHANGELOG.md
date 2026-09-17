@@ -6,6 +6,17 @@ If you have forked this template, see the **Upgrading** section at the bottom fo
 
 ---
 
+## Unreleased
+
+### Changed — `/course-notes` Quarto book + lecture voice
+
+- **SoT is `lectures/weekNN.qmd`.** Dropped the week-markdown + derived `notebook.html` pair. Each course is a Quarto **book** under `courses/<slug>/` (`templates/course-notes-book/`). `quarto render` writes gitignored `_site/`. Instructor RevealJS in `Quarto/` is unchanged.
+- **Voice:** Raffel-like lecture notes (motivate, then `**Definition.**`, lecture-owned examples). Ban on U+2014 em dashes and invented analogies. Navy `#002A5C` / Source Serif 4 / Source Code Pro page chrome.
+- **Skill:** `--no-render` replaces `--no-notebook`. Pre-flight section order follows the lecture. `fact-auditor` reads `.qmd` chapters (no md↔html drift).
+- **CSC2506 Week 1** rewritten into `lectures/week01.qmd` as the verification course.
+
+---
+
 ## v2.5.2 — 2026-09-16
 
 ### Added — `/course-notes` learner workflow

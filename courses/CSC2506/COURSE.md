@@ -1,0 +1,35 @@
+# CSC412/2506 Probabilistic Machine Learning: Course Notes
+
+## Purpose
+
+Running course notes for CSC412/2506 (Probabilistic Machine Learning, University of Toronto, Fall 2026, instructor Ohad Shamir): one Quarto chapter per lecture week plus a cumulative glossary. The goal is to help the user learn the field from scratch over the term, not to solve homework.
+
+## Who these notes are for
+
+The user is a beginner to probabilistic machine learning. Assume undergrad-level multivariate calculus, probability, and linear algebra (the course's own prerequisite), and some prior exposure to introductory ML (the course explicitly builds on CSC311/STA314), but define every probabilistic-ML-specific term from scratch regardless.
+
+## Source material
+
+- Course site: https://ohadshamir2.github.io/csc412_f26/
+- Lecture slides and readings live in `sources/weekN/` (gitignored binaries).
+- Three homework assignments (pen-and-paper + coding, Python) draw directly on the probabilistic-modelling material (exponential families, MLE, sufficient statistics); flag these as homework-relevant wherever they appear.
+
+## Book
+
+- **Project:** `_quarto.yml` (Quarto book). Preview with `quarto preview` from this directory, or open `_site/index.html` after `quarto render`.
+- **Title:** "CSC412/2506: Probabilistic Machine Learning notes"
+- **Expected week count:** 13 (week 8 is reading week, no lecture)
+- **Chapters:** `lectures/weekNN.qmd` (source of truth).
+
+## Design system (book page)
+
+Reuse this exactly every week; never redesign per week.
+
+- Fonts: Source Serif 4 for body and headings, Source Code Pro for code, system-ui for sidebar and tables
+- Colours: navy `#002A5C` (headings, links, table headers, definition borders) on a white reading column and light-grey `#f0f0f0` left sidebar; hover `#1E3A6E`; gold `#E8B400` used sparingly. Surfaces stay light (do not auto-apply `custom-dark.css`).
+
+## Recurring corrections
+
+- Never use U+2014 em dashes in body copy.
+- Do not invent analogies; keep lecture/tutorial examples (diagnostic test, Bernoulli, Multinomial, Gaussian).
+- Motivate, then `**Definition.**`, then the running domain example.

@@ -1,0 +1,251 @@
+---
+title: "Week 2: Decision Theory and Graphical Models"
+---
+
+```{=html}
+<style>#title-block-header { display: none; }</style>
+<div class="lecture-header">
+  <h1>Week 2: Decision Theory and Graphical Models</h1>
+</div>
+```
+
+**Overview.** Week 1 showed how to estimate a joint distribution $p(x,c)$ from data. This lecture asks the next question: once we have that distribution, or an estimate of it, how do we actually act on it? We build up statistical decision theory from misclassification rate to a general loss-based discriminant rule, then do the same for regression. The second half returns to a problem from Week 1: a joint over $N$ variables needs $2^N-1$ parameters in general. Directed graphical models are a way to write down which conditional independencies we are willing to assume, and get a much smaller parameter count in return. The Bayes Ball algorithm reads those independencies directly off the graph. The tutorial's Naive Bayes classifier ties the two halves together: it is a graphical model whose independence assumption is exactly what makes its maximum likelihood estimate as simple as Week 1's Bernoulli MLE.
+
+There were no logistics slides to skip this week.
+
+## From inference to decision {#sec-decision}
+
+Suppose we want to decide whether a chest X-ray shows cancer. Call the pixel intensities $x$ and the class $c$, with $\mathcal{C}_1$ for cancer present and $\mathcal{C}_2$ for cancer absent. Estimating the joint $p(x,c)$ from training data, as in Week 1, is called **inference**. But estimating the joint is not the same task as acting on it: at the end, we must commit to one decision (treat, or do not treat) for each new X-ray.
+
+Given a new image, one route to the class is Bayes' theorem (@sec-bayes, Week 1):
+
+$$p(\mathcal{C}_k \mid x) = \frac{p(x \mid \mathcal{C}_k)\, p(\mathcal{C}_k)}{p(x)}.$$
+
+If our goal is to minimize the expected number of mistakes, this suggests picking whichever class has the largest posterior $p(\mathcal{C}_k \mid x)$. The next section makes this precise, then asks whether "count of mistakes" is even the right thing to minimize.
+
+## Misclassification rate {#sec-misclass}
+
+::: {.definition-block}
+**Definition.** A **decision region** $\mathcal{R}_k$ is a subset of the input space such that every $x \in \mathcal{R}_k$ is assigned to class $\mathcal{C}_k$. The decision regions partition the input space.
+:::
+
+For two classes, the probability of a mistake is the probability that $x$ lands in the wrong region:
+
+$$p(\text{mistake}) = \underbrace{\int_{\mathcal{R}_1} p(x, \mathcal{C}_2)\,dx}_{\text{true class } \mathcal{C}_2\text{, assigned } \mathcal{C}_1} + \underbrace{\int_{\mathcal{R}_2} p(x, \mathcal{C}_1)\,dx}_{\text{true class } \mathcal{C}_1\text{, assigned } \mathcal{C}_2}.$$
+
+Since the regions are disjoint, we can minimize this quantity region by region: for a given $x$, assign it to $\mathcal{C}_1$ whenever $p(x,\mathcal{C}_1) > p(x,\mathcal{C}_2)$, and to $\mathcal{C}_2$ otherwise. Using the product rule $p(x,\mathcal{C}_k) = p(\mathcal{C}_k \mid x)\,p(x)$, this is the same as assigning $x$ to whichever class has the larger posterior $p(\mathcal{C}_k \mid x)$. That confirms the rule suggested in the previous section, and shows it is optimal for this particular objective.
+
+```{=html}
+<div style="overflow-x:auto; margin:1.5rem 0;">
+<svg viewBox="0 0 640 300" width="100%" style="max-width:640px;display:block;margin:auto;font-family:Helvetica,'Helvetica Neue',Arial,sans-serif;" role="img" aria-label="Two overlapping class densities with a decision boundary splitting the input space into two regions">
+  <text x="320" y="26" text-anchor="middle" font-size="18" font-weight="600" fill="#333">Decision regions from two overlapping densities</text>
+  <path d="M 40 240 C 120 240 130 60 190 60 C 250 60 260 240 340 240" fill="none" stroke="#5795C7" stroke-width="2.5"/>
+  <path d="M 140 240 C 220 240 250 100 340 100 C 430 100 460 240 560 240" fill="none" stroke="#C75794" stroke-width="2.5"/>
+  <line x1="270" y1="45" x2="270" y2="245" stroke="#555" stroke-width="1.5" stroke-dasharray="5,4"/>
+  <text x="270" y="38" text-anchor="middle" font-size="14" fill="#555">boundary</text>
+  <rect x="40" y="255" width="230" height="26" rx="4" fill="#C6DEF1" stroke="#5795C7" stroke-width="1"/>
+  <text x="155" y="273" text-anchor="middle" font-size="14" fill="#205279">R1: assign to C1</text>
+  <rect x="270" y="255" width="290" height="26" rx="4" fill="#F2C6DE" stroke="#C75794" stroke-width="1"/>
+  <text x="415" y="273" text-anchor="middle" font-size="14" fill="#792051">R2: assign to C2</text>
+  <line x1="30" y1="245" x2="600" y2="245" stroke="#888" stroke-width="1"/>
+  <text x="600" y="248" font-size="14" fill="#555">x</text>
+</svg>
+</div>
+```
+
+**Figure 1.** Two overlapping class densities $p(x,\mathcal{C}_1)$ (blue) and $p(x,\mathcal{C}_2)$ (magenta). Moving the boundary changes how much of each tail falls on the wrong side; the misclassification-minimizing boundary sits where the two densities cross.
+
+## Expected loss {#sec-loss}
+
+Minimizing the raw count of mistakes treats every kind of mistake as equally bad, which is rarely realistic. In the cancer-screening example, missing an actual cancer (predicting healthy when the patient is sick) is far worse than a false alarm (predicting cancer when the patient is healthy).
+
+::: {.definition-block}
+**Definition.** A **loss function** assigns a cost $L_{kj}$ to deciding class $\mathcal{C}_j$ when the true class is $\mathcal{C}_k$ (the $(k,j)$ entry of a **loss matrix**). The **expected loss** of a choice of decision regions is
+$$\mathbb{E}[L] = \sum_k \sum_j \int_{\mathcal{R}_j} L_{kj}\, p(x, \mathcal{C}_k)\, dx.$$
+:::
+
+For the cancer example, the lecture's loss matrix charges 1000 for missing an actual cancer (true cancer, decided normal) and only 1 for a false alarm (true normal, decided cancer), with 0 loss for a correct call:
+
+| Truth \ Decision | cancer | normal |
+| --- | --- | --- |
+| cancer | 0 | 1000 |
+| normal | 1 | 0 |
+
+This asymmetry pulls the optimal boundary toward calling more borderline cases "cancer," since a false alarm is 1000 times cheaper than a miss.
+
+## The discriminant rule and the reject option {#sec-discriminant}
+
+Swapping the order of summation in $\mathbb{E}[L]$ and defining $g_j(x) = \sum_k L_{kj}\, p(x,\mathcal{C}_k)$ turns the expected loss into $\mathbb{E}[L] = \sum_j \int_{\mathcal{R}_j} g_j(x)\, dx$, which is minimized region by region exactly as in @sec-misclass:
+
+::: {.boxed-eq}
+$$\mathcal{R}_j = \{x : g_j(x) < g_i(x) \text{ for all } i \neq j\}.$$
+:::
+
+Using the product rule again, $g_j(x) = p(x) \sum_k L_{kj}\, p(\mathcal{C}_k \mid x)$, and the factor $p(x)$ does not affect which $j$ minimizes it. So the rule can be stated entirely in terms of posteriors:
+
+::: {.callout-note}
+**Discriminant rule.** Assign $x$ to the class $j$ that minimizes $\sum_k L_{kj}\, p(\mathcal{C}_k \mid x)$.
+:::
+
+Setting every off-diagonal $L_{kj} = 1$ and every diagonal $L_{kk} = 0$ recovers the misclassification-rate rule from @sec-misclass as a special case: the loss matrix is a strict generalization, not a different framework.
+
+Some inputs sit in a region of genuine uncertainty, where the posteriors of the leading classes are close. Rather than force a decision, we can decline to decide whenever the largest posterior falls below a threshold $\theta$. This is the **reject option**: the reject region is exactly where every $p(\mathcal{C}_k \mid x) < \theta$.
+
+## Loss functions for regression {#sec-regression}
+
+The same reasoning applies when the target $t$ is continuous rather than a discrete class. Now the joint is $p(x,t)$, and instead of decision regions we look for a **regression function** $y(x)$ that approximates $t$. Using the squared loss $L(y(x), t) = (y(x)-t)^2$, the goal is to minimize
+
+$$\mathbb{E}[L] = \int\!\!\int (y(x) - t)^2\, p(x,t)\, dx\, dt.$$
+
+Adding and subtracting $\mathbb{E}[t \mid x]$ inside the square, and expanding, splits this into two non-negative pieces plus a cross term. The cross term integrates to zero because $\int (\mathbb{E}[t\mid x] - t)\, p(t\mid x)\, dt = 0$ by the definition of conditional expectation. What remains is
+
+$$\mathbb{E}[L] = \int\!\!\int \big(y(x) - \mathbb{E}[t\mid x]\big)^2 p(x,t)\, dx\, dt \;+\; \int\!\!\int \big(\mathbb{E}[t\mid x] - t\big)^2 p(x,t)\, dx\, dt.$$
+
+The second term does not depend on $y(x)$ at all: it is the average conditional variance of $t$ given $x$, the noise intrinsic to the data that no choice of $y$ can remove. The first term is non-negative and can always be driven to exactly zero, which happens precisely when
+
+::: {.boxed-eq}
+$$y(x) = \mathbb{E}[t \mid x].$$
+:::
+
+The best regression function, under squared loss, is the conditional expectation of the target given the input. This parallels @sec-discriminant: in classification the loss-minimizing rule routed everything through the posterior $p(\mathcal{C}_k\mid x)$; here it routes everything through the conditional mean $\mathbb{E}[t\mid x]$.
+
+## Why factor the joint {#sec-factoring}
+
+Section 2 of Week 1 introduced the joint distribution $p(H,Y)$ for two variables. The same idea scales badly: for $N$ binary variables $x_1,\dots,x_N$, specifying $p(x_1,\dots,x_N)$ in full takes $2^N - 1$ free parameters (one per outcome, minus one for the constraint that probabilities sum to 1). This is exact for any distribution, since the chain rule lets us write the joint, for **any** ordering of the variables, as
+
+$$p(x_1,\dots,x_N) = \prod_{j=1}^N p(x_j \mid x_1,\dots,x_{j-1}),$$
+
+with $p(x_1\mid x_0) := p(x_1)$. Nothing has been assumed yet: this factorization is always available and always exact, and it still costs $2^N-1$ parameters in general, because $p(x_j\mid x_1,\dots,x_{j-1})$ is itself a table with $2^{j-1}$ rows. The only way to reduce the parameter count is to assume that some of these conditionals do not really depend on all of their conditioning variables, i.e. to assume conditional independencies. Directed graphical models are a bookkeeping device for exactly this.
+
+## Directed graphical models {#sec-dag}
+
+::: {.definition-block}
+**Definition.** A **directed acyclic graphical model** (DAG, or Bayes net) represents each random variable as a node and each assumed direct dependence as a directed edge. A DAG with no cycles implies the factorization
+$$p(x_1,\dots,x_N) = \prod_{i=1}^N p\big(x_i \mid \text{parents}(x_i)\big),$$
+where $\text{parents}(x_i)$ is the set of nodes with an edge pointing into $x_i$.
+:::
+
+This is the same chain-rule factorization as @sec-factoring, restricted so that each $x_i$'s conditioning set is only its parents rather than every variable before it in some ordering. A **conditional probability table** (CPT) stores $p(x_i \mid \text{parents}(x_i))$: for binary variables, a node with $K_i$ parents needs $2^{K_i}$ free parameters (one probability per parent configuration, since the two outcomes sum to 1). The total across the graph is roughly $N \cdot 2^{\max_i K_i}$, which is far smaller than $2^N - 1$ whenever the graph is sparse. Restricting every node to a small number of parents is what buys the savings; a fully-connected DAG recovers the general chain rule and its full $2^N-1$ parameter cost, with no savings at all.
+
+```{=html}
+<div style="overflow-x:auto; margin:1.5rem 0;">
+<svg viewBox="0 0 520 260" width="100%" style="max-width:520px;display:block;margin:auto;font-family:Helvetica,'Helvetica Neue',Arial,sans-serif;" role="img" aria-label="A six-node DAG with x1 as root branching into two chains that both feed x6">
+  <defs>
+    <marker id="arrD" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto">
+      <path d="M0,0 L0,7 L7,3.5 z" fill="#555"/>
+    </marker>
+  </defs>
+  <text x="260" y="24" text-anchor="middle" font-size="17" font-weight="600" fill="#333">A DAG and its factorization</text>
+  <circle cx="60" cy="140" r="26" fill="#C6DEF1" stroke="#5795C7" stroke-width="1.5"/>
+  <text x="60" y="145" text-anchor="middle" font-size="15" fill="#205279">x1</text>
+  <circle cx="200" cy="70" r="26" fill="#C9E4DE" stroke="#57C7AE" stroke-width="1.5"/>
+  <text x="200" y="75" text-anchor="middle" font-size="15" fill="#207965">x2</text>
+  <circle cx="200" cy="210" r="26" fill="#C9E4DE" stroke="#57C7AE" stroke-width="1.5"/>
+  <text x="200" y="215" text-anchor="middle" font-size="15" fill="#207965">x3</text>
+  <circle cx="340" cy="40" r="26" fill="#FAEDCB" stroke="#C7A857" stroke-width="1.5"/>
+  <text x="340" y="45" text-anchor="middle" font-size="15" fill="#796020">x4</text>
+  <circle cx="340" cy="210" r="26" fill="#FAEDCB" stroke="#C7A857" stroke-width="1.5"/>
+  <text x="340" y="215" text-anchor="middle" font-size="15" fill="#796020">x5</text>
+  <circle cx="460" cy="125" r="26" fill="#F7D9C4" stroke="#C78557" stroke-width="1.5"/>
+  <text x="460" y="130" text-anchor="middle" font-size="15" fill="#794520">x6</text>
+  <line x1="82" y1="128" x2="176" y2="84" stroke="#555" stroke-width="1.5" marker-end="url(#arrD)"/>
+  <line x1="82" y1="152" x2="176" y2="198" stroke="#555" stroke-width="1.5" marker-end="url(#arrD)"/>
+  <line x1="222" y1="60" x2="316" y2="46" stroke="#555" stroke-width="1.5" marker-end="url(#arrD)"/>
+  <line x1="222" y1="200" x2="316" y2="212" stroke="#555" stroke-width="1.5" marker-end="url(#arrD)"/>
+  <line x1="224" y1="82" x2="440" y2="115" stroke="#555" stroke-width="1.5" marker-end="url(#arrD)"/>
+  <line x1="224" y1="198" x2="440" y2="140" stroke="#555" stroke-width="1.5" marker-end="url(#arrD)"/>
+</svg>
+</div>
+```
+
+**Figure 2.** A DAG on six nodes. Reading parents off the picture gives the factorization $p(x_1,\dots,x_6) = p(x_1)\,p(x_2\mid x_1)\,p(x_3\mid x_1)\,p(x_4\mid x_2)\,p(x_5\mid x_3)\,p(x_6\mid x_2,x_5)$: each factor's conditioning set is exactly its incoming arrows, not every earlier node.
+
+## Conditional independence: three canonical structures {#sec-cistructures}
+
+::: {.definition-block}
+**Definition.** For disjoint sets of variables $A$, $B$, $C$, we write $x_A \perp x_B \mid x_C$ ("$x_A$ and $x_B$ are conditionally independent given $x_C$") if any of the following equivalent conditions hold:
+$$p(x_A, x_B \mid x_C) = p(x_A\mid x_C)\,p(x_B\mid x_C), \quad p(x_A\mid x_B, x_C) = p(x_A\mid x_C), \quad p(x_B\mid x_A, x_C) = p(x_B\mid x_C).$$
+:::
+
+A DAG's edges encode a specific pattern of these independencies. Three three-node structures cover the cases, each checked directly from the factorization it implies.
+
+**Causal chain** ($X \to Y \to Z$). The joint factors as $p(x)p(y\mid x)p(z\mid y)$, so
+$$p(z\mid x,y) = \frac{p(x)p(y\mid x)p(z\mid y)}{p(x)p(y\mid x)} = p(z\mid y).$$
+Once $Y$ is known, $X$ tells us nothing more about $Z$: $X \perp Z \mid Y$.
+
+**Common cause** ($X \leftarrow Y \rightarrow Z$). The joint factors as $p(y)p(x\mid y)p(z\mid y)$, so
+$$p(x,z\mid y) = \frac{p(y)p(x\mid y)p(z\mid y)}{p(y)} = p(x\mid y)\,p(z\mid y).$$
+Again $X \perp Z \mid Y$: two effects of a shared cause become independent once that cause is observed.
+
+**Explaining away** ($X \to Y \leftarrow Z$). The joint factors as $p(x)p(z)p(y\mid x,z)$, and now
+$$p(z\mid x,y) = \frac{p(x)p(z)p(y\mid x,z)}{p(x)p(y\mid x)} = \frac{p(z)p(y\mid x,z)}{p(y\mid x)} \neq p(z\mid y)$$
+in general. $X$ and $Z$ are marginally independent (with $Y$ unobserved), but conditioning on their common effect $Y$ can make them dependent: learning that it rained ($X$) makes a ballgame ($Z$) a less likely explanation for heavy traffic ($Y$), even though rain and ballgames have nothing to do with each other on their own.
+
+## The Bayes Ball algorithm {#sec-bayesball}
+
+Checking $x_A \perp x_B \mid x_C$ by hand from the joint, as in @sec-cistructures, does not scale. **D-separation** is the general graph-theoretic criterion: $x_A \perp x_B \mid x_C$ holds exactly when every variable in $A$ is d-separated from every variable in $B$ given $C$. The **Bayes Ball algorithm** checks d-separation directly on the picture.
+
+::: {.callout-note}
+**Bayes Ball procedure.** To test $x_A \perp x_B \mid x_C$: shade every node in $C$ (observed). Place a ball at each node in $A$ and let it bounce along edges. If any ball can reach a node in $B$, then $x_A \not\perp x_B \mid x_C$; if no ball can reach $B$, then $x_A \perp x_B \mid x_C$.
+:::
+
+The bouncing rules are exactly the three structures of @sec-cistructures, read as a table of which triples let a ball pass:
+
+- **Chain** ($\to Y \to$): the ball passes through $Y$ if $Y$ is *unshaded*, and is blocked if $Y$ is shaded.
+- **Common cause** ($\leftarrow Y \to$): the ball passes through $Y$ if $Y$ is *unshaded*, and is blocked if $Y$ is shaded.
+- **Common effect / explaining away** ($\to Y \leftarrow$): the ball is blocked at $Y$ if $Y$ is *unshaded*, and passes through if $Y$ **or any of its descendants** is shaded.
+
+That last rule is the one that reverses the usual pattern, and it is exactly the explaining-away asymmetry from @sec-cistructures: observing a common effect (or something downstream of it) opens a dependency between its causes that was not there before.
+
+**Worked example (from the tutorial).** In a small graph $a,f \to e \to c$ and $f \to b$: with $c$ shaded, $a$ and $b$ are conditionally independent, since the only path from $a$ to $b$ runs through the chain-like node $e$ and the common-cause-like node $f$, and shading a descendant of $e$ does not open the head-to-head junction at $e$ from $f$'s side (the path is blocked). With $f$ shaded instead of $c$, $a$ and $b$ become dependent, since $f$ is a common cause of the path through $e$ to both, and shading a common cause blocks the chain from $f$ but the path from $a$ into $e$ is head-to-head at $e$, and $e$'s descendant $c$ is unshaded, so that junction stays blocked too. Working through the two cases by hand, keeping careful track of which junction each edge pair forms at each node, is the point of the exercise, and is left to the tutorial.
+
+**Larger example.** In the six-node DAG of Figure 2, is $x_1 \perp x_6 \mid \{x_2,x_3\}$? Shading $x_2$ and $x_3$ blocks both chain-like junctions leaving $x_1$ (through $x_2$ and through $x_3$), so no ball starting at $x_1$ can reach $x_6$: yes, $x_1 \perp x_6 \mid \{x_2,x_3\}$. Is $x_2 \perp x_3 \mid \{x_1,x_6\}$? Shading $x_1$ blocks the common-cause junction at $x_1$ itself, but $x_6$ is a common effect of $x_2$ and $x_3$ (via $x_5$) and $x_6$ is shaded, which **opens** that head-to-head junction: a ball can travel from $x_2$ to $x_6$ to $x_5$ to $x_3$. So the answer is no, $x_2 \not\perp x_3 \mid \{x_1,x_6\}$, and the reason is explaining away.
+
+## Naive Bayes as a graphical model {#sec-naivebayes}
+
+The tutorial applies @sec-dag and @sec-cistructures to a concrete problem: classifying a text as spam ($C=1$) or not ($C=0$) from which words it contains. Represent a text with a **bag-of-words** vector $X = (X_1,\dots,X_d)$, one binary entry per dictionary word, where $X_i=1$ means word $i$ appears (order and repetition are discarded). We want the posterior $p(C\mid X)$, and since $p(X)$ does not depend on $C$, this is proportional to $p(C,X)$.
+
+Applying the chain rule of @sec-factoring with no independence assumptions, in the order $C, X_1,\dots,X_d$, gives
+$$p(C,X) = p(C)\,p(X_1\mid C)\prod_{i=2}^d p(X_i \mid X_1,\dots,X_{i-1}, C).$$
+As a DAG this is fully connected: node $X_i$ has $i$ parents, so its CPT alone needs $2^i$ parameters, and the total is $1 + \sum_{i=1}^d 2^i = 2^{d+1}-1$, exactly the general joint-distribution cost from @sec-factoring on $d+1$ binary variables. Writing the chain rule down bought nothing yet, because no independence was assumed.
+
+::: {.callout-note}
+**Homework-relevant.** The next step, the Naive Bayes independence assumption, is where the parameter count collapses, and its MLE derivation is a direct extension of Week 1's Bernoulli MLE (@sec-mle). If a current or upcoming assignment touches maximum likelihood for a probabilistic model, this derivation pattern (Bernoulli log-likelihood, set derivative to zero, read off an empirical frequency) is worth understanding in full rather than only recognizing.
+:::
+
+**The assumption.** Naive Bayes removes every edge between the $X_i$'s and keeps only the edges from $C$: $p(X_i \mid X_1,\dots,X_{i-1}, C) = p(X_i \mid C)$, i.e. $X_i \perp X_j \mid C$ for every $j \neq i$. This is an instance of the common-cause structure from @sec-cistructures, with $C$ as the shared cause of every word's appearance. The factorization becomes
+$$p(X,C) = p(C)\prod_{i=1}^d p(X_i \mid C),$$
+with $1 + 2d$ parameters: linear in $d$ instead of exponential. The assumption is not literally true (word co-occurrences do carry information about topic), but it is a Week-1-style parametric simplification: it trades some accuracy in the model for a tractable number of parameters to estimate.
+
+**Maximum likelihood.** Parameterize $p(C{=}1) = \pi$ and $p(X_j{=}1\mid C{=}c) = \theta_{jc}$. Given $N$ i.i.d. labelled texts $(x^{(i)}, c^{(i)})$, the log-likelihood factors, by the same independence assumption, into a sum of Bernoulli log-likelihoods: one for the labels (governed by $\pi$) and one per word per class (governed by $\theta_{jc}$):
+$$\ell(\theta) = \sum_{i=1}^N \log p(c^{(i)}) \;+\; \sum_{j=1}^d \sum_{i=1}^N \log p(x_j^{(i)} \mid c^{(i)}).$$
+Each piece is a Bernoulli log-likelihood of exactly the shape solved in Week 1 (@sec-mle): $p(c^{(i)}) = \pi^{c^{(i)}}(1-\pi)^{1-c^{(i)}}$ and $p(x_j^{(i)}\mid c) = \theta_{jc}^{x_j^{(i)}}(1-\theta_{jc})^{1-x_j^{(i)}}$. Setting each derivative to zero reproduces the Week 1 pattern, $\hat\theta_{\text{MLE}} = \frac{1}{N}\sum_i x^{(i)}$, applied separately to each piece:
+$$\hat\pi = \frac{\sum_i \mathbb{1}[c^{(i)}=1]}{N} = \frac{\#\text{ spam texts}}{\#\text{ texts}}, \qquad \hat\theta_{jc} = \frac{\sum_i \mathbb{1}[x_j^{(i)}=1 \,\&\, c^{(i)}=c]}{\sum_i \mathbb{1}[c^{(i)}=c]} = \frac{\#\text{ times word } j \text{ appears in class } c}{\#\text{ texts in class } c}.$$
+Each MLE is again an observed relative frequency, exactly as in the Bernoulli case: the independence assumption did not change *how* we estimate parameters, only *how many* there are to estimate.
+
+## DGMs in the wild, briefly {#sec-wilddgm}
+
+The tutorial surveys a few more graphical models to show the same "assume some independencies, save parameters" idea recurring in different shapes. None of these are derived in depth in this lecture; the point is to recognize the pattern.
+
+- **Markov chains.** A first-order chain $p(x_{1:T}) = p(x_1)\prod_{t=2}^T p(x_t\mid x_{t-1})$ assumes each state depends only on the immediately previous one; a second-order chain conditions on the two previous states instead.
+- **Hidden Markov models (HMMs).** A chain of unobserved (hidden) states $Z_t$, each taking one of $K$ discrete values, each emitting an observed $X_t$: $p(X_{1:T}, Z_{1:T}) = p(Z_1)\prod_{t=2}^T p(Z_t\mid Z_{t-1}) \prod_{t=1}^T p(X_t\mid Z_t)$. This is a Markov chain over the hidden layer, with an emission model attached to each step.
+- **Medical diagnosis networks.** The Quick Medical Reference network is a bipartite DAG: hidden disease nodes as parents, observed symptom nodes as children, with a **noisy-OR** conditional probability table (any positive parent disease tends to make a symptom positive). The Alarm network is a hand-built DAG of 37 ICU-monitoring variables; because it is sparse, it needs only 504 parameters against a $2^{37}-1$ fully-connected cost, and its edges are drawn from known causal relationships in medicine rather than fit as a generic template.
+
+## Summary {#sec-summary2}
+
+::: {.callout-note}
+**Key takeaways from Week 2:**
+
+- Decision theory separates *inference* (estimating $p(x,c)$) from *decision* (acting on it). Minimizing misclassification rate is the special case of minimizing expected loss where every error costs the same.
+- The general discriminant rule minimizes $\sum_k L_{kj}\,p(\mathcal{C}_k\mid x)$ over the decision $j$; the reject option lets us decline to decide when no posterior clears a threshold.
+- For regression under squared loss, the best predictor is the conditional expectation $y(x) = \mathbb{E}[t\mid x]$.
+- A general joint over $N$ variables costs $2^N-1$ parameters. Directed graphical models trade that cost down by assuming each variable depends only on its parents.
+- Three structures (chain, common cause, common effect) cover how conditioning opens or blocks dependence; the Bayes Ball algorithm reads $x_A\perp x_B\mid x_C$ directly off the graph using these rules.
+- Naive Bayes is a common-cause DAG over word features given the class label; its independence assumption is what makes its MLE reduce to per-word, per-class Bernoulli MLEs, in the same shape as Week 1's Bernoulli derivation.
+:::
+
+**Next week:** Markov Random Fields, as listed on the course roadmap (not written yet).
+
+## Quick self-check
+
+If you can explain, in your own words, why the discriminant rule and the best regressor $\mathbb{E}[t\mid x]$ are really the same idea applied to two different loss functions, and why the Naive Bayes assumption is a special case of the "common cause" independence structure, you have understood the core of Week 2.
