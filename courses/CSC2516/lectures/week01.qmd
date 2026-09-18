@@ -1,0 +1,783 @@
+---
+title: "Week 1: Introduction, Linear & Logistic Regression"
+description: "From hand-coded rules to learned models: the motivation for deep learning, followed by linear regression, gradient descent, and softmax regression."
+---
+
+```{=html}
+<style>#title-block-header { display: none; }</style>
+<div class="lecture-header">
+  <h1>Week 1: Introduction, Linear &amp; Logistic Regression</h1>
+</div>
+```
+
+**Overview.** This lecture begins by comparing traditional software, which is generally rule-based; machine learning, which learns patterns and behavior from data; and deep learning, a branch of machine learning that focuses on training neural networks. We then build up two linear models, linear regression and logistic regression, that serve as building blocks for everything else in this course. Specifically, we introduce linear models from the perspective of deep learning in order to present the core concepts of loss functions, gradient descent, and the chain rule for differentiation.
+
+## Motivation {#sec-motivation}
+
+### Rule-based software
+
+Consider the task of classifying handwritten images as **0** or **1**. This task is simple enough that it can mostly be solved with a simple heuristic rule: a 0 almost always has at least two dark pixels crossing its middle row whereas a 1 has just one. This can be hard-coded by hand, producing something like the following:
+
+```python
+n_dark = 0
+for pixel in middle_row:
+    # Assume pixel values range from 0-255
+    if pixel < 100:
+        n_dark += 1
+if n_dark > 1:
+    return 0
+else:
+    return 1
+```
+
+This simple program might work acceptably well for 0 vs 1 classification, but what about classifying all ten handwritten digits? One could start by trying to enumerate different heuristic rules to distinguish the digits, but the wide range of writing styles and possible digit positions and shapes quickly makes a rule-based system intractable. More complex problems--even those that we might consider "simple" like classifying an image as being a picture of a cat or dog--are clearly out of reach.
+
+### Machine learning
+
+How can we design computer programs for problems that are too complex to allow for simply writing down a set of rules?
+In this case, while we might not be able to come up with a rule set, we may be able to come up with a **training set**, i.e. a collection of inputs and the corresponding desired output for the program.
+
+::: {.definition-block}
+**Definition.** *Machine learning* produces programs whose behavior is **learned from data** rather than hand-coded. Given examples of desired input–output pairs, machine learning aims to automatically adjust the program to better reproduce the function underlying the input-output mapping.
+:::
+
+After collecting a training dataset, the first step in old-fashioned machine learning is to design a set of features.
+Features are computable measurements about the input (e.g., the number of dark pixels per row or the presence of a certain stroke pattern).
+We typically represent the input feature values as a **feature vector** $\bm{x}$ by assembling all feature measurements for a given input into a fixed-length vector.
+In old-fashioned machine learning, these features are generally used with *simple* models, i.e. models that are constrained to have a simple structure that makes them amenable to optimization.
+The use of a simple model makes the success of old-fashioned ML depend heavily on the quality of hand-designed features.
+Designing the best feature for complex tasks like large-scale object recognition across tens of thousands of categories is challenging, and feature engineering can become the limiting factor in model performance.
+
+```{=html}
+<div style="overflow-x:auto; margin:1.5rem 0;">
+<svg viewBox="0 0 1200 360" width="100%" style="max-width:1120px;display:block;margin:auto;font-family:Helvetica,'Helvetica Neue',Arial,sans-serif;">
+  <defs>
+    <marker id="arrC1" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto"><path d="M0,0 L0,7 L7,3.5 z" fill="#555"/></marker>
+    <clipPath id="digitClip"><rect x="95" y="130" width="110" height="110"/></clipPath>
+    <linearGradient id="gsGrad" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#000000"/><stop offset="1" stop-color="#ffffff"/>
+    </linearGradient>
+  </defs>
+
+  <!-- ===== Card 1: Input image (blue) ===== -->
+  <rect x="20" y="40" width="260" height="300" rx="8" fill="#E7F1FB" stroke="#5795C7" stroke-width="1.5"/>
+  <circle cx="42" cy="64" r="11" fill="#5795C7"/>
+  <text x="42" y="69" text-anchor="middle" font-size="14" font-weight="700" fill="#fff">1</text>
+  <text x="60" y="70" font-size="18" font-weight="600" fill="#12374F">Input image</text>
+  <text x="150" y="98" text-anchor="middle" font-size="14" fill="#12374F">A handwritten digit</text>
+  <text x="150" y="116" text-anchor="middle" font-size="14" fill="#12374F">28×28 grayscale image</text>
+  <rect x="95" y="130" width="110" height="110" fill="#ffffff" stroke="#5795C7" stroke-width="1"/>
+  <g stroke="#E6EEF6" stroke-width="0.7">
+    <line x1="113" y1="130" x2="113" y2="240"/><line x1="131" y1="130" x2="131" y2="240"/>
+    <line x1="149" y1="130" x2="149" y2="240"/><line x1="167" y1="130" x2="167" y2="240"/>
+    <line x1="185" y1="130" x2="185" y2="240"/>
+    <line x1="95" y1="148" x2="205" y2="148"/><line x1="95" y1="166" x2="205" y2="166"/>
+    <line x1="95" y1="184" x2="205" y2="184"/><line x1="95" y1="202" x2="205" y2="202"/>
+    <line x1="95" y1="220" x2="205" y2="220"/>
+  </g>
+  <g clip-path="url(#digitClip)">
+    <g transform="translate(2.5,72) scale(1.25)">
+      <!-- SVG Handwritten Digit (8) - kept as-is -->
+      <path d="M 120 58 C 105 58 100 68 110 77 C 120 86 130 90 120 102 C 110 114 98 120 118 123 C 138 120 128 112 120 102 C 110 90 122 84 130 75 C 138 65 132 58 120 58 Z"
+            fill="none" stroke="#222226" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+    </g>
+  </g>
+  <rect x="95" y="258" width="110" height="12" fill="url(#gsGrad)" stroke="#bbb" stroke-width="0.5"/>
+  <text x="95" y="286" font-size="14" fill="#555">0</text>
+  <text x="205" y="286" text-anchor="end" font-size="14" fill="#555">255</text>
+
+  <line x1="284" y1="190" x2="316" y2="190" stroke="#555" stroke-width="1.5" marker-end="url(#arrC1)"/>
+
+  <!-- ===== Card 2: Feature vector (green) ===== -->
+  <rect x="320" y="40" width="260" height="300" rx="8" fill="#E6F4EF" stroke="#57C7AE" stroke-width="1.5"/>
+  <circle cx="342" cy="64" r="11" fill="#57C7AE"/>
+  <text x="342" y="69" text-anchor="middle" font-size="14" font-weight="700" fill="#fff">2</text>
+  <text x="360" y="70" font-size="18" font-weight="600" fill="#124E3E">Feature vector</text>
+  <text x="450" y="98" text-anchor="middle" font-size="14" fill="#124E3E">Flattened into 784 numbers</text>
+  <text x="450" y="116" text-anchor="middle" font-size="14" fill="#124E3E">(28×28 = 784 pixels)</text>
+  <path d="M410,150 L402,150 L402,286 L410,286" fill="none" stroke="#124E3E" stroke-width="1.6"/>
+  <path d="M490,150 L498,150 L498,286 L490,286" fill="none" stroke="#124E3E" stroke-width="1.6"/>
+  <g>
+    <rect x="412" y="152" width="76" height="19" fill="#E6F2EE" stroke="#8AC9B8" stroke-width="0.6"/>
+    <text x="450" y="166" text-anchor="middle" font-size="14" fill="#124E3E">0.12</text>
+    <rect x="412" y="174" width="76" height="19" fill="#D9ECE5" stroke="#8AC9B8" stroke-width="0.6"/>
+    <text x="450" y="188" text-anchor="middle" font-size="14" fill="#124E3E">0.00</text>
+    <rect x="412" y="196" width="76" height="19" fill="#CCE6DD" stroke="#8AC9B8" stroke-width="0.6"/>
+    <text x="450" y="210" text-anchor="middle" font-size="14" fill="#124E3E">0.07</text>
+    <text x="450" y="230" text-anchor="middle" font-size="16" fill="#124E3E">⋮</text>
+    <rect x="412" y="240" width="76" height="19" fill="#B7DBCF" stroke="#8AC9B8" stroke-width="0.6"/>
+    <text x="450" y="254" text-anchor="middle" font-size="14" fill="#124E3E">0.93</text>
+    <rect x="412" y="262" width="76" height="19" fill="#A9D4C6" stroke="#8AC9B8" stroke-width="0.6"/>
+    <text x="450" y="276" text-anchor="middle" font-size="14" fill="#124E3E">0.11</text>
+  </g>
+  <text x="514" y="213" font-size="18" font-weight="600" fill="#124E3E">784</text>
+  <text x="514" y="231" font-size="14" fill="#124E3E">dims</text>
+  <rect x="388" y="300" width="124" height="28" rx="6" fill="#EAF5F1" stroke="#57C7AE" stroke-width="1"/>
+  <text x="450" y="319" text-anchor="middle" font-size="16" font-weight="600" fill="#124E3E">x ∈ ℝ⁷⁸⁴</text>
+
+  <line x1="584" y1="190" x2="616" y2="190" stroke="#555" stroke-width="1.5" marker-end="url(#arrC1)"/>
+
+  <!-- ===== Card 3: Simple classifier (pink) ===== -->
+  <rect x="620" y="40" width="260" height="300" rx="8" fill="#FBE6F1" stroke="#C75794" stroke-width="1.5"/>
+  <circle cx="642" cy="64" r="11" fill="#C75794"/>
+  <text x="642" y="69" text-anchor="middle" font-size="14" font-weight="700" fill="#fff">3</text>
+  <text x="660" y="70" font-size="18" font-weight="600" fill="#571639">Simple classifier</text>
+  <text x="750" y="98" text-anchor="middle" font-size="14" fill="#571639">Learns patterns from data,</text>
+  <text x="750" y="116" text-anchor="middle" font-size="14" fill="#571639">one score per digit 0–9</text>
+  <text x="642" y="205" font-size="16" fill="#571639">x</text>
+  <line x1="654" y1="200" x2="676" y2="200" stroke="#555" stroke-width="1.4" marker-end="url(#arrC1)"/>
+  <g stroke="#E7B6D0" stroke-width="0.8">
+    <line x1="690" y1="162" x2="776" y2="162"/><line x1="690" y1="162" x2="776" y2="186"/><line x1="690" y1="162" x2="776" y2="210"/><line x1="690" y1="162" x2="776" y2="234"/>
+    <line x1="690" y1="186" x2="776" y2="162"/><line x1="690" y1="186" x2="776" y2="186"/><line x1="690" y1="186" x2="776" y2="210"/><line x1="690" y1="186" x2="776" y2="234"/>
+    <line x1="690" y1="210" x2="776" y2="162"/><line x1="690" y1="210" x2="776" y2="186"/><line x1="690" y1="210" x2="776" y2="210"/><line x1="690" y1="210" x2="776" y2="234"/>
+    <line x1="690" y1="234" x2="776" y2="162"/><line x1="690" y1="234" x2="776" y2="186"/><line x1="690" y1="234" x2="776" y2="210"/><line x1="690" y1="234" x2="776" y2="234"/>
+  </g>
+  <g fill="#C75794">
+    <circle cx="690" cy="162" r="5"/><circle cx="690" cy="186" r="5"/><circle cx="690" cy="210" r="5"/><circle cx="690" cy="234" r="5"/>
+    <circle cx="776" cy="162" r="5"/><circle cx="776" cy="186" r="5"/><circle cx="776" cy="210" r="5"/><circle cx="776" cy="234" r="5"/>
+  </g>
+  <line x1="786" y1="200" x2="808" y2="200" stroke="#555" stroke-width="1.4" marker-end="url(#arrC1)"/>
+  <text x="816" y="196" font-size="14" fill="#571639">scores</text>
+  <text x="816" y="212" font-size="14" fill="#571639">(logits)</text>
+  <text x="750" y="300" text-anchor="middle" font-size="14" fill="#6E6E6E">e.g. logistic regression /</text>
+  <text x="750" y="318" text-anchor="middle" font-size="14" fill="#6E6E6E">softmax classifier</text>
+
+  <line x1="884" y1="190" x2="916" y2="190" stroke="#555" stroke-width="1.5" marker-end="url(#arrC1)"/>
+
+  <!-- ===== Card 4: Prediction (orange) ===== -->
+  <rect x="920" y="40" width="260" height="300" rx="8" fill="#FCEEE2" stroke="#C78557" stroke-width="1.5"/>
+  <circle cx="942" cy="64" r="11" fill="#C78557"/>
+  <text x="942" y="69" text-anchor="middle" font-size="14" font-weight="700" fill="#fff">4</text>
+  <text x="960" y="70" font-size="18" font-weight="600" fill="#5A3517">Prediction</text>
+  <text x="1050" y="98" text-anchor="middle" font-size="14" fill="#5A3517">The highest-scoring digit</text>
+  <text x="1050" y="116" text-anchor="middle" font-size="14" fill="#5A3517">is selected (the argmax)</text>
+  <g>
+    <text x="944" y="142" text-anchor="middle" font-size="14" fill="#5A3517">0</text><rect x="960" y="131" width="5"   height="12" fill="#B3B3B3"/><text x="1162" y="142" text-anchor="end" font-size="14" fill="#6E6E6E">0.01</text>
+    <text x="944" y="158" text-anchor="middle" font-size="14" fill="#5A3517">1</text><rect x="960" y="147" width="7"   height="12" fill="#B3B3B3"/><text x="1162" y="158" text-anchor="end" font-size="14" fill="#6E6E6E">0.02</text>
+    <text x="944" y="174" text-anchor="middle" font-size="14" fill="#5A3517">2</text><rect x="960" y="163" width="9"   height="12" fill="#B3B3B3"/><text x="1162" y="174" text-anchor="end" font-size="14" fill="#6E6E6E">0.03</text>
+    <text x="944" y="190" text-anchor="middle" font-size="14" fill="#5A3517">3</text><rect x="960" y="179" width="9"   height="12" fill="#B3B3B3"/><text x="1162" y="190" text-anchor="end" font-size="14" fill="#6E6E6E">0.03</text>
+    <text x="944" y="206" text-anchor="middle" font-size="14" fill="#5A3517">4</text><rect x="960" y="195" width="5"   height="12" fill="#B3B3B3"/><text x="1162" y="206" text-anchor="end" font-size="14" fill="#6E6E6E">0.01</text>
+    <text x="944" y="222" text-anchor="middle" font-size="14" fill="#5A3517">5</text><rect x="960" y="211" width="7"   height="12" fill="#B3B3B3"/><text x="1162" y="222" text-anchor="end" font-size="14" fill="#6E6E6E">0.02</text>
+    <text x="944" y="238" text-anchor="middle" font-size="14" fill="#5A3517">6</text><rect x="960" y="227" width="5"   height="12" fill="#B3B3B3"/><text x="1162" y="238" text-anchor="end" font-size="14" fill="#6E6E6E">0.01</text>
+    <text x="944" y="254" text-anchor="middle" font-size="14" fill="#5A3517">7</text><rect x="960" y="243" width="9"   height="12" fill="#B3B3B3"/><text x="1162" y="254" text-anchor="end" font-size="14" fill="#6E6E6E">0.03</text>
+    <text x="944" y="270" text-anchor="middle" font-size="14" font-weight="700" fill="#5A3517">8</text><rect x="960" y="259" width="142" height="12" fill="#D98A3C"/><text x="1162" y="270" text-anchor="end" font-size="14" font-weight="700" fill="#5A3517">0.92</text>
+    <text x="944" y="286" text-anchor="middle" font-size="14" fill="#5A3517">9</text><rect x="960" y="275" width="9"   height="12" fill="#B3B3B3"/><text x="1162" y="286" text-anchor="end" font-size="14" fill="#6E6E6E">0.03</text>
+  </g>
+  <line x1="940" y1="300" x2="1160" y2="300" stroke="#E4CBB0" stroke-width="1"/>
+  <text x="1050" y="326" text-anchor="middle" font-size="24" font-weight="600" fill="#5A3517">Predicted: 8</text>
+</svg>
+</div>
+```
+
+### Deep learning
+
+What should we do to overcome the limits of feature engineering?
+Deep learning asks: If we are learning the model, why not learn the features too?
+In other words, instead of hand-designing features based on intuition and experimentation, perhaps we can directly learn features that are well-suited to the training data.
+As long as we have sufficient data and can effectively train such models, we might naturally expect this approach to work better.
+Indeed, since the resurgence of this basic idea in the early 2000s, deep learning has enabled a dizzying array of breakthroughs and transformative technologies.
+
+::: {.definition-block}
+**Definition.** *Deep learning* studies models that are **big, complex, differentiable** functions built by composing many **small, simple, differentiable** functions called *layers*. Because the full composition is differentiable, the parameters of every layer can be trained jointly, *end-to-end*, with gradient descent.
+:::
+
+```{=html}
+<div style="overflow-x:auto; margin:1.5rem 0;">
+<svg viewBox="0 0 1200 400" width="100%" style="max-width:1120px;display:block;margin:auto;font-family:Helvetica,'Helvetica Neue',Arial,sans-serif;">
+  <defs>
+    <marker id="arrD1" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto"><path d="M0,0 L0,7 L7,3.5 z" fill="#555"/></marker>
+    <clipPath id="digitClip2"><rect x="95" y="130" width="110" height="110"/></clipPath>
+    <linearGradient id="gsGrad2" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#000000"/><stop offset="1" stop-color="#ffffff"/>
+    </linearGradient>
+  </defs>
+
+  <!-- ===== Card 1: Input image (blue) ===== -->
+  <rect x="20" y="40" width="260" height="300" rx="8" fill="#E7F1FB" stroke="#5795C7" stroke-width="1.5"/>
+  <circle cx="42" cy="64" r="11" fill="#5795C7"/>
+  <text x="42" y="69" text-anchor="middle" font-size="14" font-weight="700" fill="#fff">1</text>
+  <text x="60" y="70" font-size="18" font-weight="600" fill="#12374F">Input image</text>
+  <text x="150" y="98" text-anchor="middle" font-size="14" fill="#12374F">A handwritten digit</text>
+  <text x="150" y="116" text-anchor="middle" font-size="14" fill="#12374F">28×28 grayscale image</text>
+  <rect x="95" y="130" width="110" height="110" fill="#ffffff" stroke="#5795C7" stroke-width="1"/>
+  <g stroke="#E6EEF6" stroke-width="0.7">
+    <line x1="113" y1="130" x2="113" y2="240"/><line x1="131" y1="130" x2="131" y2="240"/>
+    <line x1="149" y1="130" x2="149" y2="240"/><line x1="167" y1="130" x2="167" y2="240"/>
+    <line x1="185" y1="130" x2="185" y2="240"/>
+    <line x1="95" y1="148" x2="205" y2="148"/><line x1="95" y1="166" x2="205" y2="166"/>
+    <line x1="95" y1="184" x2="205" y2="184"/><line x1="95" y1="202" x2="205" y2="202"/>
+    <line x1="95" y1="220" x2="205" y2="220"/>
+  </g>
+  <g clip-path="url(#digitClip2)">
+    <g transform="translate(2.5,72) scale(1.25)">
+      <!-- SVG Handwritten Digit (8) - kept as-is -->
+      <path d="M 120 58 C 105 58 100 68 110 77 C 120 86 130 90 120 102 C 110 114 98 120 118 123 C 138 120 128 112 120 102 C 110 90 122 84 130 75 C 138 65 132 58 120 58 Z"
+            fill="none" stroke="#222226" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+    </g>
+  </g>
+  <rect x="95" y="258" width="110" height="12" fill="url(#gsGrad2)" stroke="#bbb" stroke-width="0.5"/>
+  <text x="95" y="286" font-size="14" fill="#555">0</text>
+  <text x="205" y="286" text-anchor="end" font-size="14" fill="#555">255</text>
+
+  <line x1="284" y1="190" x2="316" y2="190" stroke="#555" stroke-width="1.5" marker-end="url(#arrD1)"/>
+
+  <!-- ===== Card 2: Learned layers (green) ===== -->
+  <rect x="320" y="40" width="260" height="300" rx="8" fill="#E6F4EF" stroke="#57C7AE" stroke-width="1.5"/>
+  <circle cx="342" cy="64" r="11" fill="#57C7AE"/>
+  <text x="342" y="69" text-anchor="middle" font-size="14" font-weight="700" fill="#fff">2</text>
+  <text x="360" y="70" font-size="18" font-weight="600" fill="#124E3E">Learned layers</text>
+  <text x="450" y="98" text-anchor="middle" font-size="14" fill="#124E3E">Many layers learn the</text>
+  <text x="450" y="116" text-anchor="middle" font-size="14" fill="#124E3E">features automatically</text>
+  <rect x="385" y="140" width="130" height="34" rx="6" fill="#DDEFEA" stroke="#57C7AE" stroke-width="1.2"/>
+  <text x="450" y="162" text-anchor="middle" font-size="15" font-weight="600" fill="#124E3E">Layer 1</text>
+  <line x1="450" y1="174" x2="450" y2="185" stroke="#555" stroke-width="1.4" marker-end="url(#arrD1)"/>
+  <rect x="385" y="187" width="130" height="34" rx="6" fill="#CFE7DF" stroke="#57C7AE" stroke-width="1.2"/>
+  <text x="450" y="209" text-anchor="middle" font-size="15" font-weight="600" fill="#124E3E">Layer 2</text>
+  <text x="450" y="242" text-anchor="middle" font-size="18" fill="#124E3E">⋮</text>
+  <line x1="450" y1="248" x2="450" y2="259" stroke="#555" stroke-width="1.4" marker-end="url(#arrD1)"/>
+  <rect x="385" y="261" width="130" height="34" rx="6" fill="#BADFD3" stroke="#57C7AE" stroke-width="1.2"/>
+  <text x="450" y="283" text-anchor="middle" font-size="15" font-weight="600" fill="#124E3E">Layer L</text>
+
+  <line x1="584" y1="190" x2="616" y2="190" stroke="#555" stroke-width="1.5" marker-end="url(#arrD1)"/>
+
+  <!-- ===== Card 3: Classifier (pink) ===== -->
+  <rect x="620" y="40" width="260" height="300" rx="8" fill="#FBE6F1" stroke="#C75794" stroke-width="1.5"/>
+  <circle cx="642" cy="64" r="11" fill="#C75794"/>
+  <text x="642" y="69" text-anchor="middle" font-size="14" font-weight="700" fill="#fff">3</text>
+  <text x="660" y="70" font-size="18" font-weight="600" fill="#571639">Classifier</text>
+  <text x="750" y="98" text-anchor="middle" font-size="14" fill="#571639">The final layer outputs</text>
+  <text x="750" y="116" text-anchor="middle" font-size="14" fill="#571639">a score per digit 0–9</text>
+  <text x="642" y="205" font-size="16" fill="#571639">h</text>
+  <line x1="654" y1="200" x2="676" y2="200" stroke="#555" stroke-width="1.4" marker-end="url(#arrD1)"/>
+  <g stroke="#E7B6D0" stroke-width="0.8">
+    <line x1="690" y1="162" x2="776" y2="162"/><line x1="690" y1="162" x2="776" y2="186"/><line x1="690" y1="162" x2="776" y2="210"/><line x1="690" y1="162" x2="776" y2="234"/>
+    <line x1="690" y1="186" x2="776" y2="162"/><line x1="690" y1="186" x2="776" y2="186"/><line x1="690" y1="186" x2="776" y2="210"/><line x1="690" y1="186" x2="776" y2="234"/>
+    <line x1="690" y1="210" x2="776" y2="162"/><line x1="690" y1="210" x2="776" y2="186"/><line x1="690" y1="210" x2="776" y2="210"/><line x1="690" y1="210" x2="776" y2="234"/>
+    <line x1="690" y1="234" x2="776" y2="162"/><line x1="690" y1="234" x2="776" y2="186"/><line x1="690" y1="234" x2="776" y2="210"/><line x1="690" y1="234" x2="776" y2="234"/>
+  </g>
+  <g fill="#C75794">
+    <circle cx="690" cy="162" r="5"/><circle cx="690" cy="186" r="5"/><circle cx="690" cy="210" r="5"/><circle cx="690" cy="234" r="5"/>
+    <circle cx="776" cy="162" r="5"/><circle cx="776" cy="186" r="5"/><circle cx="776" cy="210" r="5"/><circle cx="776" cy="234" r="5"/>
+  </g>
+  <line x1="786" y1="200" x2="808" y2="200" stroke="#555" stroke-width="1.4" marker-end="url(#arrD1)"/>
+  <text x="816" y="196" font-size="14" fill="#571639">scores</text>
+  <text x="816" y="212" font-size="14" fill="#571639">(logits)</text>
+  <text x="750" y="309" text-anchor="middle" font-size="14" fill="#6E6E6E">e.g. softmax classifier</text>
+
+  <line x1="884" y1="190" x2="916" y2="190" stroke="#555" stroke-width="1.5" marker-end="url(#arrD1)"/>
+
+  <!-- ===== Card 4: Prediction (orange) ===== -->
+  <rect x="920" y="40" width="260" height="300" rx="8" fill="#FCEEE2" stroke="#C78557" stroke-width="1.5"/>
+  <circle cx="942" cy="64" r="11" fill="#C78557"/>
+  <text x="942" y="69" text-anchor="middle" font-size="14" font-weight="700" fill="#fff">4</text>
+  <text x="960" y="70" font-size="18" font-weight="600" fill="#5A3517">Prediction</text>
+  <text x="1050" y="98" text-anchor="middle" font-size="14" fill="#5A3517">The highest-scoring digit</text>
+  <text x="1050" y="116" text-anchor="middle" font-size="14" fill="#5A3517">is selected (the argmax)</text>
+  <g>
+    <text x="944" y="142" text-anchor="middle" font-size="14" fill="#5A3517">0</text><rect x="960" y="131" width="5"   height="12" fill="#B3B3B3"/><text x="1162" y="142" text-anchor="end" font-size="14" fill="#6E6E6E">0.01</text>
+    <text x="944" y="158" text-anchor="middle" font-size="14" fill="#5A3517">1</text><rect x="960" y="147" width="7"   height="12" fill="#B3B3B3"/><text x="1162" y="158" text-anchor="end" font-size="14" fill="#6E6E6E">0.02</text>
+    <text x="944" y="174" text-anchor="middle" font-size="14" fill="#5A3517">2</text><rect x="960" y="163" width="9"   height="12" fill="#B3B3B3"/><text x="1162" y="174" text-anchor="end" font-size="14" fill="#6E6E6E">0.03</text>
+    <text x="944" y="190" text-anchor="middle" font-size="14" fill="#5A3517">3</text><rect x="960" y="179" width="9"   height="12" fill="#B3B3B3"/><text x="1162" y="190" text-anchor="end" font-size="14" fill="#6E6E6E">0.03</text>
+    <text x="944" y="206" text-anchor="middle" font-size="14" fill="#5A3517">4</text><rect x="960" y="195" width="5"   height="12" fill="#B3B3B3"/><text x="1162" y="206" text-anchor="end" font-size="14" fill="#6E6E6E">0.01</text>
+    <text x="944" y="222" text-anchor="middle" font-size="14" fill="#5A3517">5</text><rect x="960" y="211" width="7"   height="12" fill="#B3B3B3"/><text x="1162" y="222" text-anchor="end" font-size="14" fill="#6E6E6E">0.02</text>
+    <text x="944" y="238" text-anchor="middle" font-size="14" fill="#5A3517">6</text><rect x="960" y="227" width="5"   height="12" fill="#B3B3B3"/><text x="1162" y="238" text-anchor="end" font-size="14" fill="#6E6E6E">0.01</text>
+    <text x="944" y="254" text-anchor="middle" font-size="14" fill="#5A3517">7</text><rect x="960" y="243" width="9"   height="12" fill="#B3B3B3"/><text x="1162" y="254" text-anchor="end" font-size="14" fill="#6E6E6E">0.03</text>
+    <text x="944" y="270" text-anchor="middle" font-size="14" font-weight="700" fill="#5A3517">8</text><rect x="960" y="259" width="142" height="12" fill="#D98A3C"/><text x="1162" y="270" text-anchor="end" font-size="14" font-weight="700" fill="#5A3517">0.92</text>
+    <text x="944" y="286" text-anchor="middle" font-size="14" fill="#5A3517">9</text><rect x="960" y="275" width="9"   height="12" fill="#B3B3B3"/><text x="1162" y="286" text-anchor="end" font-size="14" fill="#6E6E6E">0.03</text>
+  </g>
+  <line x1="940" y1="300" x2="1160" y2="300" stroke="#E4CBB0" stroke-width="1"/>
+  <text x="1050" y="326" text-anchor="middle" font-size="24" font-weight="600" fill="#5A3517">Predicted: 8</text>
+
+  <!-- End-to-end training brace under the learned model (cards 2-3) -->
+  <path d="M320,352 Q320,360 330,360 L594,360 Q600,360 600,368 Q600,360 606,360 L870,360 Q880,360 880,352" fill="none" stroke="#6E6E6E" stroke-width="1.4"/>
+  <text x="600" y="388" text-anchor="middle" font-size="16" font-style="italic" fill="#555">trained end-to-end with gradient descent (backpropagation)</text>
+</svg>
+</div>
+```
+
+The maxim of learning as much of the modeling pipeline as possible is referred to as *end-to-end* learning.
+The composition of many small differentiable functions is itself differentiable, by the chain rule.
+This is critical for end-to-end training and is the foundation of **backpropagation** (Lecture 2).
+
+---
+
+## Why Deep Learning Was Hard {#sec-history}
+
+The core techniques underlying deep learning, such as neural networks and gradient descent, have existed since the 1950s.
+If deep learning is so powerful, why wasn't it the prevalent approach to machine learning until recently?
+For old-fashioned ML with fixed features and a simple classifier, the training loss is often **convex** as a function of the parameters.
+This means that, under benign assumptions, gradient descent is guaranteed to find the minimum, and we can be reasonably confident that the solution generalizes well to unseen data.
+In deep learning, we have no such guarantees.
+In practice, the loss is highly **non-convex**, and can be riddled with local optima, saddle points, and flat regions.
+As a result, small errors in training can lead to large errors at test time.
+
+```{=html}
+<div style="overflow-x:auto; margin:1.5rem 0;">
+<svg viewBox="0 0 1364.0 506.0" width="100%" style="max-width:1364px;display:block;margin:auto;font-family:Helvetica,'Helvetica Neue',Arial,sans-serif;">
+  <defs>
+    <marker id="ax" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto">
+      <path d="M0,0 L0,6 L6,3 z" fill="#555"/>
+    </marker>
+  </defs>
+
+  <!-- ── LEFT: Classic ML ── -->
+  <text x="341" y="39.6" text-anchor="middle" font-size="24.2" font-weight="600" fill="#444">Classic ML</text>
+  <!-- Axes -->
+  <line x1="77" y1="407" x2="605" y2="407" stroke="#555" stroke-width="5.81" marker-end="url(#ax)"/>
+  <line x1="77" y1="407" x2="77" y2="66" stroke="#555" stroke-width="5.81" marker-end="url(#ax)"/>
+  <text x="341" y="462" text-anchor="middle" font-size="24" fill="#666">parameter</text>
+  <text x="30.8" y="237.6" text-anchor="middle" font-size="24" fill="#666" transform="rotate(-90,30.8,237.6)">train loss</text>
+  <!-- Convex bowl, shifted up so the "global optimum" label clears the axis (y = 150 - 0.0109*(x-155)^2) -->
+  <path d="M 110,66.11 C 121,87.65 158.77,164.8 176,195.36 C 193.23,225.92 200.93,233.75 213.4,249.48 C 225.87,265.21 238.33,278.65 250.8,289.76 C 263.27,300.89 275.73,309.69 288.2,316.21 C 300.67,322.72 316.8,326.55 325.6,328.83 C 334.4,331.12 335.87,330 341,330 C 346.13,330 347.6,331.12 356.4,328.83 C 365.2,326.55 381.33,322.72 393.8,316.21 C 406.27,309.69 418.73,300.89 431.2,289.76 C 443.67,278.65 456.13,265.21 468.6,249.48 C 481.07,233.75 488.77,225.92 506,195.36 C 523.23,164.8 561,87.65 572,66.11" fill="none" stroke="#5795C7" stroke-width="2.5" stroke-linecap="round"/>
+  <!-- Start dot -->
+  <circle cx="506" cy="195.36" r="11" fill="#fbc02d"/>
+  <!-- GD steps (middle points) -->
+  <circle cx="468.6" cy="249.48" r="11" fill="#e53935" opacity="0.25"/>
+  <circle cx="431.2" cy="289.76" r="11" fill="#e53935" opacity="0.5"/>
+  <circle cx="393.8" cy="316.21" r="11" fill="#e53935" opacity="0.75"/>
+  <circle cx="356.4" cy="328.83" r="11" fill="#e53935" opacity="1"/>
+  <!-- Global optimum dot -->
+  <circle cx="341" cy="330" r="13.2" fill="#2e7d32"/>
+  <circle cx="341" cy="330" r="11" fill="#2e7d32"/>
+  <text x="341" y="378.4" text-anchor="middle" font-size="24" fill="#2e7d32">global optimum</text>
+
+  <!-- ── RIGHT: Deep learning ── -->
+  <text x="1023" y="39.6" text-anchor="middle" font-size="24.2" font-weight="600" fill="#444">Deep Learning</text>
+  <!-- Axes -->
+  <line x1="759" y1="407" x2="1331" y2="407" stroke="#555" stroke-width="5.81" marker-end="url(#ax)"/>
+  <line x1="759" y1="407" x2="759" y2="66" stroke="#555" stroke-width="5.81" marker-end="url(#ax)"/>
+  <text x="1023" y="462" text-anchor="middle" font-size="24" fill="#666">parameter</text>
+  <!-- Non-convex curve (smooth spline through exact waypoints; dots below sit on these anchors) -->
+  <path d="M 792,66 C 801.17,86.17 830.5,154 847,187 C 863.5,220 877.43,260.33 891,264 C 904.57,267.67 911.9,203.5 928.4,209 C 944.9,214.5 972.4,273.9 990,297 C 1007.6,320.1 1019.33,334.77 1034,347.6 C 1048.67,360.43 1064.43,381.33 1078,374 C 1091.57,366.67 1105.13,326.33 1115.4,303.6 C 1125.67,280.87 1133.37,246.03 1139.6,237.6 C 1145.83,229.17 1148.4,246.03 1152.8,253 C 1157.2,259.97 1161.6,279.4 1166,279.4 C 1170.4,279.4 1171.13,270.23 1179.2,253 C 1187.27,235.77 1201.2,200.57 1214.4,176 C 1227.6,151.43 1244.47,123.93 1258.4,105.6 C 1272.33,87.27 1291.4,72.6 1298,66" fill="none" stroke="#5795C7" stroke-width="2.5" stroke-linecap="round"/>
+  <!-- Start dot -->
+  <circle cx="1298" cy="66" r="11" fill="#fbc02d"/>
+  <!-- GD steps (middle points), stuck in a local optimum -->
+  <circle cx="1258.4" cy="105.6" r="11" fill="#e53935" opacity="0.25"/>
+  <circle cx="1214.4" cy="176" r="11" fill="#e53935" opacity="0.625"/>
+  <circle cx="1166" cy="279.4" r="11" fill="#e53935" opacity="1"/>
+  <text x="1179.2" y="312.4" font-size="24" fill="#e53935">local optimum</text>
+  <!-- Reference: unreached global optimum -->
+  <circle cx="1078" cy="374" r="11" fill="#2e7d32"/>
+  <text x="1104.4" y="365.2" font-size="24" fill="#2e7d32">global optimum</text>
+
+  <!-- Legend (centered under the full figure) -->
+  <circle cx="398.2" cy="484" r="8.8" fill="#fbc02d"/>
+  <text x="417.0" y="492.8" font-size="24" fill="#444">start</text>
+  <circle cx="531.8" cy="484" r="8.8" fill="#e53935"/>
+  <text x="550.6" y="492.8" font-size="24" fill="#444">local optimum</text>
+  <circle cx="771.0" cy="484" r="8.8" fill="#2e7d32"/>
+  <text x="789.8" y="492.8" font-size="24" fill="#444">global optimum</text>
+</svg>
+</div>
+```
+
+Historically, this made deep networks impractical.
+However, for the past few decades, a series of innovations have made deep learning feasible.
+Discussing these innovations will be the main subject of this course.
+
+| Innovation | Role |
+|---|---|
+| **Regularization** | Prevents overfitting; steers toward solutions that generalize |
+| **Better architectures** | Inductive biases tailored to data types (CNNs, Transformers, …) |
+| **Adaptive optimizers** | Address poor curvature in non-convex losses |
+| **Pre-training** | Initialize on large related tasks before the target task |
+| **Hardware (GPUs/TPUs)** | Massively parallel matrix computation |
+| **Large datasets** | Reduce overfitting; allow complex models to generalize |
+
+
+---
+
+## Linear Regression {#sec-linear-regression}
+
+For the rest of this lecture we study two foundational linear models.
+
+::: {.definition-block}
+**Definition.** *Linear regression* is a model that predicts a **scalar value** from an input feature vector. The prediction is an affine function of the features, meaning that any change in a feature always produces a constant, proportional change in the output.
+:::
+
+As a running example, consider the task of predicting a home's sale price from three features: its age (years), the square footage (sqft), and the number of bedrooms (nbr).
+
+$$\hat{y} = w_1 \cdot \text{age} + w_2 \cdot \text{sqft} + w_3 \cdot \text{nbr} + b$$
+
+where $w_1$, $w_2$, and $w_3$ are the weights assigned to each feature value and $\hat{y}$ is the predicted price.
+The features can be combined into a feature vector $\bm{x} = [\text{age},\, \text{sqft},\, \text{nbr}]^\top \in \mathbb{R}^3$ and weights into the weight vector $\bm{w} = [w_1, w_2, w_3]^\top \in \mathbb{R}^3$, giving the standard expression for a linear regression model:
+
+$$\hat{y} = \bm{w}^\top \bm{x} + b$$
+
+The weight vector $\bm{w}$ and bias value $b$ are the **parameters** of the model.
+Together we write them as the parameter vector $\bm{\theta} = (\bm{w}, b)$.
+In general, the parameters $\bm{\theta}$ of a given model are the values that are tuned via optimization and "learned" from data.
+
+What if we want to process more than one example at a time?
+As we will discuss later, this is common during both training and inference, or "test time", when the trained model is being used to make predictions.
+We can assemble $N$ feature vectors into a matrix $\bm{X} \in \mathbb{R}^{N \times d}$ and compute the model's predictions as
+
+$$\hat{\bm{y}} = \bm{X}\bm{w} + b, \qquad \hat{\bm{y}} \in \mathbb{R}^N, \quad \bm{X} \in \mathbb{R}^{N \times d}$$
+
+### The loss function
+
+Given a model, we need a way to tune the parameters to fit the data.
+To determine how well the model fits the data (and ultimately as an objective to be optimized), we use a **loss function**.
+For regression (predicting a scalar value) a common loss function is the *squared error loss*:
+
+$$\mathcal{L}(\hat{y}, y) = \frac{1}{2}(\hat{y} - y)^2$$
+
+where $y$ is the true label for the input $\bm{x}$ used to produce the prediction $\hat{y}$. The $\frac{1}{2}$ is included for convenience because it will cancel out the exponent of 2 when we differentiate. The **goal** is to find $\bm{\theta}$ that minimizes $\mathcal{L}$ over the training set.
+
+::: {.callout-note}
+In the past, you may have fit linear regression via the closed-form solution $\bm{w}^* = (\bm{X}^\top \bm{X})^{-1}\bm{X}^\top \bm{y}$ that arises when analytically finding the minimum of the loss function. In this course, we ignore the closed-form solution and instead use gradient descent because it generalizes to neural networks whereas a closed-form solution does not.
+:::
+
+### Gradient descent {#sec-gradient-descent}
+
+Gradient descent is the core optimization algorithm used in deep learning.
+Gradient descent is an iterative algorithm where, at each step, we move the parameters in the direction that most rapidly *decreases* the loss.
+As long as the function being optimized is not too complex and as long as we don't move too much, we can be confident that we've decreased the loss.
+If we do this over and over again, we might hope to reach a minimum of the function.
+
+::: {.algorithm}
+#### Gradient Descent
+
+**Initialize** parameters $\bm{\theta}$ (we will discuss how to do this later!).
+
+**Repeat** until a stopping criterion is met:
+$$\bm{\theta} \leftarrow \bm{\theta} - \eta\,\nabla_{\bm{\theta}}\mathcal{L}$$
+
+where $\eta > 0$ is the **learning rate** and $\nabla_{\bm{\theta}}\mathcal{L}$ is the gradient of the loss with respect to $\bm{\theta}$.
+:::
+
+There are many ways to decide when to stop performing gradient descent. Since loss functions are generally nonnegative, a natural criterion is to wait until the loss reaches zero, but this is only possible if the model can perfectly fit the data. In the case of a linear model, this would mean that the input-output relationship is perfectly linear, which is rarely the case. Other heuristics used as stopping criteria include:
+
+- The loss stops decreasing, or its rate of decrease gets sufficiently slow.
+- Performance on held-out **validation data** stops improving.
+- We run out of compute budget or patience.
+
+Apart from the stopping criteria, to use gradient descent we must also specify a learning rate.
+Broadly, the learning rate dictates how quickly optimization progresses.
+However, as mentioned above (and as we will discuss further later), the gradient at a given location is only a local property of the function.
+Too large of a learning rate can therefore prevent gradient descent from making reliable progress and can even cause divergence, where the loss *increases*.
+Overall, we strive for a "just right" learning rate where the loss steadily decreases.
+
+```{=html}
+<div class="interactive-widget">
+<div class="widget-title">Gradient Descent Explorer</div>
+```
+
+```{ojs}
+//| echo: false
+
+viewof gdEta = Inputs.range([0.05, 1.95], {step: 0.05, value: 0.3,
+  label: "Learning rate η"})
+viewof gdW0 = Inputs.range([-3, 3], {step: 0.1, value: 2.5,
+  label: "Initial value w₀"})
+viewof gdNSteps = Inputs.range([1, 30], {step: 1, value: 12,
+  label: "Steps"})
+
+gdLoss = w => 0.5 * (w - 1) ** 2
+gdGrad = w => w - 1
+
+gdPath = {
+  let traj = []
+  let w = gdW0
+  for (let i = 0; i <= gdNSteps; i++) {
+    traj.push({step: i, w, loss: gdLoss(w)})
+    w = w - gdEta * gdGrad(w)
+  }
+  return traj
+}
+
+gdWs = Array.from({length: 300}, (_, i) => -3.5 + i * 7 / 299)
+gdFinalLoss = gdPath[gdPath.length - 1].loss
+gdFinalW    = gdPath[gdPath.length - 1].w
+
+gdPlot = Plot.plot({
+  width: 560, height: 280,
+  marginLeft: 65, marginBottom: 50,
+  style: {fontSize: "13px"},
+  x: {label: "w", domain: [-3.5, 3.5], grid: true,
+      labelAnchor: "center", labelArrow: "none", labelOffset: 36},
+  y: {label: "𝓛(w)", domain: [-0.1, 5.6], grid: true,
+      labelAnchor: "center", labelArrow: "none", labelOffset: 52},
+  marks: [
+    Plot.ruleY([0], {stroke: "#eee"}),
+    Plot.ruleX([0], {stroke: "#eee"}),
+    Plot.line(gdWs.map(w => ({w, loss: gdLoss(w)})),
+      {x: "w", y: "loss", stroke: "#5c6bc0", strokeWidth: 2.5}),
+    Plot.line(gdPath,
+      {x: "w", y: "loss", stroke: "#e53935", strokeWidth: 1.5, strokeDasharray: "4,3"}),
+    Plot.dot(gdPath.slice(1, -1),
+      {x: "w", y: "loss", fill: "#e53935", r: 4}),
+    Plot.dot([gdPath[0]],
+      {x: "w", y: "loss", fill: "#2e7d32", r: 7}),
+    Plot.dot([gdPath[gdPath.length - 1]],
+      {x: "w", y: "loss", fill: "#ff6f00", r: 6}),
+  ]
+})
+
+gdStatus = html`<div style="display:flex;gap:1rem;margin-top:0.6rem;flex-wrap:wrap;font-size:0.82rem;">
+  <div style="background:#e8eaf6;border-radius:8px;padding:0.4rem 0.9rem;">
+    <strong style="color:#3b4080;">Final w:</strong> ${gdFinalW.toFixed(3)}
+    &nbsp;(optimal: 1.000)
+  </div>
+  <div style="background:${gdFinalLoss < 0.01 ? '#e8f5e9' : gdFinalLoss < 0.5 ? '#fff3e0' : '#fce4ec'};
+       border-radius:8px;padding:0.4rem 0.9rem;">
+    <strong style="color:${gdFinalLoss < 0.01 ? '#2e7d32' : gdFinalLoss < 0.5 ? '#e65100' : '#c62828'};">
+      Final 𝓛:</strong> ${gdFinalLoss.toFixed(4)}
+    ${gdFinalLoss < 0.01 ? " ✓ converged" : gdFinalLoss > 4 ? " ✗ diverged" : " ⚠ in progress"}
+  </div>
+</div>
+<div style="font-size:0.78rem;color:#888;margin-top:0.4rem;">
+  <span style="color:#2e7d32;font-weight:500;">● start &nbsp;</span>
+  <span style="color:#e53935;font-weight:500;">● GD steps &nbsp;</span>
+  <span style="color:#ff6f00;font-weight:500;">● end</span>
+</div>`
+
+html`${gdPlot}${gdStatus}`
+```
+
+```{=html}
+</div>
+```
+
+
+### Computing the gradients: the chain rule
+
+Performing gradient descent requires $\nabla_{\bm{\theta}} \mathcal{L}$, or in the case of linear regression, $\nabla_{\bm{w}}\mathcal{L}$ and $\frac{\partial \mathcal{L}}{\partial b}$.
+For a differentiable model, we can compute these conveniently by applying the **chain rule**, which treats $\mathcal{L}$ as a composition of functions.
+
+For example, when computing the loss of a single training example $(\bm{x}, y)$ using linear regression, we have
+
+$$\hat{y} = \bm{w}^\top \bm{x} + b, \qquad \mathcal{L} = \tfrac{1}{2}(\hat{y} - y)^2$$
+
+If we consider $\mathcal{L}$ as a function of $\hat{y}$ and $\hat{y}$ as a function of $\bm{w}$ (or $b$) and apply the chain rule, we have
+
+$$
+\begin{aligned}
+\frac{d\mathcal{L}}{d\bm{w}} &= \frac{d\mathcal{L}}{d\hat{y}} \cdot \frac{d\hat{y}}{d\bm{w}}, \\
+\frac{d\mathcal{L}}{db} &= \frac{d\mathcal{L}}{d\hat{y}} \cdot \frac{d\hat{y}}{db}
+\end{aligned}
+$$
+
+We can compute these derivatives individually as
+$$
+\begin{aligned}
+\dfrac{d\mathcal{L}}{d\hat{y}} &= \hat{y} - y, \qquad \dfrac{d\hat{y}}{d\bm{w}} = \bm{x}, \\
+\dfrac{d\hat{y}}{db} &= 1
+\end{aligned}
+$$
+
+Substituting in these individual derivatives, we have
+
+$$\nabla_{\bm{w}}\mathcal{L} = (\hat{y} - y)\,\bm{x}, \qquad \frac{\partial \mathcal{L}}{\partial b} = \hat{y} - y$$
+
+For linear regression, the gradient has a clean interpretation: the update for weight $w_i$ is the prediction error $(\hat{y} - y)$ scaled by the feature value $x_i$. In this way, features that appear more strongly in the input receive proportionally larger weight updates.
+
+### Mini-batch stochastic gradient descent
+
+So far, we have computed the gradient of the loss for a single example.
+In practice it is common to compute the gradient for more than one example and update the parameters using the average gradient, like so:
+
+$$\bm{\theta} \leftarrow \bm{\theta} - \frac{\eta}{B} \sum_{i=1}^{B} \nabla_{\bm{\theta}} \mathcal{L}^{(i)}$$
+
+where $B$ is called the *batch size*.
+In the most extreme case, we could set the batch size equal to our training set size and compute the average gradient of all of the examples in our training set.
+However, computing the gradient for every example at every step of training might be unnecessarily expensive, as we will discuss later.
+More common in deep learning is therefore to draw a random sample of $B$ examples from the training set at each iteration.
+
+### Hyperparameters
+
+Unlike parameters like $\bm{w}$ and $b$, **hyperparameters** are generally not learned from data but instead are set by the practitioner, typically through trial and error or heuristics.
+So far we have observed the following hyperparameters:
+
+| Hyperparameter | Description |
+|---|---|
+| $\eta$ (learning rate) | Step size per gradient update |
+| Batch size $B$ | Number of examples per gradient update |
+| Stopping criterion | When to stop training |
+| Initialization scheme | Starting values for $\bm{w}$ and $b$ |
+
+We will revisit all of these as the course progresses.
+
+---
+
+## Softmax (Logistic) Regression {#sec-softmax}
+
+The goal of regression is to produce a continuous scalar value.
+However, many problems of interest involve assigning the input a discrete label from a set of possible class labels.
+Such problems are referred to **classification** tasks.
+
+Labels are further distinguished by the fact that, unlike the continuous values predicted during regression, they generally are unordered.
+For example, there is a natural order to the value of a house because a price of \$213,000 is more than \$190,000.
+In contrast, if we are predicting whether an image contains a picture of a cat or a dog, it would not be valid to say "cat is greater than dog" (or vice versa).
+
+To turn our running "home price prediction" example into a classification task, we could instead aim to predict whether a given home would sell *above asking*, *below asking*, or *not sell*.
+In this way, it becomes a 3-class classification problem.
+As before, we will aim to make this prediction from its age, square footage, number of bedrooms, and asking price.
+
+### One-hot encoding
+
+Representing class labels as integer class IDs (e.g. 1, 2, 3) would imply some kind of ordering.
+We instead represent class labels as **one-hot vectors**, which are length-$K$ (where $K$ is the number of classes) vectors with a 1 at the position of the correct class and 0s elsewhere.
+In the home price example, we would use the following three one-hot vectors for our classes:
+
+$$
+\begin{aligned}
+\text{“below asking”} &\;\to\; \bm{y} = [1,\, 0,\, 0]^\top \\
+\text{“above asking”} &\;\to\; \bm{y} = [0,\, 1,\, 0]^\top \\
+\text{“not sold”} &\;\to\; \bm{y} = [0,\, 0,\, 1]^\top
+\end{aligned}
+$$
+
+Note that the (Euclidean) distance between any two distinct one-hot vectors is always $\sqrt{2}$, thereby implying no order of any kind.
+As we will see later, one-hot vectors can also be interpreted as a probability distribution, where a given example's assigned class is given a probability of 1 and the remaining classes have probability 0.
+
+### From scores to probabilities
+
+To make a prediction, a softmax regression model first computes a **score** $o_j$ for each class via a linear transformation of the features:
+
+$$\bm{o} = \bm{W}\bm{x} + \bm{b}, \qquad \bm{W} \in \mathbb{R}^{K \times d},\;\; \bm{b} \in \mathbb{R}^K,\;\; \bm{o} \in \mathbb{R}^K$$
+
+For the running example ($K=3$, $d=4$), $\bm{W}$ has $3 \times 4 = 12$ entries and $\bm{b}$ has $3$, so the model has $15$ parameters in all.
+A larger score means the model considers that class more likely.
+Note that each of these scores are produced in essentially the same way as the scalar output of a linear regression model.
+To convert the set of predicted scores to a valid probability distribution (non-negative, summing to 1), we apply the **softmax function**:
+
+$$\operatorname{softmax}(\bm{o})_j = \frac{\exp(o_j)}{\displaystyle\sum_{k=1}^{K} \exp(o_k)}$$
+
+Since $\exp(o_j) \geq 0$ for all $j$, the output values of softmax are non-negative.
+Additionally, we have that 
+
+$$\sum_j \operatorname{softmax}(\bm{o})_j = \frac{\displaystyle \sum_{j = 1}^K \exp(o_j)}{\displaystyle\sum_{k=1}^{K} \exp(o_k)} = 1$$
+
+Consequently, the output of the softmax function forms a valid probability distribution.
+We therefore can write the full softmax regression model as
+
+$$P(y \mid \bm{x}) = \operatorname{softmax}(\bm{W}\bm{x} + \bm{b})$$
+
+Effectively, as a given class' score becomes higher, the model assigns a higher probability to that class and a lower probability to the other classes.
+
+
+```{=html}
+<div class="interactive-widget">
+<div class="widget-title">Softmax Explorer</div>
+```
+
+```{ojs}
+//| echo: false
+
+viewof smO1 = Inputs.range([-5, 5], {step: 0.1, value: 2.0, label: "Score o₁ (below asking)"})
+viewof smO2 = Inputs.range([-5, 5], {step: 0.1, value: 0.5, label: "Score o₂ (above asking)"})
+viewof smO3 = Inputs.range([-5, 5], {step: 0.1, value: -1.0, label: "Score o₃ (not sold)"})
+
+smSoftmax = scores => {
+  const m = Math.max(...scores)
+  const exps = scores.map(o => Math.exp(o - m))
+  const s = exps.reduce((a, b) => a + b, 0)
+  return exps.map(e => e / s)
+}
+
+smProbs = smSoftmax([smO1, smO2, smO3])
+
+smProbData = [
+  {label: "Class 1 (below)", prob: smProbs[0], score: smO1},
+  {label: "Class 2 (above)", prob: smProbs[1], score: smO2},
+  {label: "Class 3 (not sold)", prob: smProbs[2], score: smO3},
+]
+
+smPlot = Plot.plot({
+  width: 520, height: 200,
+  marginLeft: 140, marginBottom: 50,
+  style: {fontSize: "13px"},
+  x: {label: "softmax probability", domain: [0, 1], grid: true,
+      labelAnchor: "center", labelArrow: "none", labelOffset: 36},
+  y: {label: null},
+  color: {domain: ["Class 1 (below)", "Class 2 (above)", "Class 3 (not sold)"],
+          range: ["#5c6bc0", "#e53935", "#2e7d32"]},
+  marks: [
+    Plot.barX(smProbData, {x: "prob", y: "label", fill: "label", fillOpacity: 0.82}),
+    Plot.ruleX([0], {stroke: "#ccc"}),
+    Plot.text(smProbData, {
+      x: "prob", y: "label",
+      text: d => (d.prob * 100).toFixed(1) + "%",
+      dx: 6, fontSize: 11, textAnchor: "start", fill: "#333"
+    })
+  ]
+})
+
+smNote = html`<div style="font-size:0.8rem;color:#666;margin-top:0.5rem;">
+  Adjust the scores above to see how softmax maps arbitrary real values to probabilities.
+  Notice: only the <em>differences</em> between scores matter; adding a constant to all scores
+  leaves probabilities unchanged.
+</div>`
+
+html`${smPlot}${smNote}`
+```
+
+```{=html}
+</div>
+```
+
+---
+
+## Cross-Entropy Loss {#sec-cross-entropy}
+
+For linear regression, we used a squared error loss.
+While it is technically possible to use a squared error loss to train a softmax regression model, in practice it is much more common to use the cross-entropy loss.[^1]
+
+### From maximum likelihood to cross-entropy
+
+Recall that we can consider softmax regression as producing a probability distribution over classes conditioned on the input.
+A natural objective would therefore be to maximize the model's assigned probability to the *true* class over a dataset of labeled examples.
+Concretely, given $N$ training examples $\{(\bm{x}^{(i)}, \bm{y}^{(i)})\}_{i=1}^N$, we can start by aiming to maximize the joint likelihood:
+
+$$\max_{\bm{\theta}} \prod_{i=1}^{N} P_{\bm{\theta}}(y^{(i)} \mid \bm{x}^{(i)})$$
+
+It's typical to maximize the log likelihood instead, because the logarithm is a monotonic function (so the parameter values corresponding to the maximum don't change when you apply it) and because a product of probabilities can cause underflow and other numerical instabilities.
+Additionally, in machine learning we generally minimize a loss rather than maximize an objective.
+This leads to the minimization of the negative log-likelihood:
+
+$$\min_{\bm{\theta}} -\sum_{i=1}^{N} \log P_{\bm{\theta}}(y^{(i)} \mid \bm{x}^{(i)})$$
+
+We can write this in the following equivalent form:
+
+$$\min_{\bm{\theta}} -\sum_{i=1}^{N} \sum_{j=1}^{K} \bm{y}_j^{(i)} \log P_{\bm{\theta}}(y^{(i)} \mid \bm{x}^{(i)})$$
+
+by noting that $\bm{y}^{(i)}$ is one-hot.
+This final equation is the **cross-entropy loss**, a quantity from information theory that measures how "wrong" a probability distribution is relative to the ground truth.
+
+We can express the cross-entropy loss for a single example using the softmax regression model with scores $\bm{o} = \bm{W}\bm{x} + \bm{b}$ and one-hot label $\bm{y}$ as
+
+$$
+\begin{aligned}
+\mathcal{L}(\bm{y}, \hat{\bm{y}}) &= -\sum_j y_j \log \frac{\exp(o_j)}{\sum_k \exp(o_k)} \\
+&= \sum_j y_j \log \sum_k \exp(o_k) - \sum_j y_j o_j \\
+&= \log \sum_k \exp(o_k) \;-\; \sum_j y_j o_j
+\end{aligned}
+$$
+
+where the simplifications come from the quotient rule of the logarithm and the fact that $\sum_j y_j = 1$.
+To perform gradient descent, we only need one additional term compared to those used in linear regression: $\frac{d\mathcal{L}}{do_j}$.
+The reexpression above makes $\frac{d\mathcal{L}}{do_j}$ straightforward to derive:
+
+$$
+\begin{aligned}
+\frac{d\mathcal{L}}{do_j} &= \frac{d}{do_j}\!\left[\log \sum_k \exp(o_k)\right] - y_j \\
+& = \frac{\exp(o_j)}{\sum_k \exp(o_k)} - y_j \\
+&= \operatorname{softmax}(\bm{o})_j - y_j \\
+&= \hat{y}_j - y_j
+\end{aligned}
+$$
+
+which can be expressed in vector form as $\nabla_{\bm{o}} \mathcal{L} = \hat{\bm{y}} - \bm{y}$.
+Intuitively, the gradient of the cross-entropy loss for the softmax regression model is simply the gap between the predicted probability and the ground-truth label.
+When the model assigns all of its probability to the correct label, the gradient is zero; but as the model becomes more incorrect, the gradient increases.
+
+---
+
+[^1]: For some discussion of why the cross-entropy loss is a better choice, see [chapter 3 of Michael Nielson's Neural Networks and Deep Learning](http://neuralnetworksanddeeplearning.com/chap3.html#the_cross-entropy_cost_function).
+
+---
+
+## Acknowledgement
+
+These notes follow the structure and content of the [Deep Learning lecture notes](https://r-three.github.io/deep-learning-lecture-notes/) by Colin Raffel and the r-three group (MIT license).
