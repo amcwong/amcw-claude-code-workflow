@@ -85,6 +85,14 @@ If `COURSE.md` still has blank font/colour tokens after Week 1, write the navy d
 
 From `courses/<slug>/`, run `quarto render`. If `quarto` is missing, stop with the same install hint as `/deploy` (`TROUBLESHOOTING.md`). Do not invent a second HTML SoT. Open `_site/lectures/weekNN.html` (or tell the user to).
 
+Then score the new chapter with the **book** rubric (not the RevealJS slide rubric):
+
+```bash
+python3 scripts/quality_score.py courses/<slug>/lectures/weekNN.qmd
+```
+
+If the score is below 80, fix display-math splits, SVG title clearance, or CSS before telling the user the week is ready. Do not treat a horizontal scrollbar as a pass.
+
 #### Phase 4 — Stop for human review
 
 Do not run the auditor yet unless the user already asked for `audit` in the same invocation and did not pass `--no-audit`. Tell them to read the week `.qmd` and the rendered chapter, fold repeat complaints into `COURSE.md` (or `/learn` as `[LEARN:course-notes]`), then `/course-notes audit <slug>` and `/commit` when ready.

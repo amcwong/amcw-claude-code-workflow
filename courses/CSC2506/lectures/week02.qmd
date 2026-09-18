@@ -29,16 +29,24 @@ If our goal is to minimize the expected number of mistakes, this suggests pickin
 **Definition.** A **decision region** $\mathcal{R}_k$ is a subset of the input space such that every $x \in \mathcal{R}_k$ is assigned to class $\mathcal{C}_k$. The decision regions partition the input space.
 :::
 
+For a single continuous input and two classes, a decision rule reduces to one cut point. Call it $\hat x$, the **decision boundary**: everything left of $\hat x$ falls in $\mathcal{R}_1$ and is assigned to $\mathcal{C}_1$, everything at or right of $\hat x$ falls in $\mathcal{R}_2$ and is assigned to $\mathcal{C}_2$. Sliding $\hat x$ left or right trades one kind of error for the other: moving it right shrinks $\mathcal{R}_2$ and enlarges $\mathcal{R}_1$, so fewer points are wrongly called $\mathcal{C}_2$ but more are wrongly called $\mathcal{C}_1$, and vice versa. The question this section answers is which placement of $\hat x$ minimizes the total probability of a mistake.
+
 For two classes, the probability of a mistake is the probability that $x$ lands in the wrong region:
 
-$$p(\text{mistake}) = \underbrace{\int_{\mathcal{R}_1} p(x, \mathcal{C}_2)\,dx}_{\text{true class } \mathcal{C}_2\text{, assigned } \mathcal{C}_1} + \underbrace{\int_{\mathcal{R}_2} p(x, \mathcal{C}_1)\,dx}_{\text{true class } \mathcal{C}_1\text{, assigned } \mathcal{C}_2}.$$
+$$p(\text{mistake}) = I_1 + I_2,$$
 
-Since the regions are disjoint, we can minimize this quantity region by region: for a given $x$, assign it to $\mathcal{C}_1$ whenever $p(x,\mathcal{C}_1) > p(x,\mathcal{C}_2)$, and to $\mathcal{C}_2$ otherwise. Using the product rule $p(x,\mathcal{C}_k) = p(\mathcal{C}_k \mid x)\,p(x)$, this is the same as assigning $x$ to whichever class has the larger posterior $p(\mathcal{C}_k \mid x)$. That confirms the rule suggested in the previous section, and shows it is optimal for this particular objective.
+$$I_1 = \int_{\mathcal{R}_1} p(x, \mathcal{C}_2)\,dx,$$
+
+$$I_2 = \int_{\mathcal{R}_2} p(x, \mathcal{C}_1)\,dx.$$
+
+$I_1$ is the probability of assigning $\mathcal{C}_1$ when the true class is $\mathcal{C}_2$; $I_2$ is the other direction.
+
+Since the regions are disjoint, we can minimize this quantity region by region: for a given $x$, assign it to $\mathcal{C}_1$ whenever $p(x,\mathcal{C}_1) > p(x,\mathcal{C}_2)$, and to $\mathcal{C}_2$ otherwise. Using the product rule $p(x,\mathcal{C}_k) = p(\mathcal{C}_k \mid x)\,p(x)$, this is the same as assigning $x$ to whichever class has the larger posterior $p(\mathcal{C}_k \mid x)$. That confirms the rule suggested in the previous section, and shows it is optimal for this particular objective: the best placement for $\hat x$ is exactly the point where $p(x,\mathcal{C}_1) = p(x,\mathcal{C}_2)$, the crossing of the two densities. Moving $\hat x$ away from that crossing in either direction only grows the mistake probability, because it starts including a stretch of $x$ on the wrong side of the posterior comparison.
 
 ```{=html}
 <div style="overflow-x:auto; margin:1.5rem 0;">
 <svg viewBox="0 0 640 300" width="100%" style="max-width:640px;display:block;margin:auto;font-family:Helvetica,'Helvetica Neue',Arial,sans-serif;" role="img" aria-label="Two overlapping class densities with a decision boundary splitting the input space into two regions">
-  <text x="320" y="26" text-anchor="middle" font-size="18" font-weight="600" fill="#333">Decision regions from two overlapping densities</text>
+  <text x="320" y="28" text-anchor="middle" font-size="24" font-weight="600" fill="#333">Decision regions from two overlapping densities</text>
   <path d="M 40 240 C 120 240 130 60 190 60 C 250 60 260 240 340 240" fill="none" stroke="#5795C7" stroke-width="2.5"/>
   <path d="M 140 240 C 220 240 250 100 340 100 C 430 100 460 240 560 240" fill="none" stroke="#C75794" stroke-width="2.5"/>
   <line x1="270" y1="45" x2="270" y2="245" stroke="#555" stroke-width="1.5" stroke-dasharray="5,4"/>
@@ -57,21 +65,56 @@ Since the regions are disjoint, we can minimize this quantity region by region: 
 
 ## Expected loss {#sec-loss}
 
-Minimizing the raw count of mistakes treats every kind of mistake as equally bad, which is rarely realistic. In the cancer-screening example, missing an actual cancer (predicting healthy when the patient is sick) is far worse than a false alarm (predicting cancer when the patient is healthy).
+Minimizing the raw count of mistakes treats every kind of mistake as equally bad, which is rarely realistic. In the cancer-screening example, missing an actual cancer (predicting healthy when the patient is sick) is far worse than a false alarm (predicting cancer when the patient is healthy). The misclassification rate of @sec-misclass cannot tell these two kinds of error apart: it counts them both as one mistake. A **loss function** fixes this by attaching a separate cost to each combination of true class and decision.
 
 ::: {.definition-block}
 **Definition.** A **loss function** assigns a cost $L_{kj}$ to deciding class $\mathcal{C}_j$ when the true class is $\mathcal{C}_k$ (the $(k,j)$ entry of a **loss matrix**). The **expected loss** of a choice of decision regions is
 $$\mathbb{E}[L] = \sum_k \sum_j \int_{\mathcal{R}_j} L_{kj}\, p(x, \mathcal{C}_k)\, dx.$$
 :::
 
+Read the definition of $\mathbb{E}[L]$ one piece at a time. The double sum $\sum_k \sum_j$ runs over every (true class, decision) pair, so it visits every cell of the loss matrix once. For a fixed pair $(k,j)$, the inner integral $\int_{\mathcal{R}_j} p(x,\mathcal{C}_k)\,dx$ is the probability that $x$ both falls in the region we decide is $\mathcal{C}_j$ and truly belongs to $\mathcal{C}_k$: exactly the rate at which that particular $(k,j)$ outcome happens. Multiplying by $L_{kj}$ converts that rate into a cost, and summing over every $(k,j)$ pair adds up the cost contributed by every possible outcome, correct calls included (their loss is normally 0, so they drop out). $\mathbb{E}[L]$ is a weighted version of $p(\text{mistake})$ from @sec-misclass: instead of every error counting for 1, each error counts for whatever $L_{kj}$ says it costs.
+
 For the cancer example, the lecture's loss matrix charges 1000 for missing an actual cancer (true cancer, decided normal) and only 1 for a false alarm (true normal, decided cancer), with 0 loss for a correct call:
 
-| Truth \ Decision | cancer | normal |
-| --- | --- | --- |
-| cancer | 0 | 1000 |
-| normal | 1 | 0 |
+```{=html}
+<div style="overflow-x:auto; margin:1.2rem 0;">
+<table style="width:auto; border-collapse:collapse;">
+  <thead>
+    <tr>
+      <th style="background:transparent; border:none;"></th>
+      <th style="background:transparent; border:none;"></th>
+      <th colspan="2" style="text-align:center;">Decision</th>
+    </tr>
+    <tr>
+      <th style="background:transparent; border:none;"></th>
+      <th style="background:transparent; border:none;"></th>
+      <th style="text-align:center;">cancer</th>
+      <th style="text-align:center;">normal</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <th rowspan="2" style="background:var(--cn-navy); color:#fff; writing-mode:vertical-rl; transform:rotate(180deg); text-align:center; padding:0.5rem;">Truth</th>
+      <th style="background:var(--cn-navy); color:#fff; text-align:left; padding:0.45rem 0.9rem;">cancer</th>
+      <td style="text-align:center;">0</td>
+      <td style="text-align:center;">1000</td>
+    </tr>
+    <tr>
+      <th style="background:var(--cn-navy); color:#fff; text-align:left; padding:0.45rem 0.9rem;">normal</th>
+      <td style="text-align:center;">1</td>
+      <td style="text-align:center;">0</td>
+    </tr>
+  </tbody>
+</table>
+</div>
+```
 
-This asymmetry pulls the optimal boundary toward calling more borderline cases "cancer," since a false alarm is 1000 times cheaper than a miss.
+Plugging this matrix into the definition of $\mathbb{E}[L]$ leaves only two non-zero terms, since $L_{\text{cancer},\text{cancer}} = L_{\text{normal},\text{normal}} = 0$:
+
+$$\mathbb{E}[L] = 1000 \int_{\mathcal{R}_{\text{normal}}} p(x,\mathcal{C}_{\text{cancer}})\,dx$$
+$${}+ \int_{\mathcal{R}_{\text{cancer}}} p(x,\mathcal{C}_{\text{normal}})\,dx.$$
+
+The first term is the rate of missed cancers, weighted 1000 times over; the second is the rate of false alarms, weighted only once. A decision rule with a *higher* misclassification rate can still have *lower* expected loss than one with a lower misclassification rate, if it makes its mistakes on the cheap side (false alarms) rather than the expensive side (misses). This asymmetry pulls the optimal boundary toward calling more borderline cases "cancer": every point $x$ shifted out of $\mathcal{R}_{\text{normal}}$ and into $\mathcal{R}_{\text{cancer}}$ trades a chance at a 1000-cost miss for at most a 1-cost false alarm, which is a good trade unless that $x$ is overwhelmingly more likely to be a true negative.
 
 ## The discriminant rule and the reject option {#sec-discriminant}
 
@@ -91,13 +134,60 @@ Setting every off-diagonal $L_{kj} = 1$ and every diagonal $L_{kk} = 0$ recovers
 
 Some inputs sit in a region of genuine uncertainty, where the posteriors of the leading classes are close. Rather than force a decision, we can decline to decide whenever the largest posterior falls below a threshold $\theta$. This is the **reject option**: the reject region is exactly where every $p(\mathcal{C}_k \mid x) < \theta$.
 
+::: {.callout-note}
+**Practice question.** Return to the cancer-screening loss matrix from @sec-loss. For a particular X-ray, the estimated posteriors are $p(\mathcal{C}_{\text{cancer}} \mid x) = 0.2$ and $p(\mathcal{C}_{\text{normal}} \mid x) = 0.8$. Which decision does the discriminant rule make? Compare this to what the plain misclassification-rate rule from @sec-misclass would decide.
+
+**Solution.** The discriminant rule compares the two costs $\sum_k L_{kj}\,p(\mathcal{C}_k\mid x)$, one for each candidate decision $j$:
+$$\text{cost(decide cancer)} = L_{\text{cancer,cancer}}(0.2) + L_{\text{normal,cancer}}(0.8) = 0(0.2) + 1(0.8) = 0.8,$$
+$$\text{cost(decide normal)} = L_{\text{cancer,normal}}(0.2) + L_{\text{normal,normal}}(0.8) = 1000(0.2) + 0(0.8) = 200.$$
+The rule picks whichever cost is smaller, so it decides **cancer**, even though $p(\mathcal{C}_{\text{cancer}}\mid x) = 0.2$ is well under one half. The misclassification-rate rule, which only compares posteriors directly, would have decided **normal** since $0.8 > 0.2$. The two rules disagree precisely because the loss matrix charges 1000 times more for a missed cancer than for a false alarm, so a small chance of cancer is still worth acting on.
+
+Now suppose a second X-ray gives posteriors $p(\mathcal{C}_{\text{cancer}}\mid x) = 0.48$ and $p(\mathcal{C}_{\text{normal}}\mid x) = 0.52$, with a reject threshold $\theta = 0.6$. Neither posterior clears $\theta$, so the reject option applies: rather than force a call, we decline to decide and send the case for a second test.
+:::
+
 ## Loss functions for regression {#sec-regression}
 
 The same reasoning applies when the target $t$ is continuous rather than a discrete class. Now the joint is $p(x,t)$, and instead of decision regions we look for a **regression function** $y(x)$ that approximates $t$. Using the squared loss $L(y(x), t) = (y(x)-t)^2$, the goal is to minimize
 
 $$\mathbb{E}[L] = \int\!\!\int (y(x) - t)^2\, p(x,t)\, dx\, dt.$$
 
-Adding and subtracting $\mathbb{E}[t \mid x]$ inside the square, and expanding, splits this into two non-negative pieces plus a cross term. The cross term integrates to zero because $\int (\mathbb{E}[t\mid x] - t)\, p(t\mid x)\, dt = 0$ by the definition of conditional expectation. What remains is
+The rest of this section works through that minimization one algebraic step at a time.
+
+**Step 1: add and subtract $\mathbb{E}[t\mid x]$.** Adding zero never changes a quantity, and $\mathbb{E}[t\mid x] - \mathbb{E}[t\mid x] = 0$, so we can insert it inside the square without changing $\mathbb{E}[L]$:
+
+$$\mathbb{E}[L] = \int\!\!\int \big(y(x) - \mathbb{E}[t\mid x] + \mathbb{E}[t\mid x] - t\big)^2\, p(x,t)\, dx\, dt.$$
+
+This looks like it made things worse, but it regroups the single quantity $y(x)-t$ into two pieces, $u = y(x) - \mathbb{E}[t\mid x]$ (how far our predictor is from the conditional mean) and $v = \mathbb{E}[t\mid x] - t$ (how far the conditional mean is from the actual target), so that $y(x) - t = u + v$.
+
+**Step 2: expand the square.** Using $(u+v)^2 = u^2 + 2uv + v^2$ and distributing the double integral over the three resulting terms:
+
+$$\mathbb{E}[L] = A + B + C,$$
+
+where
+
+$$\text{term A} = \int\!\!\int u^2 p(x,t)\,dx\,dt,$$
+
+$$\text{term B} = \int\!\!\int v^2 p(x,t)\,dx\,dt,$$
+
+$$\text{term C} = 2\int\!\!\int u v\, p(x,t)\,dx\,dt.$$
+
+Terms A and B are each a squared quantity times a density, so both are non-negative no matter what $y(x)$ is. Term C is the only one whose sign is not yet obvious, which is what the next step settles. Substituting back $u = y(x)-\mathbb{E}[t\mid x]$ and $v = \mathbb{E}[t\mid x]-t$ recovers the expanded integrals if you want them written without $u$ and $v$.
+
+**Step 3: show term C is zero.** Factor the joint using the product rule, $p(x,t) = p(t\mid x)\,p(x)$, exactly the manoeuvre from Week 1's Bayes' rule:
+
+$$\text{term C} = 2\int\!\!\int \big(y(x) - \mathbb{E}[t\mid x]\big)\big(\mathbb{E}[t\mid x] - t\big)\, p(t\mid x)\, p(x)\, dx\, dt.$$
+
+The factor $y(x) - \mathbb{E}[t\mid x]$ does not involve $t$ at all, so for each fixed $x$ it can be pulled out of the inner integral over $t$:
+
+$$\text{term C} = 2\int \big(y(x) - \mathbb{E}[t\mid x]\big) \left\{ \int \big(\mathbb{E}[t\mid x] - t\big)\, p(t\mid x)\, dt \right\} p(x)\, dx.$$
+
+The braced inner integral is $\mathbb{E}[t\mid x]$ (a constant, for fixed $x$) minus $\int t\,p(t\mid x)\,dt$, which is $\mathbb{E}[t\mid x]$ itself by the definition of conditional expectation. The two copies cancel:
+
+$$\int \big(\mathbb{E}[t\mid x] - t\big)\, p(t\mid x)\, dt = \mathbb{E}[t\mid x] - \mathbb{E}[t\mid x] = 0.$$
+
+That zero holds for every $x$, so the outer integral over $x$ in term C is an integral of zero, which is zero: $\text{term C} = 0$.
+
+**Step 4: read off the decomposition.** With term C gone, only the two non-negative pieces remain:
 
 $$\mathbb{E}[L] = \int\!\!\int \big(y(x) - \mathbb{E}[t\mid x]\big)^2 p(x,t)\, dx\, dt \;+\; \int\!\!\int \big(\mathbb{E}[t\mid x] - t\big)^2 p(x,t)\, dx\, dt.$$
 
@@ -109,13 +199,39 @@ $$y(x) = \mathbb{E}[t \mid x].$$
 
 The best regression function, under squared loss, is the conditional expectation of the target given the input. This parallels @sec-discriminant: in classification the loss-minimizing rule routed everything through the posterior $p(\mathcal{C}_k\mid x)$; here it routes everything through the conditional mean $\mathbb{E}[t\mid x]$.
 
+::: {.callout-note}
+**Practice question.** Fix an input $x$. Given that $x$, the target $t$ takes the values $2$, $4$, and $9$, each with probability $\tfrac{1}{3}$. Compare the expected squared loss of the predictor $y(x) = 4$ against the predictor $y(x) = \mathbb{E}[t\mid x]$, and confirm the theorem above by checking which is smaller.
+
+**Solution.** First compute the conditional mean: $\mathbb{E}[t\mid x] = \tfrac{1}{3}(2+4+9) = 5$. For $y(x)=4$,
+$$\mathbb{E}[L] = \tfrac{1}{3}\big[(4-2)^2+(4-4)^2+(4-9)^2\big] = \tfrac{1}{3}(4+0+25) = \tfrac{29}{3} \approx 9.67.$$
+For $y(x)=\mathbb{E}[t\mid x]=5$,
+$$\mathbb{E}[L] = \tfrac{1}{3}\big[(5-2)^2+(5-4)^2+(5-9)^2\big] = \tfrac{1}{3}(9+1+16) = \tfrac{26}{3} \approx 8.67.$$
+The conditional mean gives the smaller expected loss, as the theorem guarantees it must for *any* competing choice of $y(x)$, not only $y(x)=4$.
+:::
+
 ## Why factor the joint {#sec-factoring}
 
-Section 2 of Week 1 introduced the joint distribution $p(H,Y)$ for two variables. The same idea scales badly: for $N$ binary variables $x_1,\dots,x_N$, specifying $p(x_1,\dots,x_N)$ in full takes $2^N - 1$ free parameters (one per outcome, minus one for the constraint that probabilities sum to 1). This is exact for any distribution, since the chain rule lets us write the joint, for **any** ordering of the variables, as
+This section's title asks a specific question: why bother rewriting a joint distribution as a product of conditional factors, rather than just writing down the joint directly? The answer, worked out below, is that writing it down directly does not scale, and factoring is the way out.
+
+Section 2 of Week 1 introduced the joint distribution $p(H,Y)$ for two variables (@sec-joint): a table listing the probability of every combination of outcomes of $H$ and $Y$. That same idea, listing one probability per combination of outcomes, is what scales badly once there are many variables instead of two. For $N$ binary variables $x_1,\dots,x_N$, specifying $p(x_1,\dots,x_N)$ in full means a table with one row per combination of outcomes, and there are $2^N$ such combinations.
+
+Not every entry in that table can be chosen freely, though. A **free parameter** is a number we are actually at liberty to set, independent of the others already fixed. Since all $2^N$ table entries are probabilities that must sum to 1, only $2^N-1$ of them are free: once any $2^N-1$ entries are chosen, the last one is forced, because the whole table still has to add up to 1. So the joint over $N$ binary variables costs $2^N-1$ free parameters, not $2^N$.
+
+This exact cost holds for any distribution, since the chain rule lets us rewrite the joint, for **any** ordering of the variables, as
 
 $$p(x_1,\dots,x_N) = \prod_{j=1}^N p(x_j \mid x_1,\dots,x_{j-1}),$$
 
-with $p(x_1\mid x_0) := p(x_1)$. Nothing has been assumed yet: this factorization is always available and always exact, and it still costs $2^N-1$ parameters in general, because $p(x_j\mid x_1,\dots,x_{j-1})$ is itself a table with $2^{j-1}$ rows. The only way to reduce the parameter count is to assume that some of these conditionals do not really depend on all of their conditioning variables, i.e. to assume conditional independencies. Directed graphical models are a bookkeeping device for exactly this.
+with $p(x_1\mid x_0) := p(x_1)$. Nothing has been assumed yet: this factorization is always available and always exact, and it still costs $2^N-1$ parameters in total, because $p(x_j\mid x_1,\dots,x_{j-1})$ is itself a table with $2^{j-1}$ rows, one row per possible setting of the $j-1$ conditioning variables $x_1,\dots,x_{j-1}$.
+
+For a concrete instance, take $N=4$ binary variables and look at the third factor, $p(x_3\mid x_1,x_2)$. Its conditioning variables $x_1,x_2$ can each be 0 or 1, giving $2^2=4$ possible settings: $(0,0)$, $(0,1)$, $(1,0)$, $(1,1)$. The factor needs one row of its table for each of those four settings, e.g. a row giving $p(x_3=1\mid x_1{=}0,x_2{=}1)$, since that number can differ for every setting of $(x_1,x_2)$. (Within each row only one number is free, since $p(x_3=0\mid x_1,x_2) = 1-p(x_3=1\mid x_1,x_2)$, so the factor as a whole has 4 free parameters, matching $2^{j-1}=2^{3-1}=4$ for $j=3$.) The same pattern applies to every factor: $p(x_j\mid x_1,\dots,x_{j-1})$ needs $2^{j-1}$ rows because that is how many settings its $j-1$ conditioning variables can take, and adding up $2^{j-1}$ across $j=1,\dots,N$ is exactly what reproduces the $2^N-1$ total from two paragraphs above.
+
+The only way to reduce the parameter count below $2^N-1$ is to assume that some of these conditionals do not really depend on all of their conditioning variables, i.e. to assume conditional independencies. Directed graphical models are a bookkeeping device for exactly this.
+
+::: {.callout-note}
+**Practice question.** For $N=4$ binary variables $x_1,x_2,x_3,x_4$, how many parameters does the general chain-rule factorization need? Now suppose we are willing to assume that $x_4$ depends only on $x_3$, not on $x_1$ or $x_2$, so that $p(x_4\mid x_1,x_2,x_3)$ is replaced by $p(x_4\mid x_3)$ while every other factor stays as general as before. How many parameters does the factorization need now?
+
+**Solution.** With no assumptions, the chain rule gives $p(x_1)p(x_2\mid x_1)p(x_3\mid x_1,x_2)p(x_4\mid x_1,x_2,x_3)$, whose tables need $1 + 2 + 4 + 8 = 15$ parameters, matching $2^4-1=15$ exactly, since nothing has been assumed away yet. Replacing the last factor with $p(x_4\mid x_3)$ shrinks its table from $2^3=8$ parameters (one per configuration of three parents) to $2^1=2$ (one per configuration of a single parent), for a new total of $1+2+4+2=9$ parameters. Dropping the dependence on just two conditioning variables in the last factor already saves 6 parameters out of 15, and the saving grows quickly with $N$ since the dropped table shrinks exponentially in the number of variables removed.
+:::
 
 ## Directed graphical models {#sec-dag}
 
@@ -129,36 +245,42 @@ This is the same chain-rule factorization as @sec-factoring, restricted so that 
 
 ```{=html}
 <div style="overflow-x:auto; margin:1.5rem 0;">
-<svg viewBox="0 0 520 260" width="100%" style="max-width:520px;display:block;margin:auto;font-family:Helvetica,'Helvetica Neue',Arial,sans-serif;" role="img" aria-label="A six-node DAG with x1 as root branching into two chains that both feed x6">
+<svg viewBox="0 0 520 310" width="100%" style="max-width:520px;display:block;margin:auto;font-family:Helvetica,'Helvetica Neue',Arial,sans-serif;" role="img" aria-label="A six-node DAG with x1 as root branching into two chains that both feed x6">
   <defs>
     <marker id="arrD" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto">
       <path d="M0,0 L0,7 L7,3.5 z" fill="#555"/>
     </marker>
   </defs>
-  <text x="260" y="24" text-anchor="middle" font-size="17" font-weight="600" fill="#333">A DAG and its factorization</text>
-  <circle cx="60" cy="140" r="26" fill="#C6DEF1" stroke="#5795C7" stroke-width="1.5"/>
-  <text x="60" y="145" text-anchor="middle" font-size="15" fill="#205279">x1</text>
-  <circle cx="200" cy="70" r="26" fill="#C9E4DE" stroke="#57C7AE" stroke-width="1.5"/>
-  <text x="200" y="75" text-anchor="middle" font-size="15" fill="#207965">x2</text>
-  <circle cx="200" cy="210" r="26" fill="#C9E4DE" stroke="#57C7AE" stroke-width="1.5"/>
-  <text x="200" y="215" text-anchor="middle" font-size="15" fill="#207965">x3</text>
-  <circle cx="340" cy="40" r="26" fill="#FAEDCB" stroke="#C7A857" stroke-width="1.5"/>
-  <text x="340" y="45" text-anchor="middle" font-size="15" fill="#796020">x4</text>
-  <circle cx="340" cy="210" r="26" fill="#FAEDCB" stroke="#C7A857" stroke-width="1.5"/>
-  <text x="340" y="215" text-anchor="middle" font-size="15" fill="#796020">x5</text>
-  <circle cx="460" cy="125" r="26" fill="#F7D9C4" stroke="#C78557" stroke-width="1.5"/>
-  <text x="460" y="130" text-anchor="middle" font-size="15" fill="#794520">x6</text>
-  <line x1="82" y1="128" x2="176" y2="84" stroke="#555" stroke-width="1.5" marker-end="url(#arrD)"/>
-  <line x1="82" y1="152" x2="176" y2="198" stroke="#555" stroke-width="1.5" marker-end="url(#arrD)"/>
-  <line x1="222" y1="60" x2="316" y2="46" stroke="#555" stroke-width="1.5" marker-end="url(#arrD)"/>
-  <line x1="222" y1="200" x2="316" y2="212" stroke="#555" stroke-width="1.5" marker-end="url(#arrD)"/>
-  <line x1="224" y1="82" x2="440" y2="115" stroke="#555" stroke-width="1.5" marker-end="url(#arrD)"/>
-  <line x1="224" y1="198" x2="440" y2="140" stroke="#555" stroke-width="1.5" marker-end="url(#arrD)"/>
+  <text x="260" y="32" text-anchor="middle" font-size="24" font-weight="600" fill="#333">A DAG and its factorization</text>
+  <circle cx="60" cy="190" r="26" fill="#C6DEF1" stroke="#5795C7" stroke-width="1.5"/>
+  <text x="60" y="195" text-anchor="middle" font-size="15" fill="#205279">x1</text>
+  <circle cx="200" cy="120" r="26" fill="#C9E4DE" stroke="#57C7AE" stroke-width="1.5"/>
+  <text x="200" y="125" text-anchor="middle" font-size="15" fill="#207965">x2</text>
+  <circle cx="200" cy="260" r="26" fill="#C9E4DE" stroke="#57C7AE" stroke-width="1.5"/>
+  <text x="200" y="265" text-anchor="middle" font-size="15" fill="#207965">x3</text>
+  <circle cx="340" cy="90" r="26" fill="#FAEDCB" stroke="#C7A857" stroke-width="1.5"/>
+  <text x="340" y="95" text-anchor="middle" font-size="15" fill="#796020">x4</text>
+  <circle cx="340" cy="260" r="26" fill="#FAEDCB" stroke="#C7A857" stroke-width="1.5"/>
+  <text x="340" y="265" text-anchor="middle" font-size="15" fill="#796020">x5</text>
+  <circle cx="460" cy="175" r="26" fill="#F7D9C4" stroke="#C78557" stroke-width="1.5"/>
+  <text x="460" y="180" text-anchor="middle" font-size="15" fill="#794520">x6</text>
+  <line x1="82" y1="178" x2="176" y2="134" stroke="#555" stroke-width="1.5" marker-end="url(#arrD)"/>
+  <line x1="82" y1="202" x2="176" y2="248" stroke="#555" stroke-width="1.5" marker-end="url(#arrD)"/>
+  <line x1="222" y1="110" x2="316" y2="96" stroke="#555" stroke-width="1.5" marker-end="url(#arrD)"/>
+  <line x1="222" y1="250" x2="316" y2="262" stroke="#555" stroke-width="1.5" marker-end="url(#arrD)"/>
+  <line x1="224" y1="132" x2="440" y2="165" stroke="#555" stroke-width="1.5" marker-end="url(#arrD)"/>
+  <line x1="224" y1="248" x2="440" y2="190" stroke="#555" stroke-width="1.5" marker-end="url(#arrD)"/>
 </svg>
 </div>
 ```
 
 **Figure 2.** A DAG on six nodes. Reading parents off the picture gives the factorization $p(x_1,\dots,x_6) = p(x_1)\,p(x_2\mid x_1)\,p(x_3\mid x_1)\,p(x_4\mid x_2)\,p(x_5\mid x_3)\,p(x_6\mid x_2,x_5)$: each factor's conditioning set is exactly its incoming arrows, not every earlier node.
+
+::: {.callout-note}
+**Practice question.** For the DAG in Figure 2, treat every node as binary. How many parameters does each node's CPT need, and what is the total across the whole graph? How does that total compare to the $2^6-1$ a fully-connected DAG on six nodes would need?
+
+**Solution.** Read the parent count straight off the arrows into each node: $x_1$ has no parents ($K=0$, so $2^0=1$ parameter); $x_2$ and $x_3$ each have one parent, $x_1$ ($K=1$, $2^1=2$ parameters each); $x_4$ has one parent, $x_2$ ($2$ parameters); $x_5$ has one parent, $x_3$ ($2$ parameters); $x_6$ has two parents, $x_2$ and $x_5$ ($K=2$, $2^2=4$ parameters). Summing these, $1+2+2+2+2+4=13$ parameters for the whole graph, against $2^6-1=63$ for the fully-connected case. The savings come entirely from $x_6$'s CPT: it depends on $x_2$ and $x_5$ but not on $x_1$, $x_3$, or $x_4$, which is exactly the kind of assumption @sec-factoring said was the only way to cut the parameter count.
+:::
 
 ## Conditional independence: three canonical structures {#sec-cistructures}
 
@@ -180,6 +302,20 @@ Again $X \perp Z \mid Y$: two effects of a shared cause become independent once 
 **Explaining away** ($X \to Y \leftarrow Z$). The joint factors as $p(x)p(z)p(y\mid x,z)$, and now
 $$p(z\mid x,y) = \frac{p(x)p(z)p(y\mid x,z)}{p(x)p(y\mid x)} = \frac{p(z)p(y\mid x,z)}{p(y\mid x)} \neq p(z\mid y)$$
 in general. $X$ and $Z$ are marginally independent (with $Y$ unobserved), but conditioning on their common effect $Y$ can make them dependent: learning that it rained ($X$) makes a ballgame ($Z$) a less likely explanation for heavy traffic ($Y$), even though rain and ballgames have nothing to do with each other on their own.
+
+::: {.callout-note}
+**Practice question.** Three variables from the lecture's own examples exercise each structure in turn. For each, say which structure it is and whether the two outer variables are independent, both before and after conditioning on the middle one.
+
+1. Low pressure ($X$) $\to$ rain ($Y$) $\to$ traffic ($Z$).
+2. A project deadline ($Y$) makes the forums busy ($X$) and, separately, fills up the lab ($Z$): $X \leftarrow Y \to Z$.
+3. Rain ($X$) and a ballgame ($Z$) both feed into traffic ($Y$): $X \to Y \leftarrow Z$.
+
+**Solution.**
+
+1. **Causal chain.** Marginally, $X$ and $Z$ are dependent (low pressure raises the chance of rain, which raises the chance of traffic). Conditioned on $Y$ (we already know whether it is raining), $X$ tells us nothing more about $Z$: $X \perp Z \mid Y$, exactly the causal-chain result above.
+2. **Common cause.** Marginally, $X$ and $Z$ are dependent: busy forums are a signal that the deadline is near, which makes a full lab more likely too, so the two are correlated through the shared cause even though neither directly affects the other. Conditioned on $Y$ (we already know whether the deadline is near), that shared explanation is used up, and $X \perp Z \mid Y$.
+3. **Explaining away.** Marginally, $X$ and $Z$ are independent: whether it rains has nothing to do with whether there is a ballgame. But conditioned on $Y$ (we observe heavy traffic), they become dependent: learning it rained makes the ballgame a less likely explanation for the traffic, and vice versa. This is the one structure where conditioning on the middle node *creates* a dependency rather than removing one, which is why it is the case worth double-checking whenever a homework or the Bayes Ball algorithm below asks about a head-to-head node.
+:::
 
 ## The Bayes Ball algorithm {#sec-bayesball}
 
@@ -220,7 +356,9 @@ with $1 + 2d$ parameters: linear in $d$ instead of exponential. The assumption i
 **Maximum likelihood.** Parameterize $p(C{=}1) = \pi$ and $p(X_j{=}1\mid C{=}c) = \theta_{jc}$. Given $N$ i.i.d. labelled texts $(x^{(i)}, c^{(i)})$, the log-likelihood factors, by the same independence assumption, into a sum of Bernoulli log-likelihoods: one for the labels (governed by $\pi$) and one per word per class (governed by $\theta_{jc}$):
 $$\ell(\theta) = \sum_{i=1}^N \log p(c^{(i)}) \;+\; \sum_{j=1}^d \sum_{i=1}^N \log p(x_j^{(i)} \mid c^{(i)}).$$
 Each piece is a Bernoulli log-likelihood of exactly the shape solved in Week 1 (@sec-mle): $p(c^{(i)}) = \pi^{c^{(i)}}(1-\pi)^{1-c^{(i)}}$ and $p(x_j^{(i)}\mid c) = \theta_{jc}^{x_j^{(i)}}(1-\theta_{jc})^{1-x_j^{(i)}}$. Setting each derivative to zero reproduces the Week 1 pattern, $\hat\theta_{\text{MLE}} = \frac{1}{N}\sum_i x^{(i)}$, applied separately to each piece:
-$$\hat\pi = \frac{\sum_i \mathbb{1}[c^{(i)}=1]}{N} = \frac{\#\text{ spam texts}}{\#\text{ texts}}, \qquad \hat\theta_{jc} = \frac{\sum_i \mathbb{1}[x_j^{(i)}=1 \,\&\, c^{(i)}=c]}{\sum_i \mathbb{1}[c^{(i)}=c]} = \frac{\#\text{ times word } j \text{ appears in class } c}{\#\text{ texts in class } c}.$$
+$$\hat\pi = \frac{\sum_i \mathbb{1}[c^{(i)}=1]}{N} = \frac{\#\text{ spam texts}}{\#\text{ texts}},$$
+$$\hat\theta_{jc} = \frac{\sum_i \mathbb{1}[x_j^{(i)}=1 \,\&\, c^{(i)}=c]}{\sum_i \mathbb{1}[c^{(i)}=c]}.$$
+In words, $\hat\theta_{jc}$ is the fraction of class-$c$ texts in which word $j$ appears.
 Each MLE is again an observed relative frequency, exactly as in the Bernoulli case: the independence assumption did not change *how* we estimate parameters, only *how many* there are to estimate.
 
 ## DGMs in the wild, briefly {#sec-wilddgm}

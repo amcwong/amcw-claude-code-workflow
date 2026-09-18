@@ -33,7 +33,7 @@ Write calmly and precisely, as a knowledgeable person explaining something to a 
 
 ## Figures (SVG in the `.qmd`)
 
-Inline SVG in `` ```{=html} `` blocks. Helvetica, `'Helvetica Neue', Arial, sans-serif` on the outer `<svg>`. Title ≥ 24px, labels ≥ 16px, nothing below 14px. Never screenshots of lecture slides.
+Inline SVG in `` ```{=html} `` blocks. Helvetica, `'Helvetica Neue', Arial, sans-serif` on the outer `<svg>`. Title ≥ 24px, labels ≥ 16px, nothing below 14px. Never screenshots of lecture slides. Leave a **title band** under the title (`y` from roughly `title_y - font-size` to `title_y + 8`) with no nodes in it — the notes scorer treats a shape in that band as overflow.
 
 **Pastel Rainbow** (role → fill / stroke / ink), reused every week:
 

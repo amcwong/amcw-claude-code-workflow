@@ -8,6 +8,11 @@ If you have forked this template, see the **Upgrading** section at the bottom fo
 
 ## Unreleased
 
+### Changed — `/course-notes` book quality gate
+
+- `quality_score.py` scores `courses/**` and `templates/course-notes-book/**` with a **book** rubric (`scripts/course_notes_quality.py`): `quarto render` from the course root, KaTeX display-math split (not the 120-character slide check), SVG title-band overlap, `.katex-display` overflow CSS. Fixtures: `python3 scripts/test_course_notes_quality.py`. CSC2506 Week 2 Step 2 math and DAG title clearance are the first catch-then-fix cases.
+- CSS: `.katex-display { overflow-x: auto; max-width: 100%; }` so leftover wide math cannot paint into the sidebar.
+
 ### Changed — `/course-notes` Quarto book + lecture voice
 
 - **SoT is `lectures/weekNN.qmd`.** Dropped the week-markdown + derived `notebook.html` pair. Each course is a Quarto **book** under `courses/<slug>/` (`templates/course-notes-book/`). `quarto render` writes gitignored `_site/`. Instructor RevealJS in `Quarto/` is unchanged.

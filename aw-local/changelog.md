@@ -1,3 +1,13 @@
+## 2026-09-18 — Course-notes quality gate
+
+- Implemented book rubric in `scripts/course_notes_quality.py`; `quality_score.py` dispatches `courses/**` and `templates/course-notes-book/**`.
+- Fixtures in `scripts/test_course_notes_quality.py`. CSS `.katex-display` overflow on template + CSC2506/CSC2529. Fixed CSC2506 Week 2 Step 2 math split and DAG title band.
+- Checked off `aw-local/todos.md`.
+
+## 2026-09-17 — Course-notes quality-check todo
+
+- Added `aw-local/todos.md` with one open task: define how `/course-notes` book `.qmd` files should be quality-gated, instead of applying the slide `quality_score.py` rubric.
+
 ## 2026-09-16 — Course-notes surfaces: white page, grey sidebar
 
 - Stopped auto-importing `custom-dark.css` on `prefers-color-scheme: dark` (it painted the reading column navy).

@@ -40,6 +40,12 @@ Skip course-logistics slides (schedule, grading, staff, policies). Notes start f
 
 Formulas are LaTeX (`$...$` inline, `$$...$$` display). Quarto renders them with **KaTeX** (`html-math-method: katex` in `_quarto.yml`). Never hand-transliterate formulas to Unicode. SVG figure labels are the exception: KaTeX does not run inside `<svg><text>`, so diagram labels stay short plain text.
 
+KaTeX **does not wrap** display math. Split a derivation across `align`/`multline` rows or stacked `$$` displays so one row is not a wall of TeX (the notes scorer flags a row over 160 characters, or two `\underbrace`s on one row). CSS on `.katex-display` is a safety net so a leftover long line scrolls inside the column instead of painting into the sidebar; a scrollbar is still a defect to fix.
+
+## Figures (layout)
+
+In-SVG titles sit in a **title band** above nodes and paths. No circle, rect, or ellipse may intersect that band. Titles are ≥ 24px. Node labels inside their own circles are fine.
+
 ## Design lock
 
 Reuse the fonts and colours recorded in `COURSE.md` exactly every week. Never redesign the book per week. If tokens are still blank after Week 1, write the chosen values into `COURSE.md` before adding Week 2. Default chrome is navy `#002A5C` / Source Serif 4 / Source Code Pro in `styles/custom.css`.

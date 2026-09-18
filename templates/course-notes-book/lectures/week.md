@@ -28,7 +28,8 @@ Wikipedia on first mention of a term in this chapter only, e.g. [machine learnin
 ```{=html}
 <!-- Inline SVG figures go in {=html} blocks. Helvetica stack on the outer svg.
      Pastel Rainbow role fills (see .claude/references/course-notes-voice.md).
-     Plain-text labels; KaTeX does not run inside svg text. -->
+     Plain-text labels; KaTeX does not run inside svg text.
+     Title >= 24px; leave a title band above nodes (no circles through the title). -->
 ```
 
 ## [A concept with a formula] {#sec-formula}
