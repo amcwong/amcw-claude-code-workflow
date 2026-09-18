@@ -29,7 +29,9 @@ Wikipedia on first mention of a term in this chapter only, e.g. [machine learnin
 <!-- Inline SVG figures go in {=html} blocks. Helvetica stack on the outer svg.
      Pastel Rainbow role fills (see .claude/references/course-notes-voice.md).
      Plain-text labels; KaTeX does not run inside svg text.
-     Title >= 24px; leave a title band above nodes (no circles through the title). -->
+     Title >= 24px; leave a title band above nodes (no circles through the title).
+     Optional file figures: drop them in lectures/figures/weekNN/ and include with
+     ![caption](figures/weekNN/name.png). Inline SVG remains the default for diagrams. -->
 ```
 
 ## [A concept with a formula] {#sec-formula}

@@ -31,8 +31,8 @@ Skip course-logistics slides (schedule, grading, staff, policies). Notes start f
 
 ## One source of truth
 
-- **`lectures/weekNN.qmd` is the source of truth** for that week: prose, tables, definition/callout/algorithm blocks, inline SVG, and Wikipedia links. HTML is only the gitignored `_site/` from `quarto render`.
-- Diagrams live in the week `.qmd` as original inline SVG (Helvetica stack; Pastel Rainbow role palette in [`course-notes-voice.md`](../references/course-notes-voice.md)). Never screenshots of lecture slides. Figure numbering is per chapter.
+- **`lectures/weekNN.qmd` is the source of truth** for that week: prose, tables, definition/callout/algorithm blocks, inline SVG, Wikipedia links, and references to any files in `lectures/figures/`. HTML is only the gitignored `_site/` from `quarto render`.
+- Diagrams default to original inline SVG in the week `.qmd` (Helvetica stack; Pastel Rainbow role palette in [`course-notes-voice.md`](../references/course-notes-voice.md)). Optional hand-placed images live in `lectures/figures/weekNN/` and are referenced as `figures/weekNN/name.png`. Never screenshots of lecture slides. Figure numbering is per chapter.
 - Wikipedia is the only hyperlink target, and only on first mention of a term within that week chapter.
 - `glossary.qmd` is a book chapter, cumulative and grouped by week. Never delete an existing entry; a later week may deepen a definition, but the original beginner anchor stays.
 

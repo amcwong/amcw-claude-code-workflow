@@ -42,7 +42,7 @@ Slug must be kebab-case (`imaging-2026`). Reject path separators or `..`.
 ### `init` — scaffold a course
 
 1. Confirm `courses/<slug>/` does not already exist. If it does, stop.
-2. Create the directory, `sources/` (empty), `lectures/` (empty), and `styles/`. Copy:
+2. Create the directory, `sources/` (empty), `lectures/figures/` (empty except `.gitkeep`), and `styles/`. Copy:
    - `templates/course.md` → `COURSE.md`
    - `templates/course-notes-readme.md` → `README.md`
    - `templates/course-notes-book/_quarto.yml` → `_quarto.yml`
@@ -50,6 +50,7 @@ Slug must be kebab-case (`imaging-2026`). Reject path separators or `..`.
    - `templates/course-notes-book/glossary.qmd` → `glossary.qmd`
    - `templates/course-notes-book/styles/custom.css` → `styles/custom.css`
    - `templates/course-notes-book/styles/custom-dark.css` → `styles/custom-dark.css`
+   - `templates/course-notes-book/lectures/figures/.gitkeep` → `lectures/figures/.gitkeep`
    - `templates/fact-audit.md` → `FACT_AUDIT.md` (placeholder until the first audit)
 3. Do **not** copy a week chapter. Stop and tell the user to fill `[BRACKETED]` placeholders in `COURSE.md` and `index.qmd` / `_quarto.yml` (audience, course URL, expected week count, book title) and drop Week 1 slides into `sources/week1/`. Do not write week notes.
 
@@ -57,7 +58,7 @@ Slug must be kebab-case (`imaging-2026`). Reject path separators or `..`.
 
 #### Phase 0 — Pre-flight (blocking)
 
-Read `COURSE.md`, prior `lectures/week*.qmd`, `glossary.qmd`, and everything in `courses/<slug>/sources/weekN/` (or `weekNN/` if that is how the user laid it out).
+Read `COURSE.md`, prior `lectures/week*.qmd`, `glossary.qmd`, everything in `courses/<slug>/sources/weekN/` (or `weekNN/` if that is how the user laid it out), and any files already in `lectures/figures/weekNN/` (or `lectures/figures/`).
 
 **Sparse slide PDFs:** try the Read tool first. For diagram/formula slides whose extracted text looks empty or suspicious, use the `document-skills` plugin's PDF skill to pull the slide images and look at the images before trusting a number or label; fall back to rendering pages with `pdftoppm`/PyMuPDF if the plugin fails. Skip logistics slides (schedule, grading, staff, policies).
 
@@ -71,7 +72,7 @@ Emit, then **stop and wait for approval**. Do not write notes yet:
 
 #### Phase 1 — Write the week chapter (source of truth)
 
-After approval, write `courses/<slug>/lectures/weekNN.qmd` from [`templates/course-notes-book/lectures/week.md`](../../../templates/course-notes-book/lectures/week.md). Honor [`.claude/rules/course-notes.md`](../../rules/course-notes.md) and [`course-notes-voice.md`](../../references/course-notes-voice.md): motivate then define, lecture-owned examples, no invented analogies, no em dashes, no homework numeric answers, no dense walls. Wikipedia on first mention of a term in this chapter. Inline SVG in `{=html}` blocks (Pastel Rainbow, Helvetica stack). `{ojs}` is optional, not required.
+After approval, write `courses/<slug>/lectures/weekNN.qmd` from [`templates/course-notes-book/lectures/week.md`](../../../templates/course-notes-book/lectures/week.md). Honor [`.claude/rules/course-notes.md`](../../rules/course-notes.md) and [`course-notes-voice.md`](../../references/course-notes-voice.md): motivate then define, lecture-owned examples, no invented analogies, no em dashes, no homework numeric answers, no dense walls. Wikipedia on first mention of a term in this chapter. Inline SVG in `{=html}` blocks (Pastel Rainbow, Helvetica stack). Hand-placed images the user dropped in `lectures/figures/weekNN/` are included with `![caption](figures/weekNN/name.png)`. `{ojs}` is optional, not required.
 
 #### Phase 2 — Glossary and book list
 
