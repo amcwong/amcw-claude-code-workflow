@@ -136,7 +136,8 @@ Do not run the auditor yet unless the user already asked for `audit` in the same
 - [`.claude/agents/fact-auditor.md`](../../agents/fact-auditor.md) — forked cold auditor this skill dispatches.
 - [`.claude/references/course-notes-workflow.md`](../../references/course-notes-workflow.md) — why the four layers exist.
 - [`templates/course-notes-book/lectures/week.md`](../../../templates/course-notes-book/lectures/week.md) — week chapter shape.
-- [`/commit`](../commit/SKILL.md) — shipping. This skill does not.
+- [`/commit`](../commit/SKILL.md) — shipping source. This skill does not.
+- [`/deploy-course-notes`](../deploy-course-notes/SKILL.md) — render book to `docs/courses/<slug>/` for GitHub Pages after `/commit`.
 - [`/learn`](../learn/SKILL.md) — generic recurring lessons as `[LEARN:course-notes]`.
 
 ## What this skill does NOT do
@@ -145,5 +146,5 @@ Do not run the auditor yet unless the user already asked for `audit` in the same
 - **Literature or paper notes** — [`/lit-review`](../lit-review/SKILL.md). A future `/paper-notes` is out of scope.
 - **Manuscript fact-checking** — [`/verify-claims`](../verify-claims/SKILL.md) / `claim-verifier`.
 - **Problem sets** — [`/scaffold-exercises`](../scaffold-exercises/SKILL.md).
-- **Commit, push, or `quarto publish`.**
+- **Commit, push, or publish** — use [`/commit`](../commit/SKILL.md) then [`/deploy-course-notes`](../deploy-course-notes/SKILL.md); not this skill.
 - **A parent `/study-notes` dispatcher** — not until a second note type exists.

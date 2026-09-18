@@ -209,13 +209,19 @@ $$\mathbb{E}[L] = \tfrac{1}{3}\big[(5-2)^2+(5-4)^2+(5-9)^2\big] = \tfrac{1}{3}(9
 The conditional mean gives the smaller expected loss, as the theorem guarantees it must for *any* competing choice of $y(x)$, not only $y(x)=4$.
 :::
 
-## Why factor the joint {#sec-factoring}
-
-This section's title asks a specific question: why bother rewriting a joint distribution as a product of conditional factors, rather than just writing down the joint directly? The answer, worked out below, is that writing it down directly does not scale, and factoring is the way out.
+## Free parameters and the cost of the full joint {#sec-freeparams}
 
 Section 2 of Week 1 introduced the joint distribution $p(H,Y)$ for two variables (@sec-joint): a table listing the probability of every combination of outcomes of $H$ and $Y$. That same idea, listing one probability per combination of outcomes, is what scales badly once there are many variables instead of two. For $N$ binary variables $x_1,\dots,x_N$, specifying $p(x_1,\dots,x_N)$ in full means a table with one row per combination of outcomes, and there are $2^N$ such combinations.
 
 Not every entry in that table can be chosen freely, though. A **free parameter** is a number we are actually at liberty to set, independent of the others already fixed. Since all $2^N$ table entries are probabilities that must sum to 1, only $2^N-1$ of them are free: once any $2^N-1$ entries are chosen, the last one is forced, because the whole table still has to add up to 1. So the joint over $N$ binary variables costs $2^N-1$ free parameters, not $2^N$.
+
+Calling this a "cost" is not just a figure of speech. Every free parameter is a number that has to come from somewhere in practice: it is estimated from data (as in Week 1's maximum likelihood estimation, @sec-mle), stored somewhere, and used every time the model computes a probability. A table of $2^N-1$ free parameters needs enough data to pin down each of those numbers reliably, enough memory to hold the table, and enough computation to look values up in it or sum over it. When $N$ is even modestly large this is not a minor inconvenience: at $N=20$ binary variables, $2^{20}-1$ is already over a million free parameters, far more than any realistic dataset could estimate.
+
+This is why we generally want *fewer* free parameters, not more, for the same reason Week 1 restricted attention to parametric families in the first place (@sec-parametric): fewer parameters are cheaper to estimate and cheaper to compute with. But fewer is not automatically better without limit. Every free parameter removed from the full table corresponds to an assumption that some variables do not depend on some others. If that assumption is false, that is, if the variables really do depend on each other in the way the removed parameter would have captured, the resulting model misrepresents the true distribution no matter how much data we feed it. So the goal is not to drive the parameter count as low as possible, but to spend free parameters only on the dependencies we actually believe exist, and drop the rest. The next section takes the first step toward doing that.
+
+## Why factor the joint {#sec-factoring}
+
+This section's title asks a specific question: why bother rewriting a joint distribution as a product of conditional factors, rather than just working with the full table from @sec-freeparams directly? The answer is that the rewriting below, called the chain rule, is always exact and costs the same $2^N-1$ parameters as the full table when applied with no assumptions, but unlike the full table it is built as a product of smaller factors, which is exactly the structure that will let us drop some of those factors later, once we are willing to assume a dependency is not really there (@sec-dag).
 
 This exact cost holds for any distribution, since the chain rule lets us rewrite the joint, for **any** ordering of the variables, as
 
@@ -319,23 +325,98 @@ in general. $X$ and $Z$ are marginally independent (with $Y$ unobserved), but co
 
 ## The Bayes Ball algorithm {#sec-bayesball}
 
-Checking $x_A \perp x_B \mid x_C$ by hand from the joint, as in @sec-cistructures, does not scale. **D-separation** is the general graph-theoretic criterion: $x_A \perp x_B \mid x_C$ holds exactly when every variable in $A$ is d-separated from every variable in $B$ given $C$. The **Bayes Ball algorithm** checks d-separation directly on the picture.
+Checking $x_A \perp x_B \mid x_C$ by hand from the joint, as in @sec-cistructures, does not scale: for more than three variables, writing out the full factorization and cancelling terms gets unwieldy fast. **D-separation** is a purely graph-theoretic condition, built only from paths and arrows, that turns out to be exactly equivalent to conditional independence. Unlike the joint-distribution algebra of @sec-cistructures, it can be checked by eye on the picture, which is what makes it useful.
 
-::: {.callout-note}
-**Bayes Ball procedure.** To test $x_A \perp x_B \mid x_C$: shade every node in $C$ (observed). Place a ball at each node in $A$ and let it bounce along edges. If any ball can reach a node in $B$, then $x_A \not\perp x_B \mid x_C$; if no ball can reach $B$, then $x_A \perp x_B \mid x_C$.
+D-separation is built from the same three junction types as @sec-cistructures, now named for their shape on a path rather than their causal story: a **chain** node ($\to Y \to$), a **fork** node ($\leftarrow Y \to$, what @sec-cistructures called common cause), and a **collider** node ($\to Y \leftarrow$, what @sec-cistructures called explaining away). Fix a conditioning set $C$.
+
+::: {.definition-block}
+**Definition.** A path between two nodes is **blocked** by $C$ if it contains at least one node $Y$ where either:
+
+- $Y$ is a chain or fork node on that path, and $Y \in C$ (the path is cut at an observed non-collider), or
+- $Y$ is a collider node on that path, and neither $Y$ nor any descendant of $Y$ is in $C$ (the path is cut at an unobserved collider).
+
+A path that is not blocked is **active**. Two disjoint sets of nodes $A$ and $B$ are **d-separated** by $C$ if every path between a node in $A$ and a node in $B$ is blocked by $C$.
 :::
 
-The bouncing rules are exactly the three structures of @sec-cistructures, read as a table of which triples let a ball pass:
+D-separation is a statement about the graph alone, no probabilities involved, which is exactly why it is worth having:
+
+::: {.theorem-block}
+**Result.** $x_A \perp x_B \mid x_C$ holds if and only if $A$ and $B$ are d-separated by $C$.
+:::
+
+This is the fact that licenses reading independence off a picture. The **Bayes Ball algorithm** is a mechanical way to check d-separation without enumerating every path by hand:
+
+::: {.callout-note}
+**Bayes Ball procedure.** To test whether $A$ and $B$ are d-separated by $C$: shade every node in $C$ (observed). Place a ball at each node in $A$ and let it bounce along edges, obeying the rules below at every node it reaches. If any ball can reach a node in $B$, some path is active and $x_A \not\perp x_B \mid x_C$. If no ball can reach $B$, every path is blocked and $x_A \perp x_B \mid x_C$.
+:::
+
+The bouncing rules are exactly the blocking condition above, restated as what a ball is and is not allowed to cross:
 
 - **Chain** ($\to Y \to$): the ball passes through $Y$ if $Y$ is *unshaded*, and is blocked if $Y$ is shaded.
-- **Common cause** ($\leftarrow Y \to$): the ball passes through $Y$ if $Y$ is *unshaded*, and is blocked if $Y$ is shaded.
-- **Common effect / explaining away** ($\to Y \leftarrow$): the ball is blocked at $Y$ if $Y$ is *unshaded*, and passes through if $Y$ **or any of its descendants** is shaded.
+- **Fork** ($\leftarrow Y \to$): the ball passes through $Y$ if $Y$ is *unshaded*, and is blocked if $Y$ is shaded.
+- **Collider** ($\to Y \leftarrow$): the ball is blocked at $Y$ if $Y$ is *unshaded*, and passes through if $Y$ **or any of its descendants** is shaded.
 
-That last rule is the one that reverses the usual pattern, and it is exactly the explaining-away asymmetry from @sec-cistructures: observing a common effect (or something downstream of it) opens a dependency between its causes that was not there before.
+That last rule is the one that reverses the usual pattern, and it is exactly the explaining-away asymmetry from @sec-cistructures: observing a collider, or anything downstream of it, opens a dependency between its causes that was not there before.
 
-**Worked example (from the tutorial).** In a small graph $a,f \to e \to c$ and $f \to b$: with $c$ shaded, $a$ and $b$ are conditionally independent, since the only path from $a$ to $b$ runs through the chain-like node $e$ and the common-cause-like node $f$, and shading a descendant of $e$ does not open the head-to-head junction at $e$ from $f$'s side (the path is blocked). With $f$ shaded instead of $c$, $a$ and $b$ become dependent, since $f$ is a common cause of the path through $e$ to both, and shading a common cause blocks the chain from $f$ but the path from $a$ into $e$ is head-to-head at $e$, and $e$'s descendant $c$ is unshaded, so that junction stays blocked too. Working through the two cases by hand, keeping careful track of which junction each edge pair forms at each node, is the point of the exercise, and is left to the tutorial.
+**Worked example (from the tutorial).** The tutorial's practice graph has $a$ and $f$ both pointing into $e$, $e$ pointing into $c$, and $f$ pointing into $b$:
 
-**Larger example.** In the six-node DAG of Figure 2, is $x_1 \perp x_6 \mid \{x_2,x_3\}$? Shading $x_2$ and $x_3$ blocks both chain-like junctions leaving $x_1$ (through $x_2$ and through $x_3$), so no ball starting at $x_1$ can reach $x_6$: yes, $x_1 \perp x_6 \mid \{x_2,x_3\}$. Is $x_2 \perp x_3 \mid \{x_1,x_6\}$? Shading $x_1$ blocks the common-cause junction at $x_1$ itself, but $x_6$ is a common effect of $x_2$ and $x_3$ (via $x_5$) and $x_6$ is shaded, which **opens** that head-to-head junction: a ball can travel from $x_2$ to $x_6$ to $x_5$ to $x_3$. So the answer is no, $x_2 \not\perp x_3 \mid \{x_1,x_6\}$, and the reason is explaining away.
+```{=html}
+<div style="overflow-x:auto; margin:1.5rem 0;">
+<svg viewBox="0 0 680 320" width="100%" style="max-width:680px;display:block;margin:auto;font-family:Helvetica,'Helvetica Neue',Arial,sans-serif;" role="img" aria-label="Two panels of the same five-node graph testing independence of a and b, once with c shaded and once with f shaded">
+  <defs>
+    <marker id="arrBB" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto">
+      <path d="M0,0 L0,7 L7,3.5 z" fill="#555"/>
+    </marker>
+  </defs>
+  <g>
+    <text x="150" y="26" text-anchor="middle" font-size="24" font-weight="600" fill="#333">(a) c shaded</text>
+    <line x1="55" y1="85" x2="130" y2="160" stroke="#555" stroke-width="1.5" marker-end="url(#arrBB)"/>
+    <line x1="245" y1="85" x2="170" y2="160" stroke="#555" stroke-width="1.5" marker-end="url(#arrBB)"/>
+    <line x1="150" y1="188" x2="150" y2="240" stroke="#555" stroke-width="1.5" marker-end="url(#arrBB)"/>
+    <line x1="260" y1="90" x2="275" y2="150" stroke="#555" stroke-width="1.5" marker-end="url(#arrBB)"/>
+    <circle cx="40" cy="70" r="24" fill="#fff" stroke="#333" stroke-width="1.5"/>
+    <text x="40" y="75" text-anchor="middle" font-size="15" fill="#333">a</text>
+    <circle cx="260" cy="70" r="24" fill="#fff" stroke="#333" stroke-width="1.5"/>
+    <text x="260" y="75" text-anchor="middle" font-size="15" fill="#333">f</text>
+    <circle cx="150" cy="170" r="24" fill="#fff" stroke="#333" stroke-width="1.5"/>
+    <text x="150" y="175" text-anchor="middle" font-size="15" fill="#333">e</text>
+    <circle cx="150" cy="268" r="24" fill="#999" stroke="#333" stroke-width="1.5"/>
+    <text x="150" y="273" text-anchor="middle" font-size="15" fill="#fff">c</text>
+    <circle cx="290" cy="170" r="24" fill="#fff" stroke="#333" stroke-width="1.5"/>
+    <text x="290" y="175" text-anchor="middle" font-size="15" fill="#333">b</text>
+  </g>
+  <g transform="translate(340,0)">
+    <text x="150" y="26" text-anchor="middle" font-size="24" font-weight="600" fill="#333">(b) f shaded</text>
+    <line x1="55" y1="85" x2="130" y2="160" stroke="#555" stroke-width="1.5" marker-end="url(#arrBB)"/>
+    <line x1="245" y1="85" x2="170" y2="160" stroke="#555" stroke-width="1.5" marker-end="url(#arrBB)"/>
+    <line x1="150" y1="188" x2="150" y2="240" stroke="#555" stroke-width="1.5" marker-end="url(#arrBB)"/>
+    <line x1="260" y1="90" x2="275" y2="150" stroke="#555" stroke-width="1.5" marker-end="url(#arrBB)"/>
+    <circle cx="40" cy="70" r="24" fill="#fff" stroke="#333" stroke-width="1.5"/>
+    <text x="40" y="75" text-anchor="middle" font-size="15" fill="#333">a</text>
+    <circle cx="260" cy="70" r="24" fill="#999" stroke="#333" stroke-width="1.5"/>
+    <text x="260" y="75" text-anchor="middle" font-size="15" fill="#fff">f</text>
+    <circle cx="150" cy="170" r="24" fill="#fff" stroke="#333" stroke-width="1.5"/>
+    <text x="150" y="175" text-anchor="middle" font-size="15" fill="#333">e</text>
+    <circle cx="150" cy="268" r="24" fill="#fff" stroke="#333" stroke-width="1.5"/>
+    <text x="150" y="273" text-anchor="middle" font-size="15" fill="#333">c</text>
+    <circle cx="290" cy="170" r="24" fill="#fff" stroke="#333" stroke-width="1.5"/>
+    <text x="290" y="175" text-anchor="middle" font-size="15" fill="#333">b</text>
+  </g>
+</svg>
+</div>
+```
+
+**Figure 3.** The tutorial's practice graph ($a\to e$, $f\to e$, $e\to c$, $f\to b$), shaded (grey) nodes are the conditioning set. Panel (a) conditions on $c$; panel (b) conditions on $f$.
+
+The only path from $a$ to $b$ is $a \to e \leftarrow f \to b$, with two junctions to check: $e$ is a collider on this path (both $a\to e$ and $f\to e$ point into it), and $f$ is a chain node on this path (one edge, $f\to e$, points out of $f$; the other, $f\to b$, also points out of $f$, so it is actually a fork, but either way it blocks under the same rule as a chain: shaded blocks, unshaded passes).
+
+In panel (a), $C=\{c\}$. At the collider $e$: is $e$ or a descendant of $e$ in $C$? Yes, $e$'s child $c$ is shaded, so the collider is **open**. At the fork $f$: is $f$ shaded? No, so the fork is also open. Both junctions on the only path are open, so the path is active: $a \not\perp b \mid c$. This is worth sitting with, since it runs against plain intuition: shading $c$, which is not on the direct route between $a$ and $f$ at all, is exactly what *creates* the dependency, because $c$ is a descendant of the collider $e$. This is the explaining-away asymmetry from @sec-cistructures, one hop removed.
+
+In panel (b), $C=\{f\}$. At the collider $e$: neither $e$ nor its descendant $c$ is shaded, so the collider stays **blocked**, which is already enough to block the whole path regardless of what happens at $f$. (The fork at $f$ is separately blocked too, since $f$ itself is shaded, but the collider alone already settles it.) So $a \perp b \mid f$.
+
+**Larger example.** In the six-node DAG of Figure 2, is $x_1 \perp x_6 \mid \{x_2,x_3\}$? There are two paths from $x_1$ to $x_6$: $x_1\to x_2\to x_6$ and $x_1\to x_3\to x_5\to x_6$. On the first path, $x_2$ is a chain node, and it is shaded, so that path is blocked. On the second, $x_3$ is a chain node and is also shaded, blocking that path too. Every path is blocked, so yes, $x_1 \perp x_6 \mid \{x_2,x_3\}$.
+
+Is $x_2 \perp x_3 \mid \{x_1,x_6\}$? Path 1 is $x_2 \leftarrow x_1 \to x_3$: $x_1$ is a fork on this path and is shaded, so this path is blocked. Path 2 is $x_2 \to x_6 \leftarrow x_5 \leftarrow x_3$: $x_6$ is a collider on this path (both $x_2\to x_6$ and $x_5\to x_6$ point into it), and $x_6$ is shaded, so the collider is **open**; continuing along the path, $x_5$ is a chain node (between $x_3\to x_5$ and $x_5\to x_6$) and is unshaded, so it is open too. Both junctions on path 2 are open, so path 2 is active. One active path is enough: $x_2 \not\perp x_3 \mid \{x_1,x_6\}$, and the reason is the same collider-opened-by-a-shaded-descendant pattern as Figure 3(a).
 
 ## Naive Bayes as a graphical model {#sec-naivebayes}
 

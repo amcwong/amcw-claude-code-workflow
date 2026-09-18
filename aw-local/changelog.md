@@ -1,3 +1,12 @@
+## 2026-09-18 — Deploy course notes (Option A)
+
+- Added `/deploy-course-notes` skill and `scripts/sync_course_notes_to_docs.sh` (quality ≥ 80 → render → `docs/courses/<slug>/`).
+- Set `website.site-path` on course book `_quarto.yml` (template, CSC2506, CSC2529).
+- Mobile `@media` rules in course-notes `custom.css` (template + both courses).
+- Published CSC2506 to `docs/courses/CSC2506/`; link on `docs/index.html`.
+- Fixed CSC2506 Week 1 display-math splits and SVG title issues (deploy gate).
+- Inventory 61 → 62 skills; guide re-rendered and stamped.
+
 ## 2026-09-18 — Course-notes quality gate
 
 - Implemented book rubric in `scripts/course_notes_quality.py`; `quality_score.py` dispatches `courses/**` and `templates/course-notes-book/**`.

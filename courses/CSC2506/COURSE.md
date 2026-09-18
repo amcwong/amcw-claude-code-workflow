@@ -20,6 +20,7 @@ The user is a beginner to probabilistic machine learning. Assume undergrad-level
 - **Title:** "CSC412/2506: Probabilistic Machine Learning notes"
 - **Expected week count:** 13 (week 8 is reading week, no lecture)
 - **Chapters:** `lectures/weekNN.qmd` (source of truth).
+- **Published URL:** https://amcwong.github.io/claude-code-my-workflow/courses/CSC2506/ (after `/deploy-course-notes` + push + GitHub Pages enabled)
 
 ## Design system (book page)
 

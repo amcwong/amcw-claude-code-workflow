@@ -8,6 +8,14 @@ If you have forked this template, see the **Upgrading** section at the bottom fo
 
 ## Unreleased
 
+### Added — `/deploy-course-notes` (GitHub Pages, Option A)
+
+- **`scripts/sync_course_notes_to_docs.sh`** — quality gate (≥ 80 on index, glossary, week chapters) → `quarto render` → rsync `_site/` to `docs/courses/<slug>/`.
+- **`.claude/skills/deploy-course-notes/`** — publish learner books; cross-linked from `/course-notes` and `/deploy`.
+- **`website.site-path`** on course book `_quarto.yml` (template + CSC2506/CSC2529) for GitHub Pages subpaths.
+- **Mobile `@media` rules** in course-notes `custom.css` (template + both courses).
+- **`docs/index.html`** — “Course notes (this fork)” link to CSC2506 after first deploy.
+
 ### Changed — `/course-notes` book quality gate
 
 - `quality_score.py` scores `courses/**` and `templates/course-notes-book/**` with a **book** rubric (`scripts/course_notes_quality.py`): `quarto render` from the course root, KaTeX display-math split (not the 120-character slide check), SVG title-band overlap, `.katex-display` overflow CSS. Fixtures: `python3 scripts/test_course_notes_quality.py`. CSC2506 Week 2 Step 2 math and DAG title clearance are the first catch-then-fix cases.
@@ -35,7 +43,7 @@ Ports the old standalone study-notes kit into this template’s skill / agent / 
 - **Templates:** `week-course-notes.md`, `course.md`, `glossary.md`, `course-notes-readme.md`, `notebook.html`, `fact-audit.md`.
 - Reciprocal `NOT for` fencing on `/create-lecture` and `/verify-claims`. Hygiene allowlists `courses/` (and `aw-local/` for the local changelog). `.gitignore` ignores `courses/*/sources/`.
 
-**Inventory at release: 61 skills, 19 agents, 38 rules, 8 hooks, 10 gates**
+**Inventory at release: 62 skills, 19 agents, 38 rules, 8 hooks, 10 gates**
 (was 60 / 18 / 37 / 8 / 10 at v2.5.1).
 
 ---

@@ -189,7 +189,7 @@ This workflow is designed as a **single hub for an entire research program** —
 ## What's Included
 
 <details>
-<summary><strong>19 agents, 61 skills, 38 rules, 8 hooks</strong> (click to expand)</summary>
+<summary><strong>19 agents, 62 skills, 38 rules, 8 hooks</strong> (click to expand)</summary>
 
 ### Agents (`.claude/agents/`)
 
@@ -223,6 +223,7 @@ This workflow is designed as a **single hub for an entire research program** —
 |-------|-------------|
 | `/compile-latex` | 3-pass XeLaTeX compilation with bibtex |
 | `/deploy` | Render Quarto + sync to GitHub Pages |
+| `/deploy-course-notes` | Render course-notes Quarto books to `docs/courses/<slug>/` for GitHub Pages |
 | `/extract-tikz` | TikZ diagrams to PDF to SVG pipeline |
 | `/proofread` | Launch proofreader on a file |
 | `/visual-audit` | Launch slide-auditor on a file |

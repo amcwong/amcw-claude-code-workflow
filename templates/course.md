@@ -24,6 +24,7 @@ The user is a complete beginner to [SUBJECT AREA]. Assume nothing beyond [genera
 - **Title:** "[Notebook title]"
 - **Expected week count:** [TOTAL, e.g. 10]
 - **Chapters:** `lectures/weekNN.qmd` (source of truth). Do not keep a parallel week markdown file.
+- **Published URL:** `https://[GITHUB-USER].github.io/[REPO-NAME]/courses/[COURSE-SLUG]/` (after `/deploy-course-notes` + push + GitHub Pages enabled)
 
 ## Design system (book page)
 
