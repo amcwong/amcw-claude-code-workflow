@@ -1,3 +1,12 @@
+## 2026-09-18 — Pages hub → course notes
+
+- Moved upstream `docs/index.html` → `docs/template-landing.html`; new hub routes to `courses/CSC2506/`.
+- Retargeted surface-sync / derived-counts / model-versions scanners to `template-landing.html`.
+
+## 2026-09-18 — Course-note workflow README: deploy commands
+
+- Updated `aw-local/course-note-workflow/README.md` with `/deploy-course-notes`, `/commit` publish steps, weekly loop including Pages, and troubleshooting for `/docs` vs README.
+
 ## 2026-09-18 — Deploy course notes (Option A)
 
 - Added `/deploy-course-notes` skill and `scripts/sync_course_notes_to_docs.sh` (quality ≥ 80 → render → `docs/courses/<slug>/`).

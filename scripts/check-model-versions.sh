@@ -35,7 +35,7 @@ SURFACES=(
     "TROUBLESHOOTING.md"
     "MEMORY.md"
     "guide/workflow-guide.qmd"
-    "docs/index.html"
+    "docs/template-landing.html"
     ".claude/rules/model-routing.md"
     ".claude/scripts/statusline.sh"
 )

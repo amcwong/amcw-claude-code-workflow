@@ -354,7 +354,7 @@ CHECKS = [
     # r13: the three multi-instance surfaces declare HOW MANY sites they carry
     # (README.md "ten gates" + "10 checkers"; docs/index.html twice; the guide
     # three times), so rewording one of them is as loud as rewording the last.
-    ("backtest gates",        r'(?i)\b' + _NUM + r' (?:gates|checkers)\b', [REQ("README.md", 2), REQ("docs/index.html", 2), OPT("CLAUDE.md", "names the gate suite, states no count"), REQ("guide/workflow-guide.qmd", 3), OPT(".claude/skills/vaccinate/evals/README.md", "refers to the suite by path, states no count"), ".claude/skills/commit/SKILL.md", ".github/CONTRIBUTING.md", "scripts/backtest.sh"], n_gates()),
+    ("backtest gates",        r'(?i)\b' + _NUM + r' (?:gates|checkers)\b', [REQ("README.md", 2), REQ("docs/template-landing.html", 2), OPT("CLAUDE.md", "names the gate suite, states no count"), REQ("guide/workflow-guide.qmd", 3), OPT(".claude/skills/vaccinate/evals/README.md", "refers to the suite by path, states no count"), ".claude/skills/commit/SKILL.md", ".github/CONTRIBUTING.md", "scripts/backtest.sh"], n_gates()),
     # CLAUDE.md's law count was hand-edited 17 -> 21 and nothing recomputed it,
     # so "99 laws" would have left every gate green. Counted from the laws file.
     ("research-agent laws",   r'(\d+) laws\b',                   ["CLAUDE.md"], n_laws()),

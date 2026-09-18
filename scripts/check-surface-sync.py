@@ -58,7 +58,7 @@ SURFACES = [
     # close, and it keeps the pair from diverging silently if one is re-rendered
     # and the other is not.
     REPO / "guide/workflow-guide.html",
-    REPO / "docs/index.html",
+    REPO / "docs/template-landing.html",
     REPO / "templates/skill-template.md",
     # The `/commit` skill's Step 0b quotes the inventory compound verbatim
     # ("18 agents, 60 skills, 37 rules, 8 hooks") as the worked example of what
@@ -146,7 +146,7 @@ SINGULAR_PHRASINGS: list[tuple[str, str]] = [
     (r"\ball\s+(\d+)\s+agents?\b",                  "agents"),
     (r"\ball\s+(\d+)\s+rules?\b",                   "rules"),
     (r"\ball\s+(\d+)\s+hooks?\b",                   "hooks"),
-    # docs/index.html's "What you get" bullets — the FIRST inventory numbers a
+    # docs/template-landing.html's "What you get" bullets — the FIRST inventory numbers a
     # prospective forker sees, on the only surface published to the public web.
     # Only the compound line above them was gated; the bullets themselves were
     # not, so seeded 99s survived every gate (2026-08-23).

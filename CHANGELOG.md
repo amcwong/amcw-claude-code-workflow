@@ -8,6 +8,12 @@ If you have forked this template, see the **Upgrading** section at the bottom fo
 
 ## Unreleased
 
+### Changed — Pages hub is course notes, not template marketing
+
+- Moved the upstream workflow landing page to `docs/template-landing.html` (still holds inventory count assertions for gates).
+- New `docs/index.html` routes to published course books (`courses/CSC2506/`) plus links to the guide and archived template page.
+- Gate scanners (`check-surface-sync`, `check-derived-counts`, `check-model-versions`) retargeted to `docs/template-landing.html`.
+
 ### Added — `/deploy-course-notes` (GitHub Pages, Option A)
 
 - **`scripts/sync_course_notes_to_docs.sh`** — quality gate (≥ 80 on index, glossary, week chapters) → `quarto render` → rsync `_site/` to `docs/courses/<slug>/`.
