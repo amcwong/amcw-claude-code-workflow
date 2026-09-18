@@ -2,6 +2,8 @@
 paths:
   - "Slides/**/*.tex"
   - "Quarto/**/*.qmd"
+  - "courses/**/*.qmd"
+  - "templates/course-notes-book/**"
   - "scripts/**/*.R"
 ---
 
@@ -28,6 +30,20 @@ paths:
 | Major | Notation inconsistency | -3 |
 | Minor | Font size reduction | -1 per slide |
 | Minor | Long lines (>100 chars) | -1 (EXCEPT documented math formulas) |
+
+## Course notes books (`courses/**/*.qmd`, `templates/course-notes-book/**/*.qmd`)
+
+These are **not** RevealJS slides. `quality_score.py` dispatches them to `score_course_notes()` (`scripts/course_notes_quality.py`). A horizontal scrollbar on a derivation still **fails**: KaTeX does not wrap display math.
+
+| Severity | Issue | Deduction |
+|----------|-------|-----------|
+| Critical | Book `quarto render` failure (from the course root) | -100 (auto-fail) |
+| Critical | Display-math row >160 TeX characters, or two+ `\underbrace`/`\overbrace` on one row | -15 each (cap -45) |
+| Critical | In-SVG figure title band overlapped by a shape | -20 |
+| Critical | Missing `.katex-display { overflow-x: auto; max-width: 100%; }` in `styles/custom.css` | -20 |
+| Major | In-SVG figure title smaller than 24px | -5 |
+
+Not in this gate: `fact-auditor`, `/humanize`, Wikipedia liveness (`/course-notes audit`).
 
 ## R Scripts (.R)
 

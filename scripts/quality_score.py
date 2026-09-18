@@ -22,6 +22,20 @@ from typing import Dict, List, Optional, Tuple
 import re
 import json
 
+from course_notes_quality import (
+    MATH_OVERFLOW_CAP,
+    MATH_POINTS,
+    CSS_POINTS,
+    SVG_POINTS,
+    TITLE_MAJOR_POINTS,
+    css_contract_issues,
+    display_math_issues,
+    find_book_root,
+    is_course_notes_path,
+    render_book,
+    svg_layout_issues,
+)
+
 
 def _timeout(env_name: str, default: int) -> int:
     """Read a positive int timeout (seconds) from the environment, else `default`."""
@@ -401,7 +415,7 @@ class QualityScorer:
         self.unverified = []  # could-not-verify notes (timeouts, missing tools)
 
     def score_quarto(self) -> Dict:
-        """Score Quarto lecture slides."""
+        """Score Quarto lecture slides (RevealJS under Quarto/, not course-notes books)."""
         content = self.filepath.read_text(encoding='utf-8')
 
         # Check compilation. None = could-not-verify (timeout / tool missing):
@@ -567,6 +581,82 @@ class QualityScorer:
                 'points': 10
             })
             self.score -= 10
+
+        self.score = max(0, self.score)
+        return self._generate_report()
+
+    def score_course_notes(self) -> Dict:
+        """Score a Quarto book chapter under courses/ or templates/course-notes-book/."""
+        content = self.filepath.read_text(encoding='utf-8')
+        book_root = find_book_root(self.filepath)
+
+        if book_root is not None:
+            compiles, error = render_book(book_root)
+            if compiles is False:
+                self.auto_fail = True
+                self.issues['critical'].append({
+                    'type': 'compilation_failure',
+                    'description': 'Quarto book render failed',
+                    'details': error[:200],
+                    'points': 100
+                })
+                self.score = 0
+                return self._generate_report()
+            if compiles is None:
+                self.unverified.append(error)
+        else:
+            self.unverified.append(
+                "no book _quarto.yml (type: book) above this file — skipped book render"
+            )
+
+        math_hits = display_math_issues(content)
+        math_points = 0
+        for hit in math_hits:
+            take = MATH_POINTS
+            if math_points + take > MATH_OVERFLOW_CAP:
+                take = max(0, MATH_OVERFLOW_CAP - math_points)
+            if take == 0:
+                break
+            math_points += take
+            self.issues['critical'].append({
+                'type': 'display_math_overflow',
+                'description': f'Display math will not wrap at line {hit["line"]}',
+                'details': (
+                    f'{hit["reason"]}. KaTeX does not wrap display math; '
+                    'split the row so it fits the book column.'
+                ),
+                'points': take
+            })
+            self.score -= take
+
+        for hit in svg_layout_issues(content):
+            if hit['kind'] == 'title_too_small':
+                self.issues['major'].append({
+                    'type': 'svg_title_size',
+                    'description': hit['detail'],
+                    'details': 'In-SVG figure titles are >= 24px (course-notes-voice.md).',
+                    'points': TITLE_MAJOR_POINTS
+                })
+                self.score -= TITLE_MAJOR_POINTS
+            else:
+                self.issues['critical'].append({
+                    'type': 'svg_title_overlap',
+                    'description': hit['detail'],
+                    'details': (
+                        'Leave a title band above nodes so shapes do not cover the title.'
+                    ),
+                    'points': SVG_POINTS
+                })
+                self.score -= SVG_POINTS
+
+        for detail in css_contract_issues(book_root):
+            self.issues['critical'].append({
+                'type': 'katex_css_missing',
+                'description': 'KaTeX display CSS does not clip overflow',
+                'details': detail,
+                'points': CSS_POINTS
+            })
+            self.score -= CSS_POINTS
 
         self.score = max(0, self.score)
         return self._generate_report()
@@ -755,7 +845,10 @@ Exit Codes:
             scorer = QualityScorer(filepath, verbose=args.verbose)
 
             if filepath.suffix == '.qmd':
-                report = scorer.score_quarto()
+                if is_course_notes_path(filepath):
+                    report = scorer.score_course_notes()
+                else:
+                    report = scorer.score_quarto()
             elif filepath.suffix == '.R':
                 report = scorer.score_r_script()
             elif filepath.suffix == '.tex':

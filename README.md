@@ -189,7 +189,7 @@ This workflow is designed as a **single hub for an entire research program** —
 ## What's Included
 
 <details>
-<summary><strong>19 agents, 61 skills, 38 rules, 8 hooks</strong> (click to expand)</summary>
+<summary><strong>19 agents, 62 skills, 38 rules, 8 hooks</strong> (click to expand)</summary>
 
 ### Agents (`.claude/agents/`)
 
@@ -207,7 +207,7 @@ This workflow is designed as a **single hub for an entire research program** —
 | `verifier` | End-to-end task completion verification |
 | `domain-reviewer` | **Template** for your field-specific substance reviewer |
 | `claim-verifier` (v1.7.0) | Chain-of-Verification fact-checker in a forked context |
-| `fact-auditor` | Cold factual audit of `courses/<slug>/` week notes, glossary, and notebook — invoked only by `/course-notes audit`; reports findings, does not write |
+| `fact-auditor` | Cold factual audit of `courses/<slug>/` week chapters, glossary, and index — invoked only by `/course-notes audit`; reports findings, does not write |
 | `editor` (v1.5.0) | Journal editor for `/review-paper --peer` (desk review + referee selection + synthesis) |
 | `domain-referee` (v1.5.0) | Disposition-primed substance referee for `--peer` mode |
 | `methods-referee` (v1.5.0+) | Paper-type-aware methodology referee (6 paper types) |
@@ -223,6 +223,7 @@ This workflow is designed as a **single hub for an entire research program** —
 |-------|-------------|
 | `/compile-latex` | 3-pass XeLaTeX compilation with bibtex |
 | `/deploy` | Render Quarto + sync to GitHub Pages |
+| `/deploy-course-notes` | Render course-notes Quarto books to `docs/courses/<slug>/` for GitHub Pages |
 | `/extract-tikz` | TikZ diagrams to PDF to SVG pipeline |
 | `/proofread` | Launch proofreader on a file |
 | `/visual-audit` | Launch slide-auditor on a file |
@@ -278,7 +279,7 @@ This workflow is designed as a **single hub for an entire research program** —
 | `/submission-disclosures` (v2.1) | The submission-time disclosure block: AI-use disclosure matched to the target journal's verified-current policy, CRediT contributor roles, conflict-of-interest, and data-availability statements (NOT statistical disclosure — that's `/disclosure-check`) |
 | `/syllabus` (v2.0) | Build/restructure a course syllabus from a topic or reading list — course description + prerequisites, week-by-week schedule (topic→readings→deliverables), measurable learning objectives, assessment scheme + rubric, standard policies (late work / AI use / integrity / accessibility), and a per-week work-list mapping weeks to `/create-lecture` decks; economics-aware (PhD metrics/micro/macro sequences, undergrad) |
 | `/teach-from-paper` (v2.0) | Reads a paper end-to-end and pitches it to a stated audience level — lecture outline (motivation → setup → key result → method → takeaways), the 3-5 results worth presenting with intuition, a slide skeleton for `/create-lecture`, discussion questions, and a problem-set brief for `/scaffold-exercises` |
-| `/course-notes` | Learner course notes for one lecture week under `courses/<slug>/` — dependency-mapped markdown, cumulative glossary, derived notebook; `init` / `add` / `audit`. NOT instructor decks (`/create-lecture`) or manuscript CoVe (`/verify-claims`) |
+| `/course-notes` | Learner course notes for one lecture week under `courses/<slug>/` — Quarto book chapter (`lectures/weekNN.qmd`), cumulative glossary, local `_site/` render; `init` / `add` / `audit`. NOT instructor decks (`/create-lecture`) or manuscript CoVe (`/verify-claims`) |
 | `/respond-to-eval` (v2.0) | Teaching analogue of `/respond-to-referees` — clusters course-eval comments into themes, weights by frequency (signal vs noise), classifies Keep / Change / Investigate / Out-of-scope, and drafts concrete changes mapped to the syllabus + slide decks; saves the plan to `quality_reports/teaching/` |
 | `/scaffold-exercises` (v2.0) | Scaffold a graded problem set across analytical/empirical/coding types, with worked solutions and "why this matters" explainers emitted to a separate solution key |
 | `/new-skill` (v2.0) | Scaffold a new skill that follows this repo's conventions — interviews for purpose, triggers, and tools, writes `.claude/skills/<name>/SKILL.md` from the template with frontmatter/body that pass `check-skill-integrity.py` first try, then reminds to add the surface-table rows |
@@ -345,7 +346,7 @@ Rules use path-scoped loading: **always-on** rules load every session; **path-sc
 | `r-package-conventions` (v1.10.0) | `R/**`, `tests/**`, `DESCRIPTION`, `NAMESPACE`, `man/**` | R package-source standards: no `library()` in `R/`, roxygen NAMESPACE, Imports/Suggests, testthat 3e, CRAN policy |
 | `confidential-data` (v2.0) | `data/**`, `**/*.dta`, `**/restricted/**`, `**/confidential/**` | Restricted/IRB-data protocol: never commit raw data, disclosure clearance before release, restricted-data-safe multi-author git topology |
 | `inference-robustness` (v2.0) | `scripts/**/*.R`, `**/*.do`, `**/*.py` | Multiple-testing (FWER/Romano-Wolf vs FDR/Anderson sharpened-q, pre-register the family) + specification-curve / leave-one-out / wild-cluster-bootstrap robustness |
-| `course-notes` | `courses/**` | Learner course-notes constraints: inline definitions, homework-answer ban, markdown SoT vs derived notebook |
+| `course-notes` | `courses/**` | Learner course-notes constraints: definitions, homework-answer ban, Quarto `.qmd` as SoT |
 
 ### Templates (`templates/`)
 
@@ -365,11 +366,11 @@ Rules use path-scoped loading: **always-on** rules load every session; **path-sc
 | `response-to-referees.md` | R&R response document scaffold |
 | `executor-contract.md` (v2.5.1) | Dispatchable goal contract for a delegated task — goal, acceptance bar, exact paths, gates it must pass, output contract, and the mechanisms the executor may refuse |
 | `screening-rubric.md` (v2.5.1) | Screening rubric — written before the screen runs, with per-candidate evidence, an adjudication table, and a dispatcher spot-check |
-| `week-course-notes.md` | Shape template for one lecture week under `courses/<slug>/` (`/course-notes`) |
+| `week-course-notes.md` | Pointer; week chapter skeleton is `templates/course-notes-book/lectures/week.md` (`/course-notes`) |
 | `course.md` | Per-course rulebook placeholders copied to `courses/<slug>/COURSE.md` |
-| `glossary.md` | Empty week-grouped glossary (never-delete rule) |
+| `glossary.md` | Pointer; glossary chapter stub is `templates/course-notes-book/glossary.qmd` |
 | `course-notes-readme.md` | Index stub for a course notes directory |
-| `notebook.html` | Thin course-notebook shell (CSS variables, sidebar, `#weeks`, glossary) |
+| `course-notes-book/` | Quarto book skeleton (`_quarto.yml`, `index.qmd`, `glossary.qmd`, `styles/`, week chapter) |
 | `fact-audit.md` | `FACT_AUDIT.md` shape for `/course-notes audit` |
 
 </details>

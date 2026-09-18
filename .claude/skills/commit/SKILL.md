@@ -19,6 +19,8 @@ Stage changes, verify quality gates, commit with a descriptive message, create a
 python3 scripts/quality_score.py <changed-file-paths>
 ```
 
+Files under `courses/` and `templates/course-notes-book/` use the **course-notes book** rubric (`score_course_notes`: book render, KaTeX column overflow, SVG title band). Instructor decks under `Quarto/` still use the slide rubric. Do not apply the 120-character slide overflow check to book chapters.
+
 - If any file scores below **80**, halt and report the findings. The user must either fix the issues or explicitly override with phrases like *"commit anyway"* or *"skip quality gate"*.
 - If all files score 80+, continue.
 
@@ -26,7 +28,7 @@ Spawn the **verifier** agent (via the `Agent` tool with `subagent_type=verifier`
 
 ### Step 0b: Consistency Gate (Pre-Commit)
 
-**Runs unconditionally.** The full backtest suite — all ten gates (surface-sync count claims like `"19 agents, 61 skills, 38 rules, 8 hooks"` and marked tables, skill integrity, model currency, links, spec conformance, staleness, repo hygiene, derived counts, ledger coverage, hook battery):
+**Runs unconditionally.** The full backtest suite — all ten gates (surface-sync count claims like `"19 agents, 62 skills, 38 rules, 8 hooks"` and marked tables, skill integrity, model currency, links, spec conformance, staleness, repo hygiene, derived counts, ledger coverage, hook battery):
 
 ```bash
 ./scripts/backtest.sh

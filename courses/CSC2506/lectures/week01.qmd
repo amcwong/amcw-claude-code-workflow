@@ -1,0 +1,348 @@
+---
+title: "Week 1: Introduction and Probabilistic Models"
+---
+
+```{=html}
+<style>#title-block-header { display: none; }</style>
+<div class="lecture-header">
+  <h1>Week 1: Introduction and Probabilistic Models</h1>
+</div>
+```
+
+**Overview.** This lecture asks what probabilistic machine learning is, then builds the first technical objects the rest of the course uses: families of distributions indexed by a parameter, and a rule for fitting that parameter to data. We start from the four standard ML problem settings, recast them as estimating a distribution, review joint, marginal, and conditional probability on a diagnostic-test example, and then introduce parametric models, maximum likelihood, sufficient statistics, and exponential families. Directed graphical models, exact inference, sampling, and variational inference appear only as a course roadmap and are deferred.
+
+Logistics slides (grading, Piazza, policies, calendar) are skipped.
+
+## What is machine learning? {#sec-ml}
+
+How can we design programs for problems that are too complex to specify as a fixed set of rules (recognizing a face, transcribing speech)?
+
+::: {.definition-block}
+**Definition.** *[Machine learning](https://en.wikipedia.org/wiki/Machine_learning)* (ML) is the design of algorithms whose behavior is **learned from data or experience** rather than written as hand-coded rules.
+:::
+
+The lecture names four standard settings, distinguished by what is observed and what signal drives learning:
+
+- **Supervised learning:** given input–output pairs $(x^{(i)}, y^{(i)})$, learn a mapping $f$ from inputs $x$ to outputs $y$.
+- **Unsupervised learning:** given only unlabelled inputs $x^{(i)}$, find structure or relations among them (the objective varies by task).
+- **Semi-supervised learning:** a small amount of labelled data plus a large amount of unlabelled $x^{(i)}$.
+- **Reinforcement learning:** a learning system receives a reward signal and learns to act so as to maximize it.
+
+The reason this is a *probabilistic* ML course is that all four settings can be cast as estimating a probability distribution from data: $p(y \mid x)$ for supervised learning, $p(x)$ for unsupervised learning, $p(x, y)$ for the joint case. The through-line of the course is how we specify, fit, and use such distributions.
+
+**ML and statistics.** Statistics is more concerned with helping people draw sound conclusions from data (interpretability, mathematical rigour). ML is more concerned with building systems with a desired behavior (predictive performance, scalability, autonomy). The two fields share almost all their mathematical machinery. This course will look a lot like a statistics course in its formulas. The *purpose* to which that machinery is put differs.
+
+### Discriminative vs generative models
+
+In supervised classification we observe pairs $(x^{(i)}, c^{(i)})$, where $c$ denotes a discrete class label (to distinguish it from a continuous output $y$).
+
+::: {.definition-block}
+**Definition.** A **discriminative model** specifies only the conditional $p(c \mid x)$. A **generative model** specifies the joint $p(c, x)$ (or $p(x,y)$). The joint is more work to write down, but it also lets us generate new synthetic $x$'s from a given class via $p(x \mid c)$.
+:::
+
+## Joint, marginal, and conditional distributions {#sec-joint}
+
+The rest of this week's material is about discrete distributions over a small number of variables. We pin down three objects using the diagnostic-test example that the tutorial works in full (infected or not; test positive or not). That example is also the running numeric example below.
+
+For two discrete random variables $H$ and $Y$:
+
+::: {.definition-block}
+**Definition.** The **joint distribution** $p(H, Y)$ is the probability of every combination of outcomes (e.g. $p(H=1, Y=0)$). All entries are non-negative and sum to 1 over every combination.
+
+The **marginal distribution** $p(H)$ is obtained by summing the joint over the other variable: $p(H=h) = \sum_y p(H=h, Y=y)$.
+
+The **conditional distribution** $p(H \mid Y)$ is the distribution of $H$ once $Y$'s value is known:
+$p(H=h \mid Y=y) = \dfrac{p(H=h, Y=y)}{p(Y=y)}$.
+:::
+
+The last identity (conditional equals joint divided by marginal) is [Bayes' theorem](https://en.wikipedia.org/wiki/Bayes%27_theorem) once you also expand the joint using the other factorization.
+
+## Worked example: a diagnostic test {#sec-bayes}
+
+Let $H = 1$ mean infected and $H=0$ mean not infected; let $Y=1$ mean the test is positive and $Y=0$ mean it is negative. We want $p(H=h \mid Y=y)$: given the test result, the chance of actually being infected.
+
+Three numbers describe the situation:
+
+- **Sensitivity** (true positive rate): $p(Y=1 \mid H=1) = 0.875$.
+- **Specificity** (true negative rate): $p(Y=0 \mid H=0) = 0.975$.
+- **Prevalence** (the prior): $p(H=1) = 0.1$ in the first scenario.
+
+**Step 1.** Build the joint. Each cell is (conditional probability of the test result) times (prior probability of the health state):
+
+$$p(Y{=}0,H{=}0) = 0.975 \cdot 0.9 = 0.8775 \qquad p(Y{=}0,H{=}1) = 0.125 \cdot 0.1 = 0.0125$$
+$$p(Y{=}1,H{=}0) = 0.025 \cdot 0.9 = 0.0225 \qquad p(Y{=}1,H{=}1) = 0.875 \cdot 0.1 = 0.0875$$
+
+These four numbers are non-negative and sum to 1.
+
+| $Y \backslash H$ | $H=0$ | $H=1$ | marginal over $Y$ |
+| --- | --- | --- | --- |
+| $Y=0$ | 0.8775 | 0.0125 | 0.89 |
+| $Y=1$ | 0.0225 | 0.0875 | 0.11 |
+| marginal over $H$ | 0.9 | 0.1 | |
+
+**Step 2.** Condition. The marginal $p(Y{=}1) = 0.11$ sums the $Y{=}1$ row, so
+
+$$p(H{=}1 \mid Y{=}1) = \frac{p(Y{=}1, H{=}1)}{p(Y{=}1)} = \frac{0.0875}{0.11} \approx 0.795.$$
+
+A positive test means a **79.5%** chance of infection. Similarly, $p(H{=}1 \mid Y{=}0) = 0.0125 / 0.89 \approx 0.014$: a negative test leaves a 1.4% chance of infection.
+
+```{=html}
+<div style="overflow-x:auto; margin:1.5rem 0;">
+<svg viewBox="0 0 720 280" width="100%" style="max-width:720px;display:block;margin:auto;font-family:Helvetica,'Helvetica Neue',Arial,sans-serif;" role="img" aria-label="Factorization of the joint p(H,Y) along prior then test-result branches">
+  <defs>
+    <marker id="arrJ" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto">
+      <path d="M0,0 L0,6 L6,3 z" fill="#888"/>
+    </marker>
+  </defs>
+  <circle cx="70" cy="150" r="28" fill="#C6DEF1" stroke="#5795C7" stroke-width="1.5"/>
+  <text x="70" y="155" text-anchor="middle" font-size="16" font-weight="600" fill="#205279">start</text>
+
+  <line x1="98" y1="140" x2="168" y2="80" stroke="#888" stroke-width="1.5" marker-end="url(#arrJ)"/>
+  <line x1="98" y1="160" x2="168" y2="220" stroke="#888" stroke-width="1.5" marker-end="url(#arrJ)"/>
+
+  <rect x="170" y="52" width="170" height="56" rx="6" fill="#C9E4DE" stroke="#57C7AE" stroke-width="1.5"/>
+  <text x="255" y="76" text-anchor="middle" font-size="14" font-weight="600" fill="#207965">H=1 infected</text>
+  <text x="255" y="96" text-anchor="middle" font-size="14" fill="#207965">p(H=1)=0.1</text>
+
+  <rect x="170" y="192" width="170" height="56" rx="6" fill="#C9E4DE" stroke="#57C7AE" stroke-width="1.5"/>
+  <text x="255" y="216" text-anchor="middle" font-size="14" font-weight="600" fill="#207965">H=0 not infected</text>
+  <text x="255" y="236" text-anchor="middle" font-size="14" fill="#207965">p(H=0)=0.9</text>
+
+  <line x1="340" y1="70" x2="410" y2="40" stroke="#888" stroke-width="1.5" marker-end="url(#arrJ)"/>
+  <line x1="340" y1="90" x2="410" y2="120" stroke="#888" stroke-width="1.5" marker-end="url(#arrJ)"/>
+  <line x1="340" y1="210" x2="410" y2="180" stroke="#888" stroke-width="1.5" marker-end="url(#arrJ)"/>
+  <line x1="340" y1="230" x2="410" y2="260" stroke="#888" stroke-width="1.5" marker-end="url(#arrJ)"/>
+
+  <rect x="412" y="18" width="280" height="40" rx="6" fill="#F7D9C4" stroke="#C78557" stroke-width="1.5"/>
+  <text x="552" y="44" text-anchor="middle" font-size="14" fill="#794520">Y=1  p=0.0875  (sens. 0.875)</text>
+
+  <rect x="412" y="98" width="280" height="40" rx="6" fill="#FAEDCB" stroke="#C7A857" stroke-width="1.5"/>
+  <text x="552" y="124" text-anchor="middle" font-size="14" fill="#796020">Y=0  p=0.0125</text>
+
+  <rect x="412" y="162" width="280" height="40" rx="6" fill="#F7D9C4" stroke="#C78557" stroke-width="1.5"/>
+  <text x="552" y="188" text-anchor="middle" font-size="14" fill="#794520">Y=1  p=0.0225</text>
+
+  <rect x="412" y="242" width="280" height="40" rx="6" fill="#FAEDCB" stroke="#C7A857" stroke-width="1.5"/>
+  <text x="552" y="268" text-anchor="middle" font-size="14" fill="#796020">Y=0  p=0.8775  (spec. 0.975)</text>
+</svg>
+</div>
+```
+
+**Figure 1.** Building the joint of $(H,Y)$ by multiplying prior times conditional along each branch. Conditioning on a positive test (the two $Y=1$ leaves) and renormalizing gives $p(H=1\mid Y=1) = 0.0875 / 0.11 \approx 79.5\%$.
+
+If the prevalence is lower, say $p(H{=}1)=0.01$ instead of $0.1$, the same arithmetic drops the positive-test posterior to about **26%**, even though sensitivity and specificity have not changed. When the disease is rare, most positive tests come from the much larger pool of uninfected people who got a false positive. This is the base-rate effect: a direct consequence of Bayes' rule.
+
+This example is itself a **parametric model**: the joint of $(Y,H)$ is completely determined by three numbers (prevalence, sensitivity, specificity).
+
+## Parametric models and the likelihood {#sec-parametric}
+
+Rather than considering every possible distribution over the data, we restrict attention to a family indexed by a small number of parameters.
+
+::: {.definition-block}
+**Definition.** A **parametric model** is a set of distributions $\mathcal{P} = \{p(x \mid \theta) : \theta \in \Theta\}$, indexed by a parameter $\theta$ ranging over a parameter space $\Theta$.
+:::
+
+Example: $\mathcal{P} = \{p(x\mid\theta) = \mathcal{N}(\theta, 1) : \theta \in \mathbb{R}\}$ is the family of Gaussians with variance fixed at 1 and mean $\theta$ free. In the diagnostic-test example, $\Theta$ was 3-dimensional (prevalence, sensitivity, specificity).
+
+The course's stated goal: given data believed to come from some true distribution $p^*$, and a family $\mathcal{P}$, find the member $p \in \mathcal{P}$ that best approximates $p^*$, and do so efficiently.
+
+Suppose the data $\mathcal{D} = \{x^{(1)}, \dots, x^{(N)}\}$ are drawn **i.i.d.** (independently and identically distributed: each point drawn independently from the same distribution) from $p(x \mid \theta^*)$ for some unknown true $\theta^*$. Independence makes the joint probability of the dataset factor as a product, the **likelihood function** $\mathcal{L}(\theta; \mathcal{D})$:
+
+$$p(\mathcal{D} \mid \theta) = \prod_{i=1}^N p(x^{(i)} \mid \theta).$$
+
+Products of many small numbers are numerically awkward, and calculus is easier on sums, so we almost always work with the **log-likelihood**:
+
+$$\ell(\theta; \mathcal{D}) = \log \mathcal{L}(\theta;\mathcal{D}) = \sum_{i=1}^N \log p(x^{(i)} \mid \theta).$$
+
+## Maximum likelihood estimation {#sec-mle}
+
+Which member of the family should we pick? A natural rule is: the parameter value under which the data we actually observed would have been most probable.
+
+::: {.definition-block}
+**Definition.** *[Maximum likelihood estimation](https://en.wikipedia.org/wiki/Maximum_likelihood_estimation)* (MLE) chooses
+$$\hat\theta_{\text{MLE}} = \arg\max_\theta \, \ell(\theta; \mathcal{D}) = \arg\max_\theta \, \mathcal{L}(\theta;\mathcal{D}).$$
+:::
+
+Maximizing $\ell$ and maximizing $\mathcal{L}$ give the same $\hat\theta$ because $\log$ is a strictly increasing function: it never reorders which $\theta$ is best; it just makes the optimization easier.
+
+::: {.callout-note}
+**Worked example: MLE for a Bernoulli.** Let $x^{(i)} = 1$ with probability $\theta$ (heads) and $x^{(i)}=0$ with probability $1-\theta$ (tails), for $i = 1,\dots,N$ i.i.d. trials. The log-likelihood is
+$$\begin{aligned}
+\ell(\theta;\mathcal{D}) &= \sum_{i=1}^N \Big[x^{(i)}\log\theta + (1-x^{(i)})\log(1-\theta)\Big] \\
+&= \Big(\sum_i x^{(i)}\Big)\log\theta + \Big(N - \sum_i x^{(i)}\Big)\log(1-\theta).
+\end{aligned}$$
+Setting the derivative with respect to $\theta$ to zero,
+$$\begin{aligned}
+\frac{\partial \ell}{\partial \theta} &= \frac{\sum_i x^{(i)}}{\theta} - \frac{N - \sum_i x^{(i)}}{1-\theta} = 0 \\
+\implies \hat\theta_{\text{MLE}} &= \frac{1}{N}\sum_{i=1}^N x^{(i)}.
+\end{aligned}$$
+The MLE of a Bernoulli parameter is the observed fraction of ones. (A homework that asks you to derive an MLE for a different model is left to the assignment; the same derivative-of-the-log-likelihood steps apply.)
+:::
+
+## Sufficient statistics {#sec-sufficient}
+
+In the Bernoulli example, the log-likelihood only ever referred to the data through one number: $S = \sum_i x^{(i)}$, the total count of ones. It did not matter which trials were heads, or in what order, only how many.
+
+::: {.definition-block}
+**Definition.** $T(x)$ is a *[sufficient statistic](https://en.wikipedia.org/wiki/Sufficient_statistic)* for $\theta$ in the model $p(x\mid\theta)$ if and only if the density factors as
+$$p(x\mid\theta) = h(x)\, g_\theta\big(T(x)\big)$$
+for some function $h$ that does not depend on $\theta$, and some function $g_\theta$. This is the **Fisher–Neyman factorization theorem**. All dependence on $\theta$ is routed through $T(x)$, so once you know $T(x)$, the rest of $x$ tells you nothing more about $\theta$.
+:::
+
+Checking the factorization on the Bernoulli likelihood from above:
+$$p(\mathcal{D}\mid\theta) = \prod_{i=1}^N \theta^{x^{(i)}}(1-\theta)^{1-x^{(i)}} = \theta^{\,S}(1-\theta)^{\,N-S}, \qquad S := \sum_{i=1}^N x^{(i)}.$$
+The individual data values never appear on the right except through $S$. That *is* the factorization with $h(\mathcal{D})=1$ and $T(\mathcal{D})=S$, which is why the MLE derivation only needed $S$.
+
+## Exponential families {#sec-expfam}
+
+### Which "family"?
+
+| Word as used here | What varies | Where else it shows up |
+| --- | --- | --- |
+| Parametric model / family $\mathcal{P}$ | which member distribution is chosen | any parametric model, not just exponential ones |
+| Exponential family | a specific algebraic form that many parametric models share | Bernoulli, Multinomial, Gaussian (this week); GLMs and undirected graphical models (later) |
+| Natural parameter $\eta$ | the coordinate system exponential families are written in | related to $\theta$ in $p(x\mid\theta)$, but not always the same coordinates |
+
+Every exponential family is a parametric model. Not every parametric model belongs to the exponential family.
+
+### The general form
+
+Bernoulli, Gaussian, Multinomial, and many named distributions can be written in one template. Once a distribution is in that template, its sufficient statistic, a general MLE recipe, and its mean come for free.
+
+::: {.definition-block}
+**Definition.** A distribution belongs to the *[exponential family](https://en.wikipedia.org/wiki/Exponential_family)* if its density (or mass function) can be written
+$$p(x\mid\eta) = h(x)\exp\{\eta^\top T(x) - A(\eta)\}$$
+with four named pieces: sufficient statistic $T(x)$, natural parameter $\eta$, log-partition function $A(\eta)$ (the normalizer), and carrying measure $h(x)$ (the $\eta$-independent factor).
+:::
+
+Writing the density this way isolates all parameter-dependence into the inner product $\eta^\top T(x)$, which is the structure Fisher–Neyman asks for. Every exponential-family member therefore has $T(x)$ as a sufficient statistic.
+
+Named examples in this family (per the lecture): Bernoulli, (multivariate) Gaussian, gamma, exponential, chi-squared, beta, Dirichlet, Poisson, geometric, and, as derived next, the Multinomial and the univariate Gaussian.
+
+```{=html}
+<div style="overflow-x:auto; margin:1.5rem 0;">
+<svg viewBox="0 0 680 220" width="100%" style="max-width:680px;display:block;margin:auto;font-family:Helvetica,'Helvetica Neue',Arial,sans-serif;" role="img" aria-label="Four pieces of an exponential-family density">
+  <text x="340" y="24" text-anchor="middle" font-size="24" font-weight="600" fill="#333">p(x | eta) = h(x) exp{ eta^T T(x) minus A(eta) }</text>
+  <line x1="175" y1="48" x2="110" y2="78" stroke="#888" stroke-width="1.5"/>
+  <line x1="340" y1="48" x2="340" y2="78" stroke="#888" stroke-width="1.5"/>
+  <line x1="530" y1="48" x2="570" y2="78" stroke="#888" stroke-width="1.5"/>
+  <rect x="20" y="80" width="180" height="110" rx="6" fill="#FAEDCB" stroke="#C7A857" stroke-width="1.5"/>
+  <text x="110" y="118" text-anchor="middle" font-size="18" font-weight="600" fill="#796020">h(x)</text>
+  <text x="110" y="148" text-anchor="middle" font-size="14" fill="#796020">carrying measure</text>
+  <text x="110" y="170" text-anchor="middle" font-size="14" fill="#796020">eta-independent</text>
+  <rect x="250" y="80" width="180" height="110" rx="6" fill="#C9E4DE" stroke="#57C7AE" stroke-width="1.5"/>
+  <text x="340" y="118" text-anchor="middle" font-size="18" font-weight="600" fill="#207965">eta, T(x)</text>
+  <text x="340" y="148" text-anchor="middle" font-size="14" fill="#207965">natural parameter and</text>
+  <text x="340" y="170" text-anchor="middle" font-size="14" fill="#207965">sufficient statistic</text>
+  <rect x="480" y="80" width="180" height="110" rx="6" fill="#DBCDF0" stroke="#8457C7" stroke-width="1.5"/>
+  <text x="570" y="118" text-anchor="middle" font-size="18" font-weight="600" fill="#442079">A(eta)</text>
+  <text x="570" y="148" text-anchor="middle" font-size="14" fill="#442079">log-partition</text>
+  <text x="570" y="170" text-anchor="middle" font-size="14" fill="#442079">(normalizer)</text>
+</svg>
+</div>
+```
+
+**Figure 2.** The four pieces of an exponential family. All parameter-dependence routes through $\eta$ and $T(x)$ via a single inner product, which is what Fisher–Neyman requires for $T(x)$ to be sufficient.
+
+### Bernoulli as an exponential family
+
+Start from the single-trial [Bernoulli](https://en.wikipedia.org/wiki/Bernoulli_distribution) mass function $p(x\mid\theta) = \theta^x(1-\theta)^{1-x}$ for $x\in\{0,1\}$, and rewrite the powers as an exponential of logs:
+
+$$p(x\mid\theta) = \exp\big\{x\log\theta + (1-x)\log(1-\theta)\big\}.$$
+
+Collect terms that multiply $x$ versus terms that do not:
+
+$$x\log\theta + (1-x)\log(1-\theta) = x\log\frac{\theta}{1-\theta} + \log(1-\theta).$$
+
+Matching against $\eta\, T(x) - A(\eta)$:
+
+$$T(x) = x \qquad \eta = \log\frac{\theta}{1-\theta} \qquad A(\eta) = \log(1+e^{\eta}) \qquad h(x) = 1.$$
+
+(Solving $\eta = \log\frac{\theta}{1-\theta}$ for $\theta$ gives $\theta = e^\eta/(1+e^\eta)$; substituting recovers $A(\eta)$.) The quantity $\log\frac{\theta}{1-\theta}$ is the **log-odds** of heads versus tails. The $K$-class Multinomial below uses the same shape, $\eta_i = \log(q_i/q_K)$, with Bernoulli as the $K=2$ case.
+
+A check against the general fact $\mathbb{E}[T(X)] = A'(\eta)$ proved later: $A(\eta) = \log(1+e^\eta)$ has $A'(\eta) = e^\eta/(1+e^\eta) = \theta = \mathbb{E}[X]$, and $A''(\eta) = \theta(1-\theta)$, the Bernoulli variance.
+
+## Multinomial as an exponential family {#sec-multinomial}
+
+A [**Multinomial**](https://en.wikipedia.org/wiki/Multinomial_distribution) random variable $X$ takes one of $K$ discrete states $i \in \{1,\dots,K\}$, each with probability $q_i$, where $q_i \ge 0$ and $\sum_i q_i = 1$ (a $K$-class label, or an unfair $K$-sided die). We observe $N$ i.i.d. draws $\mathcal{D} = \{x^{(1)}, \dots, x^{(N)}\}$.
+
+**Step 1.** Likelihood in terms of counts. Let $N_i = \sum_{n=1}^N \mathbb{1}[x^{(n)} = i]$. Then
+
+$$p(\mathcal{D}; \mathbf{q}) = \exp\Big(\sum_{i=1}^K N_i \log q_i\Big).$$
+
+The sufficient statistics are the counts $N_1, \dots, N_K$.
+
+**Step 2.** The $q_i$ are not free: $\sum_i q_i = 1$. Write $q_K = 1-\sum_{i=1}^{K-1}q_i$ and peel out the $i=K$ term:
+
+$$\sum_{i=1}^K N_i\log q_i = \sum_{i=1}^{K-1} N_i \log\frac{q_i}{q_K} \;+\; N\log q_K.$$
+
+That split *is* $\eta^\top T(x) - A(\eta)$ for $i=1,\dots,K-1$:
+
+$$T(x)_i = N_i \qquad \eta_i = \log\frac{q_i}{q_K} \qquad h(x)=1 \qquad A(\eta) = N\log\Big(1+\sum_{i=1}^{K-1}e^{\eta_i}\Big).$$
+
+(Invert $\eta_i=\log(q_i/q_K)$ to get $q_i/q_K = e^{\eta_i}$, sum to get $1/q_K = 1+\sum_i e^{\eta_i}$, substitute into $N\log(1/q_K)$.)
+
+**Step 3.** MLE under $\sum_i q_i = 1$, via a Lagrange multiplier $\lambda$:
+
+$$L(\mathbf{q},\lambda) = \sum_i N_i \log q_i + \lambda\Big(1-\sum_i q_i\Big).$$
+
+Setting $\partial L/\partial q_i = 0$ gives $q_i = N_i/\lambda$; the constraint pins $\lambda = N$, so
+
+$$\hat q_{i,\text{MLE}} = \frac{N_i}{N}.$$
+
+Each class probability's MLE is its observed relative frequency (Bernoulli is the $K=2$ case).
+
+## Univariate Gaussian as an exponential family {#sec-gaussian}
+
+Assume $N$ i.i.d. samples $x^{(i)} \in \mathbb{R}$ from the [univariate Gaussian](https://en.wikipedia.org/wiki/Normal_distribution) $\mathcal{N}(x \mid \mu, \sigma^2) = \frac{1}{\sqrt{2\pi}\sigma}\exp\{-\frac{1}{2\sigma^2}(x-\mu)^2\}$.
+
+**Step 1.** Expand the square so the parameter and the data interact only through an inner product $\eta^\top T(x)$:
+
+$$-\frac{1}{2\sigma^2}(x-\mu)^2 = -\frac{1}{2\sigma^2}x^2 + \frac{\mu}{\sigma^2}x - \frac{\mu^2}{2\sigma^2}.$$
+
+The $x$-independent factor $\exp\{-\mu^2/2\sigma^2\}$ becomes part of the log-partition function. The remaining terms that multiply $x$ and $x^2$ make $T(x)$ two-dimensional:
+
+$$\eta = \begin{bmatrix}\mu/\sigma^2 \\ 1/\sigma^2\end{bmatrix} \qquad T(x) = \begin{bmatrix}x \\ -x^2/2\end{bmatrix}.$$
+
+So $\mu = \eta_1/\eta_2$ and $\sigma^2 = 1/\eta_2$: the ordinary $(\mu,\sigma^2)$ parameterization is recoverable from the natural one, but they are not the same coordinates (the disambiguation table above).
+
+**Step 2.** MLE in the familiar $(\mu, \sigma^2)$ coordinates:
+
+$$\ell(\theta;\mathcal{D}) = -\frac{N}{2}\log(2\pi\sigma^2) - \frac{1}{2}\sum_n\frac{(x^{(n)}-\mu)^2}{\sigma^2}.$$
+
+Setting $\partial \ell/\partial \mu = 0$ gives $\hat\mu_{\text{MLE}} = \frac{1}{N}\sum_n x^{(n)}$, the sample mean. Setting $\partial \ell /\partial \sigma^2 = 0$ gives $\hat\sigma^2_{\text{MLE}} = \frac{1}{N}\sum_n\big((x^{(n)})^2 - \hat\mu_{\text{MLE}}^2\big)$, the sample variance (with divisor $N$, not $N-1$).
+
+## Mean of sufficient statistics {#sec-mean}
+
+::: {.theorem-block}
+**Result.** For $X \sim p(x\mid\eta)$ in an exponential family, $\mathbb{E}_\eta[T(X)] = A'(\eta)$. Differentiating again gives $\mathrm{Var}(T(X)) = A''(\eta)$.
+:::
+
+**Why.** Every valid density integrates to 1 for every $\eta$. Start from $\mathbb{E}[T(X)] - A'(\eta)$, rewrite the lone $A'(\eta)$ as an integral using $\int p = 1$, and recognize the integrand as $\frac{d}{d\eta}p(x\mid\eta)$. Swap derivative and integral (under mild regularity conditions the lecture does not dwell on):
+
+$$\mathbb{E}[T(X)] - A'(\eta) = \frac{d}{d\eta}\int p(x\mid\eta)\,dx = \frac{d}{d\eta}\, 1 = 0.$$
+
+The proof used only two facts: a density integrates to 1, and differentiating $\exp\{\cdot\}$ brings down the contents of the exponent. Nothing about the specific distribution mattered, which is why the formula applies to Bernoulli, Multinomial, Gaussian, or any other exponential family.
+
+**MLE consequence.** For $N$ i.i.d. exponential-family samples, setting $\partial \ell/\partial\eta = 0$ gives
+
+$$A'(\hat\eta_{\text{MLE}}) = \frac{1}{N}\sum_{i=1}^N T(x^{(i)}).$$
+
+The MLE sets the model's expected sufficient statistic equal to the empirical average of the sufficient statistic. Whenever this equation has a closed form, it reproduces the Bernoulli, Multinomial, and Gaussian answers above.
+
+## Summary {#sec-summary}
+
+::: {.callout-note}
+**Key takeaways from Week 1:**
+
+- Probabilistic models are the main tool: every task in §1 can be framed as estimating a distribution.
+- We make modelling assumptions (i.i.d., parametric families) for tractability; MLE is one fitting rule.
+- Exponential families are a useful general template: one algebraic form covers Bernoulli, Multinomial, Gaussian, and many more, each inheriting a sufficient statistic and a general MLE recipe.
+- The same algebra reappears later as the backbone of undirected graphical models (flagged only; not covered this week).
+:::
+
+**Next week:** directed graphical models, as listed on the course roadmap (not written yet).
+
+## Quick self-check
+
+If you can explain, in your own words, why a sufficient statistic, the natural parameter of an exponential family, and maximum likelihood estimation are connected (why finding the MLE of an exponential family comes down to matching the sufficient statistic's average to its expectation), you have understood the core of Week 1.

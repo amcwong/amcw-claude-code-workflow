@@ -1,6 +1,6 @@
 ---
 name: deploy
-description: Render Quarto `.qmd` slides to HTML and sync to `docs/` for GitHub Pages. Use when user says "deploy", "publish the slides", "ship to pages", "push the lecture live", "render and publish", or after Quarto edits that need to go public. NOT for local Quarto render only — use `quarto render` directly for that.
+description: Render Quarto `.qmd` slides to HTML and sync to `docs/` for GitHub Pages. Use when user says "deploy", "publish the slides", "ship to pages", "push the lecture live", "render and publish", or after Quarto edits that need to go public. NOT for learner course-notes books — use `/deploy-course-notes`. NOT for local Quarto render only — use `quarto render` directly for that.
 argument-hint: "[LectureN or 'all']"
 allowed-tools: ["Read", "Bash"]
 ---
@@ -34,6 +34,10 @@ Render Quarto slides and sync all files to `docs/` for GitHub Pages deployment.
    - Confirm slides render, images display, navigation works
 
 6. **Report results** to the user
+
+## Not this skill
+
+Learner Quarto **books** under `courses/<slug>/` → [`/deploy-course-notes`](../deploy-course-notes/SKILL.md) (`docs/courses/<slug>/`).
 
 ## What the sync script does:
 - Renders all `.qmd` files in `Quarto/` (skips `*_backup*` files)
