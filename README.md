@@ -6,7 +6,7 @@
 
 > **This fork is primarily a course-notes repo.** I write weekly learner notes here (Quarto books under `courses/`) using `/course-notes` and `/deploy-course-notes`, which I added on top of [Pedro Sant'Anna's Claude Code academic workflow](https://github.com/pedrohcgs/claude-code-my-workflow). The rest of that template is still in the tree, so the same repo can also produce slides, papers, and data analysis. See [CHANGELOG.md](CHANGELOG.md) for what changed in this fork.
 
-**Notes on GitHub Pages:** [amcwong.github.io/claude-code-my-workflow](https://amcwong.github.io/claude-code-my-workflow/) · [how the notes are written](docs/course-notes-workflow.html)
+**Course Notes on GitHub Pages:** [Course Notes](https://amcwong.github.io/amcw-claude-code-workflow/)
 
 **Upstream template:** [psantanna.com/claude-code-my-workflow](https://psantanna.com/claude-code-my-workflow/)
 
