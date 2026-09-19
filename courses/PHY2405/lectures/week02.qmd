@@ -1,0 +1,562 @@
+---
+title: "Week 2: Accelerator Physics"
+---
+
+```{=html}
+<style>#title-block-header { display: none; }</style>
+<div class="lecture-header">
+  <h1>Week 2: Accelerator Physics</h1>
+</div>
+```
+
+**Overview.** A [particle accelerator](https://en.wikipedia.org/wiki/Particle_accelerator) must do three jobs to a beam of charged particles: keep the particles on a closed path, keep them close to that path, and give them energy. The lecture starts with the first two (bending and focusing with magnets), builds the mathematics of a particle wobbling around its ideal path, and uses that to define the **[luminosity](https://en.wikipedia.org/wiki/Luminosity_(scattering_theory))** $\mathcal{L}$, the quantity that sets how often a collider produces an interaction of interest. It then turns to acceleration with radio-frequency fields and to the stability of the energy of the beam. The interaction rate $\mathcal{L}\,\sigma$ (luminosity times cross section) was introduced earlier in the course and is restated below where we need it.
+
+The running example is the [Large Hadron Collider](https://en.wikipedia.org/wiki/Large_Hadron_Collider) (LHC), with the [Tevatron](https://en.wikipedia.org/wiki/Tevatron) as the lecture's comparison machine. The lecture's reference text is Edwards and Syphers, *An Introduction to the Physics of High Energy Accelerators*.
+
+## What a circular accelerator is made of {#sec-parts}
+
+Which pieces of hardware does a ring need? The lecture starts from circular structures and assigns one job to each kind of field.
+
+| Job | Field | Hardware |
+| --- | --- | --- |
+| Guide (bend the path into a ring) | Guide field | Dipoles |
+| Focus (keep particles near the path) | Focusing field | Quadrupoles |
+| Accelerate (raise the energy) | Accelerating field | RF cavities |
+
+The rest of the week takes these in turn, then uses them to compute luminosity and to explain why colliders are built at all.
+
+## Bending with a dipole {#sec-dipole}
+
+How strong must a magnetic field be to bend a beam of a given momentum around a ring?
+
+::: {.definition-block}
+**Definition.** A **[dipole](https://en.wikipedia.org/wiki/Dipole_magnet)** magnet produces a uniform field $B$ across the beam. A particle of unit charge and momentum $p$ moves on a circular arc of radius $\rho$, the **bending radius**. The product $B\rho$ is the **magnetic rigidity** of the beam.
+:::
+
+A dipole of length $\ell$ deflects the beam by the angle
+
+$$\theta = \frac{\ell}{\rho}.$$
+
+The radius follows from balancing the [Lorentz force](https://en.wikipedia.org/wiki/Lorentz_force) against the curvature, and in the units the lecture uses (momentum in GeV/$c$, field in tesla, radius in metres) it reads
+
+::: {.boxed-eq}
+$$\rho = \frac{p}{0.3\,B}, \qquad B\rho = \frac{p}{0.3}.$$
+:::
+
+The rigidity is the beam's momentum expressed as a magnetic quantity: a stiffer beam needs either a larger field or a larger radius.
+
+::: {.callout-note}
+**Worked example.** Take a beam with $p = 3$ GeV/$c$ in a field of $B = 1$ T. Then $\rho = 3/(0.3 \times 1) = 10$ m. A magnet of length $\ell = 1$ m bends this beam by $\theta = 1/10 = 0.1$ rad. Doubling the momentum at fixed field doubles the radius.
+:::
+
+## Focusing with a quadrupole {#sec-quad}
+
+A dipole bends the reference path but does not stop particles from drifting away from it. What restores them?
+
+::: {.definition-block}
+**Definition.** A **[quadrupole](https://en.wikipedia.org/wiki/Quadrupole_magnet)** magnet has four poles and a field that vanishes on the axis and grows linearly with distance from it. For a beam travelling along $s$, the transverse field components are proportional to the displacements:
+$$B_x = g\,y, \qquad B_y = g\,x, \qquad g = \frac{\partial B_y}{\partial x}.$$
+The constant $g$ is the **field gradient**.
+:::
+
+The field pushes a particle back toward the axis in one transverse plane and away from it in the other. Which plane is which depends on the sign of $g$ and of the particle's charge. The lecture quotes typical gradients to show how the technology has advanced: about 12 T/m for iron magnets (CESR, a 10 GeV electron ring), about 75 T/m for the superconducting Tevatron (1 TeV), and 223 T/m for the main quadrupoles of the LHC.
+
+### Weak and strong focusing {#sec-strong}
+
+The first designs used a single magnet for both jobs. If the dipole field falls off as $B_y = B_0/r^n$ with $0<n<1$, one magnetic structure both bends and focuses. This is **weak focusing**, and it was the basis of early [cyclotrons](https://en.wikipedia.org/wiki/Cyclotron) and of the weak-focusing synchrotrons and betatrons that followed.
+
+**Strong focusing** separates the jobs and uses the optics of a lens system. A single lens focuses in both planes, but a quadrupole focuses in one plane and defocuses in the other. Recall from optics that a series of alternating focusing (F) and defocusing (D) elements gives net focusing, provided the particle sits, on average, closer to the axis in the D elements than in the F elements. A repeating sequence of focusing, drift, defocusing and drift is called a **FODO** lattice (the O is the drift space), and its repeating length $L$ is the **cell size**.
+
+```{=html}
+<svg viewBox="0 0 760 320" role="img" aria-label="A particle trajectory zigzags about the axis through alternating focusing and defocusing lenses" style="width:100%;max-width:760px;height:auto;font-family:'Helvetica Neue',Arial,sans-serif">
+  <text x="380" y="34" text-anchor="middle" font-size="24" fill="#205279">FODO lattice: trajectory through alternating lenses</text>
+  <line x1="40" y1="180" x2="720" y2="180" stroke="#888" stroke-width="1.5" stroke-dasharray="6 5"/>
+  <polygon points="720,174 734,180 720,186" fill="#888"/>
+  <text x="742" y="186" font-size="16" fill="#555">s</text>
+  <g fill="#C9E4DE" stroke="#57C7AE" stroke-width="2">
+    <ellipse cx="140" cy="180" rx="14" ry="60"/>
+    <ellipse cx="380" cy="180" rx="14" ry="60"/>
+    <ellipse cx="620" cy="180" rx="14" ry="60"/>
+  </g>
+  <g fill="#F2C6DE" stroke="#C75794" stroke-width="2">
+    <ellipse cx="260" cy="180" rx="14" ry="60"/>
+    <ellipse cx="500" cy="180" rx="14" ry="60"/>
+  </g>
+  <polyline points="50,140 140,110 260,180 380,235 500,180 620,120 720,150" fill="none" stroke="#8457C7" stroke-width="3"/>
+  <g font-size="18" text-anchor="middle" fill="#205279">
+    <text x="140" y="275">F</text><text x="260" y="275">D</text>
+    <text x="380" y="275">F</text><text x="500" y="275">D</text><text x="620" y="275">F</text>
+  </g>
+  <line x1="140" y1="300" x2="380" y2="300" stroke="#555" stroke-width="1.5"/>
+  <text x="260" y="316" text-anchor="middle" font-size="16" fill="#555">cell size L</text>
+</svg>
+```
+
+::: {.callout-note collapse="false"}
+**Figure 1.** The particle is farther from the axis at the focusing lenses than at the defocusing lenses, so the net effect is focusing.
+:::
+
+### The quadrupole as a thin lens {#sec-thinlens}
+
+A quadrupole of length $\ell$ gives a particle at transverse position $x$ a momentum kick proportional to $x$, and so a change of slope $\Delta x' \equiv \theta_x$ that also grows with $x$:
+
+$$\Delta p_x = e\,g\,\ell\,x, \qquad |\Delta x'| \simeq \frac{g\,\ell\,x}{B\rho}.$$
+
+The optics relation for a thin lens is $x' = x/F$ with $F$ the **focal length**, so
+
+::: {.boxed-eq}
+$$F \simeq \left(\frac{g\,\ell}{B\rho}\right)^{-1}, \qquad F \propto p .$$
+:::
+
+At fixed gradient, a stiffer beam is focused less strongly. In practice the focal length is about one cell length, $F \approx L$, and the quadrupole is about a tenth of a cell, $\ell \approx L/10$. Those two conditions fix the gradient, so the gradient must grow in proportion to the momentum.
+
+## Describing motion about the reference orbit {#sec-coords}
+
+To design the lattice we need equations for how far a particle strays from the ideal path.
+
+::: {.definition-block}
+**Definition.** The **reference orbit** is the ideal closed path of a particle of the design momentum. Position along it is the arc length $s(t)$. We use a coordinate system that moves with the particle: $\hat{s}$ points along the orbit, $\hat{x}$ points radially (in the bending plane), and $\hat{y}$ points perpendicular to that plane. The **transverse position** is $x\hat{x} + y\hat{y}$.
+:::
+
+The origin $O'$ of this frame moves at speed $u = ds/dt$ along $\hat{s}$. Because the frame rotates as it follows the bend, the particle's velocity in the laboratory picks up a term from the rotation. The result, with $\rho$ the local bending radius, is
+
+$$\vec{v}_{\text{lab}} = \dot{x}\,\hat{x} + \dot{y}\,\hat{y} + u\left(1+\frac{x}{\rho}\right)\hat{s}.$$
+
+A particle at larger $x$ (outside the bend) travels a longer path per unit of $s$, which is the factor $1 + x/\rho$. The unit vectors also change along the path: $d\hat{x}/dt = (u/\rho)\hat{s}$, $d\hat{s}/dt = -(u/\rho)\hat{x}$, and $d\hat{y}/dt = 0$. The lecture leaves the resulting expression for the acceleration as an exercise.
+
+### The equations of motion {#sec-eom}
+
+We start from $\vec{F} = d\vec{p}/dt = e\,\vec{v}\times\vec{B}$. Four steps turn this into equations we can solve:
+
+1. **Magnetic forces do no work**, so $|\vec{p}|$ is constant and the term $dp/dR$ vanishes. For a relativistic particle the resulting equation is $\ddot{\vec{R}} = (e/p)\,\dot{R}\,(\dot{\vec{R}}\times\vec{B})$.
+2. **Change the independent variable** from time to the path coordinate $s$, using $\dot{y} = y'u$ and $\ddot{y} = y''u^2 + \dot{u}y'$, where a prime is $d/ds$.
+3. **Keep the two transverse components** $\hat{x}$ and $\hat{y}$, since $\hat{s}$ is less interesting. This gives one equation per plane.
+4. **Expand the field for small displacements.** The symmetry of a dipole or quadrupole makes several terms vanish (for example $B_x(x) = B_x(-x)$ and $B_x(y) = -B_x(-y)$), and Maxwell's equation $\nabla\times\vec{B} = 0$ ties the two remaining gradients together: $\partial B_x/\partial y = \partial B_y/\partial x$.
+
+Only one term survives on the reference orbit itself, and it is the dipole relation
+
+$$\frac{1}{\rho} = \frac{e\,B_y}{p}.$$
+
+Off the orbit we define the **focusing strength**
+
+::: {.boxed-eq}
+$$K \equiv \frac{e}{p}\,\frac{\partial B_y}{\partial x}\Big|_0, \qquad \frac{e\,B_y}{p} = \frac{1}{\rho} + K\,x .$$
+:::
+
+and the two equations of motion become
+
+$$y'' - K\,y = 0, \qquad x'' + \left(K + \frac{1}{\rho^2}\right)x = 0 .$$
+
+These are linear differential equations whose solutions are periodic in $s$. The extra $1/\rho^2$ in the $x$ equation is the weak focusing that a bend provides on its own. In this convention $K>0$ focuses in $x$ and defocuses in $y$.
+
+## Transfer matrices {#sec-matrices}
+
+Which simple regions do we need to describe a whole ring? The lecture considers three cases.
+
+| Region | $K$ | $1/\rho^2$ |
+| --- | --- | --- |
+| Dipole | $0$ | small |
+| Free (drift) space | $0$ | $0$ |
+| Quadrupole | $\ne 0$, constant | $\to 0$ |
+
+::: {.definition-block}
+**Definition.** A **transfer matrix** $M$ maps a particle's transverse state $(x, x')$ at one position to its state a distance $s$ downstream:
+$$\begin{pmatrix} x \\ x' \end{pmatrix}_s = M \begin{pmatrix} x \\ x' \end{pmatrix}_0 .$$
+:::
+
+In a drift of length $s$ the slope is constant and the position grows linearly:
+
+$$M_{\text{drift}} = \begin{pmatrix} 1 & s \\ 0 & 1 \end{pmatrix}.$$
+
+In a quadrupole with $K>0$ the $x$ motion is focusing and the $y$ motion defocusing:
+
+$$M_{\text{focus}} = \begin{pmatrix} \cos\sqrt{K}s & \tfrac{1}{\sqrt{K}}\sin\sqrt{K}s \\ -\sqrt{K}\sin\sqrt{K}s & \cos\sqrt{K}s \end{pmatrix}, \qquad
+M_{\text{defocus}} = \begin{pmatrix} \cosh\sqrt{K}s & \tfrac{1}{\sqrt{K}}\sinh\sqrt{K}s \\ \sqrt{K}\sinh\sqrt{K}s & \cosh\sqrt{K}s \end{pmatrix}.$$
+
+The oscillating form describes the plane the magnet focuses, and the hyperbolic form the plane it defocuses. Where the dipole term $1/\rho^2$ matters, $K$ is replaced by $K + 1/\rho^2$ in the $x$ matrix.
+
+In the thin-lens limit of the [thin-lens relation above](#sec-thinlens) the same lens and drift appear as
+
+$$M_{\text{lens}} = \begin{pmatrix} 1 & 0 \\ -1/f & 1 \end{pmatrix}, \qquad M_{\text{drift}} = \begin{pmatrix} 1 & L \\ 0 & 1 \end{pmatrix}.$$
+
+Chaining elements is matrix multiplication, with the first element on the right. The lecture's textbook figure multiplies a defocusing lens, a drift of length $L$, and a focusing lens of focal length $f$:
+
+$$\begin{pmatrix} 1 & 0 \\ -\tfrac{1}{f} & 1 \end{pmatrix}
+\begin{pmatrix} 1 & L \\ 0 & 1 \end{pmatrix}
+\begin{pmatrix} 1 & 0 \\ \tfrac{1}{f} & 1 \end{pmatrix}
+=
+\begin{pmatrix} 1+\tfrac{L}{f} & L \\ -\tfrac{L}{f^2} & 1-\tfrac{L}{f} \end{pmatrix}.$$
+
+::: {.callout-note}
+**Worked example.** Take $L = f$. The product is $\begin{pmatrix} 2 & f \\ -1/f & 0\end{pmatrix}$, which has determinant $0 + 1 = 1$ as every transfer matrix here must. The lower left entry is $-L/f^2 = -1/f$, the same as the lower left entry of a single thin focusing lens of focal length $f$. So the pair focuses even though one of its lenses defocuses. A ray entering at position $x_0$ with zero slope leaves at position $2x_0$ and slope $-x_0/f$: it is farther from the axis but heading back toward it.
+:::
+
+A whole ring is the product of the matrices of all its dipoles, drifts, and quadrupoles. That product is solved numerically to find which lattices give stable orbits.
+
+## Beam envelope and emittance {#sec-envelope}
+
+So far we followed one particle. What describes the whole beam?
+
+**Hill's equation.** When the focusing varies around the ring but repeats after one circumference $C$, each transverse plane obeys
+
+$$u'' + K(s)\,u = 0, \qquad K(s + C) = K(s),$$
+
+where $u$ stands for $x$ or $y$ and $K$ has the sign convention that makes it focusing. This is [Hill's equation](https://en.wikipedia.org/wiki/Hill_differential_equation). The lecture looks for solutions of the form $u(s) = a(s)\cos(\phi(s) + \delta)$, an oscillation whose amplitude and phase both vary with $s$. Writing the general solution as $u(s) = c(s)\,u_0 + v(s)\,u_0'$ with a cosine-like and a sine-like part, and setting $c = w\cos\phi$ and $v = w\sin\phi$, one finds
+
+$$w'' + K\,w = \frac{1}{w^{3}}, \qquad w^2\phi' = 1 .$$
+
+The lecture asks whether the reader can prove this.
+
+::: {.definition-block}
+**Definition.** The **Courant-Snyder parameters** are
+$$\beta(s) = w^2(s), \qquad \alpha(s) = -\tfrac{1}{2}\beta'(s), \qquad \gamma(s) = \frac{1 + \alpha^2(s)}{\beta(s)} .$$
+The function $\beta(s)$ is the **betatron function**. The phase advances as $\phi'(s) = 1/\beta(s)$, so
+$$\phi(s) = \int_0^{s}\frac{ds'}{\beta(s')}.$$
+:::
+
+The equation $\phi' = 1/\beta$ says that where $\beta$ is large the oscillation is slow. The betatron oscillations themselves are the transverse wobbles of particles about the reference orbit.
+
+The particle's coordinates and slope stay on an ellipse. The lecture leaves as an exercise that the combination
+
+::: {.boxed-eq}
+$$\gamma\,y^2 + 2\alpha\,y\,y' + \beta\,y'^2 = \epsilon$$
+:::
+
+is constant along the orbit. This is the **Courant-Snyder invariant**. It is an ellipse in $(y, y')$ space, and its enclosed area is $\pi\epsilon$ provided $\beta\gamma - \alpha^2 = 1$, which holds by the definition of $\gamma$ above.
+
+```{=html}
+<svg viewBox="0 0 760 340" role="img" aria-label="An ellipse in the plane of position y and slope y prime" style="width:100%;max-width:760px;height:auto;font-family:'Helvetica Neue',Arial,sans-serif">
+  <text x="380" y="34" text-anchor="middle" font-size="24" fill="#442079">Phase-space ellipse of one particle</text>
+  <line x1="120" y1="200" x2="640" y2="200" stroke="#555" stroke-width="1.5"/>
+  <line x1="380" y1="80" x2="380" y2="320" stroke="#555" stroke-width="1.5"/>
+  <text x="652" y="206" font-size="18" fill="#555">y</text>
+  <text x="390" y="92" font-size="18" fill="#555">y'</text>
+  <ellipse cx="380" cy="200" rx="150" ry="85" transform="rotate(-18 380 200)" fill="#DBCDF0" fill-opacity="0.7" stroke="#8457C7" stroke-width="3"/>
+  <text x="380" y="210" text-anchor="middle" font-size="18" fill="#442079" dy="22">area = pi x epsilon</text>
+</svg>
+```
+
+::: {.callout-note collapse="false"}
+**Figure 2.** A particle's $(y, y')$ point moves around the ellipse of the Courant-Snyder invariant as it passes through the lattice. The shape of the ellipse changes from place to place while its area does not.
+:::
+
+Using the invariant, the solution can be written in terms of $\epsilon$ and $\beta$:
+
+::: {.boxed-eq}
+$$y(s) = \sqrt{\epsilon\,\beta(s)}\,\cos\big(\phi(s) + \delta\big),$$
+:::
+
+with $\delta$ an arbitrary phase. The amplitude $\sqrt{\epsilon\beta(s)}$ is set by two things: the machine, through $\beta(s)$, and the particle, through $\epsilon$. This is the reason $\beta(s)$ can be interpreted as the **beam envelope** around the machine. The betatron oscillations occur in both transverse planes, each with its own $\beta_x, \epsilon_x$ and $\beta_y, \epsilon_y$, and the two are independent to first order.
+
+::: {.definition-block}
+**Definition.** The **[emittance](https://en.wikipedia.org/wiki/Beam_emittance)** $\epsilon$ measures the size of a beam in transverse phase space, position and slope together. In the lecture's convention it is the value of the Courant-Snyder invariant. It is constant along the orbit in an ideal lattice, and it grows with machine imperfections and with collisions.
+:::
+
+If the particles populate the trajectories in a Gaussian way, the rms beam size at position $s$ is
+
+$$\sigma_y(s) = \sqrt{\epsilon_y\,\beta_y(s)} .$$
+
+::: {.callout-note}
+**Worked example.** A beam with $\epsilon = 1\ \mu\text{m}$ passing a point where $\beta = 25$ m has $\sigma = \sqrt{(10^{-6})(25)}\ \text{m} = 5$ mm. The same beam where $\beta = 100$ m is twice as wide, $10$ mm. Squeezing the beam therefore means making $\beta$ small at the place where it matters. The specific emittance and beam-size calculations of the assignment are left to the assignment.
+:::
+
+## Tune and resonances {#sec-tune}
+
+How many times does a particle oscillate transversely in one trip around the ring?
+
+::: {.definition-block}
+**Definition.** The **betatron number** or **tune** $\nu$ is the number of betatron oscillations per revolution:
+$$\nu = \frac{1}{2\pi}\oint\frac{ds}{\beta(s)} .$$
+Equivalently, the total phase advance in one revolution is $2\pi\nu$.
+:::
+
+Why does the value of $\nu$ matter? Suppose $\nu$ is an integer. Then a particle passes through the same part of the oscillation pattern at the same place on every revolution, about $50$ kHz in the lecture's example. Any imperfection in a single element then kicks the particle in the same direction every turn, and the kicks add up. The lecture calls this a disaster, or more politely a **[resonance](https://en.wikipedia.org/wiki/Resonance)**. In general the machine must avoid
+
+$$p\,\nu_x + q\,\nu_y = \text{integer}$$
+
+for small integers $p$ and $q$. The plane of $(\nu_x, \nu_y)$ is crossed by many such lines, and the machine's operating point must be chosen carefully between them. The Tevatron ran at $\nu \approx 19.4$. The LHC tune diagram shows injection and collision tunes sitting between the resonance lines, and the 2015 parameter table lists the horizontal and vertical tunes as $64.28/59.31$ at injection and $64.31/59.32$ at collision. The lecture's handwritten update refers to the LHC integer parts $59$ and $64$ and notes that its operating region is even smaller than the Tevatron's.
+
+### Errors in the magnets {#sec-errors}
+
+Real magnets have finite length, are straight while the reference orbit is curved, and can be displaced from their ideal position. Each of these is a **perturbation** of the ideal lattice.
+
+A field error $\Delta B$ over a length $\Delta s$ changes the slope of the particle by
+
+$$\delta x' = \frac{\Delta B}{B}\,\Delta\theta = \frac{\Delta B}{B}\,\frac{\Delta s}{\rho},$$
+
+using the dipole bend $\Delta\theta = \Delta s/\rho$ from the [dipole section](#sec-dipole). The orbit must still close, otherwise the analysis would be pointless, but it now has a slope discontinuity at the location $s_0$ of the error. Requiring $x(s_0 + C) = x(s_0)$ with $\phi_0 = -\pi\nu_x$ gives the condition
+
+$$\delta x' = -2\sqrt{\frac{\epsilon}{\beta(s_0)}}\,\sin(\pi\nu_x) = \frac{\Delta B}{B}\,\frac{\Delta s}{\rho}.$$
+
+In this closed-orbit calculation $\epsilon$ is the amplitude parameter of the closed orbit itself, not the beam emittance. The condition fixes $\sqrt{\epsilon\beta(s_0)}$, and the distorted closed orbit becomes
+
+$$x(s) = A(s)\,\cos\!\left(\int_{s_0}^{s}\frac{ds'}{\beta(s')} - \pi\nu_x\right),$$
+
+with amplitude
+
+$$A(s) = \frac{\sqrt{\beta(s_0)\,\beta(s)}}{2\sin\pi\nu_x}\,\frac{\Delta B}{B}\,\frac{\Delta s}{\rho}.$$
+
+The factor $1/\sin\pi\nu_x$ diverges when $\nu_x$ is an integer, which is the resonance seen from the orbit's side. In practice the emittance is the quadrature sum of the injection emittance and growth from imperfections in the focusing structure, the finite momentum spread of the beam, and other effects.
+
+## Luminosity {#sec-lumi}
+
+How often does a collider make the event we want?
+
+::: {.definition-block}
+**Definition.** The **luminosity** $\mathcal{L}$ is the factor that converts a cross section $\sigma$ into an interaction rate:
+$$\text{interaction rate} = \mathcal{L}\,\sigma .$$
+Its units are events per area per time, for example cm$^{-2}$ s$^{-1}$.
+:::
+
+The luminosity depends on the machine, not on the physics process. It is the accelerator physicist's figure of merit, and the cross section $\sigma$ is the property of the process. For two counter-rotating bunches with charge densities $\rho_1$ and $\rho_2$, the lecture counts the collisions in a small volume $d^3x$ and time $dt$:
+
+$$dn = n_b\,f\,\rho_1\,|\vec{v}_1 - \vec{v}_2|\,(\rho_2\,d^3x)\,dt\,\sigma .$$
+
+Here $n_b$ is the number of bunches and $f$ is the revolution frequency, so $f$ is the rate at which a given bunch meets its partner and $n_b f$ is the total bunch-crossing rate (the lecture writes $n$ for the number of bunches). For a circular collider $f = \beta c/2\pi R$, which is fixed as $\beta\to1$.
+
+Integrating over space and over the time it takes the bunches to pass through each other, and taking Gaussian charge distributions with transverse rms sizes $\sigma_x, \sigma_y$, gives
+
+::: {.boxed-eq}
+$$\mathcal{L} = \frac{n_b f\,N_1 N_2}{2\pi\sqrt{(\sigma_{x1}^2+\sigma_{x2}^2)(\sigma_{y1}^2+\sigma_{y2}^2)}} .$$
+:::
+
+Here $N_1$ and $N_2$ are the particle numbers per bunch. If all four transverse sizes are equal, as in the Tevatron, the denominator becomes $4\pi\sigma^2$:
+
+$$\mathcal{L} = \frac{n_b f\,N_1 N_2}{4\pi\sigma^2}.$$
+
+To first order the bunch length does not appear, because every particle of one bunch eventually meets every particle of the other. That fails if the betatron wavelength is comparable to the bunch length.
+
+### Luminosity in terms of emittance {#sec-lumi-eps}
+
+Can we tie this back to the machine optics? Yes, using the beam size $\sigma = \sqrt{\epsilon\beta}$ from the [envelope section](#sec-envelope). The optics are designed so that $\beta(s_0) = \beta^{*}$ is a **minimum at the collision point**, so the beam size there is $\sigma = \sqrt{\epsilon\beta^{*}}$ and
+
+::: {.boxed-eq}
+$$\mathcal{L} = \frac{n_b f\,N_1 N_2}{4\pi\sqrt{\epsilon_x\epsilon_y\,\beta^{*}_{x}\beta^{*}_{y}}} .$$
+:::
+
+Small $\beta^*$ and small emittance mean a small, dense collision region and a high luminosity. There is a limit, though. Near the collision point the envelope grows as $\beta(s) \approx \beta^{*} + s^2/\beta^{*}$, so squeezing $\beta^*$ too far makes the beam blow up quickly on either side of the collision point. If this happens over a distance shorter than the bunch length, the ends of the bunches no longer meet at the waist, and $\mathcal{L}$ stops improving.
+
+```{=html}
+<svg viewBox="0 0 760 300" role="img" aria-label="Two bunches approach a waist at the interaction point" style="width:100%;max-width:760px;height:auto;font-family:'Helvetica Neue',Arial,sans-serif">
+  <text x="380" y="34" text-anchor="middle" font-size="24" fill="#792051">Beam envelope near the collision point</text>
+  <path d="M 40 100 Q 340 190 380 190 Q 420 190 720 100" fill="none" stroke="#C75794" stroke-width="3"/>
+  <path d="M 40 280 Q 340 190 380 190 Q 420 190 720 280" fill="none" stroke="#C75794" stroke-width="3"/>
+  <ellipse cx="170" cy="190" rx="60" ry="20" fill="#C6DEF1" stroke="#5795C7" stroke-width="2"/>
+  <ellipse cx="590" cy="190" rx="60" ry="20" fill="#F7D9C4" stroke="#C78557" stroke-width="2"/>
+  <line x1="380" y1="80" x2="380" y2="290" stroke="#888" stroke-dasharray="6 5"/>
+  <text x="380" y="72" text-anchor="middle" font-size="16" fill="#555">interaction point</text>
+  <text x="170" y="240" text-anchor="middle" font-size="16" fill="#205279">bunch 1</text>
+  <text x="590" y="240" text-anchor="middle" font-size="16" fill="#794520">bunch 2</text>
+  <text x="392" y="176" font-size="16" fill="#792051">beta*</text>
+</svg>
+```
+
+::: {.callout-note collapse="false"}
+**Figure 3.** The envelope $\beta(s)$ is smallest at the collision point. If it grows too fast away from that point, the ends of a long bunch are collided at a larger beam size.
+:::
+
+### Design choices behind $\mathcal{L}$ {#sec-lumi-design}
+
+The lecture reads the luminosity formula as a list of wishes, each limited by a physical effect.
+
+1. **Many bunches ($n_b$ large).** The Tevatron in its first run used 6 bunches, spaced by 3.5 $\mu$s. The lecture quotes about 150 bunch slots at 132 ns for the second run; the Tevatron in fact ran 36 bunches per beam at a spacing of 396 ns, and the 132 ns plan was not carried out. The lecture's LHC update gives about 2500 bunches and a 25 ns spacing (the 2015 parameter table lists up to 2748 in the nominal scheme).
+2. **Many particles per bunch ($N_1, N_2$ large).** Too high a charge density causes repulsion and beam blow-up, and the source of the particles limits the total (antiproton sources and cooling rates in the Tevatron). The LHC uses protons for both beams, at roughly $1.1$ to $1.3\times10^{11}$ per bunch (the nominal value is $1.15\times10^{11}$, and the lecture's handwritten update quotes $1.5\times10^{11}$).
+3. **Small beam area.** Requires small $\beta^*$, but $\beta(s)$ is then large nearby, which limits the acceptance of the machine. The emittance grows with machine imperfections and with the collisions themselves.
+
+The lecture quotes a Tevatron luminosity of a few $\times10^{31}\ \text{cm}^{-2}\text{s}^{-1}$ at peak performance, which matches Run I (near $2\times10^{31}$); Run II later reached about $4\times10^{32}\ \text{cm}^{-2}\text{s}^{-1}$. The LHC's nominal design luminosity is $10^{34}\ \text{cm}^{-2}\text{s}^{-1}$, and the lecture's update quotes a value above that, which Run 2 operation reached. A fixed target of solid matter can reach about $10^{37}\ \text{cm}^{-2}\text{s}^{-1}$, because a bunch cannot be packed as densely as a solid. The lecture notes that the LHC can still compete with a fixed target on luminosity, and that the real disadvantage of a fixed target is the energy available, taken up in the [section on colliders](#sec-why).
+
+### The beam-beam force and the tune shift {#sec-beambeam}
+
+A bunch of charged particles is a charge distribution, and the electric and magnetic fields it produces act on other particles. Two bunches, moving with velocities $\vec{v}_1$ and $\vec{v}_2$, exert on each other the transverse force
+
+$$F^{\perp}_{12} = e_1\,\gamma_2\,(1 - \beta_1\beta_2)\,E'^{\perp}_2 .$$
+
+Here $E'^{\perp}_2$ is the transverse field in the rest frame of bunch 2, and the factor $\gamma_2(1-\beta_1\beta_2)$ comes from transforming the electric and magnetic fields to the laboratory frame. Two conclusions follow:
+
+- For beams moving **in the same direction** with $\beta\to1$ the force tends to zero. Relativistic beams are stable against transverse space-charge forces (slower ones are not).
+- For **colliding beams**, $\beta_1\to-\beta_1$ and the factor becomes $(1+\beta_1\beta_2)$. The beams see a strong defocusing force as they pass through the oncoming bunch.
+
+This force changes the tune. The lecture defines the **tune shift** as the phase accumulated per orbit from an extra focusing strength $K(s)$,
+
+$$\Delta\nu_x \equiv \frac{1}{4\pi}\oint ds\,\beta_x(s)\,K(s),$$
+
+which is like the quadrupole strength but here arising from imperfections and from the other bunches. For the antiproton and proton bunches,
+
+$$\Delta\nu^{\bar p}_x = \frac{r_{\bar p}\,\beta_{x\bar p}\,N_p}{2\pi\gamma_{\bar p}\,\sigma_{xp}(\sigma_{xp}+\sigma_{yp})}, \qquad
+\Delta\nu^{p}_x = \frac{r_{p}\,\beta_{xp}\,N_{\bar p}}{2\pi\gamma_{p}\,\sigma_{x\bar p}(\sigma_{x\bar p}+\sigma_{y\bar p})},$$
+
+where $r$ is the classical particle radius. The luminosity is proportional to the product of the two tune shifts, $\mathcal{L}\sim\Delta\nu^{\bar p}\Delta\nu^{p}$. Empirically, the tune shifts are limited to about $0.005$ for hadron beams (the Tevatron) and about $0.05$ for electron beams (LEP). Beyond those values the tune gets too close to integer resonances, beam instabilities set in, and the beam is lost.
+
+Since $\Delta\nu^{\bar p}\propto N_p$, raising the intensity of one beam alone does not help. The gain is in matching $N_p$ and $N_{\bar p}$ (or the two tune shifts) and pushing both toward the physical limit in a balanced way.
+
+## Why colliders? {#sec-why}
+
+If a fixed target can reach a higher luminosity, why build colliders? The answer is the energy available for making new particles, which is the **[centre-of-mass energy](https://en.wikipedia.org/wiki/Center-of-momentum_frame)** $E_{\text{cm}} = \sqrt{s}$, with
+
+$$s = (p_1 + p_2)_\mu (p_1 + p_2)^\mu = m_1^2 + m_2^2 + 2\big(E_1E_2 - \vec{p}_1\cdot\vec{p}_2\big).$$
+
+For a projectile of energy $E$ on a **fixed target** of mass $M$ at rest, when $E \gg M, m$,
+
+$$\sqrt{s_{\text{FT}}} \approx \sqrt{2ME} .$$
+
+For two beams of equal energy $E$ in a **collider**, $\vec{p}_1 = -\vec{p}_2$ and $E_1 = E_2$, so
+
+$$\sqrt{s_{\text{collider}}} \approx 2E .$$
+
+::: {.callout-note}
+**Worked example.** For $E = 1$ TeV and a proton target, $M \approx 0.94$ GeV, the fixed-target energy is $\sqrt{2 \times 0.94 \times 1000}\ \text{GeV}\approx 43$ GeV. For a collider with two 1 TeV beams it is $2000$ GeV. The fixed target wastes most of the beam energy on the motion of the products, while the collider sees the entire beam energy in its centre-of-mass frame.
+:::
+
+A collider trades a luminosity disadvantage for a large gain in the energy available.
+
+## The basics of acceleration {#sec-accel}
+
+How is energy added to the beam? The earliest accelerators used a **static** electric field between two electrodes, so a particle crossing a potential difference $\Delta V$ gains energy $e\Delta V$. Two limits stop this from scaling:
+
+- **Breakdown.** In dry air breakdown occurs at about 3 MV/m, when electrons ionised by the field gain enough energy between collisions to ionise further.
+- **Surface defects.** A defect on a surface, such as a Van de Graaff terminal or a cavity wall, concentrates the field to much higher values around the imperfection.
+
+The fix is to use alternating fields, the **radio-frequency** or **RF** structure. The field is not present "long enough" for breakdown to occur. A linear machine can chain many such gaps with alternating potentials, giving energy $E = neV$ after $n$ stages. In practice the alternating potentials come from a longitudinal electric field in a resonant cavity through which the beam passes.
+
+### Orbit length and RF frequency {#sec-rf}
+
+For simplicity take one RF cavity in the ring. The RF must be tuned so that a **reference particle** arrives at the cavity in time with the field on every turn. The RF angular frequency is a whole number $h$ times the orbital frequency $\omega_0$:
+
+$$\omega_{\text{rf}} = h\,\omega_0, \qquad \omega_0 = \frac{2\pi}{\tau_{\text{orbit}}}, \qquad \tau_{\text{orbit}} = \frac{L_{\text{part}}}{v_{\text{part}}} .$$
+
+::: {.definition-block}
+**Definition.** The integer $h$ is the **harmonic number** of the machine. It is the number of places around the ring where a particle can arrive in time with the RF field. The frequency $\omega_0$ is the revolution (orbital) angular frequency, and the RF frequency $\omega_{\text{rf}} = h\omega_0$ must be changed to follow it as the particles are accelerated.
+:::
+
+For the CERN SPS $h = 4620$ (and $1113$ for the Fermilab Main Ring), so the SPS could in principle hold 4620 bunches. As a proton-antiproton collider it ran with three bunches per beam, later six.
+
+Two effects could put a particle out of time with the RF:
+
+1. A particle **off axis** takes a different path length, $L \neq L_{\text{ideal}}$.
+2. A particle **off momentum** has a different speed, $v \neq v_{\text{ideal}}$.
+
+Together they change the arrival time by
+
+$$\frac{\Delta T}{T} = \frac{\Delta L}{L} - \frac{\Delta v}{v} .$$
+
+A faster particle arrives sooner, and a longer path arrives later. Both terms can be written in terms of the momentum error. From $p = \gamma m v$,
+
+$$\frac{\Delta v}{v} = \frac{1}{\gamma^2}\,\frac{\Delta p}{p}.$$
+
+The path length of an off-momentum particle also changes, and the lecture defines a machine parameter $\gamma_T$ through
+
+$$\frac{\Delta L}{L} = \frac{1}{\gamma_T^2}\,\frac{\Delta p}{p}.$$
+
+Combining the two gives
+
+::: {.boxed-eq}
+$$\frac{\Delta T}{T} = \left(\frac{1}{\gamma_T^{2}} - \frac{1}{\gamma^{2}}\right)\frac{\Delta p}{p}.$$
+:::
+
+The bracket changes sign at $\gamma = \gamma_T$. The spread in $\Delta p$ across the beam is called the **longitudinal emittance**, by analogy with the transverse case.
+
+### Phase stability and transition {#sec-transition}
+
+What does it mean to arrive "in time" with the RF? The voltage across the cavity is $V = V_0\sin(\omega_{\text{rf}}t)$. The reference particle arrives at the **synchronous phase** $\phi_s$ and gains energy $E_s = eV_0\sin\phi_s$ per turn. A particle at a different phase $\phi$ gains
+
+$$\Delta E = eV_0\,(\sin\phi - \sin\phi_s).$$
+
+The two regimes below and above $\gamma_T$ behave differently.
+
+- **Below transition** ($\gamma < \gamma_T$, so $\Delta T/T$ has the sign of $-\Delta p/p$), a more energetic particle is faster and arrives sooner. The stable synchronous phase is on the rising side of the RF wave, and a particle that arrives late gets more energy on the next turn while an early one gets less. The stable region in $(\phi, \Delta E)$ space is an ellipse-like island bounded by a curve called the **separatrix**, and the whole island is an **RF bucket**.
+- **Above transition** ($\gamma > \gamma_T$), extra energy means a longer orbit time, so the stable point sits on the other side of the sinusoid.
+
+```{=html}
+<svg viewBox="0 0 760 320" role="img" aria-label="One period of the RF voltage with the synchronous phase and its mirror marked" style="width:100%;max-width:760px;height:auto;font-family:'Helvetica Neue',Arial,sans-serif">
+  <text x="380" y="34" text-anchor="middle" font-size="24" fill="#794520">RF voltage and the synchronous phase</text>
+  <line x1="60" y1="190" x2="720" y2="190" stroke="#555" stroke-width="1.5"/>
+  <line x1="60" y1="70" x2="60" y2="300" stroke="#555" stroke-width="1.5"/>
+  <path d="M 60 190 C 130 60, 230 60, 300 190 C 370 320, 470 320, 540 190" fill="none" stroke="#C78557" stroke-width="3"/>
+  <line x1="150" y1="90" x2="150" y2="190" stroke="#8457C7" stroke-width="2" stroke-dasharray="5 4"/>
+  <line x1="210" y1="100" x2="210" y2="190" stroke="#8457C7" stroke-width="2" stroke-dasharray="5 4"/>
+  <circle cx="150" cy="104" r="6" fill="#8457C7"/>
+  <circle cx="210" cy="104" r="6" fill="#8457C7"/>
+  <text x="150" y="212" text-anchor="middle" font-size="16" fill="#442079">phi_s</text>
+  <text x="212" y="234" text-anchor="middle" font-size="16" fill="#442079">pi - phi_s</text>
+  <text x="300" y="212" text-anchor="middle" font-size="16" fill="#555">pi</text>
+  <text x="712" y="212" font-size="16" fill="#555">phase</text>
+  <text x="72" y="84" font-size="16" fill="#555">V</text>
+</svg>
+```
+
+::: {.callout-note collapse="false"}
+**Figure 4.** The two phases $\phi_s$ and $\pi - \phi_s$ that give the same energy gain per turn. Which of them is the stable one depends on whether the beam is below or above transition.
+:::
+
+The lecture then does this quantitatively. For a reference particle on the central orbit of radius $R_0$, the revolution time is $t_{\text{rev}} = 2\pi R_0/\beta c$ and $\omega_{\text{RF}} = h\beta c/R_0$. An energy change $\Delta E$ changes the speed and momentum by
+
+$$\frac{\Delta\beta}{\beta} = \frac{1}{\gamma^2\beta^2}\,\frac{\Delta E}{E}, \qquad \frac{\Delta p}{p} = \frac{1}{\beta^2}\,\frac{\Delta E}{E},$$
+
+and the radius by $\Delta R = \bar\eta\,\Delta p/p$. The change in revolution time is
+
+$$\Delta t_r = \frac{2\pi R_0}{\beta^3 c}\left(\frac{\bar\eta}{R_0} - \frac{1}{\gamma^2}\right)\frac{\Delta E}{E}, \qquad \gamma_T^2 \equiv \frac{R_0}{\bar\eta}.$$
+
+Below transition $\Delta t_r < 0$, and above transition $\Delta t_r > 0$. The RF phase shift a particle accumulates in one turn is
+
+$$\Delta\phi = \omega_{\text{RF}}\,\Delta t_r = \bar\Phi\,\frac{\Delta E}{E},$$
+
+with
+
+$$\bar\Phi = \frac{2\pi h}{\beta^2}\left(\frac{1}{\gamma_T^{2}} - \frac{1}{\gamma^{2}}\right).$$
+
+The per-turn energy kick is $\Delta E = eV_0(\sin\phi - \sin\phi_s)$. Real accelerators give only a small kick per turn, so after many turns the changes accumulate and we can treat the turn number $n$ (a count of turns here, not of bunches) as continuous:
+
+$$\frac{d\phi}{dn} = \bar\Phi\,\frac{\Delta E}{E}, \qquad \frac{d}{dn}\!\left(\frac{\Delta E}{E}\right) = \frac{eV_0}{E}\,(\sin\phi - \sin\phi_s).$$
+
+Combining them,
+
+$$\frac{d^2\phi}{dn^2} = \frac{eV_0}{E}\,\bar\Phi\,(\sin\phi - \sin\phi_s).$$
+
+For a small departure $\phi = \phi_s + \Delta\phi$ we have $\sin\phi - \sin\phi_s \approx \Delta\phi\cos\phi_s$, and the equation becomes
+
+$$\frac{d^2(\Delta\phi)}{dn^2} - \frac{eV_0}{E}\,\bar\Phi\cos\phi_s\;\Delta\phi = 0 .$$
+
+::: {.boxed-eq}
+$$\bar\Phi\,\cos\phi_s < 0 \quad\Longrightarrow\quad \text{stable oscillations}.$$
+:::
+
+The sign of $\bar\Phi$ flips at transition (below transition $\bar\Phi<0$, above it $\bar\Phi>0$), so to keep the beam stable the RF phase must jump from $\phi_s$ to $\pi - \phi_s$ as transition is crossed. That operation loses particles. It is therefore preferable to build a series of machines of increasing energy and different radii, so that the beam is injected already **above** transition. This is one of several reasons for an accelerator **complex** of boosters. Others are the limit of a single machine (each bunch of the final machine is filled with the full complement of the previous one) and the use of smaller machines for other purposes, such as making antiprotons or fixed-target physics.
+
+The lecture leaves as an exercise for the students the derivation of $\gamma_T$, a property of the machine that depends mainly on the machine radius and the size of the betatron oscillations.
+
+### Synchrotron oscillations {#sec-synchro}
+
+::: {.definition-block}
+**Definition.** **Synchrotron oscillations** are the oscillations in energy (and phase) of a particle from ahead of to behind the reference particle. The number of turns per oscillation is
+$$n_{\text{sync}} = 2\pi\sqrt{\frac{E}{eV_0\,|\bar\Phi\cos\phi_s|}}\ \text{turns.}$$
+:::
+
+In a proton machine this is several hundred turns, and the synchrotron frequency ranges from $0$ (exactly at transition, where $\bar\Phi\to0$) up to about $1000$ Hz. That is slow for anything travelling near the speed of light.
+
+### Phase space of stable oscillations {#sec-bucket}
+
+Multiplying the equation of motion by $d\phi/dn$ and integrating over $n$ gives an energy-like conservation law:
+
+$$\frac{1}{2}\left(\frac{d\phi}{dn}\right)^2 + \frac{eV_0\bar\Phi}{E}\left(\cos\phi + \phi\sin\phi_s\right) = \text{constant}.$$
+
+The first term plays the role of kinetic energy and the second of potential energy, so the motion is that of a particle in a potential that looks like a tilted row of wells. A particle with a total "energy" below the top of a well is trapped and oscillates (stable). One above it runs off to the next well and is lost from the bucket (unstable). The solutions can be found numerically. For the $\bar\eta>0$ case in the lecture's figure, the bucket is largest for $\phi_s = \pi$ and shrinks as $\phi_s$ moves through $5\pi/6$ to $2\pi/3$: accelerating harder, that is a larger energy gain per turn, leaves less room for stable motion. How large $\Delta E$ and $\Delta\phi$ can be while the beam stays longitudinally stable is a problem in the assignment.
+
+## Summary {#sec-summary}
+
+::: {.callout-note}
+**Key takeaways from Week 2:**
+
+- **Three fields, three jobs.** Dipoles bend ($\rho = p/0.3B$), quadrupoles focus ($F\propto p$), and RF cavities accelerate.
+- **Strong focusing.** Alternating focusing and defocusing quadrupoles (FODO) give net focusing, and the motion is described by transfer matrices that multiply along the ring.
+- **Betatron motion.** Each plane obeys Hill's equation. Its solution $y=\sqrt{\epsilon\beta(s)}\cos(\phi+\delta)$ splits into a machine part, $\beta(s)$ (the envelope), and a beam part, the emittance $\epsilon$.
+- **Tune and resonances.** The tune $\nu=\tfrac{1}{2\pi}\oint ds/\beta$ must avoid integer and low-order resonances, otherwise field errors blow the orbit up like $1/\sin\pi\nu$.
+- **Luminosity.** $\mathcal{L}=n_bfN_1N_2/(4\pi\sqrt{\epsilon_x\epsilon_y\beta^*_x\beta^*_y})$ is set by bunch count, bunch charge, and a small beam at the collision point. It is limited by the beam-beam tune shift ($\lesssim0.005$ for hadrons) and by squeezing $\beta^*$ too far.
+- **Colliders win on energy.** $\sqrt{s}\approx2E$ for a collider against $\sqrt{2ME}$ for a fixed target.
+- **RF acceleration.** Phase stability needs $\bar\Phi\cos\phi_s<0$. The sign of $\bar\Phi$ flips at transition energy, and the resulting particle losses are one reason for an accelerator complex.
+:::
+
+**Next week:** not yet scheduled.
+
+## Quick self-check
+
+If you can explain how a particle stays near the reference orbit and how a bunch stays together in energy using only "focusing," "$\beta$-function," "emittance," "tune," and "synchronous phase," you have understood the core of Week 2.
