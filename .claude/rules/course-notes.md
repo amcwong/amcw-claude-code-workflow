@@ -33,7 +33,9 @@ Skip course-logistics slides (schedule, grading, staff, policies). Notes start f
 
 - **`lectures/weekNN.qmd` is the source of truth** for that week: prose, tables, definition/callout/algorithm blocks, inline SVG, Wikipedia links, and references to any files in `lectures/figures/`. HTML is only the gitignored `_site/` from `quarto render`.
 - Diagrams default to original inline SVG in the week `.qmd` (Helvetica stack; Pastel Rainbow role palette in [`course-notes-voice.md`](../references/course-notes-voice.md)). Optional hand-placed images live in `lectures/figures/weekNN/` and are referenced as `figures/weekNN/name.png`. Never screenshots of lecture slides. Figure numbering is per chapter.
-- Wikipedia is the only hyperlink target, and only on first mention of a term within that week chapter.
+- Wikipedia is the only hyperlink target, and only on first mention of a term within that week chapter. Parked `.clarification` callouts follow the same rule: no extra Wikipedia link for a term already linked in that chapter, and no non-Wikipedia URLs.
+- Parked scaffolding from `/course-notes revise` lives in a collapsed `::: {.callout-tip collapse="true" .clarification}` at the end of the section it belongs to, titled `**Clarification.**`. Insert a box only when the user says **park**. Do not add empty dropdowns on every heading.
+- **Promote vs park.** If a teaching turn shows the spine was missing a definition, step, or disambiguation, **promote**: edit the section in lecture voice and do **not** also paste that prose into a callout. If the extra text helped but is not beginner-spine material, **park** it in the dropdown. The homework-answer ban and em-dash ban apply to both.
 - `glossary.qmd` is a book chapter, cumulative and grouped by week. Never delete an existing entry; a later week may deepen a definition, but the original beginner anchor stays.
 
 ## Math notation

@@ -30,6 +30,7 @@ Do not read root `CLAUDE.md`, `COURSE.md`, `_site/`, or `.claude/rules/course-no
 - Historical attributions and dates
 - Claims about what a cited paper did or found
 - Every Wikipedia link: confirm it resolves and points to the concept it's attached to
+- Factual claims inside collapsed `.clarification` callouts (parked `/course-notes revise` dropdowns). Those blocks are part of `lectures/weekNN.qmd`. Do not skip them as style.
 
 ## Process
 

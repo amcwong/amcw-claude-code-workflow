@@ -1,19 +1,25 @@
 ---
 name: commit
-description: Stage, commit, push, open a PR, and merge to main. Use ONLY on explicit commit intent — user says "commit", "ship it", "push this", "open a PR", "merge to main", "let's commit this", or prefixes with `/commit`. Do NOT auto-invoke on vague end-of-task phrases ("we're done", "wrap up") — those require explicit confirmation first. Runs the standard commit-PR-merge cycle; never force-pushes or skips hooks.
-argument-hint: "[optional: commit message]"
+description: Stage, commit, push, open a PR, and merge to main. Use ONLY on explicit commit intent — user says "commit", "ship it", "push this", "open a PR", "merge to main", "let's commit this", "commit nopr", or prefixes with `/commit`. `/commit nopr` (or `--nopr`) skips the PR and pushes to main. Do NOT auto-invoke on vague end-of-task phrases ("we're done", "wrap up") — those require explicit confirmation first. Default path is commit-PR-merge; never force-pushes or skips hooks.
+argument-hint: "[nopr | --nopr] [optional: commit message]"
 allowed-tools: ["Bash", "Read", "Glob", "Agent", "Task"]
 ---
 
 # Commit, PR, and Merge
 
-Stage changes, verify quality gates, commit with a descriptive message, create a PR, and merge to main.
+Stage changes, verify quality gates, commit with a descriptive message, then either create a PR and merge to main (default) or push straight to `main` (`nopr`).
+
+**Parse `$ARGUMENTS` first.** Tokens `nopr` and `--nopr` are flags (same meaning). Strip them; anything left is the commit message. Do not use `nopr` as the commit subject.
+
+## Flags
+
+- `--nopr` — skip the branch/PR/merge cycle: commit on `main` and `git push origin main`. `/commit nopr` is the same token. Never `--force`. Quality gates (Steps 0–0c) still run. Hooks still run.
 
 ## Steps
 
 ### Step 0: Quality Gate (Pre-Commit)
 
-**Run before branching.** For every changed `.qmd`, `.tex`, or `.R` file that has quality rubrics, run:
+**Run before branching (default path) or before committing on `main` (`nopr`).** For every changed `.qmd`, `.tex`, or `.R` file that has quality rubrics, run:
 
 ```bash
 python3 scripts/quality_score.py <changed-file-paths>
@@ -49,11 +55,15 @@ git diff --stat
 git log --oneline -5
 ```
 
-### Step 2: Create a branch
+### Step 2: Branch (skip if `nopr`)
+
+**Default:** create a new branch. Never commit to `main` on this path.
 
 ```bash
 git checkout -b <short-descriptive-branch-name>
 ```
+
+**`nopr` / `--nopr`:** do not create a PR branch. Stay on `main`, or check out `main` if HEAD is another branch (uncommitted work usually comes along; halt if git refuses). If the previous branch already has commits that `main` lacks, merge that branch into `main` with `--merge` after the commit (same dirty-tree stash rules as Step 6). Then continue at Step 3 on `main`.
 
 ### Step 3: Stage files
 
@@ -67,7 +77,7 @@ Do NOT stage `.claude/settings.local.json` or any files containing secrets.
 
 ### Step 4: Commit with a descriptive message
 
-If `$ARGUMENTS` is provided, use it as the commit message. Otherwise, analyze the staged changes and write a message that explains *why*, not just *what*.
+If `$ARGUMENTS` still has text after stripping `nopr` / `--nopr`, use it as the commit message. Otherwise, analyze the staged changes and write a message that explains *why*, not just *what*.
 
 **The subject line states what is TRUE AFTER the commit** — a plain sentence about behavior that a reader could go and test. *"Fixed review feedback"* and *"Updated the checker"* narrate your afternoon and tell a reader nothing; *"The parity gate refuses a fixture whose hash is unregistered"* is a claim they can check against the code. Process narration — which review round it came from, who asked, how many attempts it took — belongs in the body if it belongs anywhere. The body still carries the *why*; the subject carries the claim.
 
@@ -78,7 +88,19 @@ EOF
 )"
 ```
 
-### Step 5: Push and create PR
+### Step 5: Push (and create PR unless `nopr`)
+
+**`nopr` / `--nopr`:** do not run `gh pr create`. Pull `main` if needed (stash unstaged leftovers first; see Step 6), then:
+
+```bash
+git push origin main
+```
+
+Never force-push to `main` (no `--force`, no `--force-with-lease`). Report that `main` was pushed; there is no PR URL.
+
+Skip Step 6.
+
+**Default:**
 
 ```bash
 git push -u origin <branch-name>
@@ -137,12 +159,13 @@ behavior the check exists to prevent.
 
 ### Step 7: Report
 
-Report the PR URL and what was merged.
+Report the PR URL and what was merged. On `nopr`, report the `main` push SHA instead.
 
 ## Important
 
 - **Never skip Step 0.** Quality gates catch broken compilation, bad citations, and hardcoded paths before they reach `main`. If the user insists on skipping, record their override reason in the commit message.
-- Always create a NEW branch — never commit directly to main.
+- Default path: always create a NEW branch — never commit directly to main.
+- `nopr` / `--nopr` is the exception: commit on `main` and push `origin main`. Still never force-push.
 - Exclude `settings.local.json` and sensitive files from staging.
 - Use `--merge` (not `--squash` or `--rebase`) unless asked otherwise.
-- If the commit message from `$ARGUMENTS` is provided, use it exactly.
+- If a commit message remains in `$ARGUMENTS` after stripping `nopr` / `--nopr`, use it exactly.

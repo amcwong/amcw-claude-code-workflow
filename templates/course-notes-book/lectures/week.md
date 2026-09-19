@@ -46,6 +46,13 @@ $$\text{[key equation]}$$
 **Worked example.** [Same-domain numbers, every step shown. If an assessment asks for a specific calculation, explain the concept and add: the specific calculation is left to the assignment.]
 :::
 
+<!-- Parked only by /course-notes revise when the user says park. Do not insert
+     empty dropdowns on add. Shape:
+::: {.callout-tip collapse="true" .clarification}
+**Clarification.** [Extra derivation or distinction. Homework-answer ban. No em dashes.]
+:::
+-->
+
 ## Summary {#sec-summary}
 
 ::: {.callout-note}

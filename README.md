@@ -1,14 +1,36 @@
-# My Claude Code Setup
+# Course notes on a Claude Code academic workflow
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Changelog](https://img.shields.io/badge/See-CHANGELOG-blue.svg)](CHANGELOG.md)
 [![Contributing](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](.github/CONTRIBUTING.md)
 
-> **Actively maintained.** A summary of how I use Claude Code for academic work — slides, papers, data analysis, and more — packaged so you can fork it for your own research. See [CHANGELOG.md](CHANGELOG.md) for the latest changes.
+> **This fork is primarily a course-notes repo.** I write weekly learner notes here (Quarto books under `courses/`) using `/course-notes` and `/deploy-course-notes`, which I added on top of [Pedro Sant'Anna's Claude Code academic workflow](https://github.com/pedrohcgs/claude-code-my-workflow). The rest of that template is still in the tree, so the same repo can also produce slides, papers, and data analysis. See [CHANGELOG.md](CHANGELOG.md) for what changed in this fork.
 
-**Live site:** [psantanna.com/claude-code-my-workflow](https://psantanna.com/claude-code-my-workflow/)
+**Notes on GitHub Pages:** [amcwong.github.io/claude-code-my-workflow](https://amcwong.github.io/claude-code-my-workflow/) · [how the notes are written](docs/course-notes-workflow.html)
 
-A ready-to-fork foundation for AI-assisted academic work. You describe what you want — lecture slides, a research paper, a data analysis, a replication package — and Claude plans the approach, runs specialized agents, fixes issues, verifies quality, and presents results. Like a contractor who handles the entire job. Extracted from a production PhD course and extended by a growing [community](#community--extensions).
+**Upstream template:** [psantanna.com/claude-code-my-workflow](https://psantanna.com/claude-code-my-workflow/)
+
+I injected my usual course-note writing loop into this foundation: one chapter per lecture week, a cumulative glossary, a revise pass (promote into the spine or park a clarification dropdown), a cold fact audit, then commit and publish. Because that loop lives *inside* the Sant'Anna workflow rather than in a separate notes repo, I can still invoke the original skills when I need them.
+
+---
+
+## Course notes (primary workflow)
+
+Live books: [CSC2506](https://amcwong.github.io/claude-code-my-workflow/courses/CSC2506/), [CSC2516](https://amcwong.github.io/claude-code-my-workflow/courses/CSC2516/), [CSC2529](https://amcwong.github.io/claude-code-my-workflow/courses/CSC2529/). Command-by-command: [docs/course-notes-workflow.html](docs/course-notes-workflow.html).
+
+```text
+/course-notes init <slug>              # first course only
+/course-notes add <slug> <N>           # write one week (approve pre-flight first)
+/course-notes revise <slug> [N]        # questions in chat; promote or park
+/course-notes audit <slug>             # fact-audit the whole course
+/commit
+/deploy-course-notes <slug>            # or `all`
+/commit                                # then push; Pages serves docs/
+```
+
+Source of truth is `courses/<slug>/lectures/weekNN.qmd`. `/course-notes` never commits or publishes. During **revise**, use Claude Code plan mode to ask questions; say **promote**, **park**, **discard**, **audit**, or **commit** when you want a write or an exit. Follow-up questions stay teaching.
+
+The sections below are the original template: fork/setup, contractor mode, slides, papers, gates. Use them when this repo is doing that kind of work, not when you are only adding a week of notes.
 
 ---
 
@@ -53,20 +75,28 @@ The [full guide](https://psantanna.com/claude-code-my-workflow/workflow-guide.ht
 
 ### 3. Verify Your Setup
 
-Before building real lectures, confirm your environment works:
+Before building real lectures **or** adding a course week, confirm your environment works:
 
 ```bash
 ./scripts/validate-setup.sh        # Checks XeLaTeX, Quarto, Python, git, etc.
 ```
 
-Then inside Claude:
+**Course notes (this fork's main path)** — inside Claude Code:
+
+```text
+/course-notes add CSC2506 3
+```
+
+Approve the pre-flight, then `revise` → `audit` → `/commit` as in [Course notes](#course-notes-primary-workflow). You need Quarto; you do not need XeLaTeX for the books.
+
+**Upstream slide demos** — still here if you want instructor decks:
 
 ```text
 /compile-latex HelloWorld          # Compiles Slides/HelloWorld.tex to PDF
 /deploy HelloWorld                 # Renders Quarto/HelloWorld.qmd to HTML
 ```
 
-If both succeed, delete `Slides/HelloWorld.tex` and `Quarto/HelloWorld.qmd` and start on your real work.
+If both succeed and you do not need them, delete `Slides/HelloWorld.tex` and `Quarto/HelloWorld.qmd`.
 
 ---
 
@@ -167,7 +197,8 @@ The guide covers Claude Code's latest capabilities:
 
 | Academic Task | How This Workflow Helps |
 |---------------|----------------------|
-| Lecture slides (Beamer/Quarto) | Full creation, translation, multi-agent review, deployment |
+| **Learner course notes (this fork)** | Weekly Quarto books under `courses/` — `/course-notes` (`init` / `add` / `revise` / `audit`) then `/deploy-course-notes`. [Workflow page](docs/course-notes-workflow.html). |
+| Lecture slides (Beamer/Quarto) | Full creation, translation, multi-agent review, deployment (upstream template) |
 | Research papers | Literature review, manuscript review, simulated peer review (`/review-paper --peer [journal]`), reviewer-disposition variance reporting (`--variance N`) |
 | Data analysis | End-to-end R pipelines (`/data-analysis`) or Stata pipelines via `stata-mcp` (`/stata-replication`, v1.9.0), replication verification, publication-ready output |
 | Monte Carlo simulations | Reproducible simulation studies (`/simulation-study`, v1.10.0) — parameterized DGP, estimator grid, bias/RMSE/coverage/size/power with Monte Carlo SEs, dedicated `sim-reviewer` review pass |
@@ -182,7 +213,7 @@ The guide covers Claude Code's latest capabilities:
 
 ### One repo, many project types
 
-This workflow is designed as a **single hub for an entire research program** — not one paper at a time. The same `CLAUDE.md`, rules, agents, and quality gates serve courses and lectures, papers and referee reports, data analysis and replication packages, **Monte Carlo simulation studies** (`/simulation-study` + `sim-reviewer`), and the **R package release gate** (`/r-package-check` + `r-package-reviewer`) — all new in v1.10.0. *On the roadmap:* Stata / Python package checks (SSC / PyPI) and personal-productivity workflows. See [`.claude/references/v2.0-backlog.md`](.claude/references/v2.0-backlog.md) for what's next.
+This **fork** is first a place to write and publish course notes. It is still a **single hub** for the rest of an academic program because the Sant'Anna template was kept: the same `CLAUDE.md`, rules, agents, and quality gates can serve instructor slides, papers and referee reports, data analysis and replication packages, **Monte Carlo simulation studies** (`/simulation-study` + `sim-reviewer`), and the **R package release gate** (`/r-package-check` + `r-package-reviewer`) — all from v1.10.0 of the upstream. *On the roadmap (upstream):* Stata / Python package checks (SSC / PyPI) and personal-productivity workflows. See [`.claude/references/v2.0-backlog.md`](.claude/references/v2.0-backlog.md) for what's next.
 
 ---
 
@@ -243,7 +274,7 @@ This workflow is designed as a **single hub for an entire research program** —
 | `/validate-bib` | Cross-reference citations against bibliography |
 | `/devils-advocate` | Challenge design decisions before committing |
 | `/create-lecture` | Full lecture creation workflow |
-| `/commit` | Stage, commit, create PR, and merge to main |
+| `/commit` | Stage, commit, create PR, and merge to main. `/commit nopr` (or `--nopr`) skips the PR and pushes to `main` |
 | `/lit-review` | Literature search, synthesis, and gap identification |
 | `/research-ideation` | Generate research questions and empirical strategies |
 | `/interview-me` | Interactive interview to formalize a research idea |
@@ -279,7 +310,7 @@ This workflow is designed as a **single hub for an entire research program** —
 | `/submission-disclosures` (v2.1) | The submission-time disclosure block: AI-use disclosure matched to the target journal's verified-current policy, CRediT contributor roles, conflict-of-interest, and data-availability statements (NOT statistical disclosure — that's `/disclosure-check`) |
 | `/syllabus` (v2.0) | Build/restructure a course syllabus from a topic or reading list — course description + prerequisites, week-by-week schedule (topic→readings→deliverables), measurable learning objectives, assessment scheme + rubric, standard policies (late work / AI use / integrity / accessibility), and a per-week work-list mapping weeks to `/create-lecture` decks; economics-aware (PhD metrics/micro/macro sequences, undergrad) |
 | `/teach-from-paper` (v2.0) | Reads a paper end-to-end and pitches it to a stated audience level — lecture outline (motivation → setup → key result → method → takeaways), the 3-5 results worth presenting with intuition, a slide skeleton for `/create-lecture`, discussion questions, and a problem-set brief for `/scaffold-exercises` |
-| `/course-notes` | Learner course notes for one lecture week under `courses/<slug>/` — Quarto book chapter (`lectures/weekNN.qmd`), cumulative glossary, local `_site/` render; `init` / `add` / `audit`. NOT instructor decks (`/create-lecture`) or manuscript CoVe (`/verify-claims`) |
+| `/course-notes` | Learner course notes for one lecture week under `courses/<slug>/` — Quarto book chapter (`lectures/weekNN.qmd`), cumulative glossary, local `_site/` render; `init` / `add` / `revise` / `audit`. Revise: questions stay in chat; **promote** into the spine or **park** a collapsed clarification dropdown. NOT instructor decks (`/create-lecture`) or manuscript CoVe (`/verify-claims`) |
 | `/respond-to-eval` (v2.0) | Teaching analogue of `/respond-to-referees` — clusters course-eval comments into themes, weights by frequency (signal vs noise), classifies Keep / Change / Investigate / Out-of-scope, and drafts concrete changes mapped to the syllabus + slide decks; saves the plan to `quality_reports/teaching/` |
 | `/scaffold-exercises` (v2.0) | Scaffold a graded problem set across analytical/empirical/coding types, with worked solutions and "why this matters" explainers emitted to a separate solution key |
 | `/new-skill` (v2.0) | Scaffold a new skill that follows this repo's conventions — interviews for purpose, triggers, and tools, writes `.claude/skills/<name>/SKILL.md` from the template with frontmatter/body that pass `check-skill-integrity.py` first try, then reminds to add the surface-table rows |

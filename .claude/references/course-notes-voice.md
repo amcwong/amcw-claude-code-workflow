@@ -52,6 +52,20 @@ Hand-placed image files (plots, photos) go in `lectures/figures/weekNN/` and are
 
 `{ojs}` widgets are allowed later when a concept needs a slider. They are not required.
 
+## Clarification dropdowns
+
+Parked during `/course-notes revise`, not during `add`. Only on sections the user asked to park. Closed by default.
+
+```markdown
+::: {.callout-tip collapse="true" .clarification}
+**Clarification.** [The extra derivation or distinction. Same homework-answer ban. No em dashes.]
+:::
+```
+
+Place the block at the end of the named `##` / `{#sec-…}` section, before the next heading. Chat in Claude Code plan mode may be looser while teaching; **what gets parked still follows this voice file** (no invented analogies, no hype). Promote into the spine uses this register and must not duplicate the same prose in a dropdown.
+
+These boxes ship with the book on GitHub Pages.
+
 ## Page chrome
 
 Fonts and colours are locked in `COURSE.md` and implemented in `styles/custom.css`. Default system: navy `#002A5C`, hover `#1E3A6E`, white reading column, light-grey `#f0f0f0` left sidebar, Source Serif 4 for body and headings, Source Code Pro for code, system-ui for sidebar and tables. Never redesign per week. Never put course notes under the instructor `Quarto/` RevealJS tree.

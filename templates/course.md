@@ -35,4 +35,4 @@ Reuse this exactly every week; never redesign per week. Defaults after Week 1, t
 
 ## Recurring corrections
 
-<!-- Fold repeat feedback here so later weeks inherit it. Generic lessons go to MEMORY.md via `/learn` as `[LEARN:course-notes]`. -->
+<!-- Fold repeat feedback here so later weeks inherit it. Generic lessons go to MEMORY.md via `/learn` as `[LEARN:course-notes]`. After `/course-notes add`, run `/course-notes revise` (promote into the spine or park a clarification dropdown) before `/course-notes audit`. -->

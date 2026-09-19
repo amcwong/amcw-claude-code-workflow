@@ -1,7 +1,7 @@
 ---
 name: course-notes
-description: Write beginner-facing course notes for one lecture week under courses/<slug>/ — a Quarto book chapter, cumulative glossary, and local render. Use when the user says "add week N", "write course notes", "init course notes", or "audit the course notes". NOT for instructor Beamer/Quarto decks (use `/create-lecture` / `/teach-from-paper`), NOT for literature or paper notes (use `/lit-review`), NOT for manuscript fact-checking (use `/verify-claims`), NOT for generic "study notes" or "add notes."
-argument-hint: "[init <slug> | add <slug> <N> | audit <slug>] [--no-render] [--no-audit]"
+description: Write beginner-facing course notes for one lecture week under courses/<slug>/ — a Quarto book chapter, cumulative glossary, and local render. Use when the user says "add week N", "write course notes", "init course notes", "audit the course notes", "revise course notes", "park that", "promote that", or "clarification dropdown". NOT for instructor Beamer/Quarto decks (use `/create-lecture` / `/teach-from-paper`), NOT for literature or paper notes (use `/lit-review`), NOT for manuscript fact-checking (use `/verify-claims`), NOT for generic "study notes" or "add notes."
+argument-hint: "[init <slug> | add <slug> <N> | revise <slug> [N] | audit <slug>] [--no-render] [--no-audit]"
 allowed-tools: ["Read", "Write", "Edit", "Grep", "Glob", "Bash", "Agent", "Task"]
 disable-model-invocation: true
 effort: high
@@ -9,7 +9,7 @@ effort: high
 
 # /course-notes — Weekly Course Notes
 
-Produce beginner-facing notes for one lecture week of a course under `courses/<slug>/`: a Quarto book chapter (`lectures/weekNN.qmd`, source of truth), a cumulative glossary chapter, and a local `_site/` render. Fact-audit is a separate mode of this same skill.
+Produce beginner-facing notes for one lecture week of a course under `courses/<slug>/`: a Quarto book chapter (`lectures/weekNN.qmd`, source of truth), a cumulative glossary chapter, and a local `_site/` render. `revise` is the human pass between writing and audit. Fact-audit is a separate mode of this same skill.
 
 **Core principle:** the week `.qmd` is source of truth; HTML is only `quarto render` output. Nothing in this skill commits or pushes — that is [`/commit`](../commit/SKILL.md).
 
@@ -33,6 +33,7 @@ Parse `$ARGUMENTS`:
 
 - `init <slug>` — scaffold `courses/<slug>/` from `templates/course-notes-book/` plus `COURSE.md`.
 - `add <slug> <N>` — add week `N` (integer). Filename is `lectures/weekNN.qmd` with `N` zero-padded to two digits (`1` → `week01`).
+- `revise <slug> [N]` — pre-audit edit pass on week `N` (or the week under discussion). Also fire on “park that”, “promote that”, or “clarification dropdown” when a week is already in context.
 - `audit <slug>` — fork `fact-auditor` over that course tree.
 
 Slug must be kebab-case (`imaging-2026`). Reject path separators or `..`.
@@ -72,7 +73,7 @@ Emit, then **stop and wait for approval**. Do not write notes yet:
 
 #### Phase 1 — Write the week chapter (source of truth)
 
-After approval, write `courses/<slug>/lectures/weekNN.qmd` from [`templates/course-notes-book/lectures/week.md`](../../../templates/course-notes-book/lectures/week.md). Honor [`.claude/rules/course-notes.md`](../../rules/course-notes.md) and [`course-notes-voice.md`](../../references/course-notes-voice.md): motivate then define, lecture-owned examples, no invented analogies, no em dashes, no homework numeric answers, no dense walls. Wikipedia on first mention of a term in this chapter. Inline SVG in `{=html}` blocks (Pastel Rainbow, Helvetica stack). Hand-placed images the user dropped in `lectures/figures/weekNN/` are included with `![caption](figures/weekNN/name.png)`. `{ojs}` is optional, not required.
+After approval, write `courses/<slug>/lectures/weekNN.qmd` from [`templates/course-notes-book/lectures/week.md`](../../../templates/course-notes-book/lectures/week.md). Honor [`.claude/rules/course-notes.md`](../../rules/course-notes.md) and [`course-notes-voice.md`](../../references/course-notes-voice.md): motivate then define, lecture-owned examples, no invented analogies, no em dashes, no homework numeric answers, no dense walls. Wikipedia on first mention of a term in this chapter. Inline SVG in `{=html}` blocks (Pastel Rainbow, Helvetica stack). Hand-placed images the user dropped in `lectures/figures/weekNN/` are included with `![caption](figures/weekNN/name.png)`. `{ojs}` is optional, not required. Do **not** insert empty `.clarification` dropdowns on `add`.
 
 #### Phase 2 — Glossary and book list
 
@@ -94,9 +95,38 @@ python3 scripts/quality_score.py courses/<slug>/lectures/weekNN.qmd
 
 If the score is below 80, fix display-math splits, SVG title clearance, or CSS before telling the user the week is ready. Do not treat a horizontal scrollbar as a pass.
 
-#### Phase 4 — Stop for human review
+#### Phase 4 — Stop for revise, then audit
 
-Do not run the auditor yet unless the user already asked for `audit` in the same invocation and did not pass `--no-audit`. Tell them to read the week `.qmd` and the rendered chapter, fold repeat complaints into `COURSE.md` (or `/learn` as `[LEARN:course-notes]`), then `/course-notes audit <slug>` and `/commit` when ready.
+Do not run the auditor yet unless the user already asked for `audit` in the same invocation and did not pass `--no-audit`. Tell them to read the week `.qmd` and the rendered chapter, then `/course-notes revise <slug> [N]` (Claude Code **plan mode** for questions; default mode for writes). Fold repeat generation complaints into `COURSE.md` (or `/learn` as `[LEARN:course-notes]`). After revise, `/course-notes audit <slug>` and `/commit`.
+
+### `revise` — pre-audit edits (promote or park)
+
+Confirm `courses/<slug>/` exists and the target `lectures/weekNN.qmd` exists. If `[N]` is omitted, use the week already in the conversation or the latest `weekNN.qmd`; if still ambiguous, ask.
+
+**Claude Code overlay.** Prefer **plan mode** for a streak of questions (read-only). Prefer **default mode** for promote, park, audit, and commit. The rules below still apply if plan mode is off.
+
+**Write only on these cues.** Anything else is more clarification: answer in chat, do not write, do not nag for a disposition.
+
+| User says | Action |
+| --- | --- |
+| **Promote** / “put that in the section” / “change the section” | Edit the named section in lecture voice. No `.clarification` callout. If a promote introduces a new term, echo it in `glossary.qmd`. Then render + score (unless `--no-render`). |
+| **Park** / “clarification dropdown” / “add a clarification” | Append a collapsed callout at the **end of the named section** (before the next `##`). Do not also paste that prose into the spine. Then render + score (unless `--no-render`). |
+| **Discard** | Drop the last explanation. Stay in revise. Write nothing. |
+| **Audit** | End revise; run the `audit` mode below. Chat-only text is not on the page. |
+| **Commit** | End revise. Do **not** commit. Tell them to run [`/commit`](../commit/SKILL.md). Chat-only text is not on the page. |
+| **Any question or follow-up** | Explain in chat. No file writes. May be parked or promoted later. |
+
+Parked shape (once per kept question, not one empty box per heading):
+
+```markdown
+::: {.callout-tip collapse="true" .clarification}
+**Clarification.** [Extra derivation or distinction.]
+:::
+```
+
+Honor [`.claude/rules/course-notes.md`](../../rules/course-notes.md) and [`course-notes-voice.md`](../../references/course-notes-voice.md) on both promote and park (homework-answer ban, no em dashes, no invented analogies, Wikipedia-only links). After park/promote, `quarto render` from the course root and `python3 scripts/quality_score.py courses/<slug>/lectures/weekNN.qmd`. Fix scores below 80 before calling the week ready.
+
+Once per **pause** (the user seems done asking, not after every question), you may mention that promote / park / discard / audit / commit are available. Never treat silence or a follow-up as park.
 
 ### `audit` — cold factual pass (skip if `--no-audit` on an `add`)
 
@@ -115,30 +145,32 @@ Do not run the auditor yet unless the user already asked for `audit` in the same
 ## Output / report format
 
 - `init`: paths created + reminder to fill `COURSE.md`.
-- `add`: pre-flight block (before writes); then paths written + render status + "not committed."
+- `add`: pre-flight block (before writes); then paths written + render status + “not committed” + pointer to `revise`.
+- `revise`: for questions, the explanation only; for park/promote, path + section id + render status + score; for discard/audit/commit, the action taken. Never “not committed” as a substitute for `/commit`.
 - `audit`: `FACT_AUDIT.md` + the short summary above.
 
 ## Exit behavior
 
 - **Pre-flight not yet approved:** write nothing.
 - **Slug missing or invalid / week number missing on `add`:** stop with the expected invocation.
-- **`courses/<slug>/` missing on `add`/`audit`:** tell the user to `init` first.
+- **`courses/<slug>/` missing on `add`/`revise`/`audit`:** tell the user to `init` first.
+- **Question during `revise`:** write nothing.
 - **Never commit or push.**
 
 ## Flags
 
-- `--no-render` — skip Phase 3 on `add` (write `.qmd` + glossary + `_quarto.yml` only).
-- `--no-audit` — do not run `audit` after `add` even if the user bundled the request.
+- `--no-render` — skip Phase 3 on `add`, and skip `quarto render` + quality score after a `revise` park or promote.
+- `--no-audit` — do not run `audit` after `add` even if the user bundled the request. Does not block an explicit **audit** cue during `revise`.
 
 ## Cross-references
 
 - [`.claude/rules/course-notes.md`](../../rules/course-notes.md) — path-scoped writing constraints (`courses/**`).
-- [`.claude/references/course-notes-voice.md`](../../references/course-notes-voice.md) — lecture voice, figure palette.
+- [`.claude/references/course-notes-voice.md`](../../references/course-notes-voice.md) — lecture voice, figure palette, clarification dropdowns.
 - [`.claude/agents/fact-auditor.md`](../../agents/fact-auditor.md) — forked cold auditor this skill dispatches.
 - [`.claude/references/course-notes-workflow.md`](../../references/course-notes-workflow.md) — why the four layers exist.
 - [`templates/course-notes-book/lectures/week.md`](../../../templates/course-notes-book/lectures/week.md) — week chapter shape.
 - [`/commit`](../commit/SKILL.md) — shipping source. This skill does not.
-- [`/deploy-course-notes`](../deploy-course-notes/SKILL.md) — render book to `docs/courses/<slug>/` for GitHub Pages after `/commit`.
+- [`/deploy-course-notes`](../deploy-course-notes/SKILL.md) — render book to `docs/courses/<slug>/` for GitHub Pages after `/commit`. Parked dropdowns ship with that HTML.
 - [`/learn`](../learn/SKILL.md) — generic recurring lessons as `[LEARN:course-notes]`.
 
 ## What this skill does NOT do
@@ -149,3 +181,4 @@ Do not run the auditor yet unless the user already asked for `audit` in the same
 - **Problem sets** — [`/scaffold-exercises`](../scaffold-exercises/SKILL.md).
 - **Commit, push, or publish** — use [`/commit`](../commit/SKILL.md) then [`/deploy-course-notes`](../deploy-course-notes/SKILL.md); not this skill.
 - **A parent `/study-notes` dispatcher** — not until a second note type exists.
+- **Auto-park after every question** — park only when the user says park.

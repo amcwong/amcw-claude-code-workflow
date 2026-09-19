@@ -8,6 +8,23 @@ If you have forked this template, see the **Upgrading** section at the bottom fo
 
 ## Unreleased
 
+### Added — `/commit nopr`
+
+- `/commit nopr` (same as `--nopr`) skips the branch/PR/merge cycle: commit on `main` and `git push origin main`. Gates and hooks still run. Never force-push.
+
+### Changed — README leads with this fork's course-notes use
+
+- Root `README.md` now states this is a fork of Pedro Sant'Anna's workflow used **primarily** to take course notes (`/course-notes`, `/deploy-course-notes`), with the original slide/paper/data skills kept for other content. Live site points at this fork's Pages hub.
+
+### Added — course-notes workflow page on Pages
+
+- `docs/course-notes-workflow.html` — how the learner books are written; lists `/course-notes` (`init` / `add` / `revise` / `audit` plus flags and revise cues), `/deploy-course-notes`, and `/commit`. Linked from `docs/index.html`.
+
+### Added — `/course-notes revise` (pre-audit promote / park)
+
+- New mode on `/course-notes`: after `add`, **revise** before `audit`. Questions stay in chat (Claude Code plan mode preferred). Writes only on **promote** (spine), **park** (collapsed `.clarification` dropdown in `weekNN.qmd`), **discard**, **audit**, or **commit** (handoff to `/commit`). Follow-up questions are more clarification, not a missing disposition.
+- Parked dropdowns ship on GitHub Pages with `/deploy-course-notes`. Navy `.clarification` CSS on the book template and live CSC2506/CSC2529 sheets. `fact-auditor` treats parked callouts as claims.
+
 ### Fixed — `/deploy-course-notes all` / `ALL`
 
 - `scripts/sync_course_notes_to_docs.sh` treats `all`/`ALL`/`All` the same and deploys every `courses/*/_quarto.yml` book (sorted). Continues after a per-course failure and prints a summary. Bash 3.2–compatible (no `mapfile`).

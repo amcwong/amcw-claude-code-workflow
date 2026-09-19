@@ -10,7 +10,7 @@ Voice and page chrome follow the CSC413/2516 lecture-note site (Raffel) as an ex
 
 1. **`COURSE.md` (per course) + path-scoped `.claude/rules/course-notes.md`.** The old root `CLAUDE.md` was a whole-session rulebook. Putting it here would fire during lecture and research work. Audience, URL, and design tokens stay in `courses/<slug>/COURSE.md`. Always-on writing constraints (definitions, homework-answer ban, `.qmd` as SoT) load only for `courses/**`.
 
-2. **`/course-notes` skill.** The old "When asked to add a new week" procedure. Slash-invoked, `disable-model-invocation: true`, so a fuzzy "write notes" prompt cannot create week files. `init` / `add` / `audit` are modes of one skill, not three.
+2. **`/course-notes` skill.** The old "When asked to add a new week" procedure. Slash-invoked, `disable-model-invocation: true`, so a fuzzy "write notes" prompt cannot create week files. `init` / `add` / `revise` / `audit` are modes of one skill, not four. `revise` is the human pass between writing a week and auditing it: questions stay in chat (Claude Code plan mode preferred); **promote** / **park** / **discard** / **audit** / **commit** are the only write-or-exit cues. Parked text is a collapsed `.clarification` callout in `weekNN.qmd` and ships on GitHub Pages.
 
 3. **`fact-auditor` agent.** The old cold-read auditor, still independent (forked, no writing-conversation memory, no style rules). It **reports** findings. The skill applies accepted corrections. That matches the fleet rule that reviewers do not write.
 

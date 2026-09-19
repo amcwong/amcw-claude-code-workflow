@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Course-notes workflow — Andrew Wong</title>
+  <meta name="description" content="How learner course notes are written, revised, audited, and published: every Claude Code command in the weekly loop.">
+  <link rel="canonical" href="https://amcwong.github.io/claude-code-my-workflow/course-notes-workflow.html">
+  <style>
+    :root {
+      --navy: #002A5C;
+      --navy-hover: #1E3A6E;
+      --ink: #1a1a1a;
+      --muted: #555;
+      --page: #ffffff;
+      --fill: #f5f7fb;
+      --border: #d0d9e8;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: Georgia, "Times New Roman", serif;
+      font-size: 1.15rem;
+      line-height: 1.65;
+      color: var(--ink);
+      background: var(--page);
+    }
+
+    .wrap {
+      max-width: 44rem;
+      margin: 0 auto;
+      padding: 2.5rem 1.25rem 4rem;
+    }
+
+    .crumb {
+      font-family: system-ui, -apple-system, sans-serif;
+      font-size: 0.85rem;
+      margin: 0 0 1.25rem;
+    }
+
+    h1 {
+      font-size: 1.85rem;
+      font-weight: 600;
+      color: var(--navy);
+      margin: 0 0 0.35rem;
+      line-height: 1.25;
+      border-bottom: 2px solid var(--navy);
+      padding-bottom: 0.45rem;
+    }
+
+    .byline {
+      color: var(--muted);
+      font-size: 0.95rem;
+      margin: 0.75rem 0 1.75rem;
+    }
+
+    h2 {
+      font-size: 1.15rem;
+      color: var(--navy);
+      margin: 2rem 0 0.75rem;
+    }
+
+    h3 {
+      font-size: 1.02rem;
+      color: var(--navy);
+      margin: 1.4rem 0 0.5rem;
+    }
+
+    p { margin: 0.7rem 0; }
+
+    a { color: var(--navy); }
+    a:hover { color: var(--navy-hover); }
+
+    ol.loop, ul {
+      margin: 0.5rem 0 1rem;
+      padding-left: 1.35rem;
+    }
+
+    ol.loop li { margin: 0.35rem 0; }
+
+    pre, code {
+      font-family: "Source Code Pro", "Courier New", monospace;
+    }
+
+    code {
+      font-size: 0.88em;
+      background: var(--fill);
+      border: 1px solid var(--border);
+      padding: 0.05em 0.35em;
+    }
+
+    pre {
+      background: var(--fill);
+      border: 1px solid var(--border);
+      padding: 0.9rem 1rem;
+      overflow-x: auto;
+      font-size: 0.82rem;
+      line-height: 1.45;
+    }
+
+    pre code {
+      background: none;
+      border: 0;
+      padding: 0;
+      font-size: inherit;
+    }
+
+    .table-wrap {
+      overflow-x: auto;
+      margin: 0.75rem 0 1.1rem;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.92rem;
+      font-family: system-ui, -apple-system, sans-serif;
+    }
+
+    th, td {
+      text-align: left;
+      vertical-align: top;
+      padding: 0.45rem 0.6rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    th {
+      background: var(--navy);
+      color: #fff;
+      font-weight: 600;
+      font-size: 0.8rem;
+      letter-spacing: 0.03em;
+    }
+
+    td:first-child {
+      white-space: nowrap;
+    }
+
+    .meta {
+      margin-top: 2.5rem;
+      padding-top: 1.25rem;
+      border-top: 1px solid var(--border);
+      font-size: 0.9rem;
+      color: var(--muted);
+    }
+
+    @media (max-width: 480px) {
+      .wrap { padding: 1.5rem 1rem 3rem; }
+      h1 { font-size: 1.5rem; }
+      body { font-size: 1.05rem; }
+      td:first-child { white-space: normal; }
+    }
+  </style>
+</head>
+<body>
+  <main class="wrap">
+    <p class="crumb"><a href="index.html">Course notes</a> · workflow</p>
+    <h1>Course-notes workflow</h1>
+    <p class="byline">How the books on this site are written in Claude Code</p>
+
+    <p>
+      Each course is a Quarto book under <code>courses/&lt;slug&gt;/</code>.
+      The week chapter <code>lectures/weekNN.qmd</code> is the source of truth.
+      HTML is render output. Slash commands never commit or push; that is always
+      <code>/commit</code>, then (for the public site)
+      <code>/deploy-course-notes</code>.
+    </p>
+    <p>
+      Run this in <strong>Claude Code</strong>. Use <strong>plan mode</strong>
+      while asking questions about a week (read-only). Leave plan mode for
+      edits, park/promote, audit, and commit.
+    </p>
+
+    <h2>Weekly loop</h2>
+    <ol class="loop">
+      <li>Drop lecture PDFs in <code>courses/&lt;slug&gt;/sources/weekN/</code>.</li>
+      <li><code>/course-notes add &lt;slug&gt; N</code> — approve the pre-flight, then one week chapter is written and rendered.</li>
+      <li>Read the chapter. <code>/course-notes revise &lt;slug&gt; [N]</code> — ask questions; <strong>promote</strong> fixes into the section or <strong>park</strong> a clarification dropdown.</li>
+      <li><code>/course-notes audit &lt;slug&gt;</code> — cold fact check of the whole course.</li>
+      <li><code>/commit</code> — source <code>.qmd</code> on git.</li>
+      <li><code>/deploy-course-notes &lt;slug&gt;</code> then <code>/commit</code> and push — when the public Pages book should update. Parked dropdowns ship with that HTML.</li>
+    </ol>
+    <pre><code>/course-notes add CSC2506 3
+/course-notes revise CSC2506 3
+/course-notes audit CSC2506
+/commit
+/deploy-course-notes CSC2506
+/commit</code></pre>
+
+    <h2>Commands</h2>
+    <p>Every command that belongs to this workflow:</p>
+
+    <h3><code>/course-notes</code></h3>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Command</th>
+            <th>What it does</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code>/course-notes init &lt;slug&gt;</code></td>
+            <td>Scaffold <code>courses/&lt;slug&gt;/</code> from the book template. Fill <code>COURSE.md</code> placeholders next. Does not write week notes.</td>
+          </tr>
+          <tr>
+            <td><code>/course-notes add &lt;slug&gt; &lt;N&gt;</code></td>
+            <td>Plan, then write one week (<code>1</code> → <code>lectures/week01.qmd</code>), append the glossary, list the chapter in <code>_quarto.yml</code>, render locally.</td>
+          </tr>
+          <tr>
+            <td><code>/course-notes revise &lt;slug&gt; [N]</code></td>
+            <td>Pre-audit pass on that week. Questions stay in chat. Writes only on the cues below.</td>
+          </tr>
+          <tr>
+            <td><code>/course-notes audit &lt;slug&gt;</code></td>
+            <td>Fact-audit the whole course (every week chapter, glossary, index). Writes <code>FACT_AUDIT.md</code>. No per-week form.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <p><strong>Flags</strong> (on <code>/course-notes</code>):</p>
+    <ul>
+      <li><code>--no-render</code> — skip <code>quarto render</code> on <code>add</code>, and after a revise park or promote.</li>
+      <li><code>--no-audit</code> — do not run audit after <code>add</code> even if you asked in the same message. Does not block saying <strong>audit</strong> during revise.</li>
+    </ul>
+    <p>
+      Slug is kebab-case (<code>CSC2506</code>, <code>imaging-2026</code>).
+      Week <code>N</code> is an integer; the file is always zero-padded
+      <code>weekNN.qmd</code>.
+    </p>
+
+    <h3>Cues during <code>revise</code></h3>
+    <p>If none of these appear, a follow-up is treated as more clarification (no write).</p>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>You say</th>
+            <th>What happens</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code>promote</code></td>
+            <td>Edit the section in lecture voice. No dropdown.</td>
+          </tr>
+          <tr>
+            <td><code>park</code></td>
+            <td>Collapsed <strong>Clarification</strong> dropdown at the end of that section. Ships on Pages.</td>
+          </tr>
+          <tr>
+            <td><code>discard</code></td>
+            <td>Drop the last explanation. Stay in revise.</td>
+          </tr>
+          <tr>
+            <td><code>audit</code></td>
+            <td>Leave revise; run <code>/course-notes audit</code>. Chat-only text is not on the page.</td>
+          </tr>
+          <tr>
+            <td><code>commit</code></td>
+            <td>Leave revise. The skill does not commit; it tells you to run <code>/commit</code>.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>Publish and ship</h3>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Command</th>
+            <th>What it does</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code>/deploy-course-notes &lt;slug&gt;</code></td>
+            <td>Quality ≥ 80, <code>quarto render</code>, copy <code>_site/</code> to <code>docs/courses/&lt;slug&gt;/</code>. Does not commit.</td>
+          </tr>
+          <tr>
+            <td><code>/deploy-course-notes all</code></td>
+            <td>Same for every course book (<code>all</code> / <code>ALL</code> / <code>All</code>).</td>
+          </tr>
+          <tr>
+            <td><code>/commit</code></td>
+            <td>Stage, quality gates, commit. Default: branch + PR + merge to <code>main</code>. <code>/commit nopr</code> skips the PR and pushes <code>main</code>. Used after source edits and again after deploy, then push to <code>main</code>.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <p>
+      Script equivalent of deploy:
+      <code>./scripts/sync_course_notes_to_docs.sh CSC2506</code>
+      (or <code>all</code>).
+    </p>
+    <p>
+      Public URL shape:
+      <code>https://amcwong.github.io/claude-code-my-workflow/courses/&lt;slug&gt;/</code>.
+      GitHub Pages source must be branch <code>main</code>, folder <code>/docs</code>.
+    </p>
+
+    <h3>Optional, nearby</h3>
+    <ul>
+      <li><code>/learn</code> — save a generic process lesson as <code>[LEARN:course-notes]</code>. Course-specific repeats go in that course’s <code>COURSE.md</code>.</li>
+      <li><code>/deploy</code> — instructor RevealJS slides only. Not this workflow.</li>
+    </ul>
+
+    <h2>Not supported</h2>
+    <pre><code>/course-notes audit CSC2506 3
+/course-notes add CSC2506
+/course-notes deploy CSC2506</code></pre>
+    <p>
+      Audit is always the whole course. <code>add</code> needs a week number.
+      Publishing is <code>/deploy-course-notes</code>, not a course-notes subcommand.
+    </p>
+
+    <h2>First course</h2>
+    <ol>
+      <li><code>/course-notes init &lt;slug&gt;</code></li>
+      <li>Fill <code>COURSE.md</code> (audience, course URL, expected week count).</li>
+      <li>Put Week 1 slides in <code>sources/week1/</code>.</li>
+      <li>Then the weekly loop from <code>add</code>.</li>
+    </ol>
+
+    <h2>Books on this site</h2>
+    <ul>
+      <li><a href="courses/CSC2506/">CSC412 / 2506 — Probabilistic Machine Learning</a></li>
+      <li><a href="courses/CSC2516/">CSC2516 — Neural Networks and Deep Learning</a></li>
+      <li><a href="courses/CSC2529/">CSC2529 — Computational Imaging</a></li>
+    </ul>
+
+    <p class="meta">
+      <a href="index.html">Back to course notes</a>
+      ·
+      <a href="workflow-guide.html">Full Claude Code template guide</a>
+      ·
+      <a href="https://github.com/amcwong/claude-code-my-workflow">GitHub repo</a>
+    </p>
+  </main>
+</body>
+</html>

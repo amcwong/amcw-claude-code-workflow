@@ -1,3 +1,20 @@
+## 2026-09-19 — `/commit nopr`
+
+- `/commit` accepts `nopr` / `--nopr`: skip PR, push `main`. Quality gates unchanged.
+
+## 2026-09-19 — README emphasizes course-notes fork
+
+- Recast the root README: primary use is weekly course notes on top of the Sant'Anna template; upstream live site is listed as the template, this fork's Pages hub as the notes site.
+
+## 2026-09-19 — Course-notes workflow page in docs/
+
+- Added `docs/course-notes-workflow.html` (commands + weekly loop) and linked it from `docs/index.html`.
+
+## 2026-09-19 — `/course-notes revise` (promote / park)
+
+- Added `revise` mode: questions do not write; promote edits the spine; park inserts a collapsed `.clarification` callout; discard / audit / commit are the other exits. Follow-ups stay teaching.
+- CSS + voice/rule/auditor/skill/README/CHANGELOG updates. Parked dropdowns deploy with the book.
+
 ## 2026-09-18 — Course-notes `lectures/figures/`
 
 - `/course-notes init` now scaffolds `lectures/figures/` (gitkeep). Hand-placed week images go in `lectures/figures/weekNN/` and are referenced as `figures/weekNN/name.png`. Inline SVG stays the default.
