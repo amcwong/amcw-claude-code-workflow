@@ -1,3 +1,20 @@
+## 2026-09-18 — Course-notes `lectures/figures/`
+
+- `/course-notes init` now scaffolds `lectures/figures/` (gitkeep). Hand-placed week images go in `lectures/figures/weekNN/` and are referenced as `figures/weekNN/name.png`. Inline SVG stays the default.
+
+## 2026-09-18 — CSC2516 teacher lecture sources (weeks 1–2)
+
+- Copied Raffel CSC2516 lecture `.qmd` sources into gitignored `courses/CSC2516/sources/week1/` and `week2/` (MIT-licensed GitHub originals, plus bib, LICENSE, and lecture 2 figures).
+
+## 2026-09-18 — deploy-course-notes ALL = every course
+
+- `scripts/sync_course_notes_to_docs.sh`: `all`/`ALL`/`All` are case-insensitive; lists every `courses/*/_quarto.yml`, deploys in sorted order, continues after a per-course failure, prints a summary.
+- Updated `/deploy-course-notes` skill and course-note workflow README.
+
+## 2026-09-18 — Retarget local branch to main
+
+- Checked out `main`, fast-forwarded to `origin/main`, cherry-picked landing-page commit; tracking is `origin/main` (ahead 1). Pruned deleted remote `deploy-course-notes-github-pages`.
+
 ## 2026-09-18 — Pages hub → course notes
 
 - Moved upstream `docs/index.html` → `docs/template-landing.html`; new hub routes to `courses/CSC2506/`.

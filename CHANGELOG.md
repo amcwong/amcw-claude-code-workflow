@@ -8,6 +8,10 @@ If you have forked this template, see the **Upgrading** section at the bottom fo
 
 ## Unreleased
 
+### Fixed — `/deploy-course-notes all` / `ALL`
+
+- `scripts/sync_course_notes_to_docs.sh` treats `all`/`ALL`/`All` the same and deploys every `courses/*/_quarto.yml` book (sorted). Continues after a per-course failure and prints a summary. Bash 3.2–compatible (no `mapfile`).
+
 ### Changed — Pages hub is course notes, not template marketing
 
 - Moved the upstream workflow landing page to `docs/template-landing.html` (still holds inventory count assertions for gates).

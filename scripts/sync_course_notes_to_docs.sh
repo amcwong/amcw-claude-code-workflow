@@ -6,6 +6,7 @@
 # Examples:
 #   ./scripts/sync_course_notes_to_docs.sh CSC2506
 #   ./scripts/sync_course_notes_to_docs.sh all
+#   ./scripts/sync_course_notes_to_docs.sh ALL   # same as all (case-insensitive)
 
 set -euo pipefail
 
@@ -18,7 +19,7 @@ MIN_SCORE=80
 usage() {
     echo "Usage: $0 [slug|all]" >&2
     echo "  slug  Course directory name under courses/ (e.g. CSC2506)" >&2
-    echo "  all   Deploy every courses/* book that has _quarto.yml" >&2
+    echo "  all   Deploy every courses/* book that has _quarto.yml (case-insensitive: ALL, All)" >&2
     exit 1
 }
 
@@ -29,9 +30,6 @@ github_pages_user() {
     fi
     local url owner
     url="$(git -C "$REPO_ROOT" config --get remote.origin.url 2>/dev/null || true)"
-    if [[ "$url" =~ github.com[:/][^/]+/([^/.]+) ]]; then
-        :
-    fi
     if [[ "$url" =~ github.com[:/]([^/]+)/ ]]; then
         owner="${BASH_REMATCH[1]}"
         echo "$owner"
@@ -63,13 +61,32 @@ public_url() {
     echo "https://${user}.github.io/${repo}/courses/${slug}/"
 }
 
+list_course_slugs() {
+    local yml slug
+    local -a slugs=()
+    shopt -s nullglob
+    for yml in "$COURSES_DIR"/*/_quarto.yml; do
+        slug="$(basename "$(dirname "$yml")")"
+        slugs+=("$slug")
+    done
+    shopt -u nullglob
+    if [[ ${#slugs[@]} -eq 0 ]]; then
+        return 1
+    fi
+    # Stable order so "all" is predictable
+    printf '%s\n' "${slugs[@]}" | LC_ALL=C sort
+}
+
 score_course_chapters() {
     local course_dir="$1"
     local slug="$2"
     local qmd failed=0
 
     echo "=== Quality gate: courses/${slug} (min ${MIN_SCORE}) ==="
-    for qmd in "$course_dir/index.qmd" "$course_dir/glossary.qmd" "$course_dir"/lectures/week*.qmd; do
+    shopt -s nullglob
+    local chapters=("$course_dir/index.qmd" "$course_dir/glossary.qmd" "$course_dir"/lectures/week*.qmd)
+    shopt -u nullglob
+    for qmd in "${chapters[@]}"; do
         if [[ ! -f "$qmd" ]]; then
             continue
         fi
@@ -81,8 +98,9 @@ score_course_chapters() {
 
     if [[ "$failed" -ne 0 ]]; then
         echo "Error: quality score below ${MIN_SCORE} for courses/${slug}. Fix chapters before deploy." >&2
-        exit 1
+        return 1
     fi
+    return 0
 }
 
 deploy_one() {
@@ -92,25 +110,27 @@ deploy_one() {
 
     if [[ ! -d "$course_dir" ]]; then
         echo "Error: courses/${slug}/ not found" >&2
-        exit 1
+        return 1
     fi
     if [[ ! -f "$course_dir/_quarto.yml" ]]; then
         echo "Error: courses/${slug}/_quarto.yml not found" >&2
-        exit 1
+        return 1
     fi
     if ! command -v quarto >/dev/null 2>&1; then
         echo "Error: quarto not found. Install from https://quarto.org/docs/get-started/" >&2
-        exit 1
+        return 1
     fi
 
-    score_course_chapters "$course_dir" "$slug"
+    if ! score_course_chapters "$course_dir" "$slug"; then
+        return 1
+    fi
 
     echo "=== Rendering courses/${slug} ==="
     (cd "$course_dir" && quarto render)
 
     if [[ ! -d "$course_dir/_site" ]]; then
         echo "Error: render did not produce courses/${slug}/_site/" >&2
-        exit 1
+        return 1
     fi
 
     echo "=== Syncing to docs/courses/${slug}/ ==="
@@ -129,6 +149,7 @@ deploy_one() {
     echo "Public URL (after push + GitHub Pages enabled): $(public_url "$slug")"
     echo ""
     echo "Next: /commit and push to main, then verify on desktop and phone."
+    return 0
 }
 
 if [[ $# -ne 1 ]]; then
@@ -136,19 +157,43 @@ if [[ $# -ne 1 ]]; then
 fi
 
 TARGET="$1"
+# Case-insensitive "all" / "ALL" / "All"
+TARGET_LC="$(printf '%s' "$TARGET" | tr '[:upper:]' '[:lower:]')"
 
-if [[ "$TARGET" == "all" ]]; then
-    found=0
-    for yml in "$COURSES_DIR"/*/_quarto.yml; do
-        [[ -f "$yml" ]] || continue
-        slug="$(basename "$(dirname "$yml")")"
-        deploy_one "$slug"
-        found=1
-    done
-    if [[ "$found" -eq 0 ]]; then
+if [[ "$TARGET_LC" == "all" ]]; then
+    SLUGS=()
+    while IFS= read -r slug; do
+        [[ -n "$slug" ]] && SLUGS+=("$slug")
+    done < <(list_course_slugs) || true
+    if [[ ${#SLUGS[@]} -eq 0 ]]; then
         echo "Error: no courses with _quarto.yml under courses/" >&2
         exit 1
     fi
+    echo "=== Deploying all courses (${#SLUGS[@]}): ${SLUGS[*]} ==="
+    FAILED=()
+    OK=()
+    for slug in "${SLUGS[@]}"; do
+        echo ""
+        echo "######## ${slug} ########"
+        if deploy_one "$slug"; then
+            OK+=("$slug")
+        else
+            echo "Continuing with remaining courses after failure: ${slug}" >&2
+            FAILED+=("$slug")
+        fi
+    done
+    echo ""
+    echo "=== All-courses summary ==="
+    if [[ ${#OK[@]} -gt 0 ]]; then
+        echo "Succeeded (${#OK[@]}): ${OK[*]}"
+    else
+        echo "Succeeded (0): (none)"
+    fi
+    if [[ ${#FAILED[@]} -gt 0 ]]; then
+        echo "Failed (${#FAILED[@]}): ${FAILED[*]}" >&2
+        exit 1
+    fi
+    echo "Failed (0): (none)"
 else
-    deploy_one "$TARGET"
+    deploy_one "$TARGET" || exit 1
 fi

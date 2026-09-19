@@ -48,6 +48,8 @@ Inline SVG in `` ```{=html} `` blocks. Helvetica, `'Helvetica Neue', Arial, sans
 
 Reserved sharp colours, only for start / error / success: `#fbc02d`, `#e53935`, `#2e7d32`. Axes and arrows: `#555` / `#888`. Figure numbering is **per chapter** (Quarto default).
 
+Hand-placed image files (plots, photos) go in `lectures/figures/weekNN/` and are included from the week `.qmd` with `![caption](figures/weekNN/name.png)`. Inline SVG remains the default for diagrams the notes author.
+
 `{ojs}` widgets are allowed later when a concept needs a slider. They are not required.
 
 ## Page chrome
