@@ -110,19 +110,21 @@ Confirm `courses/<slug>/` exists and the target `lectures/weekNN.qmd` exists. If
 | User says | Action |
 | --- | --- |
 | **Promote** / “put that in the section” / “change the section” | Edit the named section in lecture voice. No `.clarification` callout. If a promote introduces a new term, echo it in `glossary.qmd`. Then render + score (unless `--no-render`). |
-| **Park** / “clarification dropdown” / “add a clarification” | Append a collapsed callout at the **end of the named section** (before the next `##`). Do not also paste that prose into the spine. Then render + score (unless `--no-render`). |
+| **Park** / “clarification dropdown” / “add a clarification” | Insert a collapsed callout **at the point where the reader would ask the question**: directly after the sentence, equation, or block that raises it, not at the end of the section. Do not also paste that prose into the spine. Then render + score (unless `--no-render`). |
 | **Discard** | Drop the last explanation. Stay in revise. Write nothing. |
 | **Audit** | End revise; run the `audit` mode below. Chat-only text is not on the page. |
 | **Commit** | End revise. Do **not** commit. Tell them to run [`/commit`](../commit/SKILL.md). Chat-only text is not on the page. |
 | **Any question or follow-up** | Explain in chat. No file writes. May be parked or promoted later. |
 
-Parked shape (once per kept question, not one empty box per heading):
+Parked shape (once per kept question, not one empty box per heading). The dropdown is written as a **question the reader might ask**, and the closed box shows that question as its title:
 
 ```markdown
-::: {.callout-tip collapse="true" .clarification}
-**Clarification.** [Extra derivation or distinction.]
+::: {.callout-tip collapse="true" .clarification title="Question: [the question a reader would ask at this point]"}
+[The answer: extra derivation or distinction. No bold "Clarification." label.]
 :::
 ```
+
+**Placement.** Put the box where the confusion arises. If the user names a spot, use it. Otherwise pick the passage the question is about (the equation, definition, or step that prompts it); if several qualify, take the earliest where the question is natural. Never inside a `.definition-block`, algorithm block, list, table, or display math: place it immediately after the enclosing block. Write the title in the reader's voice ("Why …?", "How does this change when …?"), with no math markup.
 
 Honor [`.claude/rules/course-notes.md`](../../rules/course-notes.md) and [`course-notes-voice.md`](../../references/course-notes-voice.md) on both promote and park (homework-answer ban, no em dashes, no invented analogies, Wikipedia-only links). After park/promote, `quarto render` from the course root and `python3 scripts/quality_score.py courses/<slug>/lectures/weekNN.qmd`. Fix scores below 80 before calling the week ready.
 
