@@ -1,0 +1,195 @@
+---
+title: "Week 1 practice: Introduction and probabilistic models"
+---
+
+```{=html}
+<style>#title-block-header { display: none; }</style>
+<div class="lecture-header">
+  <h1>Week 1 practice: Introduction and probabilistic models</h1>
+</div>
+```
+
+**Overview.** These problems drill [Week 1](week01.qmd). Try each stem before opening the worked solution. The numbers and sequences here are invented for practice; they are not homework answers and they are not the diagnostic-test numbers from the lecture. Notation matches the week chapter.
+
+## Problem 1: Which model do we need? {#prb-1}
+
+In [supervised classification](https://en.wikipedia.org/wiki/Supervised_learning) we observe pairs $(x^{(i)}, c^{(i)})$, where $c$ is a discrete class label.
+
+- **Task A.** Given a new input $x$, we only need $p(c \mid x)$ in order to predict the class.
+- **Task B.** Given a class $c$, we want to draw a new synthetic $x$ that looks like it came from that class.
+
+Which of a discriminative model and a generative model does each task require, and why?
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+This uses [Week 1, Discriminative vs generative models](week01.qmd#sec-ml).
+
+A **discriminative** model specifies only the conditional $p(c \mid x)$. That is exactly the object Task A needs for prediction, so Task A can stop there.
+
+A **generative** model specifies the joint $p(c, x)$. From the joint we can recover $p(c \mid x)$ by conditioning, and we can also recover $p(x \mid c)$ and then sample new $x$'s from a chosen class. Task B needs that class-conditional, so it needs the generative model (or an equivalent way of writing $p(x \mid c)$).
+
+The joint is more work to specify. The extra work is what buys the ability to generate.
+
+**Answer.** Task A: discriminative (or generative). Task B: generative.
+:::
+
+## Problem 2: A rarer condition, a different test {#prb-2}
+
+A diagnostic test for a condition $H$ ($H=1$ infected, $H=0$ not) returns $Y=1$ (positive) or $Y=0$ (negative). Use these three numbers, which are **not** the lecture's 0.875 / 0.975 / 0.1:
+
+- Sensitivity: $p(Y=1 \mid H=1) = 0.90$.
+- Specificity: $p(Y=0 \mid H=0) = 0.96$.
+- Prevalence: $p(H=1) = 0.04$.
+
+Compute $p(H=1 \mid Y=1)$. Then say, in one sentence, why a positive test is not "a 90% chance of infection."
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+This uses [Week 1, the diagnostic-test example](week01.qmd#sec-bayes) and [Bayes' theorem](https://en.wikipedia.org/wiki/Bayes%27_theorem). The method is the same as the lecture: build the joint from prior times class-conditional, then condition on $Y=1$.
+
+False-negative rate: $p(Y=0 \mid H=1) = 1 - 0.90 = 0.10$.
+False-positive rate: $p(Y=1 \mid H=0) = 1 - 0.96 = 0.04$.
+Prior of not infected: $p(H=0) = 0.96$.
+
+The two ways to get a positive test:
+
+$$p(Y{=}1, H{=}1) = 0.90 \cdot 0.04 = 0.036$$
+$$p(Y{=}1, H{=}0) = 0.04 \cdot 0.96 = 0.0384$$
+
+The marginal of a positive test is their sum:
+
+$$p(Y{=}1) = 0.036 + 0.0384 = 0.0744.$$
+
+Conditioning:
+
+$$p(H{=}1 \mid Y{=}1) = \frac{0.036}{0.0744} = \frac{15}{31} \approx 0.484.$$
+
+A positive test means about a **48.4%** chance of infection. Sensitivity is $p(Y=1 \mid H=1)$, the chance the test fires *given* infection. The question asked for the other direction, $p(H=1 \mid Y=1)$. Because the condition is rare (prevalence 4%), most people are uninfected, and even a 4% false-positive rate on that large pool produces slightly more false positives ($0.0384$) than true positives ($0.036$). That is the base-rate effect from the lecture, with different numbers.
+
+**Answer.** $p(H=1 \mid Y=1) = 15/31 \approx 0.484$. Sensitivity is not the posterior.
+:::
+
+## Problem 3: Bernoulli MLE from a short sequence {#prb-3}
+
+Let $x^{(i)} \in \{0,1\}$ be i.i.d. [Bernoulli](https://en.wikipedia.org/wiki/Bernoulli_distribution) with unknown $p(x=1)=\theta$. You observe the length-10 sequence
+
+$$1,0,1,1,0,1,0,0,1,1.$$
+
+Write the log-likelihood $\ell(\theta;\mathcal{D})$ in terms of $\theta$ only (no remaining $x^{(i)}$), then compute $\hat\theta_{\text{MLE}}$.
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+This uses [Week 1, MLE for a Bernoulli](week01.qmd#sec-mle).
+
+Count the ones: $S = \sum_i x^{(i)} = 6$, and $N=10$. The lecture's log-likelihood collapses to those two numbers:
+
+$$\ell(\theta;\mathcal{D}) = S\log\theta + (N-S)\log(1-\theta) = 6\log\theta + 4\log(1-\theta).$$
+
+The $x^{(i)}$ no longer appear individually. Differentiating and setting the derivative to zero is the same calculation as in the week chapter:
+
+$$\frac{\partial\ell}{\partial\theta} = \frac{6}{\theta} - \frac{4}{1-\theta} = 0$$
+$$\implies 6(1-\theta) = 4\theta \implies \hat\theta_{\text{MLE}} = 6/10 = 0.6.$$
+
+That is the observed fraction of ones. [Maximum likelihood estimation](https://en.wikipedia.org/wiki/Maximum_likelihood_estimation) here is "pick the coin weight that makes this exact sequence as probable as possible," and for a Bernoulli that weight is the sample mean.
+
+**Answer.** $\ell(\theta) = 6\log\theta + 4\log(1-\theta)$, and $\hat\theta_{\text{MLE}} = 0.6$.
+:::
+
+## Problem 4: What is sufficient here? {#prb-4}
+
+In Problem 3, suppose we are told only that the sequence had 6 ones and 4 zeros, not the order they arrived in. A classmate says we have thrown away information that the MLE still needs. Are they right? Appeal to the Fisher–Neyman factorization, not to intuition about "order might matter."
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+This uses [Week 1, sufficient statistics](week01.qmd#sec-sufficient).
+
+The Bernoulli likelihood of the whole dataset is
+
+$$p(\mathcal{D}\mid\theta) = \theta^{S}(1-\theta)^{N-S}, \qquad S := \sum_i x^{(i)}.$$
+
+Every $\theta$-dependence is routed through $S$ (and the known $N$). That *is* the factorization $p(\mathcal{D}\mid\theta) = h(\mathcal{D})\, g_\theta(T(\mathcal{D}))$ with $h=1$ and $T(\mathcal{D})=S$. By the Fisher–Neyman theorem, $S$ is a [sufficient statistic](https://en.wikipedia.org/wiki/Sufficient_statistic) for $\theta$. Once we know $S=6$ and $N=10$, the particular order of zeros and ones tells us nothing more about $\theta$.
+
+The classmate is mixing up two questions. Order can matter for other models (a Markov chain, for example). In *this* i.i.d. Bernoulli model, the likelihood does not see order.
+
+**Answer.** They are wrong. $S=6$ is sufficient for $\theta$; the MLE cannot use the discarded order.
+:::
+
+## Problem 5: Match the exponential-family pieces {#prb-5}
+
+Start from a single Bernoulli trial $p(x\mid\theta)=\theta^x(1-\theta)^{1-x}$ with $\theta = 4/5$ (not a free $\theta$). Rewrite the mass function in exponential-family form
+
+$$p(x\mid\eta) = h(x)\exp\{\eta\, T(x) - A(\eta)\}$$
+
+and report $T(x)$, $\eta$, $A(\eta)$, and $h(x)$. Then check that $A'(\eta)=\mathbb{E}[T(X)]$.
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+This uses [Week 1, Bernoulli as an exponential family](week01.qmd#sec-expfam) and the mean identity in [§ Mean of sufficient statistics](week01.qmd#sec-mean).
+
+The same rewrite as the lecture, now with a number plugged in. From $\theta^x(1-\theta)^{1-x} = \exp\{x\log(\theta/(1-\theta)) + \log(1-\theta)\}$ we read off
+
+$$T(x)=x, \qquad \eta = \log\frac{\theta}{1-\theta}, \qquad A(\eta)=\log(1+e^{\eta}), \qquad h(x)=1.$$
+
+With $\theta=4/5$,
+
+$$\eta = \log\frac{4/5}{1/5} = \log 4.$$
+
+Then $e^{\eta}=4$ and $A(\eta)=\log(1+4)=\log 5$. Differentiating $A$ gives
+
+$$A'(\eta) = \frac{e^{\eta}}{1+e^{\eta}} = \frac{4}{5} = \theta = \mathbb{E}[X] = \mathbb{E}[T(X)].$$
+
+The identity $\mathbb{E}[T(X)]=A'(\eta)$ is not a Bernoulli accident. It holds for every [exponential family](https://en.wikipedia.org/wiki/Exponential_family) because a density integrates to 1 for every $\eta$.
+
+**Answer.** $T(x)=x$, $\eta=\log 4$, $A(\eta)=\log 5$, $h(x)=1$, and $A'(\eta)=4/5$.
+:::
+
+## Problem 6: Three-class counts {#prb-6}
+
+A discrete label $X$ takes one of $K=3$ states with probabilities $q_1,q_2,q_3$ (a [multinomial](https://en.wikipedia.org/wiki/Multinomial_distribution) / categorical trial). You observe $N=20$ i.i.d. draws with counts
+
+$$N_1=5,\qquad N_2=11,\qquad N_3=4.$$
+
+Find $\hat q_{i,\text{MLE}}$ for $i=1,2,3$. Then write the two free natural parameters $\eta_1=\log(q_1/q_3)$ and $\eta_2=\log(q_2/q_3)$ at that MLE.
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+This uses [Week 1, Multinomial as an exponential family](week01.qmd#sec-multinomial).
+
+The constrained MLE under $\sum_i q_i=1$ is the vector of relative frequencies:
+
+$$\hat q_{i,\text{MLE}} = \frac{N_i}{N}.$$
+
+So $\hat q_1 = 5/20 = 1/4$, $\hat q_2 = 11/20$, $\hat q_3 = 4/20 = 1/5$.
+
+The natural parameters use class 3 as the reference (the lecture's $q_K$):
+
+$$\hat\eta_1 = \log\frac{1/4}{1/5} = \log\frac{5}{4}, \qquad \hat\eta_2 = \log\frac{11/20}{1/5} = \log\frac{11}{4}.$$
+
+Bernoulli was the $K=2$ case of the same construction: one free log-odds against a single reference class. Here there are $K-1=2$ free log-odds. A homework that asks you to derive an MLE for a *different* exponential family is left to the assignment; the same "likelihood in counts, then constrain $\sum q_i=1$" steps apply.
+
+**Answer.** $\hat q = (1/4,\, 11/20,\, 1/5)$ and $\hat\eta = \bigl(\log(5/4),\, \log(11/4)\bigr)$.
+:::
+
+## Problem 7: A four-point Gaussian {#prb-7}
+
+Assume $N=4$ i.i.d. draws from a univariate [Gaussian](https://en.wikipedia.org/wiki/Normal_distribution) $\mathcal{N}(\mu,\sigma^2)$ with both parameters unknown:
+
+$$x = (1,\, 3,\, 5,\, 7).$$
+
+Compute $\hat\mu_{\text{MLE}}$ and $\hat\sigma^2_{\text{MLE}}$ (divisor $N$, not $N-1$). Then give the natural-parameter vector $\eta = \bigl(\mu/\sigma^2,\; 1/\sigma^2\bigr)$ at that MLE, and state in one sentence how this MLE is a special case of matching $\mathbb{E}[T(X)]$ to the sample mean of $T$.
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+This uses [Week 1, univariate Gaussian](week01.qmd#sec-gaussian) and the MLE consequence in [§ Mean of sufficient statistics](week01.qmd#sec-mean).
+
+Sample mean:
+
+$$\hat\mu_{\text{MLE}} = \frac{1+3+5+7}{4} = 4.$$
+
+Sample variance with divisor $N$:
+
+$$\hat\sigma^2_{\text{MLE}} = \frac{1}{4}\Big[(1-4)^2+(3-4)^2+(5-4)^2+(7-4)^2\Big] = \frac{9+1+1+9}{4} = 5.$$
+
+(The lecture's equivalent form $\frac{1}{N}\sum_n\bigl((x^{(n)})^2 - \hat\mu^2\bigr)$ gives the same number: $(1+9+25+49)/4 - 16 = 21-16=5$.)
+
+At this MLE the natural parameters are
+
+$$\hat\eta = \begin{bmatrix} \hat\mu / \hat\sigma^2 \\ 1/\hat\sigma^2 \end{bmatrix} = \begin{bmatrix} 4/5 \\ 1/5 \end{bmatrix}.$$
+
+For an exponential family, setting $\partial\ell/\partial\eta=0$ enforces $A'(\hat\eta)=\frac{1}{N}\sum_i T(x^{(i)})$: the model's expected sufficient statistic equals the empirical average of $T$. For the Gaussian, $T(x)=(x,\,-x^2/2)$, and that matching recovers the sample mean and the $N$-divisor sample second moment we just computed.
+
+**Answer.** $\hat\mu=4$, $\hat\sigma^2=5$, $\hat\eta=(4/5,\,1/5)$. The MLE matches $\mathbb{E}[T]$ to the sample mean of $T$.
+:::

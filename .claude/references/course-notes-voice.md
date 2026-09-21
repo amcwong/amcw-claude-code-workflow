@@ -1,6 +1,6 @@
 # Course-notes voice
 
-Writing constraints for `courses/**` week chapters. The procedure lives in [`/course-notes`](../skills/course-notes/SKILL.md). The path-scoped rule [`.claude/rules/course-notes.md`](../rules/course-notes.md) points here.
+Writing constraints for `courses/**` week and practice chapters. The procedure lives in [`/course-notes`](../skills/course-notes/SKILL.md). The path-scoped rule [`.claude/rules/course-notes.md`](../rules/course-notes.md) points here.
 
 Exemplar (cite, do not copy files): [CSC413/2516 lecture notes](https://r-three.github.io/deep-learning-lecture-notes/lectures/02-mlp-backprop.html) (Raffel, University of Toronto). Findings: `aw-local/planning/raffel-lecture-notes-findings.md`.
 
@@ -21,7 +21,7 @@ Write calmly and precisely, as a knowledgeable person explaining something to a 
 
 ## Do not
 
-- **U+2014 em dashes** in week, glossary, or index body copy (including figure captions). Use a period, colon, comma, or parentheses. En dashes in numeric ranges (`2010–2012`) and hyphens in compounds (`log-likelihood`) stay. Titles use a colon, not an em dash.
+- **U+2014 em dashes** in week, glossary, practice, or index body copy (including figure captions). Use a period, colon, comma, or parentheses. En dashes in numeric ranges (`2010–2012`) and hyphens in compounds (`log-likelihood`) stay. Titles use a colon, not an em dash.
 - **Invented analogies.** No recipes, music, eye-colour tables, or “dials you can turn” unless that example is in the lecture. A same-domain instance is fine (a Bernoulli coin as a model, a diagnostic test from the tutorial).
 - Hype adjectives used as decoration: powerful, amazing, incredible, revolutionary, magical, beautiful, elegant. Earn “remarkably clean” or do not use it.
 - Filler openers: “Let’s dive in”, “Here’s the thing”, “It turns out that…” as a tic.
@@ -65,6 +65,18 @@ Parked during `/course-notes revise`, not during `add`. Only on sections the use
 Write the title as a question a reader might have (`Question: Why …?`, `Question: How does this change when …?`), in plain text without math markup, so the closed box tells the reader whether it answers what they are wondering. Place the block **where the reader would ask it**: directly after the sentence, equation, or block that raises the question, not at the end of the section. Never place it inside a definition block, algorithm block, list, table, or display math; put it right after the enclosing block. Chat in Claude Code plan mode may be looser while teaching; **what gets parked still follows this voice file** (no invented analogies, no hype). Promote into the spine uses this register and must not duplicate the same prose in a dropdown.
 
 These boxes ship with the book on GitHub Pages.
+
+## Practice dropdowns
+
+Written by `/course-notes practice`, not by `add`. Closed by default. One box per problem, titled **Worked solution** (not `Question: …`).
+
+```markdown
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+[1. Which week section this reteaches. 2. Reasoning in lecture voice. 3. The answer last.]
+:::
+```
+
+Place the box immediately after that problem's stem. Never inside a definition block, list, table, or display math. Teaching walkthrough first, numeric answer last. Same homework-answer ban, em-dash ban, and no-invented-analogies rule as the week chapter. Do not paste the week spine into the dropdown; point at `§…`. These boxes ship with the book on GitHub Pages.
 
 ## Page chrome
 

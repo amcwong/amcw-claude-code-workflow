@@ -1,6 +1,6 @@
 ---
 name: fact-auditor
-description: Cold factual audit of courses/<slug>/ week chapters, glossary, and index (definitions, numbers, formulas, Wikipedia links, internal consistency). Invoked only by `/course-notes audit`. Do not use for manuscript CoVe (claim-verifier / `/verify-claims`) or slide review.
+description: Cold factual audit of courses/<slug>/ week chapters, practice chapters, glossary, and index (definitions, numbers, formulas, Wikipedia links, internal consistency). Invoked only by `/course-notes audit`. Do not use for manuscript CoVe (claim-verifier / `/verify-claims`) or slide review.
 tools: Read, Grep, Glob, WebFetch, WebSearch
 model: opus
 effort: high
@@ -16,6 +16,7 @@ Audit cold, every time. You have no memory of any prior conversation about these
 
 - `courses/<slug>/README.md`
 - every `lectures/weekNN.qmd` in that course directory
+- every `lectures/weekNN-practice.qmd` in that course directory
 - `courses/<slug>/glossary.qmd`
 - `courses/<slug>/index.qmd`
 
@@ -31,10 +32,11 @@ Do not read root `CLAUDE.md`, `COURSE.md`, `_site/`, or `.claude/rules/course-no
 - Claims about what a cited paper did or found
 - Every Wikipedia link: confirm it resolves and points to the concept it's attached to
 - Factual claims inside collapsed `.clarification` callouts (parked `/course-notes revise` dropdowns). Those blocks are part of `lectures/weekNN.qmd`. Do not skip them as style.
+- Factual claims inside collapsed `.practice-answer` callouts (worked solutions on `lectures/weekNN-practice.qmd`). Stems and solutions are both in scope.
 
 ## Process
 
-1. Read the README, every `lectures/weekNN.qmd`, `glossary.qmd`, and `index.qmd` in full.
+1. Read the README, every `lectures/weekNN.qmd`, every `lectures/weekNN-practice.qmd`, `glossary.qmd`, and `index.qmd` in full.
 2. Extract every discrete factual claim. Check internal consistency: do the notes' own numbers and definitions agree with each other across chapters and the glossary?
 3. Verify each claim with WebSearch/WebFetch against authoritative sources: Wikipedia, the cited paper itself (not the notes' summary of it), textbooks, or standards bodies. For numeric claims, find an independent source that states the number.
 4. Classify each claim:
