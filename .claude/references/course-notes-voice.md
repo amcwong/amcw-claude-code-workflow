@@ -57,12 +57,12 @@ Hand-placed image files (plots, photos) go in `lectures/figures/weekNN/` and are
 Parked during `/course-notes revise`, not during `add`. Only on sections the user asked to park. Closed by default.
 
 ```markdown
-::: {.callout-tip collapse="true" .clarification}
-**Clarification.** [The extra derivation or distinction. Same homework-answer ban. No em dashes.]
+::: {.callout-tip collapse="true" .clarification title="Question: [the question a reader would ask at this point]"}
+[The answer: the extra derivation or distinction. Same homework-answer ban. No em dashes.]
 :::
 ```
 
-Place the block at the end of the named `##` / `{#sec-…}` section, before the next heading. Chat in Claude Code plan mode may be looser while teaching; **what gets parked still follows this voice file** (no invented analogies, no hype). Promote into the spine uses this register and must not duplicate the same prose in a dropdown.
+Write the title as a question a reader might have (`Question: Why …?`, `Question: How does this change when …?`), in plain text without math markup, so the closed box tells the reader whether it answers what they are wondering. Place the block **where the reader would ask it**: directly after the sentence, equation, or block that raises the question, not at the end of the section. Never place it inside a definition block, algorithm block, list, table, or display math; put it right after the enclosing block. Chat in Claude Code plan mode may be looser while teaching; **what gets parked still follows this voice file** (no invented analogies, no hype). Promote into the spine uses this register and must not duplicate the same prose in a dropdown.
 
 These boxes ship with the book on GitHub Pages.
 

@@ -369,6 +369,24 @@ row). Therefore:
 
 $$\frac{\partial a^m_k}{\partial W^m_{ij}} = \begin{cases} h^{m-1}_j & k = i \\ 0 & k \neq i \end{cases}$$
 
+Here $i$ and $j$ are fixed: they name the one weight we are differentiating. $i$ is its row, the unit in layer $m$ that the weight feeds into, and $j$ is its column, the unit in layer $m-1$ that the weight reads from. The index $k$ runs over all units in layer $m$, $k = 1, \ldots, N^m$, asking whether the $k$-th pre-activation depends on this weight. The formula for $a^m_k$ uses only row $k$ of $W^m$, so the weight in row $i$ can affect $a^m_k$ only when $k = i$. In that case the weight multiplies $h^{m-1}_j$ (the $\ell = j$ term of the sum), which is the derivative. For every other $k$, row $i$ never appears, so the derivative is $0$.
+
+::: {.callout-tip collapse="true" .clarification title="Question: How do W and a interact in the forward pass, and why does that make the derivative nonzero only when k equals i?"}
+Start from the dimensions. $W^m$ has shape $N^m \times N^{m-1}$: one row per unit in layer $m$, one column per unit in layer $m-1$. The pre-activation $a^m$ is a vector of length $N^m$: one entry per unit in layer $m$. So the number of rows of $W^m$ equals the number of entries of $a^m$.
+
+That match is not a coincidence. The forward pass pairs them one to one. Row $i$ of $W^m$ has $N^{m-1}$ entries, one per unit in layer $m-1$, and it is combined with the previous activations $h^{m-1}$ (also length $N^{m-1}$) in a dot product, plus the bias, to produce the single number $a^m_i$:
+
+$$a^m_i = \sum_{\ell=1}^{N^{m-1}} W^m_{i\ell}\, h^{m-1}_\ell + b^m_i$$
+
+No other row of $W^m$ enters this sum. Reading the derivative $\frac{\partial a^m_k}{\partial W^m_{ij}}$ as "if we nudge this one weight, how much does $a^m_k$ move?", a weight in row $i$ can only move the entry that row $i$ produces, which is $a^m_i$. So the nonzero case is $k = i$, and it is $h^{m-1}_j$ because the weight in column $j$ multiplies the $j$-th previous activation.
+
+For example, in the worked example below, $W^1$ is $2 \times 2$, $h^0 = (1, 2)^\top$, and $b^1 = (0, -0.5)^\top$. Take the weight $W^1_{21} = -1$ ($i = 2$, $j = 1$). The two pre-activations are
+
+$$a^1_1 = 1 \cdot 1 + 1 \cdot 2 + 0 = 3 \qquad a^1_2 = W^1_{21} \cdot 1 + 0.5 \cdot 2 - 0.5 = -0.5$$
+
+Nudging $W^1_{21}$ by $\varepsilon$ changes $a^1_2$ to $-0.5 + \varepsilon$, so $\frac{\partial a^1_2}{\partial W^1_{21}} = 1 = h^0_1$ (the case $k = i$). It leaves $a^1_1 = 3$ unchanged, so $\frac{\partial a^1_1}{\partial W^1_{21}} = 0$ (the case $k \neq i$). This is also why the sum over $k$ in Step 1 collapses to a single term.
+:::
+
 **Step 3: Collapse the sum.** All terms except $k=i$ are zero:
 
 $$\frac{\partial \mathcal{L}}{\partial W^m_{ij}} = \frac{\partial \mathcal{L}}{\partial a^m_i} \cdot h^{m-1}_j$$
@@ -379,6 +397,22 @@ gradient matrix of shape $N^m \times N^{m-1}$, matching $W^m$:
 
 ::: {.boxed-eq}
 $$\frac{\partial \mathcal{L}}{\partial W^m} = \frac{\partial \mathcal{L}}{\partial a^m} \cdot (h^{m-1})^\top$$
+:::
+
+::: {.callout-tip collapse="true" .clarification title="Question: The weight gradient uses the previous layer's activations. What do we use at the first layer, where there is no earlier layer?"}
+The formula asks for $h^{m-1}$, and at $m = 1$ that is $h^0$. The notation table defines $h^0$ as the model input $\mathbf{x}$, so the first layer has a previous "layer" after all: the data itself. The forward pass already relies on this, since $a^1 = W^1 h^0 + b^1$. The weight gradient for layer 1 is therefore
+
+$$\frac{\partial \mathcal{L}}{\partial W^1} = \frac{\partial \mathcal{L}}{\partial a^1}\, \mathbf{x}^\top$$
+
+This is why the forward pass caches the input as well as the hidden activations: $\mathbf{x}$ plays the same role for $W^1$ that $h^1$ plays for $W^2$.
+
+Backpropagation also stops at $a^1$. We never compute $\frac{\partial \mathcal{L}}{\partial h^0}$, because the input is data and not a parameter we update.
+
+In the worked example below, the first example has $\mathbf{x} = (1, 2)^\top$ and $\frac{\partial \mathcal{L}}{\partial a^1} = (0.25, 0)^\top$ (its column of the batch gradient). Its contribution to $\frac{\partial \mathcal{L}}{\partial W^1}$ is the outer product
+
+$$\begin{pmatrix} 0.25 \\ 0 \end{pmatrix}\begin{pmatrix} 1 & 2 \end{pmatrix} = \begin{pmatrix} 0.25 & 0.5 \\ 0 & 0 \end{pmatrix}$$
+
+and the batch gradient adds the second example's contribution in the same way.
 :::
 
 The bias gradient follows the same derivation and is simpler: differentiating $a^m_i$ with respect to $b^m_i$ gives $1$ rather than $h^{m-1}_j$, so $\frac{\partial \mathcal{L}}{\partial b^m} = \frac{\partial \mathcal{L}}{\partial a^m}$.
@@ -392,7 +426,47 @@ backprop comes from.
 
 $$\frac{\partial \mathcal{L}}{\partial a^L} = \frac{\partial \mathcal{L}}{\partial h^L} \odot \frac{dh^L}{da^L}$$
 
-Both factors are pre-specified. $\odot$ is element-wise (Hadamard) multiplication.
+Both factors are pre-specified. $\odot$ is element-wise ([Hadamard](https://en.wikipedia.org/wiki/Hadamard_product_(matrices))) multiplication.
+
+::: {.callout-tip collapse="true" .clarification title="Question: Why is the activation derivative combined with an elementwise product here, when the chain rule uses matrix products elsewhere?"}
+In the base case, $\frac{\partial \mathcal{L}}{\partial a^L} = \frac{\partial \mathcal{L}}{\partial h^L} \odot \frac{dh^L}{da^L}$ multiplies by the activation's derivative one entry at a time, and the recursion below does the same at every hidden layer. This is still the chain rule.
+
+The chain rule for vectors always multiplies by a [Jacobian matrix](https://en.wikipedia.org/wiki/Jacobian_matrix_and_determinant), the matrix of partial derivatives of a layer's outputs with respect to its inputs. The elementwise (Hadamard) product is that same matrix product in the special case where the Jacobian is a [diagonal matrix](https://en.wikipedia.org/wiki/Diagonal_matrix):
+
+$$\operatorname{diag}(d)\,v = d \odot v$$
+
+So $\odot$ is the diagonal matrix product written without building an $N^m \times N^m$ matrix. A diagonal matrix equals its own transpose, so no transpose appears on that factor. Which case we are in depends on how each output depends on the inputs:
+
+| Dependence | Jacobian | Chain-rule step |
+|---|---|---|
+| One scalar in, one scalar out | a number | ordinary multiplication |
+| Each output depends only on the input in the same position (elementwise, like $\sigma$) | diagonal | Hadamard product $\odot$ |
+| Every output depends on every input (like a linear layer) | dense | matrix product with the transpose |
+
+**Example.** Take the incoming gradient $g = \frac{\partial \mathcal{L}}{\partial h^1} = (0.25, -0.5)^\top$ at a hidden layer with pre-activations $a^1 = (3, -0.5)^\top$ and $h^1 = \operatorname{ReLU}(a^1) = (3, 0)^\top$. These are the numbers for the first example in the worked example below. We want $\frac{\partial \mathcal{L}}{\partial a^1}$.
+
+First build the Jacobian entry by entry. Since $h^1_1 = \operatorname{ReLU}(a^1_1)$ does not contain $a^1_2$, we get $\frac{\partial h^1_1}{\partial a^1_2} = 0$, and likewise $\frac{\partial h^1_2}{\partial a^1_1} = 0$. The diagonal entries are the ReLU slopes, $1$ at $a^1_1 = 3$ and $0$ at $a^1_2 = -0.5$:
+
+$$\frac{\partial h^1}{\partial a^1} = \begin{pmatrix} 1 & 0 \\ 0 & 0 \end{pmatrix}$$
+
+The chain rule sums over both hidden units, and the zero off-diagonal entries kill the cross terms:
+
+$$\frac{\partial \mathcal{L}}{\partial a^1_1} = \underbrace{0.25 \cdot 1}_{\text{through } h^1_1} + (-0.5) \cdot 0 = 0.25$$
+
+The first term goes through $h^1_1$ and the second through $h^1_2$, which contributes nothing.
+
+In matrix form this is the product with the diagonal Jacobian, which matches the Hadamard product:
+
+$$\begin{pmatrix} 1 & 0 \\ 0 & 0 \end{pmatrix}\begin{pmatrix} 0.25 \\ -0.5 \end{pmatrix} = \begin{pmatrix} 0.25 \\ 0 \end{pmatrix}$$
+
+$$\begin{pmatrix} 0.25 \\ -0.5 \end{pmatrix} \odot \begin{pmatrix} 1 \\ 0 \end{pmatrix} = \begin{pmatrix} 0.25 \\ 0 \end{pmatrix}$$
+
+Now compare the linear step that produced $g$. With $W^2 = (0.5, -1)$ and $\frac{\partial \mathcal{L}}{\partial a^2} = 0.5$, the single output $a^2 = 0.5\,h^1_1 - 1\,h^1_2 + 0.5$ depends on both hidden units, so its Jacobian $W^2$ has no zeros and both terms of the sum survive:
+
+$$g = {W^2}^\top \frac{\partial \mathcal{L}}{\partial a^2} = \begin{pmatrix} 0.5 \\ -1 \end{pmatrix} \cdot 0.5 = \begin{pmatrix} 0.25 \\ -0.5 \end{pmatrix}$$
+
+This is the same "collapse the sum" idea as in the weight-gradient derivation. It collapses to one term when each output depends on one input, which is why $\odot$ works, and it does not collapse when every output depends on every input, which is why the weights need a real matrix product. Softmax from Lecture 1 falls in the dense case, so its backward step needs a full matrix product.
+:::
 
 **Recursive case ($m < L$):** Expanding via the chain rule, pivoting through
 the *next* layer's pre-activations $a^{m+1}$:
@@ -406,6 +480,16 @@ In matrix form:
 
 ::: {.boxed-eq}
 $$\frac{\partial \mathcal{L}}{\partial a^m} = \left({W^{m+1}}^\top \frac{\partial \mathcal{L}}{\partial a^{m+1}}\right) \odot \frac{dh^m}{da^m}$$
+:::
+
+::: {.callout-tip collapse="true" .clarification title="Question: The recursion needs the gradient from layer m+1. What do we use at the last layer, where there is no next layer?"}
+The recursion pulls the gradient backward through the weights of the next layer, ${W^{m+1}}^\top \frac{\partial \mathcal{L}}{\partial a^{m+1}}$. At $m = L$ there is no $W^{L+1}$ and no $a^{L+1}$, so nothing is passed back from a later layer. That is why the algorithm has a separate base case, and why the recursion is stated only for $m < L$.
+
+At the last layer the signal comes straight from the loss. The model output $h^L$ is the argument of $\mathcal{L}(h^L, y)$, so $\frac{\partial \mathcal{L}}{\partial h^L}$ is found by differentiating the loss formula directly. The chain rule then needs one more link, from $h^L$ back to $a^L$, and that link is the same elementwise activation derivative used in every hidden layer:
+
+$$\frac{\partial \mathcal{L}}{\partial a^L} = \frac{\partial \mathcal{L}}{\partial h^L} \odot \frac{dh^L}{da^L}$$
+
+Both factors are known from the model design, which is why the notes list them as "pre-specified". In the worked example below, the output layer is the identity and the loss is $\tfrac{1}{2}(h^2 - y)^2$. For the first example alone, $h^2 = 2$ and $y = 1$, so $\frac{\partial \mathcal{L}}{\partial h^2} = h^2 - y = 1$, $\frac{dh^2}{da^2} = 1$, and therefore $\frac{\partial \mathcal{L}}{\partial a^2} = 1$. (The worked example averages over a batch of two, so its value is $0.5$.) From here the recursion takes over: layer 1's gradient is built from this number.
 :::
 
 **The key observation**: $\frac{\partial \mathcal{L}}{\partial a^m}$ depends on
@@ -461,14 +545,191 @@ For ReLU, the derivative in the active region is exactly 1 (no shrinkage).
 Toggle the "Tanh/Sigmoid + overlay derivatives" in the explorer above to see
 the saturation visually.
 
-::: {.callout-tip collapse="true" .clarification}
-**Clarification.** How does this change when we train on a batch of examples instead of one?
-
+::: {.callout-tip collapse="true" .clarification title="Question: How does this change when we train on a batch of examples instead of one?"}
 With batching, each column represents one example. If the batch has $B$ examples, every layer's activations $h^m$ become a matrix $H^m$ of size $N^m \times B$, and column $j$ holds the output of layer $m$ for input example $j$. The batch size is the number of columns each layer outputs. The forward pass is the same computation applied to all columns at once:
 
 $$A^m = W^m H^{m-1} + b^m \mathbf{1}^\top, \qquad H^m = \sigma^m(A^m)$$
 
 Here $\mathbf{1}^\top$ is a row of $B$ ones, so the bias vector $b^m$ is added to every column. The notes above write one example at a time with column vectors. Earlier, in the MLP section, we wrote $H = XW_1$, where each row of $X$ is an example. The two conventions describe the same computation with rows and columns swapped.
+:::
+
+---
+
+## Worked Example: One Forward and Backward Pass {#sec-worked-example}
+
+The backpropagation section introduced a lot of notation at once. To see what each symbol does, we run one training step by hand on the smallest network that still shows every idea, using a batch of two examples so that the batch size shows up in the equations. The specific calculation a homework asks for is left to the assignment, and this example uses its own numbers.
+
+### Setup
+
+The network has $L = 2$ layers with widths $N^0 = 2$, $N^1 = 2$, $N^2 = 1$. The hidden layer uses $\sigma^1 = \operatorname{ReLU}$. The output layer uses the identity, $\sigma^2(a) = a$, so $h^2 = a^2$. Each example has its own squared error $\tfrac{1}{2}(h^2 - y)^2$, and the loss $\mathcal{L}$ is the average of these over the batch.
+
+The batch has $B = 2$ examples. Each example is one column, so the input matrix $X = H^0$ is $N^0 \times B = 2 \times 2$ and the targets form a $1 \times B$ row $Y$:
+
+$$X = H^0 = \begin{pmatrix} x^{(1)} & x^{(2)} \end{pmatrix} = \begin{pmatrix} 1 & -1 \\ 2 & 3 \end{pmatrix}, \qquad Y = \begin{pmatrix} 1 & 0 \end{pmatrix}$$
+
+The starting parameters are:
+
+$$W^1 = \begin{pmatrix} 1 & 1 \\ -1 & 0.5 \end{pmatrix}, \qquad b^1 = \begin{pmatrix} 0 \\ -0.5 \end{pmatrix}$$
+
+$$W^2 = \begin{pmatrix} 0.5 & -1 \end{pmatrix}, \qquad b^2 = 0.5$$
+
+```{=html}
+<div style="overflow-x:auto; margin:1.5rem 0;">
+<svg viewBox="0 0 640 300" width="100%" style="max-width:640px; display:block; margin:auto; font-family:'Helvetica Neue', Arial, sans-serif;">
+  <text x="320" y="30" text-anchor="middle" font-size="24" fill="#555">Forward values, example 1 (column 1)</text>
+  <g stroke="#888" stroke-width="1.2">
+    <line x1="112" y1="120" x2="308" y2="120"/><line x1="112" y1="120" x2="308" y2="200"/>
+    <line x1="112" y1="200" x2="308" y2="120"/><line x1="112" y1="200" x2="308" y2="200"/>
+    <line x1="352" y1="120" x2="508" y2="160"/><line x1="352" y1="200" x2="508" y2="160"/>
+  </g>
+  <g fill="#C6DEF1" stroke="#5795C7" stroke-width="1.5">
+    <circle cx="90" cy="120" r="22"/><circle cx="90" cy="200" r="22"/>
+  </g>
+  <g fill="#C9E4DE" stroke="#57C7AE" stroke-width="1.5">
+    <circle cx="330" cy="120" r="22"/><circle cx="330" cy="200" r="22"/>
+  </g>
+  <circle cx="530" cy="160" r="22" fill="#F7D9C4" stroke="#C78557" stroke-width="1.5"/>
+  <g font-size="16" text-anchor="middle" fill="#205279">
+    <text x="90" y="126">1</text><text x="90" y="206">2</text>
+  </g>
+  <g font-size="16" text-anchor="middle" fill="#207965">
+    <text x="330" y="126">3</text><text x="330" y="206">0</text>
+  </g>
+  <text x="530" y="166" font-size="16" text-anchor="middle" fill="#794520">2</text>
+  <g font-size="16" text-anchor="middle" fill="#555">
+    <text x="90" y="250">h0 = x(1)</text>
+    <text x="330" y="250">h1 = ReLU(a1)</text>
+    <text x="530" y="250">h2 = a2</text>
+    <text x="330" y="82">a1 = (3, -0.5)</text>
+  </g>
+</svg>
+</div>
+```
+
+### What the indices mean
+
+The derivation of the weight gradient used several indices. In this network they refer to the following, and we will point back to them as we compute.
+
+| Index | Meaning | Range here |
+|---|---|---|
+| $m$ | Layer number. $W^m$ is the weights that produce layer $m$ from layer $m-1$. | $1, 2$ |
+| $i$ | In $W^m_{ij}$, the **row**: which unit in layer $m$ the weight feeds into. | $1, \ldots, N^m$ |
+| $j$ | In $W^m_{ij}$, the **column**: which unit in layer $m-1$ the weight reads from. | $1, \ldots, N^{m-1}$ |
+| $k$ | A dummy index for a unit in layer $m$, used in $a^m_k$ and in the sum over intermediate variables. | $1, \ldots, N^m$ |
+| $s$ | The example (column) number. It appears once we batch. | $1, \ldots, B$ |
+
+So $W^1_{21}$ is the weight from input unit 1 (column $j = 1$) into hidden unit 2 (row $i = 2$): the entry $-1$ in $W^1$. In a batch, the derivation's single-example vectors gain a second index $s$. We write $a^m_{ks}$ for the $k$-th pre-activation of example $s$, which is the entry in row $k$, column $s$ of the matrix $A^m$. Likewise $h^{m-1}_{js}$ is row $j$, column $s$ of $H^{m-1}$.
+
+### Forward pass, and what gets cached
+
+For each layer we compute $A^m = W^m H^{m-1} + b^m \mathbf{1}^\top$ and then $H^m = \sigma^m(A^m)$, where $\mathbf{1}^\top$ is a row of $B$ ones so that $b^m$ is added to every column.
+
+::: {.callout-note}
+**Layer 1.**
+
+$$A^1 = \begin{pmatrix} 3 & 2 \\ -0.5 & 2 \end{pmatrix}, \qquad H^1 = \operatorname{ReLU}(A^1) = \begin{pmatrix} 3 & 2 \\ 0 & 2 \end{pmatrix}$$
+
+**Layer 2.**
+
+$$A^2 = H^2 = \begin{pmatrix} 2 & -0.5 \end{pmatrix}$$
+
+**Loss.** The per-example losses are $\tfrac{1}{2}(2 - 1)^2 = 0.5$ and $\tfrac{1}{2}(-0.5 - 0)^2 = 0.125$, so $\mathcal{L} = \tfrac{1}{2}(0.5 + 0.125) = 0.3125$.
+:::
+
+Column 1 of each matrix is the single-input computation for $x^{(1)}$, for instance $a^1_{\cdot 1} = (1 \cdot 1 + 1 \cdot 2 + 0,\; -1 \cdot 1 + 0.5 \cdot 2 - 0.5)^\top = (3, -0.5)^\top$. Column 2 is the same computation for $x^{(2)}$. No column mixes with another, because each entry of $W^m H^{m-1}$ combines one row of $W^m$ with one column of $H^{m-1}$.
+
+The forward pass **caches** (stores in memory) the matrices that backpropagation will need, instead of discarding them:
+
+| Cached value | Where the backward pass uses it |
+|---|---|
+| $H^0 = X$ and $H^1$ | the weight gradient $\frac{\partial \mathcal{L}}{\partial W^m} = \frac{\partial \mathcal{L}}{\partial A^m}(H^{m-1})^\top$ |
+| $A^1$ | the ReLU derivative $\frac{dh^1}{da^1}$, which depends on the sign of each entry of $A^1$ |
+| $H^2$ | the loss derivative $\frac{\partial \mathcal{L}}{\partial h^2}$ |
+
+Caching costs a little memory and saves recomputing any of these later. Without it, the gradient for layer 1 would need the forward pass through everything before it to be rerun.
+
+### What the chain-rule variable $z_i$ is
+
+In the chain rule section, $z_1, \ldots, z_N$ were generic intermediate variables sitting between a parameter $w$ and the loss $\mathcal{L}$. In an MLP, the variables we pivot through are the pre-activations $a^m_k$. So for a weight $W^m_{ij}$, the role of the $z_k$ is played by $a^m_k$, and the sum in Step 1 of "Deriving the Weight Gradient" runs over $k = 1, \ldots, N^m$. Here $N^1 = 2$, so for a layer 1 weight that sum has two terms.
+
+### Backward pass
+
+We work from the output back to the input, computing $\frac{\partial \mathcal{L}}{\partial A^m}$ at each layer (one column per example) and then the weight gradients from it.
+
+::: {.callout-note}
+**Base case, layer 2.** The two pre-specified quantities are the loss derivative and the activation derivative. Because $\mathcal{L}$ averages over the batch, the loss derivative carries a factor $\frac{1}{B}$:
+
+$$\frac{\partial \mathcal{L}}{\partial H^2} = \frac{1}{B}\,(H^2 - Y) = \tfrac{1}{2}\begin{pmatrix} 1 & -0.5 \end{pmatrix}$$
+
+$$= \begin{pmatrix} 0.5 & -0.25 \end{pmatrix}$$
+
+The identity has slope 1, so $\frac{dh^2}{da^2} = 1$ and
+
+$$\frac{\partial \mathcal{L}}{\partial A^2} = \begin{pmatrix} 0.5 & -0.25 \end{pmatrix}$$
+
+**Layer 2 gradients.** Using the cached $H^1$, whose transpose is $\begin{pmatrix} 3 & 0 \\ 2 & 2 \end{pmatrix}$:
+
+$$\frac{\partial \mathcal{L}}{\partial W^2} = \frac{\partial \mathcal{L}}{\partial A^2}\,(H^1)^\top = \begin{pmatrix} 1 & -0.5 \end{pmatrix}$$
+
+The bias gradient adds each example's entry across the columns: $\frac{\partial \mathcal{L}}{\partial b^2} = 0.5 + (-0.25) = 0.25$.
+
+**Backward recursion to layer 1.** Multiply by the transpose of the weights after layer 1, then by the ReLU derivative. The cached $A^1$ gives $\frac{dh^1}{da^1} = \begin{pmatrix} 1 & 1 \\ 0 & 1 \end{pmatrix}$, since ReLU has slope 1 where $A^1 > 0$ and 0 where it is negative.
+
+$${W^2}^\top \frac{\partial \mathcal{L}}{\partial A^2} = \begin{pmatrix} 0.5 \\ -1 \end{pmatrix}\begin{pmatrix} 0.5 & -0.25 \end{pmatrix}$$
+
+$$= \begin{pmatrix} 0.25 & -0.125 \\ -0.5 & 0.25 \end{pmatrix}$$
+
+$$\frac{\partial \mathcal{L}}{\partial A^1} = \begin{pmatrix} 0.25 & -0.125 \\ -0.5 & 0.25 \end{pmatrix} \odot \begin{pmatrix} 1 & 1 \\ 0 & 1 \end{pmatrix}$$
+
+$$= \begin{pmatrix} 0.25 & -0.125 \\ 0 & 0.25 \end{pmatrix}$$
+
+**Layer 1 gradients.** Using the cached input $X = H^0$, whose transpose is $\begin{pmatrix} 1 & 2 \\ -1 & 3 \end{pmatrix}$:
+
+$$\frac{\partial \mathcal{L}}{\partial W^1} = \frac{\partial \mathcal{L}}{\partial A^1}\,(H^0)^\top = \begin{pmatrix} 0.375 & 0.125 \\ -0.25 & 0.75 \end{pmatrix}$$
+
+Summing each row of $\frac{\partial \mathcal{L}}{\partial A^1}$ across the columns gives $\frac{\partial \mathcal{L}}{\partial b^1} = (0.125,\; 0.25)^\top$.
+:::
+
+### Tracing one entry back through the derivation
+
+The matrix formulas hide the indices, so we compute one entry the way "Deriving the Weight Gradient" does. Take $m = 1$, $i = 2$, $j = 1$, that is $W^1_{21}$. Its gradient should equal the $(2,1)$ entry of the matrix above, $-0.25$.
+
+**Step 1 (chain rule through $a^1_k$).** For one example $s$, the sum over $k = 1, 2$ has two terms:
+
+$$\begin{aligned}
+\text{contribution of example } s &= \frac{\partial \mathcal{L}}{\partial a^1_{1s}}\frac{\partial a^1_{1s}}{\partial W^1_{21}} \\
+&\quad + \frac{\partial \mathcal{L}}{\partial a^1_{2s}}\frac{\partial a^1_{2s}}{\partial W^1_{21}}
+\end{aligned}$$
+
+**Step 2 (which $a^1_k$ contains $W^1_{21}$).** The pre-activation $a^1_{1s}$ is built from row 1 of $W^1$, so it does not contain $W^1_{21}$ and its derivative is 0 (the $k \neq i$ case). The pre-activation $a^1_{2s}$ is built from row 2, so $\frac{\partial a^1_{2s}}{\partial W^1_{21}} = h^0_{1s}$, the value of input unit $j = 1$ for example $s$ (the $k = i$ case).
+
+**Step 3 (collapse the sum).** Only $k = i = 2$ survives, so each example contributes $\frac{\partial \mathcal{L}}{\partial a^1_{2s}}\, h^0_{1s}$. The weight is shared by every example, so the batch adds these contributions over $s$:
+
+$$\frac{\partial \mathcal{L}}{\partial W^1_{21}} = \sum_{s=1}^{B} \frac{\partial \mathcal{L}}{\partial a^1_{2s}}\, h^0_{1s} = 0 \cdot 1 + 0.25 \cdot (-1) = -0.25$$
+
+Here $\frac{\partial \mathcal{L}}{\partial a^1_{2s}}$ is row 2 of $\frac{\partial \mathcal{L}}{\partial A^1}$, which is $(0, 0.25)$, and $h^0_{1s}$ is row 1 of $X$, which is $(1, -1)$. **Step 4** is the observation that doing this sum for every $(i, j)$ at once is the matrix product $\frac{\partial \mathcal{L}}{\partial A^1}(H^0)^\top$: row $i$ of the first factor times column $j$ of the transpose adds over $s$. The result $-0.25$ matches the matrix computed above.
+
+The same reading works for the output layer. For $W^2_{11}$ ($m = 2$, $i = 1$, $j = 1$) we get $0.5 \cdot 3 + (-0.25) \cdot 2 = 1$, the first entry of $\frac{\partial \mathcal{L}}{\partial W^2}$.
+
+### Where the batch size appears
+
+- **Shapes.** Every $H^m$ and $A^m$ has $B$ columns, $N^m \times B$. The parameters $W^m$ and $b^m$ have no batch dimension, since all examples share them.
+- **The loss derivative.** Averaging over the batch puts a factor $\frac{1}{B}$ into $\frac{\partial \mathcal{L}}{\partial H^L}$, and every later gradient inherits it.
+- **The weight and bias gradients.** The product $\frac{\partial \mathcal{L}}{\partial A^m}(H^{m-1})^\top$ sums over the $B$ columns, which is the $\sum_s$ above. The bias gradient is the plain sum over columns.
+- **The recursion.** ${W^{m+1}}^\top \frac{\partial \mathcal{L}}{\partial A^{m+1}}$ and the Hadamard product act on each column independently, so examples do not mix on the way back either.
+
+### One gradient descent step
+
+With learning rate $\eta = 0.1$, the update $W^m \leftarrow W^m - \eta\,\frac{\partial \mathcal{L}}{\partial W^m}$ (and likewise for $b^m$) gives
+
+$$W^1 = \begin{pmatrix} 0.9625 & 0.9875 \\ -0.975 & 0.425 \end{pmatrix}, \qquad b^1 = \begin{pmatrix} -0.0125 \\ -0.525 \end{pmatrix}$$
+
+$$W^2 = \begin{pmatrix} 0.4 & -0.95 \end{pmatrix}, \qquad b^2 = 0.475$$
+
+Rerunning the forward pass on the same batch gives $\mathcal{L} \approx 0.138$, down from $0.3125$. This is only a sanity check on a tiny smooth problem; in general $\eta$ must be chosen with care (Week 1).
+
+::: {.callout-tip collapse="true" .clarification}
+**Check it yourself.** A useful habit is to verify a hand-computed gradient numerically. Nudge one parameter by a small $\epsilon$, rerun the forward pass, and compare $\frac{\mathcal{L}(W + \epsilon) - \mathcal{L}(W)}{\epsilon}$ with the backprop value. For $W^1_{12}$ the backprop value is $0.125$, and a nudge of $\epsilon = 10^{-6}$ gives a change in loss very close to it.
 :::
 
 ---

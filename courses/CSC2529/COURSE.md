@@ -30,6 +30,6 @@ Reuse this exactly every week; never redesign per week.
 
 ## Recurring corrections
 
-- Each week distinguishes course-sourced material (from slides/homework/problem session) from prerequisite background the notes add, at section granularity.
+- Each week distinguishes course-sourced material (slides/homework/problem session) from background the notes add, at subsection granularity: every subsection opens with an italic "From the lecture" or "Background, not from the lecture" tag. Background is inserted just before the point where the lecture first needs it.
 - Never use U+2014 em dashes in body copy.
 - Do not invent analogies; keep lecture/problem-session/homework examples.

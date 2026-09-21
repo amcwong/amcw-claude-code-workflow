@@ -48,8 +48,9 @@ $$\text{[key equation]}$$
 
 <!-- Parked only by /course-notes revise when the user says park. Do not insert
      empty dropdowns on add. Shape:
-::: {.callout-tip collapse="true" .clarification}
-**Clarification.** [Extra derivation or distinction. Homework-answer ban. No em dashes.]
+::: {.callout-tip collapse="true" .clarification title="Question: [what a reader would ask here]"}
+[Answer: extra derivation or distinction. Homework-answer ban. No em dashes.]
+Place it right after the passage that raises the question, not at the end of the section.
 :::
 -->
 
