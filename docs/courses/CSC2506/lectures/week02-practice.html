@@ -1,0 +1,895 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.10.18">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+
+<title>Week 2 practice: Decision theory and graphical models – CSC412/2506: Probabilistic Machine Learning notes</title>
+<style>
+/* Default styles provided by pandoc.
+** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
+*/
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: 1.5em;}
+div.column{flex: auto;}
+@media screen {
+div.columns{gap: min(4vw, 1.5em);}
+div.column{overflow-x: auto;}
+}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+</style>
+
+
+<script src="../site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="../site_libs/quarto-nav/headroom.min.js"></script>
+<script src="../site_libs/clipboard/clipboard.min.js"></script>
+<script src="../site_libs/quarto-search/autocomplete.umd.js"></script>
+<script src="../site_libs/quarto-search/fuse.min.js"></script>
+<script src="../site_libs/quarto-search/quarto-search.js"></script>
+<meta name="quarto:offset" content="../">
+<link href="../lectures/week03.html" rel="next">
+<link href="../lectures/week02.html" rel="prev">
+<script src="../site_libs/quarto-html/quarto.js" type="module"></script>
+<script src="../site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
+<script src="../site_libs/quarto-html/popper.min.js"></script>
+<script src="../site_libs/quarto-html/tippy.umd.min.js"></script>
+<script src="../site_libs/quarto-html/anchor.min.js"></script>
+<link href="../site_libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="../site_libs/quarto-html/quarto-syntax-highlighting-bb62276ab45c84d9efd712f51ff97b5a.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<script src="../site_libs/bootstrap/bootstrap.min.js"></script>
+<link href="../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="../site_libs/bootstrap/bootstrap-ce0958bf53307a1b0bb60f85d87db72f.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
+<script id="quarto-search-options" type="application/json">{
+  "location": "sidebar",
+  "copy-button": false,
+  "collapse-after": 3,
+  "panel-placement": "start",
+  "type": "textbox",
+  "limit": 50,
+  "keyboard-shortcut": [
+    "f",
+    "/",
+    "s"
+  ],
+  "show-item-context": false,
+  "language": {
+    "search-no-results-text": "No results",
+    "search-matching-documents-text": "matching documents",
+    "search-copy-link-title": "Copy link to search",
+    "search-hide-matches-text": "Hide additional matches",
+    "search-more-match-text": "more match in this document",
+    "search-more-matches-text": "more matches in this document",
+    "search-clear-button-title": "Clear",
+    "search-text-placeholder": "",
+    "search-detached-cancel-button-title": "Cancel",
+    "search-submit-button-title": "Submit",
+    "search-label": "Search"
+  }
+}</script>
+<style>html{ scroll-behavior: smooth; }</style>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+<link href="https://fonts.googleapis.com/css2?family=Source+Code+Pro:wght@400;600&amp;family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&amp;display=swap" rel="stylesheet">
+
+  <script>window.backupDefine = window.define; window.define = undefined;</script><script src="https://cdn.jsdelivr.net/npm/katex@latest/dist/katex.min.js"></script>
+  <script>document.addEventListener("DOMContentLoaded", function () {
+ var mathElements = document.getElementsByClassName("math");
+ var macros = [];
+ for (var i = 0; i < mathElements.length; i++) {
+  var texText = mathElements[i].firstChild;
+  if (mathElements[i].tagName == "SPAN") {
+   katex.render(texText.data, mathElements[i], {
+    displayMode: mathElements[i].classList.contains('display'),
+    throwOnError: false,
+    macros: macros,
+    fleqn: false
+   });
+}}});
+  </script>
+  <script>window.define = window.backupDefine; window.backupDefine = undefined;</script><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@latest/dist/katex.min.css">
+
+<script type="text/javascript">
+const typesetMath = (el) => {
+  if (window.MathJax) {
+    // MathJax Typeset
+    window.MathJax.typeset([el]);
+  } else if (window.katex) {
+    // KaTeX Render
+    var mathElements = el.getElementsByClassName("math");
+    var macros = [];
+    for (var i = 0; i < mathElements.length; i++) {
+      var texText = mathElements[i].firstChild;
+      if (mathElements[i].tagName == "SPAN" && texText && texText.data) {
+        window.katex.render(texText.data, mathElements[i], {
+          displayMode: mathElements[i].classList.contains('display'),
+          throwOnError: false,
+          macros: macros,
+          fleqn: false
+        });
+      }
+    }
+  }
+}
+window.Quarto = {
+  typesetMath
+};
+</script>
+
+<link rel="stylesheet" href="../styles/custom.css">
+</head>
+
+<body class="nav-sidebar floating quarto-light">
+
+<div id="quarto-search-results"></div>
+  <header id="quarto-header" class="headroom fixed-top">
+  <nav class="quarto-secondary-nav">
+    <div class="container-fluid d-flex">
+      <button type="button" class="quarto-btn-toggle btn" data-bs-toggle="collapse" role="button" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+        <i class="bi bi-layout-text-sidebar-reverse"></i>
+      </button>
+        <nav class="quarto-page-breadcrumbs" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../lectures/week02-practice.html"><span class="chapter-title">Week 2 practice: Decision theory and graphical models</span></a></li></ol></nav>
+        <a class="flex-grow-1" role="navigation" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">      
+        </a>
+      <button type="button" class="btn quarto-search-button" aria-label="Search" onclick="window.quartoOpenSearch();">
+        <i class="bi bi-search"></i>
+      </button>
+    </div>
+  </nav>
+</header>
+<!-- content -->
+<div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-article">
+<!-- sidebar -->
+  <nav id="quarto-sidebar" class="sidebar collapse collapse-horizontal quarto-sidebar-collapse-item sidebar-navigation floating overflow-auto">
+    <div class="pt-lg-2 mt-2 text-left sidebar-header">
+    <div class="sidebar-title mb-0 py-0">
+      <a href="../">CSC412/2506: Probabilistic Machine Learning notes</a> 
+    </div>
+      </div>
+        <div class="mt-2 flex-shrink-0 align-items-center">
+        <div class="sidebar-search">
+        <div id="quarto-search" class="" title="Search"></div>
+        </div>
+        </div>
+    <div class="sidebar-menu-container"> 
+    <ul class="list-unstyled mt-1">
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../index.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">CSC412/2506 Probabilistic Machine Learning</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../lectures/week01.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Week 1: Introduction and Probabilistic Models</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../lectures/week01-practice.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Week 1 practice: Introduction and probabilistic models</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../lectures/week02.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Week 2: Decision Theory and Graphical Models</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../lectures/week02-practice.html" class="sidebar-item-text sidebar-link active"><span class="chapter-title">Week 2 practice: Decision theory and graphical models</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../lectures/week03.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Week 3: Markov Random Fields and Exact Inference</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../glossary.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Glossary</span></a>
+  </div>
+</li>
+    </ul>
+    </div>
+</nav>
+<div id="quarto-sidebar-glass" class="quarto-sidebar-collapse-item" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item"></div>
+<!-- margin-sidebar -->
+    <div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
+        <nav id="TOC" role="doc-toc" class="toc-active">
+    <h2 id="toc-title">On this page</h2>
+   
+  <ul>
+  <li><a href="#prb-1" id="toc-prb-1" class="nav-link active" data-scroll-target="#prb-1">Problem 1: Two ways to be wrong</a></li>
+  <li><a href="#prb-2" id="toc-prb-2" class="nav-link" data-scroll-target="#prb-2">Problem 2: Inspecting a batch of widgets</a></li>
+  <li><a href="#prb-3" id="toc-prb-3" class="nav-link" data-scroll-target="#prb-3">Problem 3: A different conditional distribution</a></li>
+  <li><a href="#prb-4" id="toc-prb-4" class="nav-link" data-scroll-target="#prb-4">Problem 4: Counting parameters for five variables</a></li>
+  <li><a href="#prb-5" id="toc-prb-5" class="nav-link" data-scroll-target="#prb-5">Problem 5: CPT sizes for an invented graph</a></li>
+  <li><a href="#prb-6" id="toc-prb-6" class="nav-link" data-scroll-target="#prb-6">Problem 6: Chain, common cause, or collider?</a></li>
+  <li><a href="#prb-7" id="toc-prb-7" class="nav-link" data-scroll-target="#prb-7">Problem 7: Bayes Ball on a small graph</a></li>
+  <li><a href="#prb-8" id="toc-prb-8" class="nav-link" data-scroll-target="#prb-8">Problem 8: Why does Naive Bayes save so many parameters?</a></li>
+  </ul>
+</nav>
+    </div>
+<!-- main -->
+<main class="content" id="quarto-document-content">
+
+<header id="title-block-header" class="quarto-title-block default">
+<div class="quarto-title">
+<h1 class="title"><span class="chapter-title">Week 2 practice: Decision theory and graphical models</span></h1>
+</div>
+
+
+
+<div class="quarto-title-meta">
+
+    
+  
+    
+  </div>
+  
+
+
+</header>
+
+
+<style>#title-block-header { display: none; }</style>
+<div class="lecture-header">
+  <h1>Week 2 practice: Decision theory and graphical models</h1>
+</div>
+<p><strong>Overview.</strong> These problems drill <a href="../lectures/week02.html">Week 2</a>. Try each stem before opening the worked solution. The loss matrices, distributions, and graphs here are invented for practice; they are not the cancer-screening, regression, or Bayes-Ball examples from the lecture. Notation matches the week chapter.</p>
+<section id="prb-1" class="level2">
+<h2 class="anchored" data-anchor-id="prb-1">Problem 1: Two ways to be wrong</h2>
+<p>A helpdesk routes each incoming ticket either to an <a href="https://en.wikipedia.org/wiki/Automated_information_system">autoresponder</a> (for routine questions) or to a human agent (for anything else). Two people disagree about how to design the router:</p>
+<ul>
+<li><strong>Person A</strong> wants to minimize the fraction of tickets sent to the wrong handler.</li>
+<li><strong>Person B</strong> points out that sending a genuinely urgent ticket to the autoresponder is much worse than sending a routine ticket to a human (wasted agent time, but no harm done), and wants the router to reflect that.</li>
+</ul>
+<p>Which objective from the lecture, misclassification rate or expected loss, matches each person’s goal? Could the two objectives ever recommend the same decision rule?</p>
+<div class="practice-answer callout callout-style-default callout-tip callout-titled" title="Worked solution">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-1-contents" aria-controls="callout-1" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Worked solution
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-1" class="callout-1-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>This uses <a href="../lectures/week02.html#sec-decision">Week 2, From inference to decision</a> and <a href="../lectures/week02.html#sec-misclass">Misclassification rate</a>.</p>
+<p>Person A wants to minimize <span class="math inline">p(\text{mistake})</span>, the plain count of wrong handler assignments from <a href="week02.html#sec-misclass" class="quarto-xref"><span>Misclassification rate</span></a>: every error counts as one, regardless of which direction it runs. Person B wants a <strong>loss function</strong> (<a href="../lectures/week02.html#sec-loss">Week 2, Expected loss</a>): a loss matrix that charges more for “urgent ticket sent to autoresponder” than for “routine ticket sent to a human,” and then minimizes the resulting expected loss.</p>
+<p>The two objectives can agree. Misclassification rate is the special case of expected loss where the loss matrix has 0 on the diagonal and 1 everywhere off it, so if Person B’s matrix happened to be symmetric with equal off-diagonal costs, the discriminant rule would reduce to Person A’s rule exactly. They diverge only once the loss matrix is asymmetric, which is what Person B is actually asking for.</p>
+<p><strong>Answer.</strong> Person A: misclassification rate. Person B: expected loss with an asymmetric loss matrix. The two agree exactly when the loss matrix is the symmetric 0/1 matrix; a loss matrix is a strict generalization, not a different framework.</p>
+</div>
+</div>
+</div>
+</section>
+<section id="prb-2" class="level2">
+<h2 class="anchored" data-anchor-id="prb-2">Problem 2: Inspecting a batch of widgets</h2>
+<p>A factory’s inspection station decides whether a widget is defective (<span class="math inline">\mathcal{C}_1</span>) or good (<span class="math inline">\mathcal{C}_2</span>). Passing a defective widget into a shipment costs 50 (recalls, refunds); scrapping a good widget costs 5 (wasted material). Correct calls cost 0.</p>
+<p>For one widget, the classifier’s estimated posteriors are <span class="math inline">p(\mathcal{C}_1 \mid x) = 0.15</span> and <span class="math inline">p(\mathcal{C}_2 \mid x) = 0.85</span>.</p>
+<ol type="1">
+<li>Write the <span class="math inline">2\times 2</span> loss matrix (rows: truth, columns: decision).</li>
+<li>Compute the discriminant rule’s two candidate costs and state its decision.</li>
+<li>Compare this to what the misclassification-rate rule (from Problem 1’s Person A) would decide.</li>
+</ol>
+<div class="practice-answer callout callout-style-default callout-tip callout-titled" title="Worked solution">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-2-contents" aria-controls="callout-2" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Worked solution
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-2" class="callout-2-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>This uses <a href="../lectures/week02.html#sec-loss">Week 2, Expected loss</a> and <a href="../lectures/week02.html#sec-discriminant">The discriminant rule</a>.</p>
+<p><strong>1. Loss matrix.</strong> <span class="math inline">L_{\text{defective},\text{scrap}} = 0</span>, <span class="math inline">L_{\text{defective},\text{ship}} = 50</span>, <span class="math inline">L_{\text{good},\text{scrap}} = 5</span>, <span class="math inline">L_{\text{good},\text{ship}} = 0</span>.</p>
+<p><strong>2. Discriminant rule.</strong> The rule assigns <span class="math inline">x</span> to the decision <span class="math inline">j</span> minimizing <span class="math inline">\sum_k L_{kj}\,p(\mathcal{C}_k\mid x)</span>:</p>
+<p><span class="math display">\text{cost(ship)} = L_{\text{defective},\text{ship}}(0.15) + L_{\text{good},\text{ship}}(0.85) = 50(0.15) + 0(0.85) = 7.5,</span> <span class="math display">\text{cost(scrap)} = L_{\text{defective},\text{scrap}}(0.15) + L_{\text{good},\text{scrap}}(0.85) = 0(0.15) + 5(0.85) = 4.25.</span></p>
+<p>Scrapping is cheaper, so the discriminant rule decides <strong>scrap</strong>, even though the widget is more likely good (<span class="math inline">0.85 &gt; 0.15</span>) than defective.</p>
+<p><strong>3. Comparison.</strong> The plain misclassification-rate rule from <a href="week02.html#sec-misclass" class="quarto-xref"><span>Misclassification rate</span></a> only compares posteriors and would decide <strong>ship</strong>, since <span class="math inline">p(\mathcal{C}_2\mid x)=0.85</span> is the larger posterior. The rules disagree because the loss matrix charges 10 times more for shipping a defective widget than for scrapping a good one, so even a fairly low probability of defect is still worth acting on, exactly the same asymmetry that moved the lecture’s cancer-screening boundary.</p>
+<p><strong>Answer.</strong> Loss matrix as above; discriminant rule decides <strong>scrap</strong> (cost 4.25 vs.&nbsp;7.5); the misclassification-rate rule would have decided <strong>ship</strong>.</p>
+</div>
+</div>
+</div>
+</section>
+<section id="prb-3" class="level2">
+<h2 class="anchored" data-anchor-id="prb-3">Problem 3: A different conditional distribution</h2>
+<p>Fix an input <span class="math inline">x</span>. Given that <span class="math inline">x</span>, a continuous target <span class="math inline">t</span> takes the values <span class="math inline">1</span>, <span class="math inline">3</span>, and <span class="math inline">14</span>, each with probability <span class="math inline">\tfrac13</span>.</p>
+<p>Compute <span class="math inline">\mathbb{E}[t\mid x]</span>. Then compare the expected squared loss of the predictor <span class="math inline">y(x) = 8</span> against <span class="math inline">y(x) = \mathbb{E}[t\mid x]</span>, and confirm which one the lecture’s theorem says must be smaller.</p>
+<div class="practice-answer callout callout-style-default callout-tip callout-titled" title="Worked solution">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-3-contents" aria-controls="callout-3" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Worked solution
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-3" class="callout-3-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>This uses <a href="../lectures/week02.html#sec-regression">Week 2, Loss functions for regression</a>.</p>
+<p>Conditional mean: <span class="math inline">\mathbb{E}[t\mid x] = \tfrac13(1+3+14) = 6</span>.</p>
+<p>For <span class="math inline">y(x) = 8</span>: <span class="math display">\mathbb{E}[L] = \tfrac13\big[(8-1)^2+(8-3)^2+(8-14)^2\big] = \tfrac13(49+25+36) = \tfrac{110}{3} \approx 36.67.</span></p>
+<p>For <span class="math inline">y(x) = \mathbb{E}[t\mid x] = 6</span>: <span class="math display">\mathbb{E}[L] = \tfrac13\big[(6-1)^2+(6-3)^2+(6-14)^2\big] = \tfrac13(25+9+64) = \tfrac{98}{3} \approx 32.67.</span></p>
+<p>The conditional mean gives the smaller expected loss, matching <a href="../lectures/week02.html#sec-regression">the theorem</a>: <span class="math inline">y(x) = \mathbb{E}[t\mid x]</span> minimizes squared loss for <em>any</em> competing choice, not only <span class="math inline">y(x)=8</span>. The decomposition behind this splits <span class="math inline">\mathbb{E}[L]</span> into a piece that depends on <span class="math inline">y(x)</span> (driven to zero exactly at the conditional mean) and a piece that does not (the irreducible noise), so no other constant can do better.</p>
+<p><strong>Answer.</strong> <span class="math inline">\mathbb{E}[t\mid x] = 6</span>. Expected loss at <span class="math inline">y=8</span> is <span class="math inline">110/3 \approx 36.67</span>; at <span class="math inline">y=6</span> it is <span class="math inline">98/3 \approx 32.67</span>, confirming the conditional mean wins.</p>
+</div>
+</div>
+</div>
+</section>
+<section id="prb-4" class="level2">
+<h2 class="anchored" data-anchor-id="prb-4">Problem 4: Counting parameters for five variables</h2>
+<p>Take <span class="math inline">N=5</span> binary variables <span class="math inline">x_1,\dots,x_5</span>. Using the chain rule in the order <span class="math inline">x_1,\dots,x_5</span> with no assumptions, how many parameters does the factorization need?</p>
+<p>Now suppose we are willing to assume <span class="math inline">x_5</span> depends only on <span class="math inline">x_2</span> and <span class="math inline">x_4</span> (not on <span class="math inline">x_1</span> or <span class="math inline">x_3</span>), while every other factor stays as general as before. How many parameters does the factorization need now, and how many were saved?</p>
+<div class="practice-answer callout callout-style-default callout-tip callout-titled" title="Worked solution">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-4-contents" aria-controls="callout-4" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Worked solution
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-4" class="callout-4-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>This uses <a href="../lectures/week02.html#sec-freeparams">Week 2, Free parameters and the cost of the full joint</a> and <a href="../lectures/week02.html#sec-factoring">Why factor the joint</a>.</p>
+<p>With no assumptions, the chain rule gives <span class="math inline">p(x_1)p(x_2\mid x_1)p(x_3\mid x_1,x_2)p(x_4\mid x_1,x_2,x_3)p(x_5\mid x_1,x_2,x_3,x_4)</span>. Each factor <span class="math inline">p(x_j\mid x_1,\dots,x_{j-1})</span> needs <span class="math inline">2^{j-1}</span> parameters, so the totals are <span class="math inline">1,2,4,8,16</span> for <span class="math inline">j=1,\dots,5</span>, summing to <span class="math inline">1+2+4+8+16=31</span>, matching <span class="math inline">2^5-1=31</span> exactly.</p>
+<p>Replacing the last factor with <span class="math inline">p(x_5\mid x_2,x_4)</span> shrinks its table from <span class="math inline">2^4=16</span> parameters (one per configuration of four parents) to <span class="math inline">2^2=4</span> (one per configuration of two parents). The new total is <span class="math inline">1+2+4+8+4 = 19</span>.</p>
+<p>Savings: <span class="math inline">31-19=12</span> parameters, all from dropping <span class="math inline">x_5</span>’s dependence on <span class="math inline">x_1</span> and <span class="math inline">x_3</span>. This is the same pattern as the lecture’s <span class="math inline">N=4</span> example: dropping dependence on conditioning variables shrinks that one factor’s table exponentially, and the saving compounds because that factor was the largest one in the sum.</p>
+<p><strong>Answer.</strong> No assumptions: 31 parameters. With <span class="math inline">x_5\mid x_2,x_4</span>: 19 parameters. Savings: 12.</p>
+</div>
+</div>
+</div>
+</section>
+<section id="prb-5" class="level2">
+<h2 class="anchored" data-anchor-id="prb-5">Problem 5: CPT sizes for an invented graph</h2>
+<p>Consider a DAG on five binary nodes <span class="math inline">y_1,\dots,y_5</span> with edges <span class="math inline">y_1 \to y_2</span>, <span class="math inline">y_1 \to y_3</span>, <span class="math inline">y_2 \to y_4</span>, <span class="math inline">y_3 \to y_4</span>, <span class="math inline">y_4 \to y_5</span> (so <span class="math inline">y_4</span> has two parents, <span class="math inline">y_2</span> and <span class="math inline">y_3</span>).</p>
+<p>For each node, state its parent count <span class="math inline">K_i</span> and its CPT size <span class="math inline">2^{K_i}</span>. Sum these to get the total number of parameters, and compare to the <span class="math inline">2^5-1</span> a fully-connected DAG on five nodes would need.</p>
+<div class="practice-answer callout callout-style-default callout-tip callout-titled" title="Worked solution">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-5-contents" aria-controls="callout-5" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Worked solution
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-5" class="callout-5-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>This uses <a href="../lectures/week02.html#sec-dag">Week 2, Directed graphical models</a>.</p>
+<p>Read the parent count off the incoming edges at each node:</p>
+<ul>
+<li><span class="math inline">y_1</span>: no parents, <span class="math inline">K=0</span>, CPT size <span class="math inline">2^0=1</span>.</li>
+<li><span class="math inline">y_2</span>: one parent (<span class="math inline">y_1</span>), <span class="math inline">K=1</span>, CPT size <span class="math inline">2^1=2</span>.</li>
+<li><span class="math inline">y_3</span>: one parent (<span class="math inline">y_1</span>), <span class="math inline">K=1</span>, CPT size <span class="math inline">2</span>.</li>
+<li><span class="math inline">y_4</span>: two parents (<span class="math inline">y_2,y_3</span>), <span class="math inline">K=2</span>, CPT size <span class="math inline">2^2=4</span>.</li>
+<li><span class="math inline">y_5</span>: one parent (<span class="math inline">y_4</span>), <span class="math inline">K=1</span>, CPT size <span class="math inline">2</span>.</li>
+</ul>
+<p>Total: <span class="math inline">1+2+2+4+2 = 11</span> parameters, against <span class="math inline">2^5-1=31</span> for the fully-connected case on five nodes. The saving comes from every node having at most two parents instead of depending on every node before it; <span class="math inline">y_4</span>’s CPT is the largest single piece because it is the only node with two parents.</p>
+<p><strong>Answer.</strong> <span class="math inline">K = (0,1,1,2,1)</span>, CPT sizes <span class="math inline">(1,2,2,4,2)</span>, total <span class="math inline">11</span> parameters, versus <span class="math inline">31</span> fully connected.</p>
+</div>
+</div>
+</div>
+</section>
+<section id="prb-6" class="level2">
+<h2 class="anchored" data-anchor-id="prb-6">Problem 6: Chain, common cause, or collider?</h2>
+<p>Three sensors on a machine: a <strong>temperature reading</strong> (<span class="math inline">X</span>), an <strong>internal wear level</strong> (<span class="math inline">Y</span>), and a <strong>vibration reading</strong> (<span class="math inline">Z</span>). Consider this causal story: high internal wear (<span class="math inline">Y</span>) tends to raise both the temperature reading (<span class="math inline">X</span>) and the vibration reading (<span class="math inline">Z</span>), but the temperature and vibration sensors do not affect each other directly: <span class="math inline">X \leftarrow Y \rightarrow Z</span>.</p>
+<p>Which of the lecture’s three canonical structures is this? Are <span class="math inline">X</span> and <span class="math inline">Z</span> independent before observing <span class="math inline">Y</span>? What happens once <span class="math inline">Y</span> (the wear level) is observed?</p>
+<div class="practice-answer callout callout-style-default callout-tip callout-titled" title="Worked solution">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-6-contents" aria-controls="callout-6" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Worked solution
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-6" class="callout-6-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>This uses <a href="../lectures/week02.html#sec-cistructures">Week 2, Conditional independence: three canonical structures</a>.</p>
+<p>This is the <strong>common cause</strong> structure, <span class="math inline">X \leftarrow Y \rightarrow Z</span>, with wear level <span class="math inline">Y</span> as the shared cause of both readings.</p>
+<p>Marginally (before observing <span class="math inline">Y</span>), <span class="math inline">X</span> and <span class="math inline">Z</span> are dependent: a high temperature reading is evidence of high wear, which in turn makes a high vibration reading more likely, so the two readings move together even though neither sensor affects the other. This is the same “two effects of a shared cause are correlated” pattern as the lecture’s deadline example.</p>
+<p>Once <span class="math inline">Y</span> is observed, the joint factors as <span class="math inline">p(y)p(x\mid y)p(z\mid y)</span>, so <span class="math inline">p(x,z\mid y) = p(x\mid y)p(z\mid y)</span>: conditioning on the wear level uses up the shared explanation, and <span class="math inline">X \perp Z \mid Y</span>. Knowing the wear level directly, the temperature reading tells us nothing more about the vibration reading.</p>
+<p><strong>Answer.</strong> Common cause. <span class="math inline">X</span> and <span class="math inline">Z</span> are marginally dependent, and become conditionally independent given <span class="math inline">Y</span>: <span class="math inline">X \perp Z \mid Y</span>.</p>
+</div>
+</div>
+</div>
+</section>
+<section id="prb-7" class="level2">
+<h2 class="anchored" data-anchor-id="prb-7">Problem 7: Bayes Ball on a small graph</h2>
+<p>Consider a DAG with edges <span class="math inline">p \to q</span>, <span class="math inline">r \to q</span>, <span class="math inline">q \to s</span>, <span class="math inline">r \to t</span> (so <span class="math inline">q</span> is a collider with parents <span class="math inline">p</span> and <span class="math inline">r</span>, and <span class="math inline">r</span> also has a second child <span class="math inline">t</span>).</p>
+<ol type="1">
+<li>Is <span class="math inline">p \perp r \mid \emptyset</span> (no conditioning set)?</li>
+<li>Is <span class="math inline">p \perp r \mid \{s\}</span>?</li>
+<li>Is <span class="math inline">p \perp t \mid \{r\}</span>?</li>
+</ol>
+<p>For each, name the only path between the two nodes, identify the junction type(s) on it, and apply the Bayes Ball rules.</p>
+<div class="practice-answer callout callout-style-default callout-tip callout-titled" title="Worked solution">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-7-contents" aria-controls="callout-7" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Worked solution
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-7" class="callout-7-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>This uses <a href="../lectures/week02.html#sec-bayesball">Week 2, The Bayes Ball algorithm</a>.</p>
+<p><strong>1. <span class="math inline">p \perp r \mid \emptyset</span>.</strong> The only path between <span class="math inline">p</span> and <span class="math inline">r</span> is <span class="math inline">p \to q \leftarrow r</span>. Here <span class="math inline">q</span> is a <strong>collider</strong>. With <span class="math inline">C=\emptyset</span>, neither <span class="math inline">q</span> nor any descendant of <span class="math inline">q</span> (that is, <span class="math inline">s</span>) is in <span class="math inline">C</span>, so the collider is <strong>blocked</strong>. The one path is blocked, so <span class="math inline">p \perp r \mid \emptyset</span>.</p>
+<p><strong>2. <span class="math inline">p \perp r \mid \{s\}</span>.</strong> Same path, <span class="math inline">p \to q \leftarrow r</span>, same collider <span class="math inline">q</span>. Now <span class="math inline">C=\{s\}</span>, and <span class="math inline">s</span> is a descendant of the collider <span class="math inline">q</span> (via <span class="math inline">q \to s</span>), so the collider is <strong>open</strong>: shading a descendant of a collider opens it, exactly the explaining-away rule. The path is active, so <span class="math inline">p \not\perp r \mid \{s\}</span>. Conditioning on <span class="math inline">s</span>, which is not even on the direct route between <span class="math inline">p</span> and <span class="math inline">r</span>, is what creates the dependency, the same pattern as the lecture’s <span class="math inline">c</span>-shaded example.</p>
+<p><strong>3. <span class="math inline">p \perp t \mid \{r\}</span>.</strong> The only path between <span class="math inline">p</span> and <span class="math inline">t</span> is <span class="math inline">p \to q \leftarrow r \to t</span>. There are two junctions: <span class="math inline">q</span> is a collider (parents <span class="math inline">p,r</span>), and <span class="math inline">r</span> is a <strong>fork</strong> on this path (edges <span class="math inline">r\to q</span> and <span class="math inline">r\to t</span> both point out of <span class="math inline">r</span>). With <span class="math inline">C=\{r\}</span>: at the fork <span class="math inline">r</span>, <span class="math inline">r</span> is shaded, so the fork is <strong>blocked</strong>. That already blocks the whole path regardless of <span class="math inline">q</span> (checking anyway: at the collider <span class="math inline">q</span>, neither <span class="math inline">q</span> nor its descendant <span class="math inline">s</span> is in <span class="math inline">C=\{r\}</span>, so <span class="math inline">q</span> is also blocked). So <span class="math inline">p \perp t \mid \{r\}</span>.</p>
+<p><strong>Answer.</strong> (1) <span class="math inline">p\perp r\mid\emptyset</span>: yes. (2) <span class="math inline">p\perp r\mid\{s\}</span>: no. (3) <span class="math inline">p\perp t\mid\{r\}</span>: yes.</p>
+</div>
+</div>
+</div>
+</section>
+<section id="prb-8" class="level2">
+<h2 class="anchored" data-anchor-id="prb-8">Problem 8: Why does Naive Bayes save so many parameters?</h2>
+<p>A grocer wants to classify fruit as ripe (<span class="math inline">C=1</span>) or unripe (<span class="math inline">C=0</span>) from three binary features: color (<span class="math inline">X_1</span>: red/green), softness (<span class="math inline">X_2</span>: soft/firm), and smell (<span class="math inline">X_3</span>: fragrant/faint). A Naive Bayes model assumes <span class="math inline">X_1, X_2, X_3</span> are conditionally independent given the ripeness label <span class="math inline">C</span>.</p>
+<p>Without computing any specific numbers, explain: (a) which of the lecture’s three canonical structures this independence assumption corresponds to, and why; (b) in general terms, why the assumption shrinks the parameter count from exponential in the number of features to linear in the number of features. (The exact MLE formulas for <span class="math inline">\hat\pi</span> and <span class="math inline">\hat\theta_{jc}</span> are left to work through with real counts on your own data; this problem is about the structural reason for the saving, not the computed values.)</p>
+<div class="practice-answer callout callout-style-default callout-tip callout-titled" title="Worked solution">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-8-contents" aria-controls="callout-8" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Worked solution
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-8" class="callout-8-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>This uses <a href="../lectures/week02.html#sec-naivebayes">Week 2, Naive Bayes as a graphical model</a> and <a href="../lectures/week02.html#sec-dag">Directed graphical models</a>.</p>
+<p><strong>(a) Which structure.</strong> The assumption <span class="math inline">X_i \perp X_j \mid C</span> for every feature pair is the <strong>common-cause</strong> structure repeated across every pair of features, with the ripeness label <span class="math inline">C</span> playing the role of the shared cause. Each feature is an effect of <span class="math inline">C</span> (color, softness, and smell are all downstream of whether the fruit is actually ripe), and once <span class="math inline">C</span> is known, no feature carries extra information about any other feature. This is exactly the deadline example and Problem 6’s sensor example, generalized from one shared cause and two effects to one shared cause and <span class="math inline">d</span> effects.</p>
+<p><strong>(b) Why the parameter count shrinks.</strong> Without any independence assumption, the DAG on <span class="math inline">C, X_1, X_2, X_3</span> is fully connected in the chain-rule order <span class="math inline">C,X_1,X_2,X_3</span>: the <span class="math inline">i</span>-th feature’s CPT conditions on <span class="math inline">C</span> and every feature before it, so its table size doubles with each additional feature, giving a total that grows as <span class="math inline">2^{d+1}-1</span> in the number of features <span class="math inline">d</span> (<a href="week02.html#sec-freeparams" class="quarto-xref"><span>Free parameters and the cost of the full joint</span></a>, <a href="week02.html#sec-factoring" class="quarto-xref"><span>Why factor the joint</span></a>). Removing every edge between features and keeping only the edges from <span class="math inline">C</span> means each feature’s CPT now conditions on <span class="math inline">C</span> alone, a table of fixed size regardless of how many other features exist. Summing a fixed-size table once per feature gives a total that grows linearly in <span class="math inline">d</span> instead of exponentially. The structural reason is the same one from <a href="week02.html#sec-dag" class="quarto-xref"><span>Directed graphical models</span></a>: restricting how many parents a node can have is what buys the saving, and Naive Bayes pushes every feature’s parent set down to just <span class="math inline">\{C\}</span>, the most aggressive restriction available short of assuming no dependence on <span class="math inline">C</span> at all.</p>
+<p><strong>Answer.</strong> (a) Common cause, with <span class="math inline">C</span> as the shared parent of every feature. (b) Fully connected costs grow exponentially in the number of features because each new feature’s CPT can condition on every earlier feature; capping every feature’s parent set at <span class="math inline">\{C\}</span> makes each CPT a fixed size, so the total grows linearly instead.</p>
+</div>
+</div>
+</div>
+
+
+</section>
+
+</main> <!-- /main -->
+<script id="quarto-html-after-body" type="application/javascript">
+  window.document.addEventListener("DOMContentLoaded", function (event) {
+    const icon = "";
+    const anchorJS = new window.AnchorJS();
+    anchorJS.options = {
+      placement: 'right',
+      icon: icon
+    };
+    anchorJS.add('.anchored');
+    const isCodeAnnotation = (el) => {
+      for (const clz of el.classList) {
+        if (clz.startsWith('code-annotation-')) {                     
+          return true;
+        }
+      }
+      return false;
+    }
+    const onCopySuccess = function(e) {
+      // button target
+      const button = e.trigger;
+      // don't keep focus
+      button.blur();
+      // flash "checked"
+      button.classList.add('code-copy-button-checked');
+      var currentTitle = button.getAttribute("title");
+      button.setAttribute("title", "Copied!");
+      let tooltip;
+      if (window.bootstrap) {
+        button.setAttribute("data-bs-toggle", "tooltip");
+        button.setAttribute("data-bs-placement", "left");
+        button.setAttribute("data-bs-title", "Copied!");
+        tooltip = new bootstrap.Tooltip(button, 
+          { trigger: "manual", 
+            customClass: "code-copy-button-tooltip",
+            offset: [0, -8]});
+        tooltip.show();    
+      }
+      setTimeout(function() {
+        if (tooltip) {
+          tooltip.hide();
+          button.removeAttribute("data-bs-title");
+          button.removeAttribute("data-bs-toggle");
+          button.removeAttribute("data-bs-placement");
+        }
+        button.setAttribute("title", currentTitle);
+        button.classList.remove('code-copy-button-checked');
+      }, 1000);
+      // clear code selection
+      e.clearSelection();
+    }
+    const getTextToCopy = function(trigger) {
+      const outerScaffold = trigger.parentElement.cloneNode(true);
+      const codeEl = outerScaffold.querySelector('code');
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+    }
+    const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
+      text: getTextToCopy
+    });
+    clipboard.on('success', onCopySuccess);
+    if (window.document.getElementById('quarto-embedded-source-code-modal')) {
+      const clipboardModal = new window.ClipboardJS('.code-copy-button[data-in-quarto-modal]', {
+        text: getTextToCopy,
+        container: window.document.getElementById('quarto-embedded-source-code-modal')
+      });
+      clipboardModal.on('success', onCopySuccess);
+    }
+      var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+      var mailtoRegex = new RegExp(/^mailto:/);
+        var filterRegex = new RegExp('/' + window.location.host + '/');
+      var isInternal = (href) => {
+          return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+      }
+      // Inspect non-navigation links and adorn them if external
+     var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+      for (var i=0; i<links.length; i++) {
+        const link = links[i];
+        if (!isInternal(link.href)) {
+          // undo the damage that might have been done by quarto-nav.js in the case of
+          // links that we want to consider external
+          if (link.dataset.originalHref !== undefined) {
+            link.href = link.dataset.originalHref;
+          }
+            // target, if specified
+            link.setAttribute("target", "_blank");
+            if (link.getAttribute("rel") === null) {
+              link.setAttribute("rel", "noopener");
+            }
+        }
+      }
+    function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+      const config = {
+        allowHTML: true,
+        maxWidth: 500,
+        delay: 100,
+        arrow: false,
+        appendTo: function(el) {
+            return el.parentElement;
+        },
+        interactive: true,
+        interactiveBorder: 10,
+        theme: 'quarto',
+        placement: 'bottom-start',
+      };
+      if (contentFn) {
+        config.content = contentFn;
+      }
+      if (onTriggerFn) {
+        config.onTrigger = onTriggerFn;
+      }
+      if (onUntriggerFn) {
+        config.onUntrigger = onUntriggerFn;
+      }
+      window.tippy(el, config); 
+    }
+    const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+    for (var i=0; i<noterefs.length; i++) {
+      const ref = noterefs[i];
+      tippyHover(ref, function() {
+        // use id or data attribute instead here
+        let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+        try { href = new URL(href).hash; } catch {}
+        const id = href.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note) {
+          return note.innerHTML;
+        } else {
+          return "";
+        }
+      });
+    }
+    const xrefs = window.document.querySelectorAll('a.quarto-xref');
+    const processXRef = (id, note) => {
+      // Strip column container classes
+      const stripColumnClz = (el) => {
+        el.classList.remove("page-full", "page-columns");
+        if (el.children) {
+          for (const child of el.children) {
+            stripColumnClz(child);
+          }
+        }
+      }
+      stripColumnClz(note)
+      if (id === null || id.startsWith('sec-')) {
+        // Special case sections, only their first couple elements
+        const container = document.createElement("div");
+        if (note.children && note.children.length > 2) {
+          container.appendChild(note.children[0].cloneNode(true));
+          for (let i = 1; i < note.children.length; i++) {
+            const child = note.children[i];
+            if (child.tagName === "P" && child.innerText === "") {
+              continue;
+            } else {
+              container.appendChild(child.cloneNode(true));
+              break;
+            }
+          }
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(container);
+          }
+          return container.innerHTML
+        } else {
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(note);
+          }
+          return note.innerHTML;
+        }
+      } else {
+        // Remove any anchor links if they are present
+        const anchorLink = note.querySelector('a.anchorjs-link');
+        if (anchorLink) {
+          anchorLink.remove();
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        if (note.classList.contains("callout")) {
+          return note.outerHTML;
+        } else {
+          return note.innerHTML;
+        }
+      }
+    }
+    for (var i=0; i<xrefs.length; i++) {
+      const xref = xrefs[i];
+      tippyHover(xref, undefined, function(instance) {
+        instance.disable();
+        let url = xref.getAttribute('href');
+        let hash = undefined; 
+        if (url.startsWith('#')) {
+          hash = url;
+        } else {
+          try { hash = new URL(url).hash; } catch {}
+        }
+        if (hash) {
+          const id = hash.replace(/^#\/?/, "");
+          const note = window.document.getElementById(id);
+          if (note !== null) {
+            try {
+              const html = processXRef(id, note.cloneNode(true));
+              instance.setContent(html);
+            } finally {
+              instance.enable();
+              instance.show();
+            }
+          } else {
+            // See if we can fetch this
+            fetch(url.split('#')[0])
+            .then(res => res.text())
+            .then(html => {
+              const parser = new DOMParser();
+              const htmlDoc = parser.parseFromString(html, "text/html");
+              const note = htmlDoc.getElementById(id);
+              if (note !== null) {
+                const html = processXRef(id, note);
+                instance.setContent(html);
+              } 
+            }).finally(() => {
+              instance.enable();
+              instance.show();
+            });
+          }
+        } else {
+          // See if we can fetch a full url (with no hash to target)
+          // This is a special case and we should probably do some content thinning / targeting
+          fetch(url)
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.querySelector('main.content');
+            if (note !== null) {
+              // This should only happen for chapter cross references
+              // (since there is no id in the URL)
+              // remove the first header
+              if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+                note.children[0].remove();
+              }
+              const html = processXRef(null, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      }, function(instance) {
+      });
+    }
+        let selectedAnnoteEl;
+        const selectorForAnnotation = ( cell, annotation) => {
+          let cellAttr = 'data-code-cell="' + cell + '"';
+          let lineAttr = 'data-code-annotation="' +  annotation + '"';
+          const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+          return selector;
+        }
+        const selectCodeLines = (annoteEl) => {
+          const doc = window.document;
+          const targetCell = annoteEl.getAttribute("data-target-cell");
+          const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+          const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+          const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+          const lineIds = lines.map((line) => {
+            return targetCell + "-" + line;
+          })
+          let top = null;
+          let height = null;
+          let parent = null;
+          if (lineIds.length > 0) {
+              //compute the position of the single el (top and bottom and make a div)
+              const el = window.document.getElementById(lineIds[0]);
+              top = el.offsetTop;
+              height = el.offsetHeight;
+              parent = el.parentElement.parentElement;
+            if (lineIds.length > 1) {
+              const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+              const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+              height = bottom - top;
+            }
+            if (top !== null && height !== null && parent !== null) {
+              // cook up a div (if necessary) and position it 
+              let div = window.document.getElementById("code-annotation-line-highlight");
+              if (div === null) {
+                div = window.document.createElement("div");
+                div.setAttribute("id", "code-annotation-line-highlight");
+                div.style.position = 'absolute';
+                parent.appendChild(div);
+              }
+              div.style.top = top - 2 + "px";
+              div.style.height = height + 4 + "px";
+              div.style.left = 0;
+              let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+              if (gutterDiv === null) {
+                gutterDiv = window.document.createElement("div");
+                gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+                gutterDiv.style.position = 'absolute';
+                const codeCell = window.document.getElementById(targetCell);
+                const gutter = codeCell.querySelector('.code-annotation-gutter');
+                gutter.appendChild(gutterDiv);
+              }
+              gutterDiv.style.top = top - 2 + "px";
+              gutterDiv.style.height = height + 4 + "px";
+            }
+            selectedAnnoteEl = annoteEl;
+          }
+        };
+        const unselectCodeLines = () => {
+          const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+          elementsIds.forEach((elId) => {
+            const div = window.document.getElementById(elId);
+            if (div) {
+              div.remove();
+            }
+          });
+          selectedAnnoteEl = undefined;
+        };
+          // Handle positioning of the toggle
+      window.addEventListener(
+        "resize",
+        throttle(() => {
+          elRect = undefined;
+          if (selectedAnnoteEl) {
+            selectCodeLines(selectedAnnoteEl);
+          }
+        }, 10)
+      );
+      function throttle(fn, ms) {
+      let throttle = false;
+      let timer;
+        return (...args) => {
+          if(!throttle) { // first call gets through
+              fn.apply(this, args);
+              throttle = true;
+          } else { // all the others get throttled
+              if(timer) clearTimeout(timer); // cancel #2
+              timer = setTimeout(() => {
+                fn.apply(this, args);
+                timer = throttle = false;
+              }, ms);
+          }
+        };
+      }
+        // Attach click handler to the DT
+        const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+        for (const annoteDlNode of annoteDls) {
+          annoteDlNode.addEventListener('click', (event) => {
+            const clickedEl = event.target;
+            if (clickedEl !== selectedAnnoteEl) {
+              unselectCodeLines();
+              const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+              if (activeEl) {
+                activeEl.classList.remove('code-annotation-active');
+              }
+              selectCodeLines(clickedEl);
+              clickedEl.classList.add('code-annotation-active');
+            } else {
+              // Unselect the line
+              unselectCodeLines();
+              clickedEl.classList.remove('code-annotation-active');
+            }
+          });
+        }
+    const findCites = (el) => {
+      const parentEl = el.parentElement;
+      if (parentEl) {
+        const cites = parentEl.dataset.cites;
+        if (cites) {
+          return {
+            el,
+            cites: cites.split(' ')
+          };
+        } else {
+          return findCites(el.parentElement)
+        }
+      } else {
+        return undefined;
+      }
+    };
+    var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+    for (var i=0; i<bibliorefs.length; i++) {
+      const ref = bibliorefs[i];
+      const citeInfo = findCites(ref);
+      if (citeInfo) {
+        tippyHover(citeInfo.el, function() {
+          var popup = window.document.createElement('div');
+          citeInfo.cites.forEach(function(cite) {
+            var citeDiv = window.document.createElement('div');
+            citeDiv.classList.add('hanging-indent');
+            citeDiv.classList.add('csl-entry');
+            var biblioDiv = window.document.getElementById('ref-' + cite);
+            if (biblioDiv) {
+              citeDiv.innerHTML = biblioDiv.innerHTML;
+            }
+            popup.appendChild(citeDiv);
+          });
+          return popup.innerHTML;
+        });
+      }
+    }
+  });
+  </script>
+<nav class="page-navigation">
+  <div class="nav-page nav-page-previous">
+      <a href="../lectures/week02.html" class="pagination-link" aria-label="Week 2: Decision Theory and Graphical Models">
+        <i class="bi bi-arrow-left-short"></i> <span class="nav-page-text"><span class="chapter-title">Week 2: Decision Theory and Graphical Models</span></span>
+      </a>          
+  </div>
+  <div class="nav-page nav-page-next">
+      <a href="../lectures/week03.html" class="pagination-link" aria-label="Week 3: Markov Random Fields and Exact Inference">
+        <span class="nav-page-text"><span class="chapter-title">Week 3: Markov Random Fields and Exact Inference</span></span> <i class="bi bi-arrow-right-short"></i>
+      </a>
+  </div>
+</nav>
+</div> <!-- /content -->
+
+
+
+
+<script src="../site_libs/quarto-html/zenscroll-min.js"></script>
+</body></html>

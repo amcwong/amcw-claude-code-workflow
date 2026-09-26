@@ -1,0 +1,619 @@
+---
+title: "Week 3: Initialization, Autodiff, Overfitting & Regularization"
+description: "Backprop revisited with a worked sigmoid example, why gradients vanish or explode, how to initialize weights, automatic differentiation, and how overfitting is fought with weight decay and dropout."
+---
+
+```{=html}
+<style>#title-block-header { display: none; }</style>
+<div class="lecture-header">
+  <h1>Week 3: Initialization, Autodiff, Overfitting &amp; Regularization</h1>
+</div>
+```
+
+**Overview.** Week 2 gave us the multi-layer perceptron and the backpropagation algorithm. This week asks what can go wrong when we actually train one, and what tools make training practical. We first restate backpropagation in Week 2's notation and work one example end to end. That example shows why gradients can shrink or blow up as they travel backward, which motivates choosing the initial weights carefully. We then see how a program can apply the chain rule for us (automatic differentiation). Finally we turn from optimization to generalization: a model that fits its training data too well can do worse on new data, and two simple techniques, weight decay and dropout, push against that.
+
+## Backprop Revisited {#sec-backprop-revisited}
+
+Week 2 already derived backpropagation. Here we restate it and use it in a worked example, keeping Week 2's letters for the two quantities every layer computes.
+
+::: {.callout-warning}
+**Notation.** These notes write the *pre-activation* of layer $m$ as $a^m$ and the *activation* as $h^m$, the same letters as [Week 2](week02.qmd#sec-backprop). The handwritten slides for this lecture use $z^m$ for the pre-activation and $a^m$ for the activation, so a reader comparing the two should translate $z \to a$ and $a \to h$.
+
+| Object | These notes (and Week 2) | Handwritten slides |
+|---|---|---|
+| Pre-activation, $W^m h^{m-1} + b^m$ | $a^m$ | $z^m$ |
+| Activation, $\sigma(\text{pre-activation})$ | $h^m$ | $a^m$ |
+:::
+
+With this notation the forward pass is $a^m = W^m h^{m-1} + b^m$ and $h^m = \sigma^m(a^m)$, where $h^0$ is the input $\bm{x}$ and $L$ is the last layer. Backpropagation ([Backpropagation](https://en.wikipedia.org/wiki/Backpropagation)) then has three steps.
+
+::: {.boxed-eq}
+$$\frac{\partial \mathcal{L}}{\partial a^L} = \frac{\partial \mathcal{L}}{\partial h^L}\,\frac{\partial h^L}{\partial a^L}$$
+:::
+
+This step starts at the output layer: the loss depends on $a^L$ only through $h^L$.
+
+::: {.boxed-eq}
+$$\begin{aligned}
+\frac{\partial \mathcal{L}}{\partial a^m} &= \left({W^{m+1}}^\top \frac{\partial \mathcal{L}}{\partial a^{m+1}}\right) \odot \frac{\partial h^m}{\partial a^m}, \\
+&\qquad m = L-1, \ldots, 1
+\end{aligned}$$
+:::
+
+Here $\odot$ is the [Hadamard product](https://en.wikipedia.org/wiki/Hadamard_product_(matrices)), entry-by-entry multiplication. The gradient at layer $m$ is built in two moves. First we multiply the gradient at layer $m+1$ by ${W^{m+1}}^\top$, the transpose of the weight matrix that carried layer $m$ into layer $m+1$. Entry $k$ of the result is $\sum_\ell W^{m+1}_{\ell k}\,\partial\mathcal{L}/\partial a^{m+1}_\ell$, so each unit in layer $m$ collects the gradients of the units it fed, each weighted by the connection weight it used. We say the gradient is sent *backward along the same connections* that carried the activations forward. Second, we scale each entry by the local slope of the nonlinearity.
+
+::: {.boxed-eq}
+$$\frac{\partial \mathcal{L}}{\partial W^m} = \frac{\partial \mathcal{L}}{\partial a^m}\,{h^{m-1}}^\top$$
+:::
+
+Once we know $\partial\mathcal{L}/\partial a^m$, the weight gradient is its outer product with the previous layer's activations.
+
+### The cost of backpropagation {#sec-cost}
+
+How expensive is one training step? Suppose the model is a stack of matrix multiplies and element-wise nonlinearities, and let $|\theta|$ be the total number of parameters (all weights and biases). A matrix multiply does one multiply-add per entry of the weight matrix, and a weight matrix has far more entries than its layer has units. The matrix multiplies therefore dominate the cost, and the nonlinearities add comparatively little. For a single example, the forward pass costs roughly $|\theta|$ multiply-adds.
+
+The backward pass has two parts, and each costs about as much as the forward pass:
+
+- **The recursion** multiplies by ${W^{m+1}}^\top$ at every layer. That is a matrix–vector product with the same number of entries as the forward multiply.
+- **The weight gradients** are outer products. Each produces an object as large as $W^m$ itself.
+
+| Pass | What it computes | Approximate cost |
+|---|---|---|
+| Forward | $a^m$ and $h^m$ for all $m$ | $|\theta|$ |
+| Backward: recursion | $\partial\mathcal{L}/\partial a^m$ for all $m$ | $|\theta|$ |
+| Backward: weight gradients | $\partial\mathcal{L}/\partial W^m$ for all $m$ | $|\theta|$ |
+
+::: {.callout-note}
+**Rule of thumb.** One training step (forward plus backward) costs roughly **three** forward passes, about $3|\theta|$ multiply-adds per example. This is why training compute is often estimated directly from the parameter count.
+:::
+
+### Worked example: sigmoid units with cross-entropy loss
+
+Take a network for binary classification where every layer, including the output layer, uses the [sigmoid function](https://en.wikipedia.org/wiki/Sigmoid_function):
+
+$$h^m = \operatorname{sigmoid}(a^m) = \frac{1}{1 + \exp(-a^m)} \qquad \text{for all } m, \text{ including } m = L$$
+
+The label is $y \in \{0, 1\}$, and the loss is the [cross-entropy](https://en.wikipedia.org/wiki/Cross-entropy) from [Week 1](week01.qmd), written here for a single output:
+
+$$\mathcal{L}(\bm{x}, h^L) = (y - 1)\log(1 - h^L) - y \log(h^L)$$
+
+**Output layer.** The two factors in the first step are the derivative of the cross-entropy and the derivative of the sigmoid. The sigmoid's derivative can be written using its own output, $\partial h^L / \partial a^L = h^L(1 - h^L)$. Then:
+
+$$\frac{\partial \mathcal{L}}{\partial a^L} = \frac{h^L - y}{h^L(1 - h^L)} \cdot h^L(1 - h^L) = h^L - y$$
+
+The denominator of the cross-entropy derivative cancels exactly against the sigmoid derivative, leaving the prediction minus the label. This is the same "$\hat{\bm{y}} - \bm{y}$" form we saw for softmax and cross-entropy in Week 1.
+
+**One layer back.** Apply the recursion with $m = L-1$. The local slope is again the sigmoid derivative, now evaluated at layer $L-1$:
+
+$$\frac{\partial \mathcal{L}}{\partial a^{L-1}} = \left({W^{L}}^\top (h^L - y)\right) \odot h^{L-1}\left(1 - h^{L-1}\right)$$
+
+**Weight gradient.** The gradient for the weights of layer $L-1$ multiplies this by the activations of layer $L-2$:
+
+$$\frac{\partial \mathcal{L}}{\partial W^{L-1}} = \left({W^{L}}^\top (h^L - y)\right) \odot h^{L-1}\left(1 - h^{L-1}\right)\, {h^{L-2}}^\top$$
+
+Reading the result from left to right, the error $h^L - y$ is multiplied by ${W^L}^\top$, which sends it backward along the connections into layer $L-1$, and then each entry is multiplied by a sigmoid slope factor $h^{L-1}(1 - h^{L-1})$. Every additional layer we go back adds one more such pair of factors. That repeated pattern is the subject of the next section.
+
+::: {.callout-tip collapse="true" .clarification title="Question: What does one more layer back look like, with actual numbers?"}
+Apply the recursion once more, with $m = L-2$. The gradient at layer $L-1$ is multiplied by ${W^{L-1}}^\top$, which sends it backward along the connections into layer $L-2$, and each entry is then scaled by the sigmoid slope of layer $L-2$:
+
+$$\frac{\partial \mathcal{L}}{\partial a^{L-2}} = \left({W^{L-1}}^\top \frac{\partial \mathcal{L}}{\partial a^{L-1}}\right) \odot h^{L-2}\left(1 - h^{L-2}\right)$$
+
+Substituting the previous line shows the pile-up. The result contains two matrix factors and two slope factors, in the order they were met going backward:
+
+$$\begin{aligned}
+\frac{\partial \mathcal{L}}{\partial a^{L-2}} &= \left({W^{L-1}}^\top \left[\left({W^{L}}^\top (h^L - y)\right) \right.\right. \\
+&\qquad \left.\left. \odot\, h^{L-1}(1 - h^{L-1})\right]\right) \odot h^{L-2}(1 - h^{L-2})
+\end{aligned}$$
+
+To see how fast this shrinks, use the smallest possible network: one unit per layer, so every quantity is a single number, with every weight equal to $1$. Suppose each unit sits at $a = 0$, so every activation is $h = 1/2$ and every sigmoid slope is $h(1 - h) = 1/4$. Take $y = 1$. Then the output error is $h^L - y = 1/2 - 1 = -1/2$. Multiplying by a weight of $1$ leaves a number unchanged, so each step back only multiplies by the slope $1/4$:
+
+| Layer | $\partial\mathcal{L}/\partial a$ | How it was obtained |
+|---|---|---|
+| $L$ | $-0.5$ | $h^L - y$ |
+| $L-1$ | $-0.125$ | $1 \cdot (-0.5) \cdot 0.25$ |
+| $L-2$ | $-0.03125$ | $1 \cdot (-0.125) \cdot 0.25$ |
+| $L-3$ | $-0.0078125$ | $1 \cdot (-0.03125) \cdot 0.25$ |
+
+Each layer back divides the signal by $4$, so after three layers it is $1/64$ of its size at the output. This is the best case for the sigmoid, since $1/4$ is the largest slope it can have, and it assumed weights of $1$ that neither shrink nor grow the signal. Since no larger slope is available, only the weights could offset the shrinkage, which is why the initialization section below focuses on them.
+:::
+
+## Vanishing and Exploding Gradients {#sec-vanishing}
+
+How do the gradients of early layers behave in a deep network? Look again at the recursion:
+
+$$\frac{\partial \mathcal{L}}{\partial a^m} = \left({W^{m+1}}^\top \frac{\partial \mathcal{L}}{\partial a^{m+1}}\right) \odot \frac{\partial h^m}{\partial a^m}$$
+
+Going back one layer applies two operations, and each is repeated at every layer:
+
+- **Repeated matrix multiplies.** The factor ${W^{m+1}}^\top$ appears once per layer. Multiplying a vector by many matrices can shrink it toward zero or grow it without bound, depending on the size of the weights.
+- **Repeated nonlinearity derivatives.** The factor $\partial h^m / \partial a^m$ also appears once per layer.
+
+::: {.callout-tip collapse="true" .clarification title="Question: Why can multiplying by weight matrices again and again make the gradient explode or vanish?"}
+Start with one number. Multiplying by $2$ three times turns $1$ into $8$, and multiplying by $1/2$ three times turns $1$ into $1/8$. A matrix behaves the same way along special directions. An [eigenvector](https://en.wikipedia.org/wiki/Eigenvalues_and_eigenvectors) of a matrix $M$ is a direction $\bm{v}$ that $M$ only stretches or shrinks, $M\bm{v} = \lambda\bm{v}$, and the number $\lambda$ is its eigenvalue. Applying $M$ a total of $k$ times to $\bm{v}$ gives $\lambda^k \bm{v}$, which grows when $|\lambda| > 1$ and shrinks when $|\lambda| < 1$.
+
+For example, let $M$ stretch the first coordinate by $2$ and shrink the second by $1/2$. Applying it three times to $(1, 1)^\top$ gives
+
+$$\begin{pmatrix} 2 & 0 \\ 0 & 1/2 \end{pmatrix}^{3} \begin{pmatrix} 1 \\ 1 \end{pmatrix} = \begin{pmatrix} 8 \\ 1/8 \end{pmatrix}$$
+
+The first entry exploded and the second vanished.
+
+In the backward recursion the matrix is different at every layer, so no single eigenvalue decides the outcome. What matters is how much each matrix tends to stretch or shrink the vectors passing through it. If they tend to stretch, gradients explode. If they tend to shrink, gradients vanish. These matrices are the weights themselves, so their scale is something we control through how we initialize them.
+:::
+
+For the sigmoid, this second factor is at most $1/4$. The sigmoid equals $1/2$ at $a = 0$ and flattens toward $0$ and $1$ on either side, so its slope is largest at $0$, where it equals $1/4$, and falls toward $0$ for large $|a|$.
+
+```{=html}
+<figure style="margin:1.5rem 0;">
+<svg viewBox="0 0 760 340" width="100%" style="max-width:760px; display:block; margin:auto; font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;" role="img" aria-label="The sigmoid function and its derivative on the same vertical scale">
+  <text x="200" y="32" font-size="24" font-weight="bold" text-anchor="middle" fill="#002A5C">sigmoid(x)</text>
+  <text x="580" y="32" font-size="24" font-weight="bold" text-anchor="middle" fill="#002A5C">slope of sigmoid(x)</text>
+  <!-- left panel axes -->
+  <line x1="40" y1="300" x2="360" y2="300" stroke="#555" stroke-width="1.5"/>
+  <line x1="200" y1="70" x2="200" y2="300" stroke="#555" stroke-width="1.5"/>
+  <line x1="40" y1="70" x2="360" y2="70" stroke="#888" stroke-width="1" stroke-dasharray="4 4"/>
+  <polyline fill="none" stroke="#8457C7" stroke-width="3" points="40.0,299.4 46.6,299.3 53.3,299.1 60.0,298.8 66.6,298.5 73.3,298.0 80.0,297.5 86.7,296.8 93.3,295.9 100.0,294.7 106.7,293.3 113.3,291.4 120.0,289.1 126.7,286.2 133.3,282.6 140.0,278.1 146.7,272.6 153.3,265.9 160.0,258.0 166.7,248.8 173.3,238.1 180.0,226.2 186.7,213.2 193.3,199.3 200.0,185.0 206.7,170.7 213.3,156.8 220.0,143.8 226.7,131.9 233.3,121.2 240.0,112.0 246.7,104.1 253.3,97.4 260.0,91.9 266.7,87.4 273.3,83.8 280.0,80.9 286.7,78.6 293.3,76.7 300.0,75.3 306.7,74.1 313.3,73.2 320.0,72.5 326.7,72.0 333.4,71.5 340.0,71.2 346.7,70.9 353.4,70.7 360.0,70.6"/>
+  <circle cx="200" cy="185" r="5" fill="#C75794"/>
+  <text x="214" y="200" font-size="16" fill="#792051">1/2 at x = 0</text>
+  <text x="46" y="62" font-size="16" fill="#555">1</text>
+  <!-- right panel axes -->
+  <line x1="420" y1="300" x2="740" y2="300" stroke="#555" stroke-width="1.5"/>
+  <line x1="580" y1="70" x2="580" y2="300" stroke="#555" stroke-width="1.5"/>
+  <line x1="420" y1="70" x2="740" y2="70" stroke="#888" stroke-width="1" stroke-dasharray="4 4"/>
+  <polyline fill="none" stroke="#8457C7" stroke-width="3" points="420.0,299.4 426.6,299.3 433.3,299.1 440.0,298.8 446.6,298.5 453.3,298.0 460.0,297.5 466.7,296.8 473.3,295.9 480.0,294.8 486.7,293.5 493.3,291.7 500.0,289.6 506.7,287.0 513.3,283.9 520.0,280.2 526.7,275.9 533.3,271.0 540.0,265.7 546.7,260.2 553.3,254.8 560.0,249.9 566.7,245.9 573.3,243.4 580.0,242.5 586.7,243.4 593.3,245.9 600.0,249.9 606.7,254.8 613.3,260.2 620.0,265.7 626.7,271.0 633.3,275.9 640.0,280.2 646.7,283.9 653.3,287.0 660.0,289.6 666.7,291.7 673.3,293.5 680.0,294.8 686.7,295.9 693.3,296.8 700.0,297.5 706.7,298.0 713.4,298.5 720.0,298.8 726.7,299.1 733.4,299.3 740.0,299.4"/>
+  <circle cx="580" cy="242.5" r="5" fill="#C75794"/>
+  <text x="598" y="232" font-size="16" fill="#792051">1/4 at x = 0</text>
+  <text x="426" y="62" font-size="16" fill="#555">1</text>
+</svg>
+<figcaption style="text-align:center; font-size:0.9em; margin-top:0.5rem;">Figure 1. Both panels share the same vertical scale (dashed line at 1). The sigmoid rises from 0 to 1. Its slope never exceeds 1/4, and it is close to 0 whenever the input is far from 0.</figcaption>
+</figure>
+```
+
+::: {.definition-block}
+**Definition.** *Vanishing gradients* occur when the gradient shrinks toward $0$ as it is propagated backward, so that early layers receive almost no learning signal. *Exploding gradients* occur when it grows toward $\infty$ instead. See [the vanishing gradient problem](https://en.wikipedia.org/wiki/Vanishing_gradient_problem).
+:::
+
+Both come from the same recursion. If the repeated factors are typically smaller than $1$ in size, the gradient decays layer by layer; if they are typically larger, it grows. In a sigmoid network the slope factor alone contributes at most $1/4$ per layer, which is why Week 2 already flagged vanishing gradients for sigmoid.
+
+::: {.callout-warning}
+**Why sigmoid is rarely used as a hidden activation.** The [ReLU](https://en.wikipedia.org/wiki/Rectifier_(neural_networks)) activation from Week 2, $\operatorname{ReLU}(a) = \max(0, a)$, has a derivative that is exactly $0$ or exactly $1$. Where it is $1$, multiplying by it over and over neither shrinks nor grows the gradient. This is one reason ReLU made much deeper networks practical to train.
+:::
+
+The slope factor is fixed once we choose the activation function. The weight factor is not: it is set by how we choose the weight matrices *before training even starts*. That is the next topic.
+
+## Parameter Initialization {#sec-init}
+
+Before training starts, every weight needs a value. The slides use the word *initialize* to mean something specific: choose a probability distribution and sample the initial weights from it. If we want to avoid vanishing and exploding gradients, the choice of that distribution matters, and the variance of the weights is the natural knob.
+
+::: {.definition-block}
+**Definition.** *Parameter initialization* is the choice of the distribution from which the initial values of the model's weights are sampled before training begins.
+:::
+
+### Two bad ideas
+
+Why not start with every weight equal to $0$? Then $W\bm{x} = \bm{0}$ for every input, so each layer's output stops depending on the input at all (ignoring the bias). Training cannot easily fix this either. The backward recursion multiplies by ${W^{m+1}}^\top = 0$, so at initialization every layer below the output receives exactly zero gradient, and even after updates begin, the units within a layer stay identical to each other.
+
+::: {.callout-tip collapse="true" .clarification title="Question: What does starting from all zeros look like, with actual numbers?"}
+Take the smallest network that shows both effects: input $\bm{x} = (1, 2)^\top$, a hidden layer of two sigmoid units, and one output unit with no nonlinearity, so $h^2 = a^2$. The loss is $\mathcal{L} = \tfrac{1}{2}(h^2 - y)^2$ with target $y = 1$, and the learning rate is $\eta = 0.1$. Every weight and bias starts at $0$.
+
+**Step 1, forward.** The hidden pre-activations are $a^1 = W^1\bm{x} + b^1 = (0, 0)^\top$. The sigmoid of $0$ is $1/2$, so $h^1 = (0.5, 0.5)^\top$. The output is $a^2 = W^2 h^1 + b^2 = 0$, so $h^2 = 0$.
+
+**Step 1, backward.** At the output, $\partial\mathcal{L}/\partial a^2 = h^2 - y = -1$. The output weights get a real gradient, because they multiply the nonzero activations $h^1$:
+
+$$\frac{\partial \mathcal{L}}{\partial W^2} = (-1)\,(0.5,\; 0.5) = (-0.5,\; -0.5), \qquad \frac{\partial \mathcal{L}}{\partial b^2} = -1$$
+
+The hidden layer gets nothing, because the recursion multiplies by ${W^2}^\top = (0, 0)^\top$. The sigmoid slope at $0$ is $1/4$, but a slope times zero is still zero:
+
+$$\frac{\partial \mathcal{L}}{\partial a^1} = \left({W^2}^\top(-1)\right) \odot \tfrac{1}{4} = \begin{pmatrix} 0 \\ 0 \end{pmatrix}$$
+
+Since the weight gradient is $\partial\mathcal{L}/\partial a^1$ times $\bm{x}^\top$, it is zero too:
+
+$$\frac{\partial \mathcal{L}}{\partial W^1} = \begin{pmatrix} 0 & 0 \\ 0 & 0 \end{pmatrix}$$
+
+**Step 1, update.** Only the output layer moves: $W^2 = (0.05,\; 0.05)$ and $b^2 = 0.1$. The hidden weights $W^1$ and biases $b^1$ are still all $0$.
+
+**Step 2.** The hidden layer is unchanged, so $h^1 = (0.5, 0.5)^\top$ again, and the output is now $a^2 = 0.05 \cdot 0.5 + 0.05 \cdot 0.5 + 0.1 = 0.15$. Then $\partial\mathcal{L}/\partial a^2 = 0.15 - 1 = -0.85$, and the hidden layer finally receives a nonzero gradient, because $W^2$ is no longer zero:
+
+$$\begin{aligned}
+\frac{\partial \mathcal{L}}{\partial a^1} &= \begin{pmatrix} 0.05 \\ 0.05 \end{pmatrix}(-0.85) \odot \tfrac{1}{4} \\
+&= \begin{pmatrix} -0.010625 \\ -0.010625 \end{pmatrix}
+\end{aligned}$$
+
+Both hidden units receive the same number. The weight gradient multiplies this by $\bm{x}^\top = (1, 2)$, so both rows of $\partial\mathcal{L}/\partial W^1$ equal $(-0.010625,\; -0.02125)$, and the update gives
+
+$$W^1 = \begin{pmatrix} 0.0010625 & 0.002125 \\ 0.0010625 & 0.002125 \end{pmatrix}$$
+
+The two rows, and the two entries of $b^1$, are identical. Two units with identical weights and biases compute identical outputs, so they receive identical gradients on every later step and stay identical forever. The hidden layer of two units behaves as a hidden layer of one, which is the wasted capacity described above.
+
+The specific numbers here are our own, invented for illustration, not from the lecture or a homework. In this sigmoid network the zero hidden gradient lasts only one step. The identical-units problem does not go away.
+:::
+
+Why not give every weight the same nonzero constant, say $1$? Then every row of $W$ computes the same dot product with the input, so every hidden unit computes the same function. We waste nearly all of the layer's capacity on redundant copies. We need initial values that are **random** but **carefully scaled**, and the scale is what the next subsections work out.
+
+### A variance refresher
+
+The derivation below uses three facts about a random variable $X$. The [variance](https://en.wikipedia.org/wiki/Variance) is $\operatorname{Var}[X] = \mathbb{E}[X^2] - (\mathbb{E}[X])^2$, which reduces to $\mathbb{E}[X^2]$ when $\mathbb{E}[X] = 0$. The [normal distribution](https://en.wikipedia.org/wiki/Normal_distribution) $\mathcal{N}(0, s^2)$ has mean $0$ and variance $s^2$. For [independent](https://en.wikipedia.org/wiki/Independence_(probability_theory)) variables, the expectation of a product is the product of expectations, $\mathbb{E}[XY] = \mathbb{E}[X]\,\mathbb{E}[Y]$.
+
+### Variance of one linear layer
+
+Consider a single linear layer with no nonlinearity, mapping an input $\bm{x} \in \mathbb{R}^{n_\text{in}}$ to an output $\bm{h} \in \mathbb{R}^{n_\text{out}}$:
+
+$$\bm{h} = W\bm{x}, \qquad h_i = \sum_{j=1}^{n_\text{in}} W_{ij}\, x_j$$
+
+The slides make three assumptions: there is no nonlinearity, each input entry satisfies $x_j \sim \mathcal{N}(0, 1)$, and each weight satisfies $W_{ij} \sim \mathcal{N}(0, \sigma^2)$, all independent. The question is what $\sigma$ to use.
+
+Because every $W_{ij}$ and $x_j$ has mean $0$ and they are independent, $\mathbb{E}[h_i] = 0$. So the variance of $h_i$ is just $\mathbb{E}[h_i^2]$. Expanding the square of the sum produces cross terms of the form $W_{ij}x_j W_{ik}x_k$ with $j \neq k$; each has expectation $0$ by independence and zero mean, so only the squared terms remain:
+
+$$\operatorname{Var}[h_i] = \mathbb{E}[h_i^2] = \sum_{j=1}^{n_\text{in}} \mathbb{E}[W_{ij}^2\, x_j^2]$$
+
+Independence splits each expectation, and $\mathbb{E}[W_{ij}^2] = \sigma^2$ and $\mathbb{E}[x_j^2] = 1$:
+
+$$\operatorname{Var}[h_i] = \sum_{j=1}^{n_\text{in}} \mathbb{E}[W_{ij}^2]\,\mathbb{E}[x_j^2] = n_\text{in}\,\sigma^2$$
+
+The output has variance $n_\text{in}\sigma^2$ while the input has variance $1$, so the layer multiplies the variance by $n_\text{in}\sigma^2$. Stack many layers and this factor is applied repeatedly: if it is above $1$ activations grow with depth, if below $1$ they shrink.
+
+### Choosing sigma
+
+**Forward pass.** To keep the variance of the activations near $1$, we want $n_\text{in}\,\sigma^2 = 1$.
+
+**Backward pass.** In the backward pass the roles of input and output swap, because the gradient is multiplied by $W^\top$ and each entry of the result is a sum over $n_\text{out}$ terms. The slides therefore state the analogous requirement $n_\text{out}\,\sigma^2 = 1$ (the lecture gives this by analogy and does not repeat the derivation).
+
+Unless $n_\text{in} = n_\text{out}$ the two requirements disagree. The slides settle on a compromise, averaging them:
+
+$$\frac{n_\text{in}\,\sigma^2 + n_\text{out}\,\sigma^2}{2} = 1 \quad\Longrightarrow\quad \sigma = \sqrt{\frac{2}{n_\text{in} + n_\text{out}}}$$
+
+::: {.boxed-eq}
+$$W_{ij} \sim \mathcal{N}\!\left(0,\; \frac{2}{n_\text{in} + n_\text{out}}\right)$$
+:::
+
+This is called *Xavier* or *Glorot* initialization (see [weight initialization](https://en.wikipedia.org/wiki/Weight_initialization)). It keeps the layer's variance factor near $1$ in both directions when the layer widths differ, without being exact for either. The derivation also assumed no nonlinearity, so for a network with activation functions it is a starting heuristic and not a guarantee.
+
+::: {.callout-note}
+**He initialization.** If we instead assume a ReLU activation, the same style of derivation gives a slightly different scale, $\sigma = \sqrt{2/n_\text{in}}$, called *He initialization*. The lecture states this result without the derivation. One intuition, which is ours and not from the slides: for zero-mean, symmetric pre-activations, ReLU sets roughly half of them to $0$, which halves the average squared activation, and the extra factor of $2$ compensates. Most deep learning frameworks default to one of Xavier or He initialization. Homework 3 assumes ReLU, so the He scale is the relevant one there; the specific calculation is left to the assignment.
+:::
+
+## Automatic Differentiation {#sec-autodiff}
+
+Backpropagation for an MLP took a page of matrix calculus. Can a program produce gradients for any model we write, without us deriving them by hand? The answer is yes, and the tool is called *automatic differentiation*, or *autodiff* (in PyTorch, *autograd*). See [automatic differentiation](https://en.wikipedia.org/wiki/Automatic_differentiation).
+
+### A small running example
+
+The slides use a tiny network with one hidden unit. We treat every quantity as a single number, so that the chain of operations is easy to see:
+
+$$h = \operatorname{ReLU}(w_h x + b_h), \qquad o = w_o h + b_o, \qquad \mathcal{L} = (y - o)^2$$
+
+Here $\operatorname{ReLU}(a) = \max(0, a)$ as in Week 2. The parameters are $w_h, b_h, w_o, b_o$, and we want the four gradients $\partial\mathcal{L}/\partial w_o$, $\partial\mathcal{L}/\partial b_o$, $\partial\mathcal{L}/\partial w_h$, and $\partial\mathcal{L}/\partial b_h$. Here $h$ is the single hidden unit's output, the one-number version of the activation $h^m$ above, and $o$ is the network output.
+
+### Break the computation into single operations
+
+We can always use the chain rule. To make that mechanical, first rewrite the forward computation as a sequence of single simple operations, giving each intermediate result a name:
+
+$$\begin{aligned}
+m_h &= w_h x, & a_h &= m_h + b_h, & h &= \operatorname{ReLU}(a_h), \\
+m_o &= w_o h, & o &= m_o + b_o, & e &= y - o, \\
+\mathcal{L} &= e^2
+\end{aligned}$$
+
+Then the gradient with respect to $w_h$ is a product of one derivative per operation on the path from $\mathcal{L}$ back to $w_h$:
+
+$$\begin{aligned}
+\frac{\partial \mathcal{L}}{\partial w_h} &= \frac{\partial \mathcal{L}}{\partial e}\,\frac{\partial e}{\partial o}\,\frac{\partial o}{\partial m_o} \\
+&\quad \cdot \frac{\partial m_o}{\partial h}\,\frac{\partial h}{\partial a_h} \\
+&\quad \cdot \frac{\partial a_h}{\partial m_h}\,\frac{\partial m_h}{\partial w_h}
+\end{aligned}$$
+
+Each factor is the derivative of one elementary operation, and each is simple:
+
+| Operation | Derivative used |
+|---|---|
+| $\mathcal{L} = e^2$ | $\partial\mathcal{L}/\partial e = 2e$ |
+| $e = y - o$ | $\partial e/\partial o = -1$ |
+| $o = m_o + b_o$ | $\partial o/\partial m_o = 1$ |
+| $m_o = w_o h$ | $\partial m_o/\partial h = w_o$ |
+| $h = \operatorname{ReLU}(a_h)$ | $\partial h/\partial a_h = 1$ if $a_h > 0$, else $0$ |
+| $a_h = m_h + b_h$ | $\partial a_h/\partial m_h = 1$ |
+| $m_h = w_h x$ | $\partial m_h/\partial w_h = x$ |
+
+Multiplying them gives $\partial\mathcal{L}/\partial w_h = 2e \cdot (-1) \cdot w_o \cdot \mathbb{1}[a_h > 0] \cdot x$, where $\mathbb{1}[a_h > 0]$ is $1$ when $a_h > 0$ and $0$ otherwise.
+
+### What autodiff needs to do
+
+To compute any one gradient, such as $\partial\mathcal{L}/\partial w_h$, we need to know two things:
+
+1. Which operations were applied, and in what order.
+2. The derivative of each operation.
+
+So an autodiff system does three jobs:
+
+1. It defines a set of operations.
+2. It defines the derivative of each of those operations.
+3. It keeps track of which operations were applied, in a *computational graph*.
+
+::: {.definition-block}
+**Definition.** A *computational graph* records a computation as a graph. Each node is either an **input** (a *leaf node*, such as $x$, $y$, or a parameter) or the result of one operation applied to earlier nodes. The graph is built as the forward computation runs.
+:::
+
+```{=html}
+<figure style="margin:1.5rem 0;">
+<svg viewBox="0 0 640 720" width="100%" style="max-width:520px; display:block; margin:auto; font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;" role="img" aria-label="Computational graph of the small network, with the path from the loss to w_h highlighted">
+  <text x="320" y="32" font-size="24" font-weight="bold" text-anchor="middle" fill="#002A5C">Computational graph</text>
+  <defs>
+    <marker id="arrPink" markerUnits="userSpaceOnUse" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto"><path d="M0,0 L0,12 L12,6 z" fill="#C75794"/></marker>
+    <marker id="arrGray" markerUnits="userSpaceOnUse" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto"><path d="M0,0 L0,10 L10,5 z" fill="#888"/></marker>
+  </defs>
+  <!-- edges: highlighted path, arrows point in the direction values flow -->
+  <g stroke="#C75794" stroke-width="4" fill="none" marker-end="url(#arrPink)">
+    <line x1="220" y1="164" x2="220" y2="118"/>
+    <line x1="220" y1="244" x2="220" y2="198"/>
+    <line x1="220" y1="324" x2="220" y2="278"/>
+    <line x1="220" y1="404" x2="220" y2="358"/>
+    <line x1="220" y1="484" x2="220" y2="438"/>
+    <line x1="220" y1="564" x2="220" y2="518"/>
+    <line x1="395" y1="626" x2="250" y2="579"/>
+  </g>
+  <!-- edges: other -->
+  <g stroke="#888" stroke-width="2" fill="none" marker-end="url(#arrGray)">
+    <line x1="394" y1="90" x2="250" y2="90"/>
+    <line x1="394" y1="170" x2="250" y2="170"/>
+    <line x1="394" y1="250" x2="250" y2="250"/>
+    <line x1="394" y1="330" x2="250" y2="330"/>
+    <line x1="394" y1="490" x2="250" y2="490"/>
+    <line x1="220" y1="644" x2="220" y2="600"/>
+  </g>
+  <!-- operation nodes (top = loss) -->
+  <g fill="#F2C6DE" stroke="#C75794" stroke-width="2">
+    <circle cx="220" cy="90" r="26"/>
+    <circle cx="220" cy="170" r="26"/>
+  </g>
+  <g fill="#FAEDCB" stroke="#C7A857" stroke-width="2">
+    <circle cx="220" cy="250" r="26"/>
+    <circle cx="220" cy="330" r="26"/>
+    <circle cx="220" cy="490" r="26"/>
+    <circle cx="220" cy="570" r="26"/>
+  </g>
+  <g fill="#C9E4DE" stroke="#57C7AE" stroke-width="2">
+    <circle cx="220" cy="410" r="26"/>
+  </g>
+  <!-- leaf nodes -->
+  <g fill="#C6DEF1" stroke="#5795C7" stroke-width="2">
+    <circle cx="420" cy="90" r="26"/>
+    <circle cx="420" cy="170" r="26"/>
+    <circle cx="220" cy="670" r="26"/>
+  </g>
+  <g fill="#DBCDF0" stroke="#8457C7" stroke-width="2">
+    <circle cx="420" cy="250" r="26"/>
+    <circle cx="420" cy="330" r="26"/>
+    <circle cx="420" cy="490" r="26"/>
+    <circle cx="420" cy="634" r="26"/>
+  </g>
+  <!-- operation glyphs -->
+  <g font-size="18" text-anchor="middle" fill="#333">
+    <text x="220" y="96">pow</text>
+    <text x="220" y="176">−</text>
+    <text x="220" y="256">+</text>
+    <text x="220" y="336">×</text>
+    <text x="220" y="496">+</text>
+    <text x="220" y="576">×</text>
+  </g>
+  <text x="220" y="415" font-size="14" text-anchor="middle" fill="#207965">ReLU</text>
+  <!-- result names, left of each op node -->
+  <g font-size="18" text-anchor="end" fill="#333">
+    <text x="182" y="96">L</text>
+    <text x="182" y="176">e</text>
+    <text x="182" y="256">o</text>
+    <text x="182" y="336">m<tspan dy="5" font-size="14">o</tspan></text>
+    <text x="182" y="416">h</text>
+    <text x="182" y="496">a<tspan dy="5" font-size="14">h</tspan></text>
+    <text x="182" y="576">m<tspan dy="5" font-size="14">h</tspan></text>
+  </g>
+  <!-- leaf names -->
+  <g font-size="18" text-anchor="middle" fill="#333">
+    <text x="420" y="96">2</text>
+    <text x="420" y="176">y</text>
+    <text x="420" y="256">b<tspan dy="5" font-size="14">o</tspan></text>
+    <text x="420" y="336">w<tspan dy="5" font-size="14">o</tspan></text>
+    <text x="420" y="496">b<tspan dy="5" font-size="14">h</tspan></text>
+    <text x="420" y="640">w<tspan dy="5" font-size="14">h</tspan></text>
+    <text x="220" y="676">x</text>
+  </g>
+  <line x1="440" y1="700" x2="480" y2="700" stroke="#C75794" stroke-width="4"/>
+  <text x="490" y="706" font-size="16" fill="#792051">path L to <tspan>w</tspan><tspan dy="5" font-size="14">h</tspan></text>
+</svg>
+<figcaption style="text-align:center; font-size:0.9em; margin-top:0.5rem;">Figure 2. The computational graph of the small network. Arrows show the direction values flow in the forward computation. Operations run up the left column, ending at the loss L. Leaf nodes (inputs and parameters) hang off to the right, and x sits at the bottom. The highlighted path from L to w_h is the one whose local derivatives are multiplied to give the gradient of L with respect to w_h.</figcaption>
+</figure>
+```
+
+To compute $\partial\mathcal{L}/\partial w_h$, find the path in the graph between $\mathcal{L}$ and $w_h$ and multiply the derivatives of the operations along it. That product is exactly the chain-rule product above, so autodiff is backpropagation applied to an arbitrary graph of operations instead of only to a stack of layers. The forward values that some of the derivatives need, such as $x$ or $a_h$, are the intermediate results the graph has already recorded.
+
+Putting the pieces together gives the general procedure:
+
+::: {.algorithm}
+#### Automatic Differentiation
+
+**Define**, once, for a small library of elementary operations (add, multiply, subtract, power, ReLU, and so on):
+
+- **forward:** how to compute the operation's output from its inputs.
+- **backward:** the derivative of the output with respect to each input.
+
+**Given a model** (a composition of these operations):
+
+1. **Forward pass.** Evaluate every operation in order, and record which operations were applied to which inputs. This record is the computational graph.
+2. **Backward pass.** Start from $\partial\mathcal{L}/\partial\mathcal{L} = 1$. Visit the nodes in *reverse* [topological order](https://en.wikipedia.org/wiki/Topological_sorting), meaning each node only after every node that uses it. At each operation node, multiply the node's accumulated gradient by the operation's derivative with respect to each input, and **add** the result to that input's running gradient.
+
+When the sweep finishes, every leaf node holds its gradient. One sweep gives the gradients for all leaves at once.
+:::
+
+The word *add* matters. If a node feeds into more than one later operation, there is more than one path from the loss to it, and the chain rule says to sum the contributions of the paths (the "multiple intermediate variables" case in [Week 2](week02.qmd#sec-backprop)). Adding each contribution into a running total performs that sum without listing the paths. For example, in $m = w \cdot w$ the leaf $w$ is both inputs of one multiplication. If the gradient arriving at $m$ is $g$, the backward rule sends $g\,w$ to each of the two inputs, and adding them gives $2gw$, which matches the derivative of $w^2$.
+
+The course's Homework 3 has you build this machinery yourself. These notes explain the idea, and the implementation is left to the assignment.
+
+## Overfitting {#sec-overfitting}
+
+Suppose training works: the loss on the training set keeps falling. Does that mean the model is getting better? Not necessarily, because the goal is to do well on data the model has not seen.
+
+Recall the [Universal Approximation Theorem](week02.qmd#sec-uat) from Week 2: a sufficiently wide network can fit essentially any function, including simply memorizing a finite training set. So overfitting is a real risk. It is also not specific to neural networks; the same ideas apply to any sufficiently flexible model.
+
+::: {.definition-block}
+**Definition.** A *validation set* is a collection of labeled examples that is held out and never used to update the parameters. The model is *overfit* when its loss on the training set keeps decreasing while its loss on the validation set stops decreasing and starts to increase. See [overfitting](https://en.wikipedia.org/wiki/Overfitting) and [training, validation, and test data sets](https://en.wikipedia.org/wiki/Training,_validation,_and_test_data_sets).
+:::
+
+```{=html}
+<figure style="margin:1.5rem 0;">
+<svg viewBox="0 0 640 360" width="100%" style="max-width:640px; display:block; margin:auto; font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;" role="img" aria-label="Training loss keeps falling while validation loss falls and then rises">
+  <text x="320" y="32" font-size="24" font-weight="bold" text-anchor="middle" fill="#002A5C">Loss during training</text>
+  <line x1="70" y1="310" x2="610" y2="310" stroke="#555" stroke-width="1.5"/>
+  <line x1="70" y1="60" x2="70" y2="310" stroke="#555" stroke-width="1.5"/>
+  <polyline fill="none" stroke="#5795C7" stroke-width="3" points="80.0,86.1 106.0,116.1 132.0,141.5 158.0,163.0 184.0,181.2 210.0,196.6 236.0,209.7 262.0,220.7 288.0,230.1 314.0,238.0 340.0,244.7 366.0,250.3 392.0,255.1 418.0,259.2 444.0,262.6 470.0,265.6 496.0,268.0 522.0,270.1 548.0,271.9 574.0,273.4 600.0,274.6"/>
+  <polyline fill="none" stroke="#C75794" stroke-width="3" points="80.0,97.6 106.0,131.6 132.0,158.0 158.0,178.2 184.0,193.3 210.0,204.1 236.0,211.4 262.0,215.7 288.0,217.4 314.0,216.9 340.0,214.6 366.0,210.6 392.0,205.1 418.0,198.3 444.0,190.3 470.0,181.1 496.0,171.0 522.0,159.8 548.0,147.7 574.0,134.7 600.0,120.9"/>
+  <text x="500" y="298" font-size="18" fill="#205279">train</text>
+  <text x="520" y="112" font-size="18" fill="#792051">validation</text>
+  <text x="340" y="346" font-size="18" text-anchor="middle" fill="#555">iteration</text>
+  <text x="62" y="70" font-size="18" text-anchor="end" fill="#555">loss</text>
+</svg>
+<figcaption style="text-align:center; font-size:0.9em; margin-top:0.5rem;">Figure 3. A sketch of overfitting, following the lecture. Training loss keeps falling, but validation loss reaches a minimum and then rises.</figcaption>
+</figure>
+```
+
+The slides show the same effect in a different picture. A true function generates noisy training points. A flexible enough model can pass through every training point, including the noise, and so its curve between and beyond those points can be far from the true function.
+
+
+```{=html}
+<figure style="margin:1.5rem 0;">
+<svg viewBox="0 0 640 360" width="100%" style="max-width:640px; display:block; margin:auto; font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;" role="img" aria-label="A smooth true function, seven noisy training points, and an overfit model that passes through every point">
+  <text x="320" y="32" font-size="24" font-weight="bold" text-anchor="middle" fill="#002A5C">Fitting a function</text>
+  <line x1="60" y1="330" x2="620" y2="330" stroke="#555" stroke-width="1.5"/>
+  <line x1="60" y1="60" x2="60" y2="330" stroke="#555" stroke-width="1.5"/>
+  <path d="M 80.0,203.6 C 93.7,198.3 133.3,172.0 161.9,161.8 C 190.5,151.7 221.9,142.8 251.9,146.6 C 281.9,150.4 311.9,173.2 341.9,184.6 C 371.9,196.0 401.9,216.3 431.9,215.0 C 461.9,213.8 494.7,187.2 521.9,177.0 C 549.1,166.9 582.7,158.0 594.8,154.2" fill="none" stroke="#888" stroke-width="3" stroke-dasharray="9 6"/>
+  <polyline fill="none" stroke="#e53935" stroke-width="3" stroke-linejoin="round" points="80,204 166,249 207,185 259,229 306,112 349,204 382,173 421,257 454,238 486,145 517,105 567,166 589,191"/>
+  <g fill="#333">
+    <circle cx="80" cy="204" r="6"/><circle cx="207" cy="185" r="6"/><circle cx="306" cy="112" r="6"/><circle cx="382" cy="173" r="6"/><circle cx="454" cy="238" r="6"/><circle cx="517" cy="105" r="6"/><circle cx="567" cy="166" r="6"/>
+  </g>
+  <text x="340" y="354" font-size="16" text-anchor="middle" fill="#555">x</text>
+  <text x="46" y="70" font-size="16" text-anchor="end" fill="#555">y</text>
+  <line x1="84" y1="76" x2="114" y2="76" stroke="#888" stroke-width="3" stroke-dasharray="9 6"/>
+  <text x="122" y="82" font-size="16" fill="#555">true function</text>
+  <circle cx="99" cy="100" r="6" fill="#333"/>
+  <text x="122" y="106" font-size="16" fill="#555">training data</text>
+  <line x1="84" y1="124" x2="114" y2="124" stroke="#e53935" stroke-width="3"/>
+  <text x="122" y="130" font-size="16" fill="#e53935">overfit model</text>
+</svg>
+<figcaption style="text-align:center; font-size:0.9em; margin-top:0.5rem;">Figure 4. The dashed curve is the true function. The dots are noisy samples of it. The red model passes through every training point, and between them it swings far from the true curve.</figcaption>
+</figure>
+```
+
+### Can a linear model overfit?
+
+The slides ask how we can overfit with a linear model, whose shape is so constrained. The setup is a binary classification problem. Each example has an input vector $\bm{x}$ and a label $y \in \{-1, 1\}$, and every entry of the input is a noisy measurement of the label:
+
+$$x_j \sim \mathcal{N}(y, \sigma^2)$$
+
+That is, an entry of $\bm{x}$ is centered on $-1$ when $y = -1$ and on $1$ when $y = 1$, with spread $\sigma$. (This $\sigma$ is the noise level of the data, not the weight standard deviation from the initialization section or the activation function $\sigma$ from Week 2.) We fit a linear model $\hat{y} = \bm{w}^\top\bm{x}$.
+
+```{=html}
+<figure style="margin:1.5rem 0;">
+<svg viewBox="0 0 640 400" width="100%" style="max-width:640px; display:block; margin:auto; font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;" role="img" aria-label="Three features, each shown as a number line with training examples colored by label">
+  <text x="320" y="32" font-size="24" font-weight="bold" text-anchor="middle" fill="#002A5C">One feature per row</text>
+  <!-- row 1 -->
+  <text x="40" y="128" font-size="18" fill="#333">x<tspan dy="5" font-size="14">1</tspan></text>
+  <line x1="100" y1="120" x2="600" y2="120" stroke="#555" stroke-width="1.5"/>
+  <line x1="260" y1="112" x2="260" y2="128" stroke="#555" stroke-width="1.5"/>
+  <line x1="420" y1="112" x2="420" y2="128" stroke="#555" stroke-width="1.5"/>
+  <text x="260" y="150" font-size="16" text-anchor="middle" fill="#555">−1</text>
+  <text x="420" y="150" font-size="16" text-anchor="middle" fill="#555">1</text>
+  <g fill="#C6DEF1" stroke="#5795C7" stroke-width="2">
+    <circle cx="156" cy="120" r="10"/><circle cx="300" cy="120" r="10"/><circle cx="452" cy="120" r="10"/>
+  </g>
+  <g fill="#F7D9C4" stroke="#C78557" stroke-width="2">
+    <circle cx="324" cy="120" r="10"/><circle cx="412" cy="120" r="10"/><circle cx="548" cy="120" r="10"/>
+  </g>
+  <!-- row 2 -->
+  <text x="40" y="238" font-size="18" fill="#333">x<tspan dy="5" font-size="14">2</tspan></text>
+  <line x1="100" y1="230" x2="600" y2="230" stroke="#555" stroke-width="1.5"/>
+  <line x1="260" y1="222" x2="260" y2="238" stroke="#555" stroke-width="1.5"/>
+  <line x1="420" y1="222" x2="420" y2="238" stroke="#555" stroke-width="1.5"/>
+  <text x="260" y="260" font-size="16" text-anchor="middle" fill="#555">−1</text>
+  <text x="420" y="260" font-size="16" text-anchor="middle" fill="#555">1</text>
+  <g fill="#C6DEF1" stroke="#5795C7" stroke-width="2">
+    <circle cx="228" cy="230" r="10"/><circle cx="268" cy="230" r="10"/><circle cx="364" cy="230" r="10"/>
+  </g>
+  <g fill="#F7D9C4" stroke="#C78557" stroke-width="2">
+    <circle cx="340" cy="230" r="10"/><circle cx="388" cy="230" r="10"/><circle cx="532" cy="230" r="10"/>
+  </g>
+  <!-- row 3 -->
+  <text x="40" y="348" font-size="18" fill="#333">x<tspan dy="5" font-size="14">k</tspan></text>
+  <line x1="100" y1="340" x2="600" y2="340" stroke="#555" stroke-width="1.5"/>
+  <line x1="260" y1="332" x2="260" y2="348" stroke="#555" stroke-width="1.5"/>
+  <line x1="420" y1="332" x2="420" y2="348" stroke="#555" stroke-width="1.5"/>
+  <text x="260" y="370" font-size="16" text-anchor="middle" fill="#555">−1</text>
+  <text x="420" y="370" font-size="16" text-anchor="middle" fill="#555">1</text>
+  <g fill="#C6DEF1" stroke="#5795C7" stroke-width="2">
+    <circle cx="180" cy="340" r="10"/><circle cx="212" cy="340" r="10"/><circle cx="300" cy="340" r="10"/>
+  </g>
+  <g fill="#F7D9C4" stroke="#C78557" stroke-width="2">
+    <circle cx="380" cy="340" r="10"/><circle cx="484" cy="340" r="10"/><circle cx="508" cy="340" r="10"/>
+  </g>
+  <!-- legend -->
+  <circle cx="470" cy="76" r="8" fill="#C6DEF1" stroke="#5795C7" stroke-width="2"/>
+  <text x="486" y="82" font-size="16" fill="#333">y = −1</text>
+  <circle cx="548" cy="76" r="8" fill="#F7D9C4" stroke="#C78557" stroke-width="2"/>
+  <text x="564" y="82" font-size="16" fill="#333">y = 1</text>
+</svg>
+<figcaption style="text-align:center; font-size:0.9em; margin-top:0.5rem;">Figure 5. Each row shows one entry of the input vector across six training examples, colored by label. The first two rows mix the classes. In the last row the labels happen to separate cleanly.</figcaption>
+</figure>
+```
+
+Every entry of $\bm{x}$ is an equally noisy signal about $y$, but with a small training set the noise will not look equal across entries. In the first two rows of Figure 5 the classes overlap. In the last row the six labels happen to separate with no mistakes, by chance. A training procedure that only sees this data can give that entry a large weight, because it fits the training labels well. On new data that entry is no more informative than the others, so a model that leans heavily on it does worse than one that spreads its weight across all entries. This is overfitting in a linear model: over-reliance on a feature that happened to look good on the training set.
+
+The same failure mode shows up in deep networks. With many learned features and a limited training set, some learned feature can become accidentally separable, and the model over-invests in it. Both regularizers below act on this over-reliance.
+
+## Regularization {#sec-regularization}
+
+How can we avoid overreliance on a feature? The slides give two answers. This kind of technique is called [regularization](https://en.wikipedia.org/wiki/Regularization_(mathematics)): anything we do to a training procedure to reduce overfitting.
+
+### Weight decay
+
+If large weights are the problem, we can penalize them. Add a term to the loss that grows with the squared length $\lVert \bm{w} \rVert_2^2$ of the weight vector, scaled by a number $\lambda > 0$:
+
+$$\mathcal{L}_\text{new} = \mathcal{L} + \lambda \lVert \bm{w} \rVert_2^2$$
+
+The new loss is the objective we minimize. The value $\lambda$ is a hyperparameter, meaning we choose it and do not learn it ([hyperparameter](https://en.wikipedia.org/wiki/Hyperparameter_(machine_learning))). The gradient of the penalty is $2\lambda\bm{w}$, so one step of gradient descent with learning rate $\eta$ becomes:
+
+$$\bm{w} - \eta\,\nabla_{\bm{w}}\!\left(\mathcal{L} + \lambda \lVert \bm{w} \rVert_2^2\right) = (1 - 2\eta\lambda)\,\bm{w} - \eta\,\nabla_{\bm{w}}\mathcal{L}$$
+
+::: {.definition-block}
+**Definition.** *Weight decay* is the update above. Before applying the usual gradient step, each weight is multiplied by the factor $(1 - 2\eta\lambda)$, which is slightly less than $1$, so the weights shrink toward $0$ a little at every step. It is the gradient descent form of adding $\lambda\lVert\bm{w}\rVert_2^2$ to the loss, a penalty also known as [Tikhonov regularization](https://en.wikipedia.org/wiki/Tikhonov_regularization) or an $\ell_2$ penalty ([weight decay](https://en.wikipedia.org/wiki/Weight_decay)).
+:::
+
+A weight only stays large if the loss gradient keeps pushing it there, so a feature that helped on the training set by chance is held back.
+
+For a weight matrix $W$, the same penalty uses the squared [Frobenius norm](https://en.wikipedia.org/wiki/Matrix_norm), $\lVert W \rVert_F^2 = \sum_{i,j} W_{ij}^2$, the sum of the squares of all its entries, and the update has the same form with $W$ in place of $\bm{w}$.
+
+### Dropout
+
+A different approach is to make sure no single feature can be relied on, by sometimes removing it. During training, each feature is independently *dropped out* at random ([dropout](https://en.wikipedia.org/wiki/Dropout_(neural_networks))). With a probability $p$ (a hyperparameter) it is set to $0$, and otherwise it is scaled up:
+
+$$x_i' = \begin{cases} 0 & \text{with probability } p \\[2pt] \dfrac{x_i}{1 - p} & \text{with probability } 1 - p \end{cases}$$
+
+The scaling by $1/(1-p)$ keeps the average value of the feature unchanged, because $\mathbb{E}[x_i'] = p \cdot 0 + (1-p)\cdot\dfrac{x_i}{1-p} = x_i$. Since the training-time input has the same expectation as the original, we do nothing special at test time: **during testing, we just use $x_i$** with no dropping and no rescaling.
+
+Because a feature is missing on a random fraction of steps, the model cannot put all its weight on one of them. In practice dropout is applied not only to input features but also to the activations inside a network. Weight decay and dropout are the two regularizers you will reach for most often in deep learning.
+
+## Summary {#sec-summary}
+
+::: {.callout-note}
+**Key takeaways from Week 3:**
+
+- **Notation.** Pre-activation is $a^m$ and activation is $h^m$, as in Week 2. The handwritten slides call them $z^m$ and $a^m$. The backprop recursion is unchanged.
+- **Sigmoid plus cross-entropy.** The output-layer gradient simplifies to $h^L - y$, because the sigmoid slope cancels the denominator of the cross-entropy derivative.
+- **Cost.** A training step (forward plus backward) costs roughly three forward passes, about $3|\theta|$ per example.
+- **Vanishing and exploding gradients.** The backward recursion repeats a matrix multiply and a nonlinearity derivative at every layer. The sigmoid derivative is at most $1/4$, so gradients tend to shrink. ReLU's derivative is exactly $0$ or $1$, and whether the matrix term explodes or vanishes depends on the weights.
+- **Initialization.** All-zero or all-equal weights fail, so we sample randomly with a careful scale. For a linear layer with unit-variance inputs and $\mathcal{N}(0,\sigma^2)$ weights, the output variance is $n_\text{in}\sigma^2$. Averaging the forward and backward requirements gives Xavier/Glorot initialization, $\sigma = \sqrt{2/(n_\text{in} + n_\text{out})}$. He initialization, $\sqrt{2/n_\text{in}}$, is the ReLU variant.
+- **Autodiff.** A system defines operations and their derivatives and records the operations in a computational graph. A gradient is the product of local derivatives along a path from the loss to a parameter. The backward pass visits nodes in reverse topological order and adds each contribution into a running gradient, which sums over paths.
+- **Overfitting.** Training loss keeps falling while validation loss rises. Overfitting is not specific to neural networks, and even a linear model can overfit by over-relying on a feature that looked good by chance.
+- **Regularization.** Weight decay multiplies the weights by $(1 - 2\eta\lambda)$ each step. Dropout zeroes each feature with probability $p$ and rescales the rest by $1/(1-p)$.
+:::
+
+**Next week:** optimization. Gradient descent in more depth, and the adaptive, momentum-based variants used to train real networks in practice (Week 4).
+
+## Quick self-check
+
+If you can explain, in your own words and using only "pre-activation," "vanishing gradient," "variance," "computational graph," "validation loss," and "weight decay," why deeper sigmoid networks are hard to train and why a model can fit its training set well and still fail on new data, you have understood the core of Week 3.

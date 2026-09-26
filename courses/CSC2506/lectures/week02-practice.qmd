@@ -1,0 +1,176 @@
+---
+title: "Week 2 practice: Decision theory and graphical models"
+---
+
+```{=html}
+<style>#title-block-header { display: none; }</style>
+<div class="lecture-header">
+  <h1>Week 2 practice: Decision theory and graphical models</h1>
+</div>
+```
+
+**Overview.** These problems drill [Week 2](week02.qmd). Try each stem before opening the worked solution. The loss matrices, distributions, and graphs here are invented for practice; they are not the cancer-screening, regression, or Bayes-Ball examples from the lecture. Notation matches the week chapter.
+
+## Problem 1: Two ways to be wrong {#prb-1}
+
+A helpdesk routes each incoming ticket either to an [autoresponder](https://en.wikipedia.org/wiki/Automated_information_system) (for routine questions) or to a human agent (for anything else). Two people disagree about how to design the router:
+
+- **Person A** wants to minimize the fraction of tickets sent to the wrong handler.
+- **Person B** points out that sending a genuinely urgent ticket to the autoresponder is much worse than sending a routine ticket to a human (wasted agent time, but no harm done), and wants the router to reflect that.
+
+Which objective from the lecture, misclassification rate or expected loss, matches each person's goal? Could the two objectives ever recommend the same decision rule?
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+This uses [Week 2, From inference to decision](week02.qmd#sec-decision) and [Misclassification rate](week02.qmd#sec-misclass).
+
+Person A wants to minimize $p(\text{mistake})$, the plain count of wrong handler assignments from @sec-misclass: every error counts as one, regardless of which direction it runs. Person B wants a **loss function** ([Week 2, Expected loss](week02.qmd#sec-loss)): a loss matrix that charges more for "urgent ticket sent to autoresponder" than for "routine ticket sent to a human," and then minimizes the resulting expected loss.
+
+The two objectives can agree. Misclassification rate is the special case of expected loss where the loss matrix has 0 on the diagonal and 1 everywhere off it, so if Person B's matrix happened to be symmetric with equal off-diagonal costs, the discriminant rule would reduce to Person A's rule exactly. They diverge only once the loss matrix is asymmetric, which is what Person B is actually asking for.
+
+**Answer.** Person A: misclassification rate. Person B: expected loss with an asymmetric loss matrix. The two agree exactly when the loss matrix is the symmetric 0/1 matrix; a loss matrix is a strict generalization, not a different framework.
+:::
+
+## Problem 2: Inspecting a batch of widgets {#prb-2}
+
+A factory's inspection station decides whether a widget is defective ($\mathcal{C}_1$) or good ($\mathcal{C}_2$). Passing a defective widget into a shipment costs 50 (recalls, refunds); scrapping a good widget costs 5 (wasted material). Correct calls cost 0.
+
+For one widget, the classifier's estimated posteriors are $p(\mathcal{C}_1 \mid x) = 0.15$ and $p(\mathcal{C}_2 \mid x) = 0.85$.
+
+1. Write the $2\times 2$ loss matrix (rows: truth, columns: decision).
+2. Compute the discriminant rule's two candidate costs and state its decision.
+3. Compare this to what the misclassification-rate rule (from Problem 1's Person A) would decide.
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+This uses [Week 2, Expected loss](week02.qmd#sec-loss) and [The discriminant rule](week02.qmd#sec-discriminant).
+
+**1. Loss matrix.** $L_{\text{defective},\text{scrap}} = 0$, $L_{\text{defective},\text{ship}} = 50$, $L_{\text{good},\text{scrap}} = 5$, $L_{\text{good},\text{ship}} = 0$.
+
+**2. Discriminant rule.** The rule assigns $x$ to the decision $j$ minimizing $\sum_k L_{kj}\,p(\mathcal{C}_k\mid x)$:
+
+$$\text{cost(ship)} = L_{\text{defective},\text{ship}}(0.15) + L_{\text{good},\text{ship}}(0.85) = 50(0.15) + 0(0.85) = 7.5,$$
+$$\text{cost(scrap)} = L_{\text{defective},\text{scrap}}(0.15) + L_{\text{good},\text{scrap}}(0.85) = 0(0.15) + 5(0.85) = 4.25.$$
+
+Scrapping is cheaper, so the discriminant rule decides **scrap**, even though the widget is more likely good ($0.85 > 0.15$) than defective.
+
+**3. Comparison.** The plain misclassification-rate rule from @sec-misclass only compares posteriors and would decide **ship**, since $p(\mathcal{C}_2\mid x)=0.85$ is the larger posterior. The rules disagree because the loss matrix charges 10 times more for shipping a defective widget than for scrapping a good one, so even a fairly low probability of defect is still worth acting on, exactly the same asymmetry that moved the lecture's cancer-screening boundary.
+
+**Answer.** Loss matrix as above; discriminant rule decides **scrap** (cost 4.25 vs. 7.5); the misclassification-rate rule would have decided **ship**.
+:::
+
+## Problem 3: A different conditional distribution {#prb-3}
+
+Fix an input $x$. Given that $x$, a continuous target $t$ takes the values $1$, $3$, and $14$, each with probability $\tfrac13$.
+
+Compute $\mathbb{E}[t\mid x]$. Then compare the expected squared loss of the predictor $y(x) = 8$ against $y(x) = \mathbb{E}[t\mid x]$, and confirm which one the lecture's theorem says must be smaller.
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+This uses [Week 2, Loss functions for regression](week02.qmd#sec-regression).
+
+Conditional mean: $\mathbb{E}[t\mid x] = \tfrac13(1+3+14) = 6$.
+
+For $y(x) = 8$:
+$$\mathbb{E}[L] = \tfrac13\big[(8-1)^2+(8-3)^2+(8-14)^2\big] = \tfrac13(49+25+36) = \tfrac{110}{3} \approx 36.67.$$
+
+For $y(x) = \mathbb{E}[t\mid x] = 6$:
+$$\mathbb{E}[L] = \tfrac13\big[(6-1)^2+(6-3)^2+(6-14)^2\big] = \tfrac13(25+9+64) = \tfrac{98}{3} \approx 32.67.$$
+
+The conditional mean gives the smaller expected loss, matching [the theorem](week02.qmd#sec-regression): $y(x) = \mathbb{E}[t\mid x]$ minimizes squared loss for *any* competing choice, not only $y(x)=8$. The decomposition behind this splits $\mathbb{E}[L]$ into a piece that depends on $y(x)$ (driven to zero exactly at the conditional mean) and a piece that does not (the irreducible noise), so no other constant can do better.
+
+**Answer.** $\mathbb{E}[t\mid x] = 6$. Expected loss at $y=8$ is $110/3 \approx 36.67$; at $y=6$ it is $98/3 \approx 32.67$, confirming the conditional mean wins.
+:::
+
+## Problem 4: Counting parameters for five variables {#prb-4}
+
+Take $N=5$ binary variables $x_1,\dots,x_5$. Using the chain rule in the order $x_1,\dots,x_5$ with no assumptions, how many parameters does the factorization need?
+
+Now suppose we are willing to assume $x_5$ depends only on $x_2$ and $x_4$ (not on $x_1$ or $x_3$), while every other factor stays as general as before. How many parameters does the factorization need now, and how many were saved?
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+This uses [Week 2, Free parameters and the cost of the full joint](week02.qmd#sec-freeparams) and [Why factor the joint](week02.qmd#sec-factoring).
+
+With no assumptions, the chain rule gives $p(x_1)p(x_2\mid x_1)p(x_3\mid x_1,x_2)p(x_4\mid x_1,x_2,x_3)p(x_5\mid x_1,x_2,x_3,x_4)$. Each factor $p(x_j\mid x_1,\dots,x_{j-1})$ needs $2^{j-1}$ parameters, so the totals are $1,2,4,8,16$ for $j=1,\dots,5$, summing to $1+2+4+8+16=31$, matching $2^5-1=31$ exactly.
+
+Replacing the last factor with $p(x_5\mid x_2,x_4)$ shrinks its table from $2^4=16$ parameters (one per configuration of four parents) to $2^2=4$ (one per configuration of two parents). The new total is $1+2+4+8+4 = 19$.
+
+Savings: $31-19=12$ parameters, all from dropping $x_5$'s dependence on $x_1$ and $x_3$. This is the same pattern as the lecture's $N=4$ example: dropping dependence on conditioning variables shrinks that one factor's table exponentially, and the saving compounds because that factor was the largest one in the sum.
+
+**Answer.** No assumptions: 31 parameters. With $x_5\mid x_2,x_4$: 19 parameters. Savings: 12.
+:::
+
+## Problem 5: CPT sizes for an invented graph {#prb-5}
+
+Consider a DAG on five binary nodes $y_1,\dots,y_5$ with edges $y_1 \to y_2$, $y_1 \to y_3$, $y_2 \to y_4$, $y_3 \to y_4$, $y_4 \to y_5$ (so $y_4$ has two parents, $y_2$ and $y_3$).
+
+For each node, state its parent count $K_i$ and its CPT size $2^{K_i}$. Sum these to get the total number of parameters, and compare to the $2^5-1$ a fully-connected DAG on five nodes would need.
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+This uses [Week 2, Directed graphical models](week02.qmd#sec-dag).
+
+Read the parent count off the incoming edges at each node:
+
+- $y_1$: no parents, $K=0$, CPT size $2^0=1$.
+- $y_2$: one parent ($y_1$), $K=1$, CPT size $2^1=2$.
+- $y_3$: one parent ($y_1$), $K=1$, CPT size $2$.
+- $y_4$: two parents ($y_2,y_3$), $K=2$, CPT size $2^2=4$.
+- $y_5$: one parent ($y_4$), $K=1$, CPT size $2$.
+
+Total: $1+2+2+4+2 = 11$ parameters, against $2^5-1=31$ for the fully-connected case on five nodes. The saving comes from every node having at most two parents instead of depending on every node before it; $y_4$'s CPT is the largest single piece because it is the only node with two parents.
+
+**Answer.** $K = (0,1,1,2,1)$, CPT sizes $(1,2,2,4,2)$, total $11$ parameters, versus $31$ fully connected.
+:::
+
+## Problem 6: Chain, common cause, or collider? {#prb-6}
+
+Three sensors on a machine: a **temperature reading** ($X$), an **internal wear level** ($Y$), and a **vibration reading** ($Z$). Consider this causal story: high internal wear ($Y$) tends to raise both the temperature reading ($X$) and the vibration reading ($Z$), but the temperature and vibration sensors do not affect each other directly: $X \leftarrow Y \rightarrow Z$.
+
+Which of the lecture's three canonical structures is this? Are $X$ and $Z$ independent before observing $Y$? What happens once $Y$ (the wear level) is observed?
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+This uses [Week 2, Conditional independence: three canonical structures](week02.qmd#sec-cistructures).
+
+This is the **common cause** structure, $X \leftarrow Y \rightarrow Z$, with wear level $Y$ as the shared cause of both readings.
+
+Marginally (before observing $Y$), $X$ and $Z$ are dependent: a high temperature reading is evidence of high wear, which in turn makes a high vibration reading more likely, so the two readings move together even though neither sensor affects the other. This is the same "two effects of a shared cause are correlated" pattern as the lecture's deadline example.
+
+Once $Y$ is observed, the joint factors as $p(y)p(x\mid y)p(z\mid y)$, so $p(x,z\mid y) = p(x\mid y)p(z\mid y)$: conditioning on the wear level uses up the shared explanation, and $X \perp Z \mid Y$. Knowing the wear level directly, the temperature reading tells us nothing more about the vibration reading.
+
+**Answer.** Common cause. $X$ and $Z$ are marginally dependent, and become conditionally independent given $Y$: $X \perp Z \mid Y$.
+:::
+
+## Problem 7: Bayes Ball on a small graph {#prb-7}
+
+Consider a DAG with edges $p \to q$, $r \to q$, $q \to s$, $r \to t$ (so $q$ is a collider with parents $p$ and $r$, and $r$ also has a second child $t$).
+
+1. Is $p \perp r \mid \emptyset$ (no conditioning set)?
+2. Is $p \perp r \mid \{s\}$?
+3. Is $p \perp t \mid \{r\}$?
+
+For each, name the only path between the two nodes, identify the junction type(s) on it, and apply the Bayes Ball rules.
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+This uses [Week 2, The Bayes Ball algorithm](week02.qmd#sec-bayesball).
+
+**1. $p \perp r \mid \emptyset$.** The only path between $p$ and $r$ is $p \to q \leftarrow r$. Here $q$ is a **collider**. With $C=\emptyset$, neither $q$ nor any descendant of $q$ (that is, $s$) is in $C$, so the collider is **blocked**. The one path is blocked, so $p \perp r \mid \emptyset$.
+
+**2. $p \perp r \mid \{s\}$.** Same path, $p \to q \leftarrow r$, same collider $q$. Now $C=\{s\}$, and $s$ is a descendant of the collider $q$ (via $q \to s$), so the collider is **open**: shading a descendant of a collider opens it, exactly the explaining-away rule. The path is active, so $p \not\perp r \mid \{s\}$. Conditioning on $s$, which is not even on the direct route between $p$ and $r$, is what creates the dependency, the same pattern as the lecture's $c$-shaded example.
+
+**3. $p \perp t \mid \{r\}$.** The only path between $p$ and $t$ is $p \to q \leftarrow r \to t$. There are two junctions: $q$ is a collider (parents $p,r$), and $r$ is a **fork** on this path (edges $r\to q$ and $r\to t$ both point out of $r$). With $C=\{r\}$: at the fork $r$, $r$ is shaded, so the fork is **blocked**. That already blocks the whole path regardless of $q$ (checking anyway: at the collider $q$, neither $q$ nor its descendant $s$ is in $C=\{r\}$, so $q$ is also blocked). So $p \perp t \mid \{r\}$.
+
+**Answer.** (1) $p\perp r\mid\emptyset$: yes. (2) $p\perp r\mid\{s\}$: no. (3) $p\perp t\mid\{r\}$: yes.
+:::
+
+## Problem 8: Why does Naive Bayes save so many parameters? {#prb-8}
+
+A grocer wants to classify fruit as ripe ($C=1$) or unripe ($C=0$) from three binary features: color ($X_1$: red/green), softness ($X_2$: soft/firm), and smell ($X_3$: fragrant/faint). A Naive Bayes model assumes $X_1, X_2, X_3$ are conditionally independent given the ripeness label $C$.
+
+Without computing any specific numbers, explain: (a) which of the lecture's three canonical structures this independence assumption corresponds to, and why; (b) in general terms, why the assumption shrinks the parameter count from exponential in the number of features to linear in the number of features. (The exact MLE formulas for $\hat\pi$ and $\hat\theta_{jc}$ are left to work through with real counts on your own data; this problem is about the structural reason for the saving, not the computed values.)
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+This uses [Week 2, Naive Bayes as a graphical model](week02.qmd#sec-naivebayes) and [Directed graphical models](week02.qmd#sec-dag).
+
+**(a) Which structure.** The assumption $X_i \perp X_j \mid C$ for every feature pair is the **common-cause** structure repeated across every pair of features, with the ripeness label $C$ playing the role of the shared cause. Each feature is an effect of $C$ (color, softness, and smell are all downstream of whether the fruit is actually ripe), and once $C$ is known, no feature carries extra information about any other feature. This is exactly the deadline example and Problem 6's sensor example, generalized from one shared cause and two effects to one shared cause and $d$ effects.
+
+**(b) Why the parameter count shrinks.** Without any independence assumption, the DAG on $C, X_1, X_2, X_3$ is fully connected in the chain-rule order $C,X_1,X_2,X_3$: the $i$-th feature's CPT conditions on $C$ and every feature before it, so its table size doubles with each additional feature, giving a total that grows as $2^{d+1}-1$ in the number of features $d$ (@sec-freeparams, @sec-factoring). Removing every edge between features and keeping only the edges from $C$ means each feature's CPT now conditions on $C$ alone, a table of fixed size regardless of how many other features exist. Summing a fixed-size table once per feature gives a total that grows linearly in $d$ instead of exponentially. The structural reason is the same one from @sec-dag: restricting how many parents a node can have is what buys the saving, and Naive Bayes pushes every feature's parent set down to just $\{C\}$, the most aggressive restriction available short of assuming no dependence on $C$ at all.
+
+**Answer.** (a) Common cause, with $C$ as the shared parent of every feature. (b) Fully connected costs grow exponentially in the number of features because each new feature's CPT can condition on every earlier feature; capping every feature's parent set at $\{C\}$ makes each CPT a fixed size, so the total grows linearly instead.
+:::

@@ -1,0 +1,1367 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.10.18">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+<meta name="description" content="Backprop revisited with a worked sigmoid example, why gradients vanish or explode, how to initialize weights, automatic differentiation, and how overfitting is fought with weight decay and dropout.">
+
+<title>Week 3: Initialization, Autodiff, Overfitting &amp; Regularization – Neural Networks and Deep Learning</title>
+<style>
+/* Default styles provided by pandoc.
+** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
+*/
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: 1.5em;}
+div.column{flex: auto;}
+@media screen {
+div.columns{gap: min(4vw, 1.5em);}
+div.column{overflow-x: auto;}
+}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+</style>
+
+
+<script src="../site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="../site_libs/quarto-nav/headroom.min.js"></script>
+<script src="../site_libs/clipboard/clipboard.min.js"></script>
+<script src="../site_libs/quarto-search/autocomplete.umd.js"></script>
+<script src="../site_libs/quarto-search/fuse.min.js"></script>
+<script src="../site_libs/quarto-search/quarto-search.js"></script>
+<meta name="quarto:offset" content="../">
+<link href="../glossary.html" rel="next">
+<link href="../lectures/week02.html" rel="prev">
+<script src="../site_libs/quarto-html/quarto.js" type="module"></script>
+<script src="../site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
+<script src="../site_libs/quarto-html/popper.min.js"></script>
+<script src="../site_libs/quarto-html/tippy.umd.min.js"></script>
+<script src="../site_libs/quarto-html/anchor.min.js"></script>
+<link href="../site_libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="../site_libs/quarto-html/quarto-syntax-highlighting-bb62276ab45c84d9efd712f51ff97b5a.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<script src="../site_libs/bootstrap/bootstrap.min.js"></script>
+<link href="../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="../site_libs/bootstrap/bootstrap-ce0958bf53307a1b0bb60f85d87db72f.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
+<script id="quarto-search-options" type="application/json">{
+  "location": "sidebar",
+  "copy-button": false,
+  "collapse-after": 3,
+  "panel-placement": "start",
+  "type": "textbox",
+  "limit": 50,
+  "keyboard-shortcut": [
+    "f",
+    "/",
+    "s"
+  ],
+  "show-item-context": false,
+  "language": {
+    "search-no-results-text": "No results",
+    "search-matching-documents-text": "matching documents",
+    "search-copy-link-title": "Copy link to search",
+    "search-hide-matches-text": "Hide additional matches",
+    "search-more-match-text": "more match in this document",
+    "search-more-matches-text": "more matches in this document",
+    "search-clear-button-title": "Clear",
+    "search-text-placeholder": "",
+    "search-detached-cancel-button-title": "Cancel",
+    "search-submit-button-title": "Submit",
+    "search-label": "Search"
+  }
+}</script>
+<style>html{ scroll-behavior: smooth; }</style>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+<link href="https://fonts.googleapis.com/css2?family=Source+Code+Pro:wght@400;600&amp;family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&amp;display=swap" rel="stylesheet">
+
+  <script>window.backupDefine = window.define; window.define = undefined;</script><script src="https://cdn.jsdelivr.net/npm/katex@latest/dist/katex.min.js"></script>
+  <script>document.addEventListener("DOMContentLoaded", function () {
+ var mathElements = document.getElementsByClassName("math");
+ var macros = [];
+ for (var i = 0; i < mathElements.length; i++) {
+  var texText = mathElements[i].firstChild;
+  if (mathElements[i].tagName == "SPAN") {
+   katex.render(texText.data, mathElements[i], {
+    displayMode: mathElements[i].classList.contains('display'),
+    throwOnError: false,
+    macros: macros,
+    fleqn: false
+   });
+}}});
+  </script>
+  <script>window.define = window.backupDefine; window.backupDefine = undefined;</script><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@latest/dist/katex.min.css">
+
+<script type="text/javascript">
+const typesetMath = (el) => {
+  if (window.MathJax) {
+    // MathJax Typeset
+    window.MathJax.typeset([el]);
+  } else if (window.katex) {
+    // KaTeX Render
+    var mathElements = el.getElementsByClassName("math");
+    var macros = [];
+    for (var i = 0; i < mathElements.length; i++) {
+      var texText = mathElements[i].firstChild;
+      if (mathElements[i].tagName == "SPAN" && texText && texText.data) {
+        window.katex.render(texText.data, mathElements[i], {
+          displayMode: mathElements[i].classList.contains('display'),
+          throwOnError: false,
+          macros: macros,
+          fleqn: false
+        });
+      }
+    }
+  }
+}
+window.Quarto = {
+  typesetMath
+};
+</script>
+
+<link rel="stylesheet" href="../styles/custom.css">
+</head>
+
+<body class="nav-sidebar floating quarto-light">
+
+<div id="quarto-search-results"></div>
+  <header id="quarto-header" class="headroom fixed-top">
+  <nav class="quarto-secondary-nav">
+    <div class="container-fluid d-flex">
+      <button type="button" class="quarto-btn-toggle btn" data-bs-toggle="collapse" role="button" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+        <i class="bi bi-layout-text-sidebar-reverse"></i>
+      </button>
+        <nav class="quarto-page-breadcrumbs" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../lectures/week03.html"><span class="chapter-title">Week 3: Initialization, Autodiff, Overfitting &amp; Regularization</span></a></li></ol></nav>
+        <a class="flex-grow-1" role="navigation" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">      
+        </a>
+      <button type="button" class="btn quarto-search-button" aria-label="Search" onclick="window.quartoOpenSearch();">
+        <i class="bi bi-search"></i>
+      </button>
+    </div>
+  </nav>
+</header>
+<!-- content -->
+<div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-article">
+<!-- sidebar -->
+  <nav id="quarto-sidebar" class="sidebar collapse collapse-horizontal quarto-sidebar-collapse-item sidebar-navigation floating overflow-auto">
+    <div class="pt-lg-2 mt-2 text-left sidebar-header">
+    <div class="sidebar-title mb-0 py-0">
+      <a href="../">Neural Networks and Deep Learning</a> 
+    </div>
+      </div>
+        <div class="mt-2 flex-shrink-0 align-items-center">
+        <div class="sidebar-search">
+        <div id="quarto-search" class="" title="Search"></div>
+        </div>
+        </div>
+    <div class="sidebar-menu-container"> 
+    <ul class="list-unstyled mt-1">
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../index.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">CSC413/2516 Neural Networks and Deep Learning</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../lectures/week01.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Week 1: Introduction, Linear &amp; Logistic Regression</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../lectures/week02.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Week 2: Multi-Layer Perceptrons &amp; Backpropagation</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../lectures/week03.html" class="sidebar-item-text sidebar-link active"><span class="chapter-title">Week 3: Initialization, Autodiff, Overfitting &amp; Regularization</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../glossary.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Glossary</span></a>
+  </div>
+</li>
+    </ul>
+    </div>
+</nav>
+<div id="quarto-sidebar-glass" class="quarto-sidebar-collapse-item" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item"></div>
+<!-- margin-sidebar -->
+    <div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
+        <nav id="TOC" role="doc-toc" class="toc-active">
+    <h2 id="toc-title">On this page</h2>
+   
+  <ul>
+  <li><a href="#sec-backprop-revisited" id="toc-sec-backprop-revisited" class="nav-link active" data-scroll-target="#sec-backprop-revisited">Backprop Revisited</a>
+  <ul class="collapse">
+  <li><a href="#sec-cost" id="toc-sec-cost" class="nav-link" data-scroll-target="#sec-cost">The cost of backpropagation</a></li>
+  <li><a href="#worked-example-sigmoid-units-with-cross-entropy-loss" id="toc-worked-example-sigmoid-units-with-cross-entropy-loss" class="nav-link" data-scroll-target="#worked-example-sigmoid-units-with-cross-entropy-loss">Worked example: sigmoid units with cross-entropy loss</a></li>
+  </ul></li>
+  <li><a href="#sec-vanishing" id="toc-sec-vanishing" class="nav-link" data-scroll-target="#sec-vanishing">Vanishing and Exploding Gradients</a></li>
+  <li><a href="#sec-init" id="toc-sec-init" class="nav-link" data-scroll-target="#sec-init">Parameter Initialization</a>
+  <ul class="collapse">
+  <li><a href="#two-bad-ideas" id="toc-two-bad-ideas" class="nav-link" data-scroll-target="#two-bad-ideas">Two bad ideas</a></li>
+  <li><a href="#a-variance-refresher" id="toc-a-variance-refresher" class="nav-link" data-scroll-target="#a-variance-refresher">A variance refresher</a></li>
+  <li><a href="#variance-of-one-linear-layer" id="toc-variance-of-one-linear-layer" class="nav-link" data-scroll-target="#variance-of-one-linear-layer">Variance of one linear layer</a></li>
+  <li><a href="#choosing-sigma" id="toc-choosing-sigma" class="nav-link" data-scroll-target="#choosing-sigma">Choosing sigma</a></li>
+  </ul></li>
+  <li><a href="#sec-autodiff" id="toc-sec-autodiff" class="nav-link" data-scroll-target="#sec-autodiff">Automatic Differentiation</a>
+  <ul class="collapse">
+  <li><a href="#a-small-running-example" id="toc-a-small-running-example" class="nav-link" data-scroll-target="#a-small-running-example">A small running example</a></li>
+  <li><a href="#break-the-computation-into-single-operations" id="toc-break-the-computation-into-single-operations" class="nav-link" data-scroll-target="#break-the-computation-into-single-operations">Break the computation into single operations</a></li>
+  <li><a href="#what-autodiff-needs-to-do" id="toc-what-autodiff-needs-to-do" class="nav-link" data-scroll-target="#what-autodiff-needs-to-do">What autodiff needs to do</a></li>
+  </ul></li>
+  <li><a href="#sec-overfitting" id="toc-sec-overfitting" class="nav-link" data-scroll-target="#sec-overfitting">Overfitting</a>
+  <ul class="collapse">
+  <li><a href="#can-a-linear-model-overfit" id="toc-can-a-linear-model-overfit" class="nav-link" data-scroll-target="#can-a-linear-model-overfit">Can a linear model overfit?</a></li>
+  </ul></li>
+  <li><a href="#sec-regularization" id="toc-sec-regularization" class="nav-link" data-scroll-target="#sec-regularization">Regularization</a>
+  <ul class="collapse">
+  <li><a href="#weight-decay" id="toc-weight-decay" class="nav-link" data-scroll-target="#weight-decay">Weight decay</a></li>
+  <li><a href="#dropout" id="toc-dropout" class="nav-link" data-scroll-target="#dropout">Dropout</a></li>
+  </ul></li>
+  <li><a href="#sec-summary" id="toc-sec-summary" class="nav-link" data-scroll-target="#sec-summary">Summary</a></li>
+  <li><a href="#quick-self-check" id="toc-quick-self-check" class="nav-link" data-scroll-target="#quick-self-check">Quick self-check</a></li>
+  </ul>
+</nav>
+    </div>
+<!-- main -->
+<main class="content" id="quarto-document-content">
+
+<header id="title-block-header" class="quarto-title-block default">
+<div class="quarto-title">
+<h1 class="title"><span class="chapter-title">Week 3: Initialization, Autodiff, Overfitting &amp; Regularization</span></h1>
+</div>
+
+
+
+<div class="quarto-title-meta">
+
+    
+  
+    
+  </div>
+  
+
+
+</header>
+
+
+<style>#title-block-header { display: none; }</style>
+<div class="lecture-header">
+  <h1>Week 3: Initialization, Autodiff, Overfitting &amp; Regularization</h1>
+</div>
+<p><strong>Overview.</strong> Week 2 gave us the multi-layer perceptron and the backpropagation algorithm. This week asks what can go wrong when we actually train one, and what tools make training practical. We first restate backpropagation in Week 2’s notation and work one example end to end. That example shows why gradients can shrink or blow up as they travel backward, which motivates choosing the initial weights carefully. We then see how a program can apply the chain rule for us (automatic differentiation). Finally we turn from optimization to generalization: a model that fits its training data too well can do worse on new data, and two simple techniques, weight decay and dropout, push against that.</p>
+<section id="sec-backprop-revisited" class="level2">
+<h2 class="anchored" data-anchor-id="sec-backprop-revisited">Backprop Revisited</h2>
+<p>Week 2 already derived backpropagation. Here we restate it and use it in a worked example, keeping Week 2’s letters for the two quantities every layer computes.</p>
+<div class="callout callout-style-default callout-warning callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+Warning
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p><strong>Notation.</strong> These notes write the <em>pre-activation</em> of layer <span class="math inline">m</span> as <span class="math inline">a^m</span> and the <em>activation</em> as <span class="math inline">h^m</span>, the same letters as <a href="../lectures/week02.html#sec-backprop">Week 2</a>. The handwritten slides for this lecture use <span class="math inline">z^m</span> for the pre-activation and <span class="math inline">a^m</span> for the activation, so a reader comparing the two should translate <span class="math inline">z \to a</span> and <span class="math inline">a \to h</span>.</p>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th>Object</th>
+<th>These notes (and Week 2)</th>
+<th>Handwritten slides</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>Pre-activation, <span class="math inline">W^m h^{m-1} + b^m</span></td>
+<td><span class="math inline">a^m</span></td>
+<td><span class="math inline">z^m</span></td>
+</tr>
+<tr class="even">
+<td>Activation, <span class="math inline">\sigma(\text{pre-activation})</span></td>
+<td><span class="math inline">h^m</span></td>
+<td><span class="math inline">a^m</span></td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<p>With this notation the forward pass is <span class="math inline">a^m = W^m h^{m-1} + b^m</span> and <span class="math inline">h^m = \sigma^m(a^m)</span>, where <span class="math inline">h^0</span> is the input <span class="math inline">\bm{x}</span> and <span class="math inline">L</span> is the last layer. Backpropagation (<a href="https://en.wikipedia.org/wiki/Backpropagation">Backpropagation</a>) then has three steps.</p>
+<div class="boxed-eq">
+<p><span class="math display">\frac{\partial \mathcal{L}}{\partial a^L} = \frac{\partial \mathcal{L}}{\partial h^L}\,\frac{\partial h^L}{\partial a^L}</span></p>
+</div>
+<p>This step starts at the output layer: the loss depends on <span class="math inline">a^L</span> only through <span class="math inline">h^L</span>.</p>
+<div class="boxed-eq">
+<p><span class="math display">\begin{aligned}
+\frac{\partial \mathcal{L}}{\partial a^m} &amp;= \left({W^{m+1}}^\top \frac{\partial \mathcal{L}}{\partial a^{m+1}}\right) \odot \frac{\partial h^m}{\partial a^m}, \\
+&amp;\qquad m = L-1, \ldots, 1
+\end{aligned}</span></p>
+</div>
+<p>Here <span class="math inline">\odot</span> is the <a href="https://en.wikipedia.org/wiki/Hadamard_product_(matrices)">Hadamard product</a>, entry-by-entry multiplication. The gradient at layer <span class="math inline">m</span> is built in two moves. First we multiply the gradient at layer <span class="math inline">m+1</span> by <span class="math inline">{W^{m+1}}^\top</span>, the transpose of the weight matrix that carried layer <span class="math inline">m</span> into layer <span class="math inline">m+1</span>. Entry <span class="math inline">k</span> of the result is <span class="math inline">\sum_\ell W^{m+1}_{\ell k}\,\partial\mathcal{L}/\partial a^{m+1}_\ell</span>, so each unit in layer <span class="math inline">m</span> collects the gradients of the units it fed, each weighted by the connection weight it used. We say the gradient is sent <em>backward along the same connections</em> that carried the activations forward. Second, we scale each entry by the local slope of the nonlinearity.</p>
+<div class="boxed-eq">
+<p><span class="math display">\frac{\partial \mathcal{L}}{\partial W^m} = \frac{\partial \mathcal{L}}{\partial a^m}\,{h^{m-1}}^\top</span></p>
+</div>
+<p>Once we know <span class="math inline">\partial\mathcal{L}/\partial a^m</span>, the weight gradient is its outer product with the previous layer’s activations.</p>
+<section id="sec-cost" class="level3">
+<h3 class="anchored" data-anchor-id="sec-cost">The cost of backpropagation</h3>
+<p>How expensive is one training step? Suppose the model is a stack of matrix multiplies and element-wise nonlinearities, and let <span class="math inline">|\theta|</span> be the total number of parameters (all weights and biases). A matrix multiply does one multiply-add per entry of the weight matrix, and a weight matrix has far more entries than its layer has units. The matrix multiplies therefore dominate the cost, and the nonlinearities add comparatively little. For a single example, the forward pass costs roughly <span class="math inline">|\theta|</span> multiply-adds.</p>
+<p>The backward pass has two parts, and each costs about as much as the forward pass:</p>
+<ul>
+<li><strong>The recursion</strong> multiplies by <span class="math inline">{W^{m+1}}^\top</span> at every layer. That is a matrix–vector product with the same number of entries as the forward multiply.</li>
+<li><strong>The weight gradients</strong> are outer products. Each produces an object as large as <span class="math inline">W^m</span> itself.</li>
+</ul>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 33%">
+<col style="width: 33%">
+<col style="width: 33%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Pass</th>
+<th>What it computes</th>
+<th>Approximate cost</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>Forward</td>
+<td><span class="math inline">a^m</span> and <span class="math inline">h^m</span> for all <span class="math inline">m</span></td>
+<td><span class="math inline">|\theta|</span></td>
+</tr>
+<tr class="even">
+<td>Backward: recursion</td>
+<td><span class="math inline">\partial\mathcal{L}/\partial a^m</span> for all <span class="math inline">m</span></td>
+<td><span class="math inline">|\theta|</span></td>
+</tr>
+<tr class="odd">
+<td>Backward: weight gradients</td>
+<td><span class="math inline">\partial\mathcal{L}/\partial W^m</span> for all <span class="math inline">m</span></td>
+<td><span class="math inline">|\theta|</span></td>
+</tr>
+</tbody>
+</table>
+<div class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+Note
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p><strong>Rule of thumb.</strong> One training step (forward plus backward) costs roughly <strong>three</strong> forward passes, about <span class="math inline">3|\theta|</span> multiply-adds per example. This is why training compute is often estimated directly from the parameter count.</p>
+</div>
+</div>
+</section>
+<section id="worked-example-sigmoid-units-with-cross-entropy-loss" class="level3">
+<h3 class="anchored" data-anchor-id="worked-example-sigmoid-units-with-cross-entropy-loss">Worked example: sigmoid units with cross-entropy loss</h3>
+<p>Take a network for binary classification where every layer, including the output layer, uses the <a href="https://en.wikipedia.org/wiki/Sigmoid_function">sigmoid function</a>:</p>
+<p><span class="math display">h^m = \operatorname{sigmoid}(a^m) = \frac{1}{1 + \exp(-a^m)} \qquad \text{for all } m, \text{ including } m = L</span></p>
+<p>The label is <span class="math inline">y \in \{0, 1\}</span>, and the loss is the <a href="https://en.wikipedia.org/wiki/Cross-entropy">cross-entropy</a> from <a href="../lectures/week01.html">Week 1</a>, written here for a single output:</p>
+<p><span class="math display">\mathcal{L}(\bm{x}, h^L) = (y - 1)\log(1 - h^L) - y \log(h^L)</span></p>
+<p><strong>Output layer.</strong> The two factors in the first step are the derivative of the cross-entropy and the derivative of the sigmoid. The sigmoid’s derivative can be written using its own output, <span class="math inline">\partial h^L / \partial a^L = h^L(1 - h^L)</span>. Then:</p>
+<p><span class="math display">\frac{\partial \mathcal{L}}{\partial a^L} = \frac{h^L - y}{h^L(1 - h^L)} \cdot h^L(1 - h^L) = h^L - y</span></p>
+<p>The denominator of the cross-entropy derivative cancels exactly against the sigmoid derivative, leaving the prediction minus the label. This is the same “<span class="math inline">\hat{\bm{y}} - \bm{y}</span>” form we saw for softmax and cross-entropy in Week 1.</p>
+<p><strong>One layer back.</strong> Apply the recursion with <span class="math inline">m = L-1</span>. The local slope is again the sigmoid derivative, now evaluated at layer <span class="math inline">L-1</span>:</p>
+<p><span class="math display">\frac{\partial \mathcal{L}}{\partial a^{L-1}} = \left({W^{L}}^\top (h^L - y)\right) \odot h^{L-1}\left(1 - h^{L-1}\right)</span></p>
+<p><strong>Weight gradient.</strong> The gradient for the weights of layer <span class="math inline">L-1</span> multiplies this by the activations of layer <span class="math inline">L-2</span>:</p>
+<p><span class="math display">\frac{\partial \mathcal{L}}{\partial W^{L-1}} = \left({W^{L}}^\top (h^L - y)\right) \odot h^{L-1}\left(1 - h^{L-1}\right)\, {h^{L-2}}^\top</span></p>
+<p>Reading the result from left to right, the error <span class="math inline">h^L - y</span> is multiplied by <span class="math inline">{W^L}^\top</span>, which sends it backward along the connections into layer <span class="math inline">L-1</span>, and then each entry is multiplied by a sigmoid slope factor <span class="math inline">h^{L-1}(1 - h^{L-1})</span>. Every additional layer we go back adds one more such pair of factors. That repeated pattern is the subject of the next section.</p>
+<div class="clarification callout callout-style-default callout-tip callout-titled" title="Question: What does one more layer back look like, with actual numbers?">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-3-contents" aria-controls="callout-3" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Question: What does one more layer back look like, with actual numbers?
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-3" class="callout-3-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>Apply the recursion once more, with <span class="math inline">m = L-2</span>. The gradient at layer <span class="math inline">L-1</span> is multiplied by <span class="math inline">{W^{L-1}}^\top</span>, which sends it backward along the connections into layer <span class="math inline">L-2</span>, and each entry is then scaled by the sigmoid slope of layer <span class="math inline">L-2</span>:</p>
+<p><span class="math display">\frac{\partial \mathcal{L}}{\partial a^{L-2}} = \left({W^{L-1}}^\top \frac{\partial \mathcal{L}}{\partial a^{L-1}}\right) \odot h^{L-2}\left(1 - h^{L-2}\right)</span></p>
+<p>Substituting the previous line shows the pile-up. The result contains two matrix factors and two slope factors, in the order they were met going backward:</p>
+<p><span class="math display">\begin{aligned}
+\frac{\partial \mathcal{L}}{\partial a^{L-2}} &amp;= \left({W^{L-1}}^\top \left[\left({W^{L}}^\top (h^L - y)\right) \right.\right. \\
+&amp;\qquad \left.\left. \odot\, h^{L-1}(1 - h^{L-1})\right]\right) \odot h^{L-2}(1 - h^{L-2})
+\end{aligned}</span></p>
+<p>To see how fast this shrinks, use the smallest possible network: one unit per layer, so every quantity is a single number, with every weight equal to <span class="math inline">1</span>. Suppose each unit sits at <span class="math inline">a = 0</span>, so every activation is <span class="math inline">h = 1/2</span> and every sigmoid slope is <span class="math inline">h(1 - h) = 1/4</span>. Take <span class="math inline">y = 1</span>. Then the output error is <span class="math inline">h^L - y = 1/2 - 1 = -1/2</span>. Multiplying by a weight of <span class="math inline">1</span> leaves a number unchanged, so each step back only multiplies by the slope <span class="math inline">1/4</span>:</p>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th>Layer</th>
+<th><span class="math inline">\partial\mathcal{L}/\partial a</span></th>
+<th>How it was obtained</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><span class="math inline">L</span></td>
+<td><span class="math inline">-0.5</span></td>
+<td><span class="math inline">h^L - y</span></td>
+</tr>
+<tr class="even">
+<td><span class="math inline">L-1</span></td>
+<td><span class="math inline">-0.125</span></td>
+<td><span class="math inline">1 \cdot (-0.5) \cdot 0.25</span></td>
+</tr>
+<tr class="odd">
+<td><span class="math inline">L-2</span></td>
+<td><span class="math inline">-0.03125</span></td>
+<td><span class="math inline">1 \cdot (-0.125) \cdot 0.25</span></td>
+</tr>
+<tr class="even">
+<td><span class="math inline">L-3</span></td>
+<td><span class="math inline">-0.0078125</span></td>
+<td><span class="math inline">1 \cdot (-0.03125) \cdot 0.25</span></td>
+</tr>
+</tbody>
+</table>
+<p>Each layer back divides the signal by <span class="math inline">4</span>, so after three layers it is <span class="math inline">1/64</span> of its size at the output. This is the best case for the sigmoid, since <span class="math inline">1/4</span> is the largest slope it can have, and it assumed weights of <span class="math inline">1</span> that neither shrink nor grow the signal. Since no larger slope is available, only the weights could offset the shrinkage, which is why the initialization section below focuses on them.</p>
+</div>
+</div>
+</div>
+</section>
+</section>
+<section id="sec-vanishing" class="level2">
+<h2 class="anchored" data-anchor-id="sec-vanishing">Vanishing and Exploding Gradients</h2>
+<p>How do the gradients of early layers behave in a deep network? Look again at the recursion:</p>
+<p><span class="math display">\frac{\partial \mathcal{L}}{\partial a^m} = \left({W^{m+1}}^\top \frac{\partial \mathcal{L}}{\partial a^{m+1}}\right) \odot \frac{\partial h^m}{\partial a^m}</span></p>
+<p>Going back one layer applies two operations, and each is repeated at every layer:</p>
+<ul>
+<li><strong>Repeated matrix multiplies.</strong> The factor <span class="math inline">{W^{m+1}}^\top</span> appears once per layer. Multiplying a vector by many matrices can shrink it toward zero or grow it without bound, depending on the size of the weights.</li>
+<li><strong>Repeated nonlinearity derivatives.</strong> The factor <span class="math inline">\partial h^m / \partial a^m</span> also appears once per layer.</li>
+</ul>
+<div class="clarification callout callout-style-default callout-tip callout-titled" title="Question: Why can multiplying by weight matrices again and again make the gradient explode or vanish?">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-4-contents" aria-controls="callout-4" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Question: Why can multiplying by weight matrices again and again make the gradient explode or vanish?
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-4" class="callout-4-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>Start with one number. Multiplying by <span class="math inline">2</span> three times turns <span class="math inline">1</span> into <span class="math inline">8</span>, and multiplying by <span class="math inline">1/2</span> three times turns <span class="math inline">1</span> into <span class="math inline">1/8</span>. A matrix behaves the same way along special directions. An <a href="https://en.wikipedia.org/wiki/Eigenvalues_and_eigenvectors">eigenvector</a> of a matrix <span class="math inline">M</span> is a direction <span class="math inline">\bm{v}</span> that <span class="math inline">M</span> only stretches or shrinks, <span class="math inline">M\bm{v} = \lambda\bm{v}</span>, and the number <span class="math inline">\lambda</span> is its eigenvalue. Applying <span class="math inline">M</span> a total of <span class="math inline">k</span> times to <span class="math inline">\bm{v}</span> gives <span class="math inline">\lambda^k \bm{v}</span>, which grows when <span class="math inline">|\lambda| &gt; 1</span> and shrinks when <span class="math inline">|\lambda| &lt; 1</span>.</p>
+<p>For example, let <span class="math inline">M</span> stretch the first coordinate by <span class="math inline">2</span> and shrink the second by <span class="math inline">1/2</span>. Applying it three times to <span class="math inline">(1, 1)^\top</span> gives</p>
+<p><span class="math display">\begin{pmatrix} 2 &amp; 0 \\ 0 &amp; 1/2 \end{pmatrix}^{3} \begin{pmatrix} 1 \\ 1 \end{pmatrix} = \begin{pmatrix} 8 \\ 1/8 \end{pmatrix}</span></p>
+<p>The first entry exploded and the second vanished.</p>
+<p>In the backward recursion the matrix is different at every layer, so no single eigenvalue decides the outcome. What matters is how much each matrix tends to stretch or shrink the vectors passing through it. If they tend to stretch, gradients explode. If they tend to shrink, gradients vanish. These matrices are the weights themselves, so their scale is something we control through how we initialize them.</p>
+</div>
+</div>
+</div>
+<p>For the sigmoid, this second factor is at most <span class="math inline">1/4</span>. The sigmoid equals <span class="math inline">1/2</span> at <span class="math inline">a = 0</span> and flattens toward <span class="math inline">0</span> and <span class="math inline">1</span> on either side, so its slope is largest at <span class="math inline">0</span>, where it equals <span class="math inline">1/4</span>, and falls toward <span class="math inline">0</span> for large <span class="math inline">|a|</span>.</p>
+<figure style="margin:1.5rem 0;" class="figure">
+<svg viewbox="0 0 760 340" width="100%" style="max-width:760px; display:block; margin:auto; font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;" role="img" aria-label="The sigmoid function and its derivative on the same vertical scale">
+  <text x="200" y="32" font-size="24" font-weight="bold" text-anchor="middle" fill="#002A5C">sigmoid(x)</text>
+  <text x="580" y="32" font-size="24" font-weight="bold" text-anchor="middle" fill="#002A5C">slope of sigmoid(x)</text>
+  <!-- left panel axes -->
+  <line x1="40" y1="300" x2="360" y2="300" stroke="#555" stroke-width="1.5"></line>
+  <line x1="200" y1="70" x2="200" y2="300" stroke="#555" stroke-width="1.5"></line>
+  <line x1="40" y1="70" x2="360" y2="70" stroke="#888" stroke-width="1" stroke-dasharray="4 4"></line>
+  <polyline fill="none" stroke="#8457C7" stroke-width="3" points="40.0,299.4 46.6,299.3 53.3,299.1 60.0,298.8 66.6,298.5 73.3,298.0 80.0,297.5 86.7,296.8 93.3,295.9 100.0,294.7 106.7,293.3 113.3,291.4 120.0,289.1 126.7,286.2 133.3,282.6 140.0,278.1 146.7,272.6 153.3,265.9 160.0,258.0 166.7,248.8 173.3,238.1 180.0,226.2 186.7,213.2 193.3,199.3 200.0,185.0 206.7,170.7 213.3,156.8 220.0,143.8 226.7,131.9 233.3,121.2 240.0,112.0 246.7,104.1 253.3,97.4 260.0,91.9 266.7,87.4 273.3,83.8 280.0,80.9 286.7,78.6 293.3,76.7 300.0,75.3 306.7,74.1 313.3,73.2 320.0,72.5 326.7,72.0 333.4,71.5 340.0,71.2 346.7,70.9 353.4,70.7 360.0,70.6"></polyline>
+  <circle cx="200" cy="185" r="5" fill="#C75794"></circle>
+  <text x="214" y="200" font-size="16" fill="#792051">1/2 at x = 0</text>
+  <text x="46" y="62" font-size="16" fill="#555">1</text>
+  <!-- right panel axes -->
+  <line x1="420" y1="300" x2="740" y2="300" stroke="#555" stroke-width="1.5"></line>
+  <line x1="580" y1="70" x2="580" y2="300" stroke="#555" stroke-width="1.5"></line>
+  <line x1="420" y1="70" x2="740" y2="70" stroke="#888" stroke-width="1" stroke-dasharray="4 4"></line>
+  <polyline fill="none" stroke="#8457C7" stroke-width="3" points="420.0,299.4 426.6,299.3 433.3,299.1 440.0,298.8 446.6,298.5 453.3,298.0 460.0,297.5 466.7,296.8 473.3,295.9 480.0,294.8 486.7,293.5 493.3,291.7 500.0,289.6 506.7,287.0 513.3,283.9 520.0,280.2 526.7,275.9 533.3,271.0 540.0,265.7 546.7,260.2 553.3,254.8 560.0,249.9 566.7,245.9 573.3,243.4 580.0,242.5 586.7,243.4 593.3,245.9 600.0,249.9 606.7,254.8 613.3,260.2 620.0,265.7 626.7,271.0 633.3,275.9 640.0,280.2 646.7,283.9 653.3,287.0 660.0,289.6 666.7,291.7 673.3,293.5 680.0,294.8 686.7,295.9 693.3,296.8 700.0,297.5 706.7,298.0 713.4,298.5 720.0,298.8 726.7,299.1 733.4,299.3 740.0,299.4"></polyline>
+  <circle cx="580" cy="242.5" r="5" fill="#C75794"></circle>
+  <text x="598" y="232" font-size="16" fill="#792051">1/4 at x = 0</text>
+  <text x="426" y="62" font-size="16" fill="#555">1</text>
+</svg>
+<figcaption style="text-align:center; font-size:0.9em; margin-top:0.5rem;">Figure 1. Both panels share the same vertical scale (dashed line at 1). The sigmoid rises from 0 to 1. Its slope never exceeds 1/4, and it is close to 0 whenever the input is far from 0.</figcaption>
+</figure>
+<div class="definition-block">
+<p><strong>Definition.</strong> <em>Vanishing gradients</em> occur when the gradient shrinks toward <span class="math inline">0</span> as it is propagated backward, so that early layers receive almost no learning signal. <em>Exploding gradients</em> occur when it grows toward <span class="math inline">\infty</span> instead. See <a href="https://en.wikipedia.org/wiki/Vanishing_gradient_problem">the vanishing gradient problem</a>.</p>
+</div>
+<p>Both come from the same recursion. If the repeated factors are typically smaller than <span class="math inline">1</span> in size, the gradient decays layer by layer; if they are typically larger, it grows. In a sigmoid network the slope factor alone contributes at most <span class="math inline">1/4</span> per layer, which is why Week 2 already flagged vanishing gradients for sigmoid.</p>
+<div class="callout callout-style-default callout-warning callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+Warning
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p><strong>Why sigmoid is rarely used as a hidden activation.</strong> The <a href="https://en.wikipedia.org/wiki/Rectifier_(neural_networks)">ReLU</a> activation from Week 2, <span class="math inline">\operatorname{ReLU}(a) = \max(0, a)</span>, has a derivative that is exactly <span class="math inline">0</span> or exactly <span class="math inline">1</span>. Where it is <span class="math inline">1</span>, multiplying by it over and over neither shrinks nor grows the gradient. This is one reason ReLU made much deeper networks practical to train.</p>
+</div>
+</div>
+<p>The slope factor is fixed once we choose the activation function. The weight factor is not: it is set by how we choose the weight matrices <em>before training even starts</em>. That is the next topic.</p>
+</section>
+<section id="sec-init" class="level2">
+<h2 class="anchored" data-anchor-id="sec-init">Parameter Initialization</h2>
+<p>Before training starts, every weight needs a value. The slides use the word <em>initialize</em> to mean something specific: choose a probability distribution and sample the initial weights from it. If we want to avoid vanishing and exploding gradients, the choice of that distribution matters, and the variance of the weights is the natural knob.</p>
+<div class="definition-block">
+<p><strong>Definition.</strong> <em>Parameter initialization</em> is the choice of the distribution from which the initial values of the model’s weights are sampled before training begins.</p>
+</div>
+<section id="two-bad-ideas" class="level3">
+<h3 class="anchored" data-anchor-id="two-bad-ideas">Two bad ideas</h3>
+<p>Why not start with every weight equal to <span class="math inline">0</span>? Then <span class="math inline">W\bm{x} = \bm{0}</span> for every input, so each layer’s output stops depending on the input at all (ignoring the bias). Training cannot easily fix this either. The backward recursion multiplies by <span class="math inline">{W^{m+1}}^\top = 0</span>, so at initialization every layer below the output receives exactly zero gradient, and even after updates begin, the units within a layer stay identical to each other.</p>
+<div class="clarification callout callout-style-default callout-tip callout-titled" title="Question: What does starting from all zeros look like, with actual numbers?">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-6-contents" aria-controls="callout-6" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Question: What does starting from all zeros look like, with actual numbers?
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-6" class="callout-6-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>Take the smallest network that shows both effects: input <span class="math inline">\bm{x} = (1, 2)^\top</span>, a hidden layer of two sigmoid units, and one output unit with no nonlinearity, so <span class="math inline">h^2 = a^2</span>. The loss is <span class="math inline">\mathcal{L} = \tfrac{1}{2}(h^2 - y)^2</span> with target <span class="math inline">y = 1</span>, and the learning rate is <span class="math inline">\eta = 0.1</span>. Every weight and bias starts at <span class="math inline">0</span>.</p>
+<p><strong>Step 1, forward.</strong> The hidden pre-activations are <span class="math inline">a^1 = W^1\bm{x} + b^1 = (0, 0)^\top</span>. The sigmoid of <span class="math inline">0</span> is <span class="math inline">1/2</span>, so <span class="math inline">h^1 = (0.5, 0.5)^\top</span>. The output is <span class="math inline">a^2 = W^2 h^1 + b^2 = 0</span>, so <span class="math inline">h^2 = 0</span>.</p>
+<p><strong>Step 1, backward.</strong> At the output, <span class="math inline">\partial\mathcal{L}/\partial a^2 = h^2 - y = -1</span>. The output weights get a real gradient, because they multiply the nonzero activations <span class="math inline">h^1</span>:</p>
+<p><span class="math display">\frac{\partial \mathcal{L}}{\partial W^2} = (-1)\,(0.5,\; 0.5) = (-0.5,\; -0.5), \qquad \frac{\partial \mathcal{L}}{\partial b^2} = -1</span></p>
+<p>The hidden layer gets nothing, because the recursion multiplies by <span class="math inline">{W^2}^\top = (0, 0)^\top</span>. The sigmoid slope at <span class="math inline">0</span> is <span class="math inline">1/4</span>, but a slope times zero is still zero:</p>
+<p><span class="math display">\frac{\partial \mathcal{L}}{\partial a^1} = \left({W^2}^\top(-1)\right) \odot \tfrac{1}{4} = \begin{pmatrix} 0 \\ 0 \end{pmatrix}</span></p>
+<p>Since the weight gradient is <span class="math inline">\partial\mathcal{L}/\partial a^1</span> times <span class="math inline">\bm{x}^\top</span>, it is zero too:</p>
+<p><span class="math display">\frac{\partial \mathcal{L}}{\partial W^1} = \begin{pmatrix} 0 &amp; 0 \\ 0 &amp; 0 \end{pmatrix}</span></p>
+<p><strong>Step 1, update.</strong> Only the output layer moves: <span class="math inline">W^2 = (0.05,\; 0.05)</span> and <span class="math inline">b^2 = 0.1</span>. The hidden weights <span class="math inline">W^1</span> and biases <span class="math inline">b^1</span> are still all <span class="math inline">0</span>.</p>
+<p><strong>Step 2.</strong> The hidden layer is unchanged, so <span class="math inline">h^1 = (0.5, 0.5)^\top</span> again, and the output is now <span class="math inline">a^2 = 0.05 \cdot 0.5 + 0.05 \cdot 0.5 + 0.1 = 0.15</span>. Then <span class="math inline">\partial\mathcal{L}/\partial a^2 = 0.15 - 1 = -0.85</span>, and the hidden layer finally receives a nonzero gradient, because <span class="math inline">W^2</span> is no longer zero:</p>
+<p><span class="math display">\begin{aligned}
+\frac{\partial \mathcal{L}}{\partial a^1} &amp;= \begin{pmatrix} 0.05 \\ 0.05 \end{pmatrix}(-0.85) \odot \tfrac{1}{4} \\
+&amp;= \begin{pmatrix} -0.010625 \\ -0.010625 \end{pmatrix}
+\end{aligned}</span></p>
+<p>Both hidden units receive the same number. The weight gradient multiplies this by <span class="math inline">\bm{x}^\top = (1, 2)</span>, so both rows of <span class="math inline">\partial\mathcal{L}/\partial W^1</span> equal <span class="math inline">(-0.010625,\; -0.02125)</span>, and the update gives</p>
+<p><span class="math display">W^1 = \begin{pmatrix} 0.0010625 &amp; 0.002125 \\ 0.0010625 &amp; 0.002125 \end{pmatrix}</span></p>
+<p>The two rows, and the two entries of <span class="math inline">b^1</span>, are identical. Two units with identical weights and biases compute identical outputs, so they receive identical gradients on every later step and stay identical forever. The hidden layer of two units behaves as a hidden layer of one, which is the wasted capacity described above.</p>
+<p>The specific numbers here are our own, invented for illustration, not from the lecture or a homework. In this sigmoid network the zero hidden gradient lasts only one step. The identical-units problem does not go away.</p>
+</div>
+</div>
+</div>
+<p>Why not give every weight the same nonzero constant, say <span class="math inline">1</span>? Then every row of <span class="math inline">W</span> computes the same dot product with the input, so every hidden unit computes the same function. We waste nearly all of the layer’s capacity on redundant copies. We need initial values that are <strong>random</strong> but <strong>carefully scaled</strong>, and the scale is what the next subsections work out.</p>
+</section>
+<section id="a-variance-refresher" class="level3">
+<h3 class="anchored" data-anchor-id="a-variance-refresher">A variance refresher</h3>
+<p>The derivation below uses three facts about a random variable <span class="math inline">X</span>. The <a href="https://en.wikipedia.org/wiki/Variance">variance</a> is <span class="math inline">\operatorname{Var}[X] = \mathbb{E}[X^2] - (\mathbb{E}[X])^2</span>, which reduces to <span class="math inline">\mathbb{E}[X^2]</span> when <span class="math inline">\mathbb{E}[X] = 0</span>. The <a href="https://en.wikipedia.org/wiki/Normal_distribution">normal distribution</a> <span class="math inline">\mathcal{N}(0, s^2)</span> has mean <span class="math inline">0</span> and variance <span class="math inline">s^2</span>. For <a href="https://en.wikipedia.org/wiki/Independence_(probability_theory)">independent</a> variables, the expectation of a product is the product of expectations, <span class="math inline">\mathbb{E}[XY] = \mathbb{E}[X]\,\mathbb{E}[Y]</span>.</p>
+</section>
+<section id="variance-of-one-linear-layer" class="level3">
+<h3 class="anchored" data-anchor-id="variance-of-one-linear-layer">Variance of one linear layer</h3>
+<p>Consider a single linear layer with no nonlinearity, mapping an input <span class="math inline">\bm{x} \in \mathbb{R}^{n_\text{in}}</span> to an output <span class="math inline">\bm{h} \in \mathbb{R}^{n_\text{out}}</span>:</p>
+<p><span class="math display">\bm{h} = W\bm{x}, \qquad h_i = \sum_{j=1}^{n_\text{in}} W_{ij}\, x_j</span></p>
+<p>The slides make three assumptions: there is no nonlinearity, each input entry satisfies <span class="math inline">x_j \sim \mathcal{N}(0, 1)</span>, and each weight satisfies <span class="math inline">W_{ij} \sim \mathcal{N}(0, \sigma^2)</span>, all independent. The question is what <span class="math inline">\sigma</span> to use.</p>
+<p>Because every <span class="math inline">W_{ij}</span> and <span class="math inline">x_j</span> has mean <span class="math inline">0</span> and they are independent, <span class="math inline">\mathbb{E}[h_i] = 0</span>. So the variance of <span class="math inline">h_i</span> is just <span class="math inline">\mathbb{E}[h_i^2]</span>. Expanding the square of the sum produces cross terms of the form <span class="math inline">W_{ij}x_j W_{ik}x_k</span> with <span class="math inline">j \neq k</span>; each has expectation <span class="math inline">0</span> by independence and zero mean, so only the squared terms remain:</p>
+<p><span class="math display">\operatorname{Var}[h_i] = \mathbb{E}[h_i^2] = \sum_{j=1}^{n_\text{in}} \mathbb{E}[W_{ij}^2\, x_j^2]</span></p>
+<p>Independence splits each expectation, and <span class="math inline">\mathbb{E}[W_{ij}^2] = \sigma^2</span> and <span class="math inline">\mathbb{E}[x_j^2] = 1</span>:</p>
+<p><span class="math display">\operatorname{Var}[h_i] = \sum_{j=1}^{n_\text{in}} \mathbb{E}[W_{ij}^2]\,\mathbb{E}[x_j^2] = n_\text{in}\,\sigma^2</span></p>
+<p>The output has variance <span class="math inline">n_\text{in}\sigma^2</span> while the input has variance <span class="math inline">1</span>, so the layer multiplies the variance by <span class="math inline">n_\text{in}\sigma^2</span>. Stack many layers and this factor is applied repeatedly: if it is above <span class="math inline">1</span> activations grow with depth, if below <span class="math inline">1</span> they shrink.</p>
+</section>
+<section id="choosing-sigma" class="level3">
+<h3 class="anchored" data-anchor-id="choosing-sigma">Choosing sigma</h3>
+<p><strong>Forward pass.</strong> To keep the variance of the activations near <span class="math inline">1</span>, we want <span class="math inline">n_\text{in}\,\sigma^2 = 1</span>.</p>
+<p><strong>Backward pass.</strong> In the backward pass the roles of input and output swap, because the gradient is multiplied by <span class="math inline">W^\top</span> and each entry of the result is a sum over <span class="math inline">n_\text{out}</span> terms. The slides therefore state the analogous requirement <span class="math inline">n_\text{out}\,\sigma^2 = 1</span> (the lecture gives this by analogy and does not repeat the derivation).</p>
+<p>Unless <span class="math inline">n_\text{in} = n_\text{out}</span> the two requirements disagree. The slides settle on a compromise, averaging them:</p>
+<p><span class="math display">\frac{n_\text{in}\,\sigma^2 + n_\text{out}\,\sigma^2}{2} = 1 \quad\Longrightarrow\quad \sigma = \sqrt{\frac{2}{n_\text{in} + n_\text{out}}}</span></p>
+<div class="boxed-eq">
+<p><span class="math display">W_{ij} \sim \mathcal{N}\!\left(0,\; \frac{2}{n_\text{in} + n_\text{out}}\right)</span></p>
+</div>
+<p>This is called <em>Xavier</em> or <em>Glorot</em> initialization (see <a href="https://en.wikipedia.org/wiki/Weight_initialization">weight initialization</a>). It keeps the layer’s variance factor near <span class="math inline">1</span> in both directions when the layer widths differ, without being exact for either. The derivation also assumed no nonlinearity, so for a network with activation functions it is a starting heuristic and not a guarantee.</p>
+<div class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+Note
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p><strong>He initialization.</strong> If we instead assume a ReLU activation, the same style of derivation gives a slightly different scale, <span class="math inline">\sigma = \sqrt{2/n_\text{in}}</span>, called <em>He initialization</em>. The lecture states this result without the derivation. One intuition, which is ours and not from the slides: for zero-mean, symmetric pre-activations, ReLU sets roughly half of them to <span class="math inline">0</span>, which halves the average squared activation, and the extra factor of <span class="math inline">2</span> compensates. Most deep learning frameworks default to one of Xavier or He initialization. Homework 3 assumes ReLU, so the He scale is the relevant one there; the specific calculation is left to the assignment.</p>
+</div>
+</div>
+</section>
+</section>
+<section id="sec-autodiff" class="level2">
+<h2 class="anchored" data-anchor-id="sec-autodiff">Automatic Differentiation</h2>
+<p>Backpropagation for an MLP took a page of matrix calculus. Can a program produce gradients for any model we write, without us deriving them by hand? The answer is yes, and the tool is called <em>automatic differentiation</em>, or <em>autodiff</em> (in PyTorch, <em>autograd</em>). See <a href="https://en.wikipedia.org/wiki/Automatic_differentiation">automatic differentiation</a>.</p>
+<section id="a-small-running-example" class="level3">
+<h3 class="anchored" data-anchor-id="a-small-running-example">A small running example</h3>
+<p>The slides use a tiny network with one hidden unit. We treat every quantity as a single number, so that the chain of operations is easy to see:</p>
+<p><span class="math display">h = \operatorname{ReLU}(w_h x + b_h), \qquad o = w_o h + b_o, \qquad \mathcal{L} = (y - o)^2</span></p>
+<p>Here <span class="math inline">\operatorname{ReLU}(a) = \max(0, a)</span> as in Week 2. The parameters are <span class="math inline">w_h, b_h, w_o, b_o</span>, and we want the four gradients <span class="math inline">\partial\mathcal{L}/\partial w_o</span>, <span class="math inline">\partial\mathcal{L}/\partial b_o</span>, <span class="math inline">\partial\mathcal{L}/\partial w_h</span>, and <span class="math inline">\partial\mathcal{L}/\partial b_h</span>. Here <span class="math inline">h</span> is the single hidden unit’s output, the one-number version of the activation <span class="math inline">h^m</span> above, and <span class="math inline">o</span> is the network output.</p>
+</section>
+<section id="break-the-computation-into-single-operations" class="level3">
+<h3 class="anchored" data-anchor-id="break-the-computation-into-single-operations">Break the computation into single operations</h3>
+<p>We can always use the chain rule. To make that mechanical, first rewrite the forward computation as a sequence of single simple operations, giving each intermediate result a name:</p>
+<p><span class="math display">\begin{aligned}
+m_h &amp;= w_h x, &amp; a_h &amp;= m_h + b_h, &amp; h &amp;= \operatorname{ReLU}(a_h), \\
+m_o &amp;= w_o h, &amp; o &amp;= m_o + b_o, &amp; e &amp;= y - o, \\
+\mathcal{L} &amp;= e^2
+\end{aligned}</span></p>
+<p>Then the gradient with respect to <span class="math inline">w_h</span> is a product of one derivative per operation on the path from <span class="math inline">\mathcal{L}</span> back to <span class="math inline">w_h</span>:</p>
+<p><span class="math display">\begin{aligned}
+\frac{\partial \mathcal{L}}{\partial w_h} &amp;= \frac{\partial \mathcal{L}}{\partial e}\,\frac{\partial e}{\partial o}\,\frac{\partial o}{\partial m_o} \\
+&amp;\quad \cdot \frac{\partial m_o}{\partial h}\,\frac{\partial h}{\partial a_h} \\
+&amp;\quad \cdot \frac{\partial a_h}{\partial m_h}\,\frac{\partial m_h}{\partial w_h}
+\end{aligned}</span></p>
+<p>Each factor is the derivative of one elementary operation, and each is simple:</p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 50%">
+<col style="width: 50%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Operation</th>
+<th>Derivative used</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><span class="math inline">\mathcal{L} = e^2</span></td>
+<td><span class="math inline">\partial\mathcal{L}/\partial e = 2e</span></td>
+</tr>
+<tr class="even">
+<td><span class="math inline">e = y - o</span></td>
+<td><span class="math inline">\partial e/\partial o = -1</span></td>
+</tr>
+<tr class="odd">
+<td><span class="math inline">o = m_o + b_o</span></td>
+<td><span class="math inline">\partial o/\partial m_o = 1</span></td>
+</tr>
+<tr class="even">
+<td><span class="math inline">m_o = w_o h</span></td>
+<td><span class="math inline">\partial m_o/\partial h = w_o</span></td>
+</tr>
+<tr class="odd">
+<td><span class="math inline">h = \operatorname{ReLU}(a_h)</span></td>
+<td><span class="math inline">\partial h/\partial a_h = 1</span> if <span class="math inline">a_h &gt; 0</span>, else <span class="math inline">0</span></td>
+</tr>
+<tr class="even">
+<td><span class="math inline">a_h = m_h + b_h</span></td>
+<td><span class="math inline">\partial a_h/\partial m_h = 1</span></td>
+</tr>
+<tr class="odd">
+<td><span class="math inline">m_h = w_h x</span></td>
+<td><span class="math inline">\partial m_h/\partial w_h = x</span></td>
+</tr>
+</tbody>
+</table>
+<p>Multiplying them gives <span class="math inline">\partial\mathcal{L}/\partial w_h = 2e \cdot (-1) \cdot w_o \cdot \mathbb{1}[a_h &gt; 0] \cdot x</span>, where <span class="math inline">\mathbb{1}[a_h &gt; 0]</span> is <span class="math inline">1</span> when <span class="math inline">a_h &gt; 0</span> and <span class="math inline">0</span> otherwise.</p>
+</section>
+<section id="what-autodiff-needs-to-do" class="level3">
+<h3 class="anchored" data-anchor-id="what-autodiff-needs-to-do">What autodiff needs to do</h3>
+<p>To compute any one gradient, such as <span class="math inline">\partial\mathcal{L}/\partial w_h</span>, we need to know two things:</p>
+<ol type="1">
+<li>Which operations were applied, and in what order.</li>
+<li>The derivative of each operation.</li>
+</ol>
+<p>So an autodiff system does three jobs:</p>
+<ol type="1">
+<li>It defines a set of operations.</li>
+<li>It defines the derivative of each of those operations.</li>
+<li>It keeps track of which operations were applied, in a <em>computational graph</em>.</li>
+</ol>
+<div class="definition-block">
+<p><strong>Definition.</strong> A <em>computational graph</em> records a computation as a graph. Each node is either an <strong>input</strong> (a <em>leaf node</em>, such as <span class="math inline">x</span>, <span class="math inline">y</span>, or a parameter) or the result of one operation applied to earlier nodes. The graph is built as the forward computation runs.</p>
+</div>
+<figure style="margin:1.5rem 0;" class="figure">
+<svg viewbox="0 0 640 720" width="100%" style="max-width:520px; display:block; margin:auto; font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;" role="img" aria-label="Computational graph of the small network, with the path from the loss to w_h highlighted">
+  <text x="320" y="32" font-size="24" font-weight="bold" text-anchor="middle" fill="#002A5C">Computational graph</text>
+  <defs>
+    <marker id="arrPink" markerunits="userSpaceOnUse" markerwidth="12" markerheight="12" refx="10" refy="6" orient="auto"><path d="M0,0 L0,12 L12,6 z" fill="#C75794"></path></marker>
+    <marker id="arrGray" markerunits="userSpaceOnUse" markerwidth="10" markerheight="10" refx="9" refy="5" orient="auto"><path d="M0,0 L0,10 L10,5 z" fill="#888"></path></marker>
+  </defs>
+  <!-- edges: highlighted path, arrows point in the direction values flow -->
+  <g stroke="#C75794" stroke-width="4" fill="none" marker-end="url(#arrPink)">
+    <line x1="220" y1="164" x2="220" y2="118"></line>
+    <line x1="220" y1="244" x2="220" y2="198"></line>
+    <line x1="220" y1="324" x2="220" y2="278"></line>
+    <line x1="220" y1="404" x2="220" y2="358"></line>
+    <line x1="220" y1="484" x2="220" y2="438"></line>
+    <line x1="220" y1="564" x2="220" y2="518"></line>
+    <line x1="395" y1="626" x2="250" y2="579"></line>
+  </g>
+  <!-- edges: other -->
+  <g stroke="#888" stroke-width="2" fill="none" marker-end="url(#arrGray)">
+    <line x1="394" y1="90" x2="250" y2="90"></line>
+    <line x1="394" y1="170" x2="250" y2="170"></line>
+    <line x1="394" y1="250" x2="250" y2="250"></line>
+    <line x1="394" y1="330" x2="250" y2="330"></line>
+    <line x1="394" y1="490" x2="250" y2="490"></line>
+    <line x1="220" y1="644" x2="220" y2="600"></line>
+  </g>
+  <!-- operation nodes (top = loss) -->
+  <g fill="#F2C6DE" stroke="#C75794" stroke-width="2">
+    <circle cx="220" cy="90" r="26"></circle>
+    <circle cx="220" cy="170" r="26"></circle>
+  </g>
+  <g fill="#FAEDCB" stroke="#C7A857" stroke-width="2">
+    <circle cx="220" cy="250" r="26"></circle>
+    <circle cx="220" cy="330" r="26"></circle>
+    <circle cx="220" cy="490" r="26"></circle>
+    <circle cx="220" cy="570" r="26"></circle>
+  </g>
+  <g fill="#C9E4DE" stroke="#57C7AE" stroke-width="2">
+    <circle cx="220" cy="410" r="26"></circle>
+  </g>
+  <!-- leaf nodes -->
+  <g fill="#C6DEF1" stroke="#5795C7" stroke-width="2">
+    <circle cx="420" cy="90" r="26"></circle>
+    <circle cx="420" cy="170" r="26"></circle>
+    <circle cx="220" cy="670" r="26"></circle>
+  </g>
+  <g fill="#DBCDF0" stroke="#8457C7" stroke-width="2">
+    <circle cx="420" cy="250" r="26"></circle>
+    <circle cx="420" cy="330" r="26"></circle>
+    <circle cx="420" cy="490" r="26"></circle>
+    <circle cx="420" cy="634" r="26"></circle>
+  </g>
+  <!-- operation glyphs -->
+  <g font-size="18" text-anchor="middle" fill="#333">
+    <text x="220" y="96">pow</text>
+    <text x="220" y="176">−</text>
+    <text x="220" y="256">+</text>
+    <text x="220" y="336">×</text>
+    <text x="220" y="496">+</text>
+    <text x="220" y="576">×</text>
+  </g>
+  <text x="220" y="415" font-size="14" text-anchor="middle" fill="#207965">ReLU</text>
+  <!-- result names, left of each op node -->
+  <g font-size="18" text-anchor="end" fill="#333">
+    <text x="182" y="96">L</text>
+    <text x="182" y="176">e</text>
+    <text x="182" y="256">o</text>
+    <text x="182" y="336">m<tspan dy="5" font-size="14">o</tspan></text>
+    <text x="182" y="416">h</text>
+    <text x="182" y="496">a<tspan dy="5" font-size="14">h</tspan></text>
+    <text x="182" y="576">m<tspan dy="5" font-size="14">h</tspan></text>
+  </g>
+  <!-- leaf names -->
+  <g font-size="18" text-anchor="middle" fill="#333">
+    <text x="420" y="96">2</text>
+    <text x="420" y="176">y</text>
+    <text x="420" y="256">b<tspan dy="5" font-size="14">o</tspan></text>
+    <text x="420" y="336">w<tspan dy="5" font-size="14">o</tspan></text>
+    <text x="420" y="496">b<tspan dy="5" font-size="14">h</tspan></text>
+    <text x="420" y="640">w<tspan dy="5" font-size="14">h</tspan></text>
+    <text x="220" y="676">x</text>
+  </g>
+  <line x1="440" y1="700" x2="480" y2="700" stroke="#C75794" stroke-width="4"></line>
+  <text x="490" y="706" font-size="16" fill="#792051">path L to <tspan>w</tspan><tspan dy="5" font-size="14">h</tspan></text>
+</svg>
+<figcaption style="text-align:center; font-size:0.9em; margin-top:0.5rem;">Figure 2. The computational graph of the small network. Arrows show the direction values flow in the forward computation. Operations run up the left column, ending at the loss L. Leaf nodes (inputs and parameters) hang off to the right, and x sits at the bottom. The highlighted path from L to w_h is the one whose local derivatives are multiplied to give the gradient of L with respect to w_h.</figcaption>
+</figure>
+<p>To compute <span class="math inline">\partial\mathcal{L}/\partial w_h</span>, find the path in the graph between <span class="math inline">\mathcal{L}</span> and <span class="math inline">w_h</span> and multiply the derivatives of the operations along it. That product is exactly the chain-rule product above, so autodiff is backpropagation applied to an arbitrary graph of operations instead of only to a stack of layers. The forward values that some of the derivatives need, such as <span class="math inline">x</span> or <span class="math inline">a_h</span>, are the intermediate results the graph has already recorded.</p>
+<p>Putting the pieces together gives the general procedure:</p>
+<section id="automatic-differentiation" class="level4 algorithm">
+<h4 class="anchored" data-anchor-id="automatic-differentiation">Automatic Differentiation</h4>
+<p><strong>Define</strong>, once, for a small library of elementary operations (add, multiply, subtract, power, ReLU, and so on):</p>
+<ul>
+<li><strong>forward:</strong> how to compute the operation’s output from its inputs.</li>
+<li><strong>backward:</strong> the derivative of the output with respect to each input.</li>
+</ul>
+<p><strong>Given a model</strong> (a composition of these operations):</p>
+<ol type="1">
+<li><strong>Forward pass.</strong> Evaluate every operation in order, and record which operations were applied to which inputs. This record is the computational graph.</li>
+<li><strong>Backward pass.</strong> Start from <span class="math inline">\partial\mathcal{L}/\partial\mathcal{L} = 1</span>. Visit the nodes in <em>reverse</em> <a href="https://en.wikipedia.org/wiki/Topological_sorting">topological order</a>, meaning each node only after every node that uses it. At each operation node, multiply the node’s accumulated gradient by the operation’s derivative with respect to each input, and <strong>add</strong> the result to that input’s running gradient.</li>
+</ol>
+<p>When the sweep finishes, every leaf node holds its gradient. One sweep gives the gradients for all leaves at once.</p>
+</section>
+<p>The word <em>add</em> matters. If a node feeds into more than one later operation, there is more than one path from the loss to it, and the chain rule says to sum the contributions of the paths (the “multiple intermediate variables” case in <a href="../lectures/week02.html#sec-backprop">Week 2</a>). Adding each contribution into a running total performs that sum without listing the paths. For example, in <span class="math inline">m = w \cdot w</span> the leaf <span class="math inline">w</span> is both inputs of one multiplication. If the gradient arriving at <span class="math inline">m</span> is <span class="math inline">g</span>, the backward rule sends <span class="math inline">g\,w</span> to each of the two inputs, and adding them gives <span class="math inline">2gw</span>, which matches the derivative of <span class="math inline">w^2</span>.</p>
+<p>The course’s Homework 3 has you build this machinery yourself. These notes explain the idea, and the implementation is left to the assignment.</p>
+</section>
+</section>
+<section id="sec-overfitting" class="level2">
+<h2 class="anchored" data-anchor-id="sec-overfitting">Overfitting</h2>
+<p>Suppose training works: the loss on the training set keeps falling. Does that mean the model is getting better? Not necessarily, because the goal is to do well on data the model has not seen.</p>
+<p>Recall the <a href="../lectures/week02.html#sec-uat">Universal Approximation Theorem</a> from Week 2: a sufficiently wide network can fit essentially any function, including simply memorizing a finite training set. So overfitting is a real risk. It is also not specific to neural networks; the same ideas apply to any sufficiently flexible model.</p>
+<div class="definition-block">
+<p><strong>Definition.</strong> A <em>validation set</em> is a collection of labeled examples that is held out and never used to update the parameters. The model is <em>overfit</em> when its loss on the training set keeps decreasing while its loss on the validation set stops decreasing and starts to increase. See <a href="https://en.wikipedia.org/wiki/Overfitting">overfitting</a> and <a href="https://en.wikipedia.org/wiki/Training,_validation,_and_test_data_sets">training, validation, and test data sets</a>.</p>
+</div>
+<figure style="margin:1.5rem 0;" class="figure">
+<svg viewbox="0 0 640 360" width="100%" style="max-width:640px; display:block; margin:auto; font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;" role="img" aria-label="Training loss keeps falling while validation loss falls and then rises">
+  <text x="320" y="32" font-size="24" font-weight="bold" text-anchor="middle" fill="#002A5C">Loss during training</text>
+  <line x1="70" y1="310" x2="610" y2="310" stroke="#555" stroke-width="1.5"></line>
+  <line x1="70" y1="60" x2="70" y2="310" stroke="#555" stroke-width="1.5"></line>
+  <polyline fill="none" stroke="#5795C7" stroke-width="3" points="80.0,86.1 106.0,116.1 132.0,141.5 158.0,163.0 184.0,181.2 210.0,196.6 236.0,209.7 262.0,220.7 288.0,230.1 314.0,238.0 340.0,244.7 366.0,250.3 392.0,255.1 418.0,259.2 444.0,262.6 470.0,265.6 496.0,268.0 522.0,270.1 548.0,271.9 574.0,273.4 600.0,274.6"></polyline>
+  <polyline fill="none" stroke="#C75794" stroke-width="3" points="80.0,97.6 106.0,131.6 132.0,158.0 158.0,178.2 184.0,193.3 210.0,204.1 236.0,211.4 262.0,215.7 288.0,217.4 314.0,216.9 340.0,214.6 366.0,210.6 392.0,205.1 418.0,198.3 444.0,190.3 470.0,181.1 496.0,171.0 522.0,159.8 548.0,147.7 574.0,134.7 600.0,120.9"></polyline>
+  <text x="500" y="298" font-size="18" fill="#205279">train</text>
+  <text x="520" y="112" font-size="18" fill="#792051">validation</text>
+  <text x="340" y="346" font-size="18" text-anchor="middle" fill="#555">iteration</text>
+  <text x="62" y="70" font-size="18" text-anchor="end" fill="#555">loss</text>
+</svg>
+<figcaption style="text-align:center; font-size:0.9em; margin-top:0.5rem;">Figure 3. A sketch of overfitting, following the lecture. Training loss keeps falling, but validation loss reaches a minimum and then rises.</figcaption>
+</figure>
+<p>The slides show the same effect in a different picture. A true function generates noisy training points. A flexible enough model can pass through every training point, including the noise, and so its curve between and beyond those points can be far from the true function.</p>
+<figure style="margin:1.5rem 0;" class="figure">
+<svg viewbox="0 0 640 360" width="100%" style="max-width:640px; display:block; margin:auto; font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;" role="img" aria-label="A smooth true function, seven noisy training points, and an overfit model that passes through every point">
+  <text x="320" y="32" font-size="24" font-weight="bold" text-anchor="middle" fill="#002A5C">Fitting a function</text>
+  <line x1="60" y1="330" x2="620" y2="330" stroke="#555" stroke-width="1.5"></line>
+  <line x1="60" y1="60" x2="60" y2="330" stroke="#555" stroke-width="1.5"></line>
+  <path d="M 80.0,203.6 C 93.7,198.3 133.3,172.0 161.9,161.8 C 190.5,151.7 221.9,142.8 251.9,146.6 C 281.9,150.4 311.9,173.2 341.9,184.6 C 371.9,196.0 401.9,216.3 431.9,215.0 C 461.9,213.8 494.7,187.2 521.9,177.0 C 549.1,166.9 582.7,158.0 594.8,154.2" fill="none" stroke="#888" stroke-width="3" stroke-dasharray="9 6"></path>
+  <polyline fill="none" stroke="#e53935" stroke-width="3" stroke-linejoin="round" points="80,204 166,249 207,185 259,229 306,112 349,204 382,173 421,257 454,238 486,145 517,105 567,166 589,191"></polyline>
+  <g fill="#333">
+    <circle cx="80" cy="204" r="6"></circle><circle cx="207" cy="185" r="6"></circle><circle cx="306" cy="112" r="6"></circle><circle cx="382" cy="173" r="6"></circle><circle cx="454" cy="238" r="6"></circle><circle cx="517" cy="105" r="6"></circle><circle cx="567" cy="166" r="6"></circle>
+  </g>
+  <text x="340" y="354" font-size="16" text-anchor="middle" fill="#555">x</text>
+  <text x="46" y="70" font-size="16" text-anchor="end" fill="#555">y</text>
+  <line x1="84" y1="76" x2="114" y2="76" stroke="#888" stroke-width="3" stroke-dasharray="9 6"></line>
+  <text x="122" y="82" font-size="16" fill="#555">true function</text>
+  <circle cx="99" cy="100" r="6" fill="#333"></circle>
+  <text x="122" y="106" font-size="16" fill="#555">training data</text>
+  <line x1="84" y1="124" x2="114" y2="124" stroke="#e53935" stroke-width="3"></line>
+  <text x="122" y="130" font-size="16" fill="#e53935">overfit model</text>
+</svg>
+<figcaption style="text-align:center; font-size:0.9em; margin-top:0.5rem;">Figure 4. The dashed curve is the true function. The dots are noisy samples of it. The red model passes through every training point, and between them it swings far from the true curve.</figcaption>
+</figure>
+<section id="can-a-linear-model-overfit" class="level3">
+<h3 class="anchored" data-anchor-id="can-a-linear-model-overfit">Can a linear model overfit?</h3>
+<p>The slides ask how we can overfit with a linear model, whose shape is so constrained. The setup is a binary classification problem. Each example has an input vector <span class="math inline">\bm{x}</span> and a label <span class="math inline">y \in \{-1, 1\}</span>, and every entry of the input is a noisy measurement of the label:</p>
+<p><span class="math display">x_j \sim \mathcal{N}(y, \sigma^2)</span></p>
+<p>That is, an entry of <span class="math inline">\bm{x}</span> is centered on <span class="math inline">-1</span> when <span class="math inline">y = -1</span> and on <span class="math inline">1</span> when <span class="math inline">y = 1</span>, with spread <span class="math inline">\sigma</span>. (This <span class="math inline">\sigma</span> is the noise level of the data, not the weight standard deviation from the initialization section or the activation function <span class="math inline">\sigma</span> from Week 2.) We fit a linear model <span class="math inline">\hat{y} = \bm{w}^\top\bm{x}</span>.</p>
+<figure style="margin:1.5rem 0;" class="figure">
+<svg viewbox="0 0 640 400" width="100%" style="max-width:640px; display:block; margin:auto; font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;" role="img" aria-label="Three features, each shown as a number line with training examples colored by label">
+  <text x="320" y="32" font-size="24" font-weight="bold" text-anchor="middle" fill="#002A5C">One feature per row</text>
+  <!-- row 1 -->
+  <text x="40" y="128" font-size="18" fill="#333">x<tspan dy="5" font-size="14">1</tspan></text>
+  <line x1="100" y1="120" x2="600" y2="120" stroke="#555" stroke-width="1.5"></line>
+  <line x1="260" y1="112" x2="260" y2="128" stroke="#555" stroke-width="1.5"></line>
+  <line x1="420" y1="112" x2="420" y2="128" stroke="#555" stroke-width="1.5"></line>
+  <text x="260" y="150" font-size="16" text-anchor="middle" fill="#555">−1</text>
+  <text x="420" y="150" font-size="16" text-anchor="middle" fill="#555">1</text>
+  <g fill="#C6DEF1" stroke="#5795C7" stroke-width="2">
+    <circle cx="156" cy="120" r="10"></circle><circle cx="300" cy="120" r="10"></circle><circle cx="452" cy="120" r="10"></circle>
+  </g>
+  <g fill="#F7D9C4" stroke="#C78557" stroke-width="2">
+    <circle cx="324" cy="120" r="10"></circle><circle cx="412" cy="120" r="10"></circle><circle cx="548" cy="120" r="10"></circle>
+  </g>
+  <!-- row 2 -->
+  <text x="40" y="238" font-size="18" fill="#333">x<tspan dy="5" font-size="14">2</tspan></text>
+  <line x1="100" y1="230" x2="600" y2="230" stroke="#555" stroke-width="1.5"></line>
+  <line x1="260" y1="222" x2="260" y2="238" stroke="#555" stroke-width="1.5"></line>
+  <line x1="420" y1="222" x2="420" y2="238" stroke="#555" stroke-width="1.5"></line>
+  <text x="260" y="260" font-size="16" text-anchor="middle" fill="#555">−1</text>
+  <text x="420" y="260" font-size="16" text-anchor="middle" fill="#555">1</text>
+  <g fill="#C6DEF1" stroke="#5795C7" stroke-width="2">
+    <circle cx="228" cy="230" r="10"></circle><circle cx="268" cy="230" r="10"></circle><circle cx="364" cy="230" r="10"></circle>
+  </g>
+  <g fill="#F7D9C4" stroke="#C78557" stroke-width="2">
+    <circle cx="340" cy="230" r="10"></circle><circle cx="388" cy="230" r="10"></circle><circle cx="532" cy="230" r="10"></circle>
+  </g>
+  <!-- row 3 -->
+  <text x="40" y="348" font-size="18" fill="#333">x<tspan dy="5" font-size="14">k</tspan></text>
+  <line x1="100" y1="340" x2="600" y2="340" stroke="#555" stroke-width="1.5"></line>
+  <line x1="260" y1="332" x2="260" y2="348" stroke="#555" stroke-width="1.5"></line>
+  <line x1="420" y1="332" x2="420" y2="348" stroke="#555" stroke-width="1.5"></line>
+  <text x="260" y="370" font-size="16" text-anchor="middle" fill="#555">−1</text>
+  <text x="420" y="370" font-size="16" text-anchor="middle" fill="#555">1</text>
+  <g fill="#C6DEF1" stroke="#5795C7" stroke-width="2">
+    <circle cx="180" cy="340" r="10"></circle><circle cx="212" cy="340" r="10"></circle><circle cx="300" cy="340" r="10"></circle>
+  </g>
+  <g fill="#F7D9C4" stroke="#C78557" stroke-width="2">
+    <circle cx="380" cy="340" r="10"></circle><circle cx="484" cy="340" r="10"></circle><circle cx="508" cy="340" r="10"></circle>
+  </g>
+  <!-- legend -->
+  <circle cx="470" cy="76" r="8" fill="#C6DEF1" stroke="#5795C7" stroke-width="2"></circle>
+  <text x="486" y="82" font-size="16" fill="#333">y = −1</text>
+  <circle cx="548" cy="76" r="8" fill="#F7D9C4" stroke="#C78557" stroke-width="2"></circle>
+  <text x="564" y="82" font-size="16" fill="#333">y = 1</text>
+</svg>
+<figcaption style="text-align:center; font-size:0.9em; margin-top:0.5rem;">Figure 5. Each row shows one entry of the input vector across six training examples, colored by label. The first two rows mix the classes. In the last row the labels happen to separate cleanly.</figcaption>
+</figure>
+<p>Every entry of <span class="math inline">\bm{x}</span> is an equally noisy signal about <span class="math inline">y</span>, but with a small training set the noise will not look equal across entries. In the first two rows of Figure 5 the classes overlap. In the last row the six labels happen to separate with no mistakes, by chance. A training procedure that only sees this data can give that entry a large weight, because it fits the training labels well. On new data that entry is no more informative than the others, so a model that leans heavily on it does worse than one that spreads its weight across all entries. This is overfitting in a linear model: over-reliance on a feature that happened to look good on the training set.</p>
+<p>The same failure mode shows up in deep networks. With many learned features and a limited training set, some learned feature can become accidentally separable, and the model over-invests in it. Both regularizers below act on this over-reliance.</p>
+</section>
+</section>
+<section id="sec-regularization" class="level2">
+<h2 class="anchored" data-anchor-id="sec-regularization">Regularization</h2>
+<p>How can we avoid overreliance on a feature? The slides give two answers. This kind of technique is called <a href="https://en.wikipedia.org/wiki/Regularization_(mathematics)">regularization</a>: anything we do to a training procedure to reduce overfitting.</p>
+<section id="weight-decay" class="level3">
+<h3 class="anchored" data-anchor-id="weight-decay">Weight decay</h3>
+<p>If large weights are the problem, we can penalize them. Add a term to the loss that grows with the squared length <span class="math inline">\lVert \bm{w} \rVert_2^2</span> of the weight vector, scaled by a number <span class="math inline">\lambda &gt; 0</span>:</p>
+<p><span class="math display">\mathcal{L}_\text{new} = \mathcal{L} + \lambda \lVert \bm{w} \rVert_2^2</span></p>
+<p>The new loss is the objective we minimize. The value <span class="math inline">\lambda</span> is a hyperparameter, meaning we choose it and do not learn it (<a href="https://en.wikipedia.org/wiki/Hyperparameter_(machine_learning)">hyperparameter</a>). The gradient of the penalty is <span class="math inline">2\lambda\bm{w}</span>, so one step of gradient descent with learning rate <span class="math inline">\eta</span> becomes:</p>
+<p><span class="math display">\bm{w} - \eta\,\nabla_{\bm{w}}\!\left(\mathcal{L} + \lambda \lVert \bm{w} \rVert_2^2\right) = (1 - 2\eta\lambda)\,\bm{w} - \eta\,\nabla_{\bm{w}}\mathcal{L}</span></p>
+<div class="definition-block">
+<p><strong>Definition.</strong> <em>Weight decay</em> is the update above. Before applying the usual gradient step, each weight is multiplied by the factor <span class="math inline">(1 - 2\eta\lambda)</span>, which is slightly less than <span class="math inline">1</span>, so the weights shrink toward <span class="math inline">0</span> a little at every step. It is the gradient descent form of adding <span class="math inline">\lambda\lVert\bm{w}\rVert_2^2</span> to the loss, a penalty also known as <a href="https://en.wikipedia.org/wiki/Tikhonov_regularization">Tikhonov regularization</a> or an <span class="math inline">\ell_2</span> penalty (<a href="https://en.wikipedia.org/wiki/Weight_decay">weight decay</a>).</p>
+</div>
+<p>A weight only stays large if the loss gradient keeps pushing it there, so a feature that helped on the training set by chance is held back.</p>
+<p>For a weight matrix <span class="math inline">W</span>, the same penalty uses the squared <a href="https://en.wikipedia.org/wiki/Matrix_norm">Frobenius norm</a>, <span class="math inline">\lVert W \rVert_F^2 = \sum_{i,j} W_{ij}^2</span>, the sum of the squares of all its entries, and the update has the same form with <span class="math inline">W</span> in place of <span class="math inline">\bm{w}</span>.</p>
+</section>
+<section id="dropout" class="level3">
+<h3 class="anchored" data-anchor-id="dropout">Dropout</h3>
+<p>A different approach is to make sure no single feature can be relied on, by sometimes removing it. During training, each feature is independently <em>dropped out</em> at random (<a href="https://en.wikipedia.org/wiki/Dropout_(neural_networks)">dropout</a>). With a probability <span class="math inline">p</span> (a hyperparameter) it is set to <span class="math inline">0</span>, and otherwise it is scaled up:</p>
+<p><span class="math display">x_i' = \begin{cases} 0 &amp; \text{with probability } p \\[2pt] \dfrac{x_i}{1 - p} &amp; \text{with probability } 1 - p \end{cases}</span></p>
+<p>The scaling by <span class="math inline">1/(1-p)</span> keeps the average value of the feature unchanged, because <span class="math inline">\mathbb{E}[x_i'] = p \cdot 0 + (1-p)\cdot\dfrac{x_i}{1-p} = x_i</span>. Since the training-time input has the same expectation as the original, we do nothing special at test time: <strong>during testing, we just use <span class="math inline">x_i</span></strong> with no dropping and no rescaling.</p>
+<p>Because a feature is missing on a random fraction of steps, the model cannot put all its weight on one of them. In practice dropout is applied not only to input features but also to the activations inside a network. Weight decay and dropout are the two regularizers you will reach for most often in deep learning.</p>
+</section>
+</section>
+<section id="sec-summary" class="level2">
+<h2 class="anchored" data-anchor-id="sec-summary">Summary</h2>
+<div class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+Note
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p><strong>Key takeaways from Week 3:</strong></p>
+<ul>
+<li><strong>Notation.</strong> Pre-activation is <span class="math inline">a^m</span> and activation is <span class="math inline">h^m</span>, as in Week 2. The handwritten slides call them <span class="math inline">z^m</span> and <span class="math inline">a^m</span>. The backprop recursion is unchanged.</li>
+<li><strong>Sigmoid plus cross-entropy.</strong> The output-layer gradient simplifies to <span class="math inline">h^L - y</span>, because the sigmoid slope cancels the denominator of the cross-entropy derivative.</li>
+<li><strong>Cost.</strong> A training step (forward plus backward) costs roughly three forward passes, about <span class="math inline">3|\theta|</span> per example.</li>
+<li><strong>Vanishing and exploding gradients.</strong> The backward recursion repeats a matrix multiply and a nonlinearity derivative at every layer. The sigmoid derivative is at most <span class="math inline">1/4</span>, so gradients tend to shrink. ReLU’s derivative is exactly <span class="math inline">0</span> or <span class="math inline">1</span>, and whether the matrix term explodes or vanishes depends on the weights.</li>
+<li><strong>Initialization.</strong> All-zero or all-equal weights fail, so we sample randomly with a careful scale. For a linear layer with unit-variance inputs and <span class="math inline">\mathcal{N}(0,\sigma^2)</span> weights, the output variance is <span class="math inline">n_\text{in}\sigma^2</span>. Averaging the forward and backward requirements gives Xavier/Glorot initialization, <span class="math inline">\sigma = \sqrt{2/(n_\text{in} + n_\text{out})}</span>. He initialization, <span class="math inline">\sqrt{2/n_\text{in}}</span>, is the ReLU variant.</li>
+<li><strong>Autodiff.</strong> A system defines operations and their derivatives and records the operations in a computational graph. A gradient is the product of local derivatives along a path from the loss to a parameter. The backward pass visits nodes in reverse topological order and adds each contribution into a running gradient, which sums over paths.</li>
+<li><strong>Overfitting.</strong> Training loss keeps falling while validation loss rises. Overfitting is not specific to neural networks, and even a linear model can overfit by over-relying on a feature that looked good by chance.</li>
+<li><strong>Regularization.</strong> Weight decay multiplies the weights by <span class="math inline">(1 - 2\eta\lambda)</span> each step. Dropout zeroes each feature with probability <span class="math inline">p</span> and rescales the rest by <span class="math inline">1/(1-p)</span>.</li>
+</ul>
+</div>
+</div>
+<p><strong>Next week:</strong> optimization. Gradient descent in more depth, and the adaptive, momentum-based variants used to train real networks in practice (Week 4).</p>
+</section>
+<section id="quick-self-check" class="level2">
+<h2 class="anchored" data-anchor-id="quick-self-check">Quick self-check</h2>
+<p>If you can explain, in your own words and using only “pre-activation,” “vanishing gradient,” “variance,” “computational graph,” “validation loss,” and “weight decay,” why deeper sigmoid networks are hard to train and why a model can fit its training set well and still fail on new data, you have understood the core of Week 3.</p>
+
+
+</section>
+
+</main> <!-- /main -->
+<script id="quarto-html-after-body" type="application/javascript">
+  window.document.addEventListener("DOMContentLoaded", function (event) {
+    const icon = "";
+    const anchorJS = new window.AnchorJS();
+    anchorJS.options = {
+      placement: 'right',
+      icon: icon
+    };
+    anchorJS.add('.anchored');
+    const isCodeAnnotation = (el) => {
+      for (const clz of el.classList) {
+        if (clz.startsWith('code-annotation-')) {                     
+          return true;
+        }
+      }
+      return false;
+    }
+    const onCopySuccess = function(e) {
+      // button target
+      const button = e.trigger;
+      // don't keep focus
+      button.blur();
+      // flash "checked"
+      button.classList.add('code-copy-button-checked');
+      var currentTitle = button.getAttribute("title");
+      button.setAttribute("title", "Copied!");
+      let tooltip;
+      if (window.bootstrap) {
+        button.setAttribute("data-bs-toggle", "tooltip");
+        button.setAttribute("data-bs-placement", "left");
+        button.setAttribute("data-bs-title", "Copied!");
+        tooltip = new bootstrap.Tooltip(button, 
+          { trigger: "manual", 
+            customClass: "code-copy-button-tooltip",
+            offset: [0, -8]});
+        tooltip.show();    
+      }
+      setTimeout(function() {
+        if (tooltip) {
+          tooltip.hide();
+          button.removeAttribute("data-bs-title");
+          button.removeAttribute("data-bs-toggle");
+          button.removeAttribute("data-bs-placement");
+        }
+        button.setAttribute("title", currentTitle);
+        button.classList.remove('code-copy-button-checked');
+      }, 1000);
+      // clear code selection
+      e.clearSelection();
+    }
+    const getTextToCopy = function(trigger) {
+      const outerScaffold = trigger.parentElement.cloneNode(true);
+      const codeEl = outerScaffold.querySelector('code');
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+    }
+    const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
+      text: getTextToCopy
+    });
+    clipboard.on('success', onCopySuccess);
+    if (window.document.getElementById('quarto-embedded-source-code-modal')) {
+      const clipboardModal = new window.ClipboardJS('.code-copy-button[data-in-quarto-modal]', {
+        text: getTextToCopy,
+        container: window.document.getElementById('quarto-embedded-source-code-modal')
+      });
+      clipboardModal.on('success', onCopySuccess);
+    }
+      var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+      var mailtoRegex = new RegExp(/^mailto:/);
+        var filterRegex = new RegExp('/' + window.location.host + '/');
+      var isInternal = (href) => {
+          return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+      }
+      // Inspect non-navigation links and adorn them if external
+     var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+      for (var i=0; i<links.length; i++) {
+        const link = links[i];
+        if (!isInternal(link.href)) {
+          // undo the damage that might have been done by quarto-nav.js in the case of
+          // links that we want to consider external
+          if (link.dataset.originalHref !== undefined) {
+            link.href = link.dataset.originalHref;
+          }
+            // target, if specified
+            link.setAttribute("target", "_blank");
+            if (link.getAttribute("rel") === null) {
+              link.setAttribute("rel", "noopener");
+            }
+        }
+      }
+    function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+      const config = {
+        allowHTML: true,
+        maxWidth: 500,
+        delay: 100,
+        arrow: false,
+        appendTo: function(el) {
+            return el.parentElement;
+        },
+        interactive: true,
+        interactiveBorder: 10,
+        theme: 'quarto',
+        placement: 'bottom-start',
+      };
+      if (contentFn) {
+        config.content = contentFn;
+      }
+      if (onTriggerFn) {
+        config.onTrigger = onTriggerFn;
+      }
+      if (onUntriggerFn) {
+        config.onUntrigger = onUntriggerFn;
+      }
+      window.tippy(el, config); 
+    }
+    const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+    for (var i=0; i<noterefs.length; i++) {
+      const ref = noterefs[i];
+      tippyHover(ref, function() {
+        // use id or data attribute instead here
+        let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+        try { href = new URL(href).hash; } catch {}
+        const id = href.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note) {
+          return note.innerHTML;
+        } else {
+          return "";
+        }
+      });
+    }
+    const xrefs = window.document.querySelectorAll('a.quarto-xref');
+    const processXRef = (id, note) => {
+      // Strip column container classes
+      const stripColumnClz = (el) => {
+        el.classList.remove("page-full", "page-columns");
+        if (el.children) {
+          for (const child of el.children) {
+            stripColumnClz(child);
+          }
+        }
+      }
+      stripColumnClz(note)
+      if (id === null || id.startsWith('sec-')) {
+        // Special case sections, only their first couple elements
+        const container = document.createElement("div");
+        if (note.children && note.children.length > 2) {
+          container.appendChild(note.children[0].cloneNode(true));
+          for (let i = 1; i < note.children.length; i++) {
+            const child = note.children[i];
+            if (child.tagName === "P" && child.innerText === "") {
+              continue;
+            } else {
+              container.appendChild(child.cloneNode(true));
+              break;
+            }
+          }
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(container);
+          }
+          return container.innerHTML
+        } else {
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(note);
+          }
+          return note.innerHTML;
+        }
+      } else {
+        // Remove any anchor links if they are present
+        const anchorLink = note.querySelector('a.anchorjs-link');
+        if (anchorLink) {
+          anchorLink.remove();
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        if (note.classList.contains("callout")) {
+          return note.outerHTML;
+        } else {
+          return note.innerHTML;
+        }
+      }
+    }
+    for (var i=0; i<xrefs.length; i++) {
+      const xref = xrefs[i];
+      tippyHover(xref, undefined, function(instance) {
+        instance.disable();
+        let url = xref.getAttribute('href');
+        let hash = undefined; 
+        if (url.startsWith('#')) {
+          hash = url;
+        } else {
+          try { hash = new URL(url).hash; } catch {}
+        }
+        if (hash) {
+          const id = hash.replace(/^#\/?/, "");
+          const note = window.document.getElementById(id);
+          if (note !== null) {
+            try {
+              const html = processXRef(id, note.cloneNode(true));
+              instance.setContent(html);
+            } finally {
+              instance.enable();
+              instance.show();
+            }
+          } else {
+            // See if we can fetch this
+            fetch(url.split('#')[0])
+            .then(res => res.text())
+            .then(html => {
+              const parser = new DOMParser();
+              const htmlDoc = parser.parseFromString(html, "text/html");
+              const note = htmlDoc.getElementById(id);
+              if (note !== null) {
+                const html = processXRef(id, note);
+                instance.setContent(html);
+              } 
+            }).finally(() => {
+              instance.enable();
+              instance.show();
+            });
+          }
+        } else {
+          // See if we can fetch a full url (with no hash to target)
+          // This is a special case and we should probably do some content thinning / targeting
+          fetch(url)
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.querySelector('main.content');
+            if (note !== null) {
+              // This should only happen for chapter cross references
+              // (since there is no id in the URL)
+              // remove the first header
+              if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+                note.children[0].remove();
+              }
+              const html = processXRef(null, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      }, function(instance) {
+      });
+    }
+        let selectedAnnoteEl;
+        const selectorForAnnotation = ( cell, annotation) => {
+          let cellAttr = 'data-code-cell="' + cell + '"';
+          let lineAttr = 'data-code-annotation="' +  annotation + '"';
+          const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+          return selector;
+        }
+        const selectCodeLines = (annoteEl) => {
+          const doc = window.document;
+          const targetCell = annoteEl.getAttribute("data-target-cell");
+          const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+          const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+          const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+          const lineIds = lines.map((line) => {
+            return targetCell + "-" + line;
+          })
+          let top = null;
+          let height = null;
+          let parent = null;
+          if (lineIds.length > 0) {
+              //compute the position of the single el (top and bottom and make a div)
+              const el = window.document.getElementById(lineIds[0]);
+              top = el.offsetTop;
+              height = el.offsetHeight;
+              parent = el.parentElement.parentElement;
+            if (lineIds.length > 1) {
+              const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+              const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+              height = bottom - top;
+            }
+            if (top !== null && height !== null && parent !== null) {
+              // cook up a div (if necessary) and position it 
+              let div = window.document.getElementById("code-annotation-line-highlight");
+              if (div === null) {
+                div = window.document.createElement("div");
+                div.setAttribute("id", "code-annotation-line-highlight");
+                div.style.position = 'absolute';
+                parent.appendChild(div);
+              }
+              div.style.top = top - 2 + "px";
+              div.style.height = height + 4 + "px";
+              div.style.left = 0;
+              let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+              if (gutterDiv === null) {
+                gutterDiv = window.document.createElement("div");
+                gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+                gutterDiv.style.position = 'absolute';
+                const codeCell = window.document.getElementById(targetCell);
+                const gutter = codeCell.querySelector('.code-annotation-gutter');
+                gutter.appendChild(gutterDiv);
+              }
+              gutterDiv.style.top = top - 2 + "px";
+              gutterDiv.style.height = height + 4 + "px";
+            }
+            selectedAnnoteEl = annoteEl;
+          }
+        };
+        const unselectCodeLines = () => {
+          const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+          elementsIds.forEach((elId) => {
+            const div = window.document.getElementById(elId);
+            if (div) {
+              div.remove();
+            }
+          });
+          selectedAnnoteEl = undefined;
+        };
+          // Handle positioning of the toggle
+      window.addEventListener(
+        "resize",
+        throttle(() => {
+          elRect = undefined;
+          if (selectedAnnoteEl) {
+            selectCodeLines(selectedAnnoteEl);
+          }
+        }, 10)
+      );
+      function throttle(fn, ms) {
+      let throttle = false;
+      let timer;
+        return (...args) => {
+          if(!throttle) { // first call gets through
+              fn.apply(this, args);
+              throttle = true;
+          } else { // all the others get throttled
+              if(timer) clearTimeout(timer); // cancel #2
+              timer = setTimeout(() => {
+                fn.apply(this, args);
+                timer = throttle = false;
+              }, ms);
+          }
+        };
+      }
+        // Attach click handler to the DT
+        const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+        for (const annoteDlNode of annoteDls) {
+          annoteDlNode.addEventListener('click', (event) => {
+            const clickedEl = event.target;
+            if (clickedEl !== selectedAnnoteEl) {
+              unselectCodeLines();
+              const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+              if (activeEl) {
+                activeEl.classList.remove('code-annotation-active');
+              }
+              selectCodeLines(clickedEl);
+              clickedEl.classList.add('code-annotation-active');
+            } else {
+              // Unselect the line
+              unselectCodeLines();
+              clickedEl.classList.remove('code-annotation-active');
+            }
+          });
+        }
+    const findCites = (el) => {
+      const parentEl = el.parentElement;
+      if (parentEl) {
+        const cites = parentEl.dataset.cites;
+        if (cites) {
+          return {
+            el,
+            cites: cites.split(' ')
+          };
+        } else {
+          return findCites(el.parentElement)
+        }
+      } else {
+        return undefined;
+      }
+    };
+    var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+    for (var i=0; i<bibliorefs.length; i++) {
+      const ref = bibliorefs[i];
+      const citeInfo = findCites(ref);
+      if (citeInfo) {
+        tippyHover(citeInfo.el, function() {
+          var popup = window.document.createElement('div');
+          citeInfo.cites.forEach(function(cite) {
+            var citeDiv = window.document.createElement('div');
+            citeDiv.classList.add('hanging-indent');
+            citeDiv.classList.add('csl-entry');
+            var biblioDiv = window.document.getElementById('ref-' + cite);
+            if (biblioDiv) {
+              citeDiv.innerHTML = biblioDiv.innerHTML;
+            }
+            popup.appendChild(citeDiv);
+          });
+          return popup.innerHTML;
+        });
+      }
+    }
+  });
+  </script>
+<nav class="page-navigation">
+  <div class="nav-page nav-page-previous">
+      <a href="../lectures/week02.html" class="pagination-link" aria-label="Week 2: Multi-Layer Perceptrons &amp; Backpropagation">
+        <i class="bi bi-arrow-left-short"></i> <span class="nav-page-text"><span class="chapter-title">Week 2: Multi-Layer Perceptrons &amp; Backpropagation</span></span>
+      </a>          
+  </div>
+  <div class="nav-page nav-page-next">
+      <a href="../glossary.html" class="pagination-link" aria-label="Glossary">
+        <span class="nav-page-text"><span class="chapter-title">Glossary</span></span> <i class="bi bi-arrow-right-short"></i>
+      </a>
+  </div>
+</nav>
+</div> <!-- /content -->
+
+
+
+
+<script src="../site_libs/quarto-html/zenscroll-min.js"></script>
+</body></html>

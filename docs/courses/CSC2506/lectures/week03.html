@@ -1,0 +1,1157 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.10.18">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+
+<title>Week 3: Markov Random Fields and Exact Inference – CSC412/2506: Probabilistic Machine Learning notes</title>
+<style>
+/* Default styles provided by pandoc.
+** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
+*/
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: 1.5em;}
+div.column{flex: auto;}
+@media screen {
+div.columns{gap: min(4vw, 1.5em);}
+div.column{overflow-x: auto;}
+}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+</style>
+
+
+<script src="../site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="../site_libs/quarto-nav/headroom.min.js"></script>
+<script src="../site_libs/clipboard/clipboard.min.js"></script>
+<script src="../site_libs/quarto-search/autocomplete.umd.js"></script>
+<script src="../site_libs/quarto-search/fuse.min.js"></script>
+<script src="../site_libs/quarto-search/quarto-search.js"></script>
+<meta name="quarto:offset" content="../">
+<link href="../glossary.html" rel="next">
+<link href="../lectures/week02-practice.html" rel="prev">
+<script src="../site_libs/quarto-html/quarto.js" type="module"></script>
+<script src="../site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
+<script src="../site_libs/quarto-html/popper.min.js"></script>
+<script src="../site_libs/quarto-html/tippy.umd.min.js"></script>
+<script src="../site_libs/quarto-html/anchor.min.js"></script>
+<link href="../site_libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="../site_libs/quarto-html/quarto-syntax-highlighting-bb62276ab45c84d9efd712f51ff97b5a.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<script src="../site_libs/bootstrap/bootstrap.min.js"></script>
+<link href="../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="../site_libs/bootstrap/bootstrap-ce0958bf53307a1b0bb60f85d87db72f.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
+<script id="quarto-search-options" type="application/json">{
+  "location": "sidebar",
+  "copy-button": false,
+  "collapse-after": 3,
+  "panel-placement": "start",
+  "type": "textbox",
+  "limit": 50,
+  "keyboard-shortcut": [
+    "f",
+    "/",
+    "s"
+  ],
+  "show-item-context": false,
+  "language": {
+    "search-no-results-text": "No results",
+    "search-matching-documents-text": "matching documents",
+    "search-copy-link-title": "Copy link to search",
+    "search-hide-matches-text": "Hide additional matches",
+    "search-more-match-text": "more match in this document",
+    "search-more-matches-text": "more matches in this document",
+    "search-clear-button-title": "Clear",
+    "search-text-placeholder": "",
+    "search-detached-cancel-button-title": "Cancel",
+    "search-submit-button-title": "Submit",
+    "search-label": "Search"
+  }
+}</script>
+<style>html{ scroll-behavior: smooth; }</style>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+<link href="https://fonts.googleapis.com/css2?family=Source+Code+Pro:wght@400;600&amp;family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&amp;display=swap" rel="stylesheet">
+
+  <script>window.backupDefine = window.define; window.define = undefined;</script><script src="https://cdn.jsdelivr.net/npm/katex@latest/dist/katex.min.js"></script>
+  <script>document.addEventListener("DOMContentLoaded", function () {
+ var mathElements = document.getElementsByClassName("math");
+ var macros = [];
+ for (var i = 0; i < mathElements.length; i++) {
+  var texText = mathElements[i].firstChild;
+  if (mathElements[i].tagName == "SPAN") {
+   katex.render(texText.data, mathElements[i], {
+    displayMode: mathElements[i].classList.contains('display'),
+    throwOnError: false,
+    macros: macros,
+    fleqn: false
+   });
+}}});
+  </script>
+  <script>window.define = window.backupDefine; window.backupDefine = undefined;</script><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@latest/dist/katex.min.css">
+
+<script type="text/javascript">
+const typesetMath = (el) => {
+  if (window.MathJax) {
+    // MathJax Typeset
+    window.MathJax.typeset([el]);
+  } else if (window.katex) {
+    // KaTeX Render
+    var mathElements = el.getElementsByClassName("math");
+    var macros = [];
+    for (var i = 0; i < mathElements.length; i++) {
+      var texText = mathElements[i].firstChild;
+      if (mathElements[i].tagName == "SPAN" && texText && texText.data) {
+        window.katex.render(texText.data, mathElements[i], {
+          displayMode: mathElements[i].classList.contains('display'),
+          throwOnError: false,
+          macros: macros,
+          fleqn: false
+        });
+      }
+    }
+  }
+}
+window.Quarto = {
+  typesetMath
+};
+</script>
+
+<link rel="stylesheet" href="../styles/custom.css">
+</head>
+
+<body class="nav-sidebar floating quarto-light">
+
+<div id="quarto-search-results"></div>
+  <header id="quarto-header" class="headroom fixed-top">
+  <nav class="quarto-secondary-nav">
+    <div class="container-fluid d-flex">
+      <button type="button" class="quarto-btn-toggle btn" data-bs-toggle="collapse" role="button" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+        <i class="bi bi-layout-text-sidebar-reverse"></i>
+      </button>
+        <nav class="quarto-page-breadcrumbs" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../lectures/week03.html"><span class="chapter-title">Week 3: Markov Random Fields and Exact Inference</span></a></li></ol></nav>
+        <a class="flex-grow-1" role="navigation" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">      
+        </a>
+      <button type="button" class="btn quarto-search-button" aria-label="Search" onclick="window.quartoOpenSearch();">
+        <i class="bi bi-search"></i>
+      </button>
+    </div>
+  </nav>
+</header>
+<!-- content -->
+<div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-article">
+<!-- sidebar -->
+  <nav id="quarto-sidebar" class="sidebar collapse collapse-horizontal quarto-sidebar-collapse-item sidebar-navigation floating overflow-auto">
+    <div class="pt-lg-2 mt-2 text-left sidebar-header">
+    <div class="sidebar-title mb-0 py-0">
+      <a href="../">CSC412/2506: Probabilistic Machine Learning notes</a> 
+    </div>
+      </div>
+        <div class="mt-2 flex-shrink-0 align-items-center">
+        <div class="sidebar-search">
+        <div id="quarto-search" class="" title="Search"></div>
+        </div>
+        </div>
+    <div class="sidebar-menu-container"> 
+    <ul class="list-unstyled mt-1">
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../index.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">CSC412/2506 Probabilistic Machine Learning</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../lectures/week01.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Week 1: Introduction and Probabilistic Models</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../lectures/week01-practice.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Week 1 practice: Introduction and probabilistic models</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../lectures/week02.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Week 2: Decision Theory and Graphical Models</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../lectures/week02-practice.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Week 2 practice: Decision theory and graphical models</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../lectures/week03.html" class="sidebar-item-text sidebar-link active"><span class="chapter-title">Week 3: Markov Random Fields and Exact Inference</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../glossary.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Glossary</span></a>
+  </div>
+</li>
+    </ul>
+    </div>
+</nav>
+<div id="quarto-sidebar-glass" class="quarto-sidebar-collapse-item" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item"></div>
+<!-- margin-sidebar -->
+    <div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
+        <nav id="TOC" role="doc-toc" class="toc-active">
+    <h2 id="toc-title">On this page</h2>
+   
+  <ul>
+  <li><a href="#sec-motivate" id="toc-sec-motivate" class="nav-link active" data-scroll-target="#sec-motivate">From DAGs to undirected graphs</a></li>
+  <li><a href="#sec-mrf" id="toc-sec-mrf" class="nav-link" data-scroll-target="#sec-mrf">Markov random fields, cliques, and the factorization theorem</a></li>
+  <li><a href="#sec-hc" id="toc-sec-hc" class="nav-link" data-scroll-target="#sec-hc">The Hammersley-Clifford theorem</a></li>
+  <li><a href="#sec-mrf-example" id="toc-sec-mrf-example" class="nav-link" data-scroll-target="#sec-mrf-example">Worked example: cliques, factorization, and independence</a></li>
+  <li><a href="#sec-mrf-vs-dag" id="toc-sec-mrf-vs-dag" class="nav-link" data-scroll-target="#sec-mrf-vs-dag">What MRFs can express that DAGs cannot, and vice versa</a></li>
+  <li><a href="#sec-mrf-expfam" id="toc-sec-mrf-expfam" class="nav-link" data-scroll-target="#sec-mrf-expfam">MRFs as exponential families</a></li>
+  <li><a href="#sec-ising" id="toc-sec-ising" class="nav-link" data-scroll-target="#sec-ising">The Ising model</a></li>
+  <li><a href="#sec-ggm" id="toc-sec-ggm" class="nav-link" data-scroll-target="#sec-ggm">Gaussian graphical models</a></li>
+  <li><a href="#sec-inference" id="toc-sec-inference" class="nav-link" data-scroll-target="#sec-inference">Exact inference as a conditional distribution</a></li>
+  <li><a href="#sec-ve" id="toc-sec-ve" class="nav-link" data-scroll-target="#sec-ve">Variable elimination</a></li>
+  <li><a href="#sec-sum-product" id="toc-sec-sum-product" class="nav-link" data-scroll-target="#sec-sum-product">Sum-product inference: unifying DAGMs and MRFs</a></li>
+  <li><a href="#sec-ve-student" id="toc-sec-ve-student" class="nav-link" data-scroll-target="#sec-ve-student">Worked example: variable elimination on a Bayes net</a></li>
+  <li><a href="#sec-ve-evidence" id="toc-sec-ve-evidence" class="nav-link" data-scroll-target="#sec-ve-evidence">Variable elimination with evidence</a></li>
+  <li><a href="#sec-rbm" id="toc-sec-rbm" class="nav-link" data-scroll-target="#sec-rbm">Restricted Boltzmann machines</a></li>
+  <li><a href="#sec-summary3" id="toc-sec-summary3" class="nav-link" data-scroll-target="#sec-summary3">Summary</a></li>
+  <li><a href="#quick-self-check" id="toc-quick-self-check" class="nav-link" data-scroll-target="#quick-self-check">Quick self-check</a></li>
+  </ul>
+</nav>
+    </div>
+<!-- main -->
+<main class="content" id="quarto-document-content">
+
+<header id="title-block-header" class="quarto-title-block default">
+<div class="quarto-title">
+<h1 class="title"><span class="chapter-title">Week 3: Markov Random Fields and Exact Inference</span></h1>
+</div>
+
+
+
+<div class="quarto-title-meta">
+
+    
+  
+    
+  </div>
+  
+
+
+</header>
+
+
+<style>#title-block-header { display: none; }</style>
+<div class="lecture-header">
+  <h1>Week 3: Markov Random Fields and Exact Inference</h1>
+</div>
+<p><strong>Overview.</strong> Week 2 built directed graphical models: pick an ordering of the variables, draw an arrow from each parent to each child, and read conditional independencies off the arrows. That works well when there is a natural causal or generative ordering, but many domains (a social network, a protein interaction network, the pixels of an image) have no natural direction to assign to an edge. This lecture introduces <strong>Markov random fields (MRFs)</strong>, undirected graphical models where an edge means “these two variables interact” rather than “one causes the other.” We show what MRFs can express that DAGs cannot, and vice versa, then specialize to two concrete families: the Ising model (for discrete/binary variables) and Gaussian graphical models (for continuous ones), the latter directly useful for this course’s first assignment. The second half turns to <strong>exact inference</strong>: given a graphical model, how do we actually compute a marginal or conditional probability without enumerating every possible assignment? <strong>Variable elimination</strong> answers this for both DAGs and MRFs at once, and we finish with a worked example and a modern application, the restricted Boltzmann machine.</p>
+<p>Skipped: the title slide and the assignment/office-hours announcements on slide 2 (the content summary from that same slide becomes the paragraph above).</p>
+<section id="sec-motivate" class="level2">
+<h2 class="anchored" data-anchor-id="sec-motivate">From DAGs to undirected graphs</h2>
+<p>Recall the <strong>Markov blanket</strong> of a variable <span class="math inline">X_i</span>: the smallest set of other variables that makes <span class="math inline">X_i</span> conditionally independent of everything else. In a DAG, the Markov blanket of <span class="math inline">X_i</span> is its parents, its children, and its children’s other parents (the co-parents), because of the explaining-away effect from Week 2 (<a href="week02.html#sec-cistructures" class="quarto-xref"><span>Conditional independence: three canonical structures</span></a> in Week 2): observing a child can create dependence between that child’s parents.</p>
+<p>This has an awkward consequence. Take a grid of variables <span class="math inline">X_1,\dots,X_{20}</span> arranged in rows, where intuitively each variable should depend only on its four grid neighbors (up, down, left, right). If we try to encode this as a DAG by choosing some ordering of the variables (say, left to right, top to bottom) and drawing arrows accordingly, the Markov blanket of an interior node like <span class="math inline">X_8</span> can end up including nodes that have nothing to do with <span class="math inline">X_8</span>’s grid neighbors. For example, <span class="math inline">X_8</span>’s co-parents in one such DAG turn out to include <span class="math inline">X_4</span> and <span class="math inline">X_{12}</span>, even though those are not grid-adjacent to <span class="math inline">X_8</span> at all, only because they happen to share a child with <span class="math inline">X_8</span> under the chosen edge orientation. The DAG is not wrong: it does encode a valid factorization. But its dependency structure does not match the “each cell depends on its neighbors” structure we actually wanted to express, and no choice of edge directions fixes this in general.</p>
+<div style="overflow-x:auto; margin:1.5rem 0;">
+<svg viewbox="0 0 480 320" width="100%" style="max-width:480px;display:block;margin:auto;font-family:Helvetica,'Helvetica Neue',Arial,sans-serif;" role="img" aria-label="A local neighborhood of a grid graph around X8, showing its four undirected grid neighbors, with X4 and X12 placed nearby but not adjacent">
+  <text x="240" y="28" text-anchor="middle" font-size="24" font-weight="600" fill="#333">X8's neighbors in the grid</text>
+  <line x1="240" y1="100" x2="240" y2="140" stroke="#555" stroke-width="1.5"></line>
+  <line x1="160" y1="160" x2="220" y2="160" stroke="#555" stroke-width="1.5"></line>
+  <line x1="260" y1="160" x2="320" y2="160" stroke="#555" stroke-width="1.5"></line>
+  <line x1="240" y1="180" x2="240" y2="220" stroke="#555" stroke-width="1.5"></line>
+  <circle cx="240" cy="80" r="22" fill="#C6DEF1" stroke="#5795C7" stroke-width="1.5"></circle>
+  <text x="240" y="85" text-anchor="middle" font-size="15" fill="#205279">X3</text>
+  <circle cx="140" cy="160" r="22" fill="#C6DEF1" stroke="#5795C7" stroke-width="1.5"></circle>
+  <text x="140" y="165" text-anchor="middle" font-size="15" fill="#205279">X7</text>
+  <circle cx="240" cy="160" r="24" fill="#F2C6DE" stroke="#C75794" stroke-width="2"></circle>
+  <text x="240" y="165" text-anchor="middle" font-size="15" fill="#792051">X8</text>
+  <circle cx="340" cy="160" r="22" fill="#C6DEF1" stroke="#5795C7" stroke-width="1.5"></circle>
+  <text x="340" y="165" text-anchor="middle" font-size="15" fill="#205279">X9</text>
+  <circle cx="240" cy="240" r="22" fill="#C6DEF1" stroke="#5795C7" stroke-width="1.5"></circle>
+  <text x="240" y="245" text-anchor="middle" font-size="15" fill="#205279">X13</text>
+  <circle cx="380" cy="80" r="22" fill="#FAEDCB" stroke="#C7A857" stroke-width="1.5" stroke-dasharray="4,3"></circle>
+  <text x="380" y="85" text-anchor="middle" font-size="15" fill="#796020">X4</text>
+  <circle cx="140" cy="240" r="22" fill="#FAEDCB" stroke="#C7A857" stroke-width="1.5" stroke-dasharray="4,3"></circle>
+  <text x="140" y="245" text-anchor="middle" font-size="15" fill="#796020">X12</text>
+</svg>
+</div>
+<p><strong>Figure 1.</strong> In the grid, <span class="math inline">X_8</span>’s only neighbors are <span class="math inline">X_3, X_7, X_9, X_{13}</span> (solid edges). <span class="math inline">X_4</span> and <span class="math inline">X_{12}</span> (dashed outlines, no edge to <span class="math inline">X_8</span>) are not grid-adjacent to <span class="math inline">X_8</span>, yet a particular DAG encoding of this grid places them in <span class="math inline">X_8</span>’s Markov blanket anyway.</p>
+</section>
+<section id="sec-mrf" class="level2">
+<h2 class="anchored" data-anchor-id="sec-mrf">Markov random fields, cliques, and the factorization theorem</h2>
+<div class="definition-block">
+<p><strong>Definition.</strong> An <strong>undirected graphical model</strong>, or <strong>Markov random field (MRF)</strong>, represents a set of random variables as nodes of an undirected graph <span class="math inline">G</span>, where an edge between two nodes means those variables interact directly, rather than one causing the other.</p>
+</div>
+<p>To write down what distributions an MRF represents, we need the notion of a clique.</p>
+<div class="definition-block">
+<p><strong>Definition.</strong> A <strong>clique</strong> is a subset of nodes in which every pair is connected by an edge. A <strong>maximal clique</strong> is a clique that cannot be extended by adding one more adjacent node without breaking the all-pairs-connected property.</p>
+</div>
+<div class="definition-block">
+<p><strong>Definition.</strong> Let <span class="math inline">\boldsymbol{x} = (x_1,\dots,x_m)</span> be all the variables in graph <span class="math inline">G</span>, and let <span class="math inline">\mathcal{C}</span> be the set of all maximal cliques of <span class="math inline">G</span>. A distribution <span class="math inline">p</span> <strong>factorizes with respect to</strong> <span class="math inline">G</span> if <span class="math display">p(\boldsymbol{x}) \propto \prod_{C \in \mathcal{C}} \psi_C(x_C)</span> for some nonnegative <strong>potential functions</strong> <span class="math inline">\psi_C</span>, where <span class="math inline">x_C = (x_i)_{i \in C}</span>. The MRF on <span class="math inline">G</span> represents exactly the distributions that factorize with respect to <span class="math inline">G</span>.</p>
+</div>
+<p>Unlike a DAG’s conditional probability tables, a potential <span class="math inline">\psi_C</span> need not sum or integrate to 1, and need not have any probabilistic interpretation on its own; it is simply a nonnegative score attached to each joint setting of the clique’s variables. The product of all the potentials is only proportional to <span class="math inline">p(\boldsymbol{x})</span>, so an explicit normalizing constant <span class="math inline">Z = \sum_{\boldsymbol{x}} \prod_{C} \psi_C(x_C)</span> (the <strong>partition function</strong>) is needed to turn it into an actual probability. This factored structure is what makes sums and integrals over <span class="math inline">p(\boldsymbol{x})</span> tractable: instead of manipulating one giant table over all variables jointly, we manipulate several small tables, one per clique, exactly the same motivation that drove the chain-rule factorization of Week 2 (<a href="week02.html#sec-factoring" class="quarto-xref"><span>Why factor the joint</span></a> in Week 2).</p>
+<p>As a small concrete instance, a 4-cycle of binary variables <span class="math inline">x_1,x_2,x_3,x_4</span> (edges <span class="math inline">1\text{-}2</span>, <span class="math inline">2\text{-}3</span>, <span class="math inline">3\text{-}4</span>, <span class="math inline">4\text{-}1</span>) has four maximal cliques, one per edge, so</p>
+<p><span class="math display">p(x_1,x_2,x_3,x_4) = \frac{1}{Z}\,\psi_{1,2}(x_1,x_2)\,\psi_{2,3}(x_2,x_3)\,\psi_{3,4}(x_3,x4)\,\psi_{1,4}(x_1,x_4).</span></p>
+<div style="overflow-x:auto; margin:1.5rem 0;">
+<svg viewbox="0 0 300 260" width="100%" style="max-width:300px;display:block;margin:auto;font-family:Helvetica,'Helvetica Neue',Arial,sans-serif;" role="img" aria-label="A 4-cycle graph with nodes 1, 2, 3, 4">
+  <text x="150" y="28" text-anchor="middle" font-size="24" font-weight="600" fill="#333">A 4-cycle</text>
+  <line x1="80" y1="80" x2="220" y2="80" stroke="#555" stroke-width="1.5"></line>
+  <line x1="220" y1="80" x2="220" y2="200" stroke="#555" stroke-width="1.5"></line>
+  <line x1="220" y1="200" x2="80" y2="200" stroke="#555" stroke-width="1.5"></line>
+  <line x1="80" y1="200" x2="80" y2="80" stroke="#555" stroke-width="1.5"></line>
+  <circle cx="80" cy="80" r="22" fill="#C6DEF1" stroke="#5795C7" stroke-width="1.5"></circle>
+  <text x="80" y="85" text-anchor="middle" font-size="15" fill="#205279">1</text>
+  <circle cx="220" cy="80" r="22" fill="#C9E4DE" stroke="#57C7AE" stroke-width="1.5"></circle>
+  <text x="220" y="85" text-anchor="middle" font-size="15" fill="#207965">2</text>
+  <circle cx="220" cy="200" r="22" fill="#F2C6DE" stroke="#C75794" stroke-width="1.5"></circle>
+  <text x="220" y="205" text-anchor="middle" font-size="15" fill="#792051">3</text>
+  <circle cx="80" cy="200" r="22" fill="#FAEDCB" stroke="#C7A857" stroke-width="1.5"></circle>
+  <text x="80" y="205" text-anchor="middle" font-size="15" fill="#796020">4</text>
+</svg>
+</div>
+<p><strong>Figure 2.</strong> A 4-cycle: each edge is its own maximal clique, since no three nodes here are all pairwise connected. Each <span class="math inline">\psi</span> can be stored as a small table (for binary variables, 4 numbers per edge); these numbers are potentials, not probabilities, since the normalizer <span class="math inline">Z</span> has not been applied.</p>
+</section>
+<section id="sec-hc" class="level2">
+<h2 class="anchored" data-anchor-id="sec-hc">The Hammersley-Clifford theorem</h2>
+<p>The factorization theorem above starts from a factored form and asks what independencies it implies. The Hammersley-Clifford theorem says the two directions coincide.</p>
+<div class="theorem-block">
+<p><strong>Hammersley-Clifford theorem.</strong> If <span class="math inline">p(\boldsymbol{x}) &gt; 0</span> for all <span class="math inline">\boldsymbol{x}</span>, the following are equivalent:</p>
+<ul>
+<li><span class="math inline">p</span> factorizes with respect to <span class="math inline">G</span>, i.e.&nbsp;<span class="math inline">p(\boldsymbol{x}) \propto \prod_{C \in \mathcal{C}} \psi_C(x_C)</span> for nonnegative potentials <span class="math inline">\psi_C</span>.</li>
+<li><strong>Global Markov property:</strong> <span class="math inline">X_A \perp X_B \mid X_S</span> whenever <span class="math inline">S</span> separates <span class="math inline">A</span> from <span class="math inline">B</span> in <span class="math inline">G</span> (every path from <span class="math inline">A</span> to <span class="math inline">B</span> passes through <span class="math inline">S</span>).</li>
+</ul>
+</div>
+<p>Two special cases of the global Markov property are worth naming directly, since they recur constantly: if <span class="math inline">i</span> and <span class="math inline">j</span> are not joined by an edge, then <span class="math inline">X_i \perp X_j \mid X_{\text{rest}}</span> (conditioning on every other variable separates any two non-adjacent nodes); and the Markov blanket of <span class="math inline">X_i</span> in an MRF is simply its graph neighbors, no co-parent correction needed, in contrast to the DAG case of <a href="#sec-motivate" class="quarto-xref"><span>From DAGs to undirected graphs</span></a>.</p>
+<p><strong>Why the two directions match: a chain.</strong> The core mechanism is easiest to see on a three-node chain <span class="math inline">X-Y-Z</span>, whose only maximal cliques are the edges <span class="math inline">\{X,Y\}</span> and <span class="math inline">\{Y,Z\}</span>, so the class of distributions that factorizes with respect to this graph is exactly those of the form <span class="math display">f(x,y,z) = \alpha(x,y)\,\beta(y,z)</span> for positive functions <span class="math inline">\alpha,\beta</span>. The claim is that this is equivalent to <span class="math inline">X \perp Z \mid Y</span>.</p>
+<p><em>Factorized <span class="math inline">\Rightarrow</span> independent.</em> Using the product rule, <span class="math inline">f(x,y,z) = f(y,z)\,f(x\mid y,z)</span>, and separately <span class="math inline">f(x,y,z) = f(x\mid y)\,f(y,z)</span> whenever <span class="math inline">X\perp Z\mid Y</span> already holds, so a factorization of the stated form is available with <span class="math inline">\alpha(x,y) = f(x\mid y)</span> and <span class="math inline">\beta(y,z) = f(y,z)</span>. This direction just restates the definition of conditional independence as a factorization.</p>
+<p><em>Factorized <span class="math inline">\Rightarrow</span> independent, without assuming it first.</em> Start only from <span class="math inline">f(x,y,z)=\alpha(x,y)\beta(y,z)</span> and derive the independence. Summing out <span class="math inline">x</span>, <span class="math display">f(y,z) = \Big(\sum_x \alpha(x,y)\Big)\beta(y,z).</span> Dividing the joint by this marginal gives the conditional: <span class="math display">f(x\mid y,z) = \frac{\alpha(x,y)\,\beta(y,z)}{\left(\sum_x \alpha(x,y)\right)\beta(y,z)} = \frac{\alpha(x,y)}{\sum_x \alpha(x,y)}.</span> The right-hand side has no <span class="math inline">z</span> in it at all, so <span class="math inline">f(x\mid y,z)</span> does not depend on <span class="math inline">z</span>, which is exactly <span class="math inline">X\perp Z\mid Y</span>. The mechanism is the same cancellation that made Week 2’s regression decomposition work (<a href="week02.html#sec-regression" class="quarto-xref"><span>Loss functions for regression</span></a> in Week 2): a shared factor in numerator and denominator drops out, leaving no trace of the conditioned-out variable.</p>
+</section>
+<section id="sec-mrf-example" class="level2">
+<h2 class="anchored" data-anchor-id="sec-mrf-example">Worked example: cliques, factorization, and independence</h2>
+<div style="overflow-x:auto; margin:1.5rem 0;">
+<svg viewbox="0 0 620 320" width="100%" style="max-width:620px;display:block;margin:auto;font-family:Helvetica,'Helvetica Neue',Arial,sans-serif;" role="img" aria-label="A seven-node undirected graph used to identify maximal cliques">
+  <text x="310" y="28" text-anchor="middle" font-size="24" font-weight="600" fill="#333">A seven-node MRF</text>
+  <line x1="60" y1="180" x2="200" y2="100" stroke="#555" stroke-width="1.5"></line>
+  <line x1="60" y1="180" x2="200" y2="260" stroke="#555" stroke-width="1.5"></line>
+  <line x1="200" y1="100" x2="200" y2="260" stroke="#555" stroke-width="1.5"></line>
+  <line x1="200" y1="100" x2="380" y2="100" stroke="#555" stroke-width="1.5"></line>
+  <line x1="200" y1="100" x2="300" y2="180" stroke="#555" stroke-width="1.5"></line>
+  <line x1="200" y1="260" x2="300" y2="180" stroke="#555" stroke-width="1.5"></line>
+  <line x1="200" y1="260" x2="380" y2="260" stroke="#555" stroke-width="1.5"></line>
+  <line x1="300" y1="180" x2="380" y2="100" stroke="#555" stroke-width="1.5"></line>
+  <line x1="300" y1="180" x2="380" y2="260" stroke="#555" stroke-width="1.5"></line>
+  <line x1="380" y1="100" x2="380" y2="260" stroke="#555" stroke-width="1.5"></line>
+  <line x1="380" y1="100" x2="520" y2="180" stroke="#555" stroke-width="1.5"></line>
+  <line x1="380" y1="260" x2="520" y2="180" stroke="#555" stroke-width="1.5"></line>
+  <circle cx="60" cy="180" r="22" fill="#C6DEF1" stroke="#5795C7" stroke-width="1.5"></circle>
+  <text x="60" y="185" text-anchor="middle" font-size="15" fill="#205279">1</text>
+  <circle cx="200" cy="100" r="22" fill="#C9E4DE" stroke="#57C7AE" stroke-width="1.5"></circle>
+  <text x="200" y="105" text-anchor="middle" font-size="15" fill="#207965">2</text>
+  <circle cx="200" cy="260" r="22" fill="#F2C6DE" stroke="#C75794" stroke-width="1.5"></circle>
+  <text x="200" y="265" text-anchor="middle" font-size="15" fill="#792051">3</text>
+  <circle cx="380" cy="100" r="22" fill="#FAEDCB" stroke="#C7A857" stroke-width="1.5"></circle>
+  <text x="380" y="105" text-anchor="middle" font-size="15" fill="#796020">4</text>
+  <circle cx="300" cy="180" r="22" fill="#F7D9C4" stroke="#C78557" stroke-width="1.5"></circle>
+  <text x="300" y="185" text-anchor="middle" font-size="15" fill="#794520">5</text>
+  <circle cx="380" cy="260" r="22" fill="#C6DEF1" stroke="#5795C7" stroke-width="1.5"></circle>
+  <text x="380" y="265" text-anchor="middle" font-size="15" fill="#205279">6</text>
+  <circle cx="520" cy="180" r="22" fill="#C9E4DE" stroke="#57C7AE" stroke-width="1.5"></circle>
+  <text x="520" y="185" text-anchor="middle" font-size="15" fill="#207965">7</text>
+</svg>
+</div>
+<p><strong>Figure 3.</strong> A seven-node MRF with edges <span class="math inline">1\text{-}2, 1\text{-}3, 2\text{-}3, 2\text{-}4, 2\text{-}5, 3\text{-}5, 3\text{-}6, 4\text{-}5, 4\text{-}6, 4\text{-}7, 5\text{-}6, 5\text{-}7, 6\text{-}7</span>.</p>
+<p><strong>How many maximal cliques are there?</strong> Checking every pairwise connection within each candidate set gives five maximal cliques: <span class="math inline">\{1,2,3\}</span>, <span class="math inline">\{2,3,5\}</span>, <span class="math inline">\{2,4,5\}</span>, <span class="math inline">\{3,5,6\}</span>, and <span class="math inline">\{4,5,6,7\}</span>. Node 5 belongs to four of the five, since it connects to nearly every other node; that is exactly why it appears in so many of the clique’s variable lists below.</p>
+<p><strong>What is the factorization?</strong> <span class="math display">p(\boldsymbol{x}) \propto \psi_{1,2,3}(x_1,x_2,x_3)\,\psi_{2,3,5}(x_2,x_3,x_5)\,\psi_{2,4,5}(x_2,x_4,x_5)</span> <span class="math display">{}\times \psi_{3,5,6}(x_3,x_5,x_6)\,\psi_{4,5,6,7}(x_4,x_5,x_6,x_7).</span></p>
+<p><strong>What independencies does the graph imply?</strong> Reading the global Markov property off the picture: the set <span class="math inline">\{4,5,6,7\}</span> separates <span class="math inline">\{1,2\}</span> from nothing directly, but removing <span class="math inline">\{3,4,5\}</span> disconnects <span class="math inline">\{1,2\}</span> from <span class="math inline">\{6,7\}</span> entirely (every path from <span class="math inline">1</span> or <span class="math inline">2</span> to <span class="math inline">6</span> or <span class="math inline">7</span> passes through <span class="math inline">3</span>, <span class="math inline">4</span>, or <span class="math inline">5</span>), so <span class="math inline">(X_1,X_2) \perp (X_6,X_7) \mid (X_3,X_4,X_5)</span>. Similarly, node 5 is the only path connecting <span class="math inline">1</span> to <span class="math inline">5</span>’s other neighbors that does not already pass through <span class="math inline">2</span> or <span class="math inline">3</span>; more simply, every path from <span class="math inline">1</span> to <span class="math inline">5</span> passes through <span class="math inline">2</span> or <span class="math inline">3</span>, so <span class="math inline">X_1 \perp X_5 \mid (X_2,X_3)</span>.</p>
+<div class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+Note
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p><strong>Practice question.</strong> In Figure 3, is <span class="math inline">X_1 \perp X_4 \mid X_2</span>? Check by finding every path from node 1 to node 4 and seeing whether <span class="math inline">\{2\}</span> blocks all of them.</p>
+<p><strong>Solution.</strong> Node 1’s only edges go to nodes 2 and 3, so every path out of node 1 starts by visiting 2 or 3. A path starting <span class="math inline">1\to 2 \to 4</span> is blocked once we condition on <span class="math inline">\{2\}</span>, since 2 is on that path and is now fixed. But a path starting <span class="math inline">1\to 3 \to 5 \to 4</span> never touches node 2 at all, so conditioning on <span class="math inline">\{2\}</span> does nothing to it: it stays open. Since at least one path from 1 to 4 survives, <span class="math inline">\{2\}</span> does not separate them, so <span class="math inline">X_1 \not\perp X_4 \mid X_2</span>. Separating 1 from 4 would require conditioning on a set that intersects every route out of node 1’s second neighbor, node 3, as well, for example <span class="math inline">\{2,3\}</span> or <span class="math inline">\{3,5\}</span>.</p>
+</div>
+</div>
+</section>
+<section id="sec-mrf-vs-dag" class="level2">
+<h2 class="anchored" data-anchor-id="sec-mrf-vs-dag">What MRFs can express that DAGs cannot, and vice versa</h2>
+<p>The two representations are not nested: each can express independence patterns the other cannot.</p>
+<p><strong>An MRF with no equivalent DAG.</strong> Take the 4-cycle <span class="math inline">A-D-B-C-A</span> shown below (edges <span class="math inline">A\text{-}D</span>, <span class="math inline">A\text{-}B</span>, <span class="math inline">D\text{-}C</span>, <span class="math inline">B\text{-}C</span>, and <em>no</em> diagonal). Its two maximal cliques give two independence statements simultaneously: <span class="math inline">A \perp C \mid \{D,B\}</span> and <span class="math inline">B \perp D \mid \{A,C\}</span>. Any attempt to encode this as a DAG by orienting the four edges necessarily creates a v-structure (a collider) at one of the four nodes, and by the explaining-away logic of Week 2, that collider blocks one of the two independencies while leaving the other intact, or introduces an independence (such as making <span class="math inline">B</span> and <span class="math inline">D</span> marginally independent) that was never true in the undirected model. No orientation of the diamond’s edges reproduces both independencies at once.</p>
+<div style="overflow-x:auto; margin:1.5rem 0;">
+<svg viewbox="0 0 400 320" width="100%" style="max-width:400px;display:block;margin:auto;font-family:Helvetica,'Helvetica Neue',Arial,sans-serif;" role="img" aria-label="A 4-cycle diamond graph with nodes A, D, B, C and no diagonal edges">
+  <text x="200" y="28" text-anchor="middle" font-size="24" font-weight="600" fill="#333">A diamond MRF</text>
+  <line x1="200" y1="90" x2="100" y2="180" stroke="#555" stroke-width="1.5"></line>
+  <line x1="200" y1="90" x2="300" y2="180" stroke="#555" stroke-width="1.5"></line>
+  <line x1="100" y1="180" x2="200" y2="270" stroke="#555" stroke-width="1.5"></line>
+  <line x1="300" y1="180" x2="200" y2="270" stroke="#555" stroke-width="1.5"></line>
+  <circle cx="200" cy="90" r="24" fill="#C6DEF1" stroke="#5795C7" stroke-width="1.5"></circle>
+  <text x="200" y="95" text-anchor="middle" font-size="16" fill="#205279">A</text>
+  <circle cx="100" cy="180" r="24" fill="#FAEDCB" stroke="#C7A857" stroke-width="1.5"></circle>
+  <text x="100" y="185" text-anchor="middle" font-size="16" fill="#796020">D</text>
+  <circle cx="300" cy="180" r="24" fill="#F2C6DE" stroke="#C75794" stroke-width="1.5"></circle>
+  <text x="300" y="185" text-anchor="middle" font-size="16" fill="#792051">B</text>
+  <circle cx="200" cy="270" r="24" fill="#C9E4DE" stroke="#57C7AE" stroke-width="1.5"></circle>
+  <text x="200" y="275" text-anchor="middle" font-size="16" fill="#207965">C</text>
+</svg>
+</div>
+<p><strong>Figure 4.</strong> A diamond MRF. Both <span class="math inline">A\perp C\mid\{D,B\}</span> and <span class="math inline">B\perp D\mid\{A,C\}</span> hold simultaneously; no directed version of this graph reproduces both.</p>
+<p><strong>A DAG with no equivalent MRF.</strong> Conversely, take the explaining-away structure from Week 2, <span class="math inline">X \to Z \leftarrow Y</span>. There, <span class="math inline">X</span> and <span class="math inline">Y</span> are marginally independent (<span class="math inline">X\perp Y</span>) but become dependent once <span class="math inline">Z</span> is observed (<span class="math inline">X \not\perp Y \mid Z</span>). An undirected model cannot express this pattern: the global Markov property says that if <span class="math inline">X \perp Y</span> holds unconditionally, no set of nodes we condition on can ever <em>create</em> a dependency between them, since observing more variables in an MRF can only add to the separating set, never remove an edge. Collider-created dependence is a genuinely directed phenomenon.</p>
+<div style="overflow-x:auto; margin:1.5rem 0;">
+<svg viewbox="0 0 400 240" width="100%" style="max-width:400px;display:block;margin:auto;font-family:Helvetica,'Helvetica Neue',Arial,sans-serif;" role="img" aria-label="A collider DAG with X and Y both pointing into Z">
+  <defs>
+    <marker id="arrW3a" markerwidth="7" markerheight="7" refx="6" refy="3.5" orient="auto">
+      <path d="M0,0 L0,7 L7,3.5 z" fill="#555"></path>
+    </marker>
+  </defs>
+  <text x="200" y="28" text-anchor="middle" font-size="24" font-weight="600" fill="#333">Explaining away</text>
+  <line x1="120" y1="90" x2="185" y2="160" stroke="#555" stroke-width="1.5" marker-end="url(#arrW3a)"></line>
+  <line x1="280" y1="90" x2="215" y2="160" stroke="#555" stroke-width="1.5" marker-end="url(#arrW3a)"></line>
+  <circle cx="100" cy="70" r="24" fill="#C6DEF1" stroke="#5795C7" stroke-width="1.5"></circle>
+  <text x="100" y="75" text-anchor="middle" font-size="16" fill="#205279">X</text>
+  <circle cx="300" cy="70" r="24" fill="#F2C6DE" stroke="#C75794" stroke-width="1.5"></circle>
+  <text x="300" y="75" text-anchor="middle" font-size="16" fill="#792051">Y</text>
+  <circle cx="200" cy="180" r="24" fill="#FAEDCB" stroke="#C7A857" stroke-width="1.5"></circle>
+  <text x="200" y="185" text-anchor="middle" font-size="16" fill="#796020">Z</text>
+</svg>
+</div>
+<p><strong>Figure 5.</strong> <span class="math inline">X\perp Y</span> marginally, but <span class="math inline">X \not\perp Y \mid Z</span>: no undirected graph reproduces both facts at once.</p>
+</section>
+<section id="sec-mrf-expfam" class="level2">
+<h2 class="anchored" data-anchor-id="sec-mrf-expfam">MRFs as exponential families</h2>
+<div class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+Note
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p><strong>Homework-relevant.</strong> This section’s log-linear form and sufficient statistics are the same exponential-family machinery from Week 1 (<a href="week01.html#sec-mle" class="quarto-xref"><span>Maximum likelihood estimation</span></a> in Week 1), applied to potentials instead of a single density. If a current or upcoming assignment asks you to write an MRF or a Gaussian graphical model in exponential-family form, this derivation pattern is the one to reuse.</p>
+</div>
+</div>
+<p>Consider the parametric family <span class="math display">p(\boldsymbol{x}\mid\theta) = \frac{1}{Z(\theta)}\prod_{C\in\mathcal{C}} \psi_C(x_C\mid\theta_C), \qquad \theta = (\theta_C)_{C\in\mathcal{C}}.</span> Taking the log of the product turns it into a sum, exactly as in Week 1’s move from likelihood to log-likelihood: <span class="math display">p(\boldsymbol{x}\mid\theta) = \exp\Big\{\sum_{C\in\mathcal{C}} \log\psi_C(x_C\mid\theta_C) - \underbrace{\log Z(\theta)}_{=A(\theta)}\Big\}.</span> If each potential has a <strong>log-linear form</strong>, <span class="math inline">\log\psi_C(x_C\mid\theta_C) = \theta_C^\top \phi_C(x_C)</span>, this becomes exactly Week 1’s exponential family, with natural parameter <span class="math inline">\theta</span>, sufficient statistic <span class="math inline">\phi = (\phi_C)_{C\in\mathcal{C}}</span>, and log-partition function <span class="math inline">A(\theta) = \log Z(\theta)</span>: <span class="math display">p(\boldsymbol{x}\mid\theta) = \exp\Big\{\sum_{C\in\mathcal{C}} \theta_C^\top \phi_C(x_C) - A(\theta)\Big\}.</span></p>
+<p><strong>When does the log-linear form hold?</strong> For finite discrete <span class="math inline">x_C</span>, <span class="math inline">\log\psi_C</span> takes only finitely many values, one per setting of <span class="math inline">x_C</span>. Let <span class="math inline">\theta_C</span> list all those values, and let <span class="math inline">\phi_C(x_C)</span> be the indicator vector with a 1 in the entry matching <span class="math inline">x_C</span>’s current setting and 0 elsewhere: then <span class="math inline">\theta_C^\top \phi_C(x_C)</span> just selects out the one matching entry, which is <span class="math inline">\log\psi_C(x_C\mid\theta_C)</span> by construction. As in Week 1’s exponential-family facts, the log-partition function’s gradient recovers an expectation: <span class="math inline">\partial \log Z(\theta) / \partial \theta_C = \mathbb{E}[\phi_C(X_C)]</span>.</p>
+<p><strong>Worked example: minimal vs.&nbsp;non-minimal.</strong> Take the chain <span class="math inline">X_1 - X_2 - X_3</span> with binary variables, so <span class="math inline">p(x_1,x_2,x_3\mid\theta) = \frac{1}{Z(\theta)}\psi_{1,2}(x_1,x_2\mid\theta_{1,2})\,\psi_{2,3}(x_2,x_3\mid\theta_{2,3})</span>. Following the finite-discrete construction, index <span class="math inline">\theta_{1,2}</span> by the four settings of <span class="math inline">(x_1,x_2)</span>: <span class="math display">\theta_{1,2} := \begin{bmatrix}\log\psi_{1,2}(0,0)\\ \log\psi_{1,2}(0,1)\\ \log\psi_{1,2}(1,0)\\ \log\psi_{1,2}(1,1)\end{bmatrix} \in \mathbb{R}^4,</span> with <span class="math inline">\phi_{1,2}(x_1,x_2)</span> the corresponding indicator vector, e.g.&nbsp;<span class="math inline">\phi_{1,2}(0,1) = (0,1,0,0)^\top</span>. This reproduces <span class="math inline">\log\psi_{1,2}(x_1,x_2\mid\theta_{1,2}) = \theta_{1,2}^\top \phi_{1,2}(x_1,x_2)</span> exactly, and the resulting family has <span class="math inline">Z(\theta) = 1</span> by construction.</p>
+<p>But this representation is <strong>not minimal</strong>: every setting of <span class="math inline">\phi_{1,2}(x_1,x_2)</span> has entries summing to exactly 1 (only one indicator is ever “on”), so all four possible values of <span class="math inline">\phi_{1,2}</span> lie on the hyperplane <span class="math inline">\{v : v^\top(1,1,1,1)^\top = 1\}</span> rather than spanning <span class="math inline">\mathbb{R}^4</span>. A non-minimal exponential family fails the usual gradient identity (<span class="math inline">\nabla A(\theta) = \mathbb{E}_\theta[\phi(X)]</span> does not hold as stated here, since <span class="math inline">A(\theta)=0</span> identically in this parameterization). The fix is to drop the redundant first coordinate and re-express the other three relative to it: <span class="math display">\bar\theta_{1,2} = \big(\theta^{(1)},\,\theta^{(2)},\,\theta^{(3)}\big), \quad \text{where}</span> <span class="math display">\theta^{(1)} = \log\psi_{1,2}(0,1)-\log\psi_{1,2}(0,0),</span> <span class="math display">\theta^{(2)} = \log\psi_{1,2}(1,0)-\log\psi_{1,2}(0,0),</span> <span class="math display">\theta^{(3)} = \log\psi_{1,2}(1,1)-\log\psi_{1,2}(0,0),</span> <span class="math display">\bar\phi_{1,2}(x_1,x_2) = \begin{bmatrix}(1-x_1)x_2\\ x_1(1-x_2)\\ x_1 x_2\end{bmatrix},</span> and analogously for <span class="math inline">\bar\theta_{2,3}, \bar\phi_{2,3}</span>. This three-dimensional-per-edge parameterization is minimal, and its log-partition function, <span class="math inline">A(\bar\theta) = \log\psi_{1,2}(0,0)\,\psi_{2,3}(0,0)</span>, is no longer identically zero. The general lesson: writing every table entry as its own parameter is always possible but wastes one degree of freedom per clique to the normalization constraint; a minimal representation fixes a reference setting (here, <span class="math inline">(0,0)</span>) and parameterizes only the <em>contrast</em> with it.</p>
+</section>
+<section id="sec-ising" class="level2">
+<h2 class="anchored" data-anchor-id="sec-ising">The Ising model</h2>
+<div class="definition-block">
+<p><strong>Definition.</strong> The <strong>Ising model</strong> is an MRF over spin variables <span class="math inline">x_s \in \{-1,+1\}</span>, originally used to model magnets, with pairwise clique potentials <span class="math display">\psi_{st}(x_s,x_t) = e^{J_{st}\,x_s x_t},</span> where <span class="math inline">J_{st}</span> is the <strong>coupling strength</strong> between neighboring nodes <span class="math inline">s</span> and <span class="math inline">t</span> (<span class="math inline">J_{st}=0</span> if <span class="math inline">s,t</span> are not connected).</p>
+</div>
+<p>Since <span class="math inline">x_s x_t = +1</span> when the two spins agree and <span class="math inline">-1</span> when they disagree, <span class="math inline">\psi_{st}(-1,-1)=\psi_{st}(1,1)=e^{J_{st}}</span> while <span class="math inline">\psi_{st}(-1,1)=\psi_{st}(1,-1)=e^{-J_{st}}</span>: a positive coupling <span class="math inline">J_{st}&gt;0</span> makes the potential larger when the two spins agree, so the model favors, but does not force, matching neighbors. Adding a per-node potential <span class="math inline">\psi_s(x_s) = e^{b_s x_s}</span> (an external field biasing each spin individually) gives the overall distribution <span class="math display">p(\boldsymbol{x}) \propto \prod_{s\sim t} \psi_{st}(x_s,x_t) \prod_s \psi_s(x_s) = \exp\Big\{\sum_{s\sim t} J_{st}x_sx_t + \sum_s b_s x_s\Big\},</span> where <span class="math inline">s\sim t</span> ranges over edges. This is exactly the log-linear exponential family of <a href="#sec-mrf-expfam" class="quarto-xref"><span>MRFs as exponential families</span></a>, with sufficient statistics <span class="math inline">x_sx_t</span> per edge and <span class="math inline">x_s</span> per node. By Hammersley-Clifford, setting <span class="math inline">J_{st}=0</span> for a non-edge pair is precisely what makes <span class="math inline">X_s \perp X_t \mid X_{\text{rest}}</span>.</p>
+<div class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+Note
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p><strong>Practice question.</strong> In an Ising model with three spins <span class="math inline">X_1,X_2,X_3</span> arranged in the chain <span class="math inline">X_1-X_2-X_3</span> (so <span class="math inline">J_{13}=0</span>), is <span class="math inline">X_1 \perp X_3</span> marginally (with <span class="math inline">X_2</span> unobserved), or only <span class="math inline">X_1 \perp X_3 \mid X_2</span>?</p>
+<p><strong>Solution.</strong> <span class="math inline">J_{13}=0</span> says only that <span class="math inline">X_1</span> and <span class="math inline">X_3</span> are not directly coupled, which by Hammersley-Clifford gives the conditional statement <span class="math inline">X_1 \perp X_3 \mid X_2</span> (they are the two endpoints of a chain, and <span class="math inline">X_2</span> is the sole separator between them, exactly the causal-chain structure of Week 2’s <a href="week02.html#sec-cistructures" class="quarto-xref"><span>Conditional independence: three canonical structures</span></a>). It says nothing about the marginal relationship: both spins are still coupled to the same neighbor <span class="math inline">X_2</span>, so marginally (summing <span class="math inline">X_2</span> out) <span class="math inline">X_1</span> and <span class="math inline">X_3</span> are typically dependent, the common-cause pattern from the same Week 2 section. This is the Ising-model instance of the general chain fact proved in <a href="#sec-hc" class="quarto-xref"><span>The Hammersley-Clifford theorem</span></a>.</p>
+</div>
+</div>
+</section>
+<section id="sec-ggm" class="level2">
+<h2 class="anchored" data-anchor-id="sec-ggm">Gaussian graphical models</h2>
+<p>MRFs are not limited to discrete variables. For continuous variables, the multivariate Gaussian gives a graphical model whose edges correspond directly to nonzero entries of a matrix.</p>
+<p>Recall the multivariate normal: for <span class="math inline">X=(X_1,\dots,X_m)</span>, mean vector <span class="math inline">\mu\in\mathbb{R}^m</span>, and a symmetric positive definite covariance matrix <span class="math inline">\Sigma</span> (meaning <span class="math inline">u^\top \Sigma u &gt; 0</span> for every nonzero <span class="math inline">u</span>), we write <span class="math inline">X\sim N_m(\mu,\Sigma)</span> if <span class="math display">f(\boldsymbol{x};\mu,\Sigma) = \frac{1}{(2\pi)^{m/2}(\det\Sigma)^{1/2}}</span> <span class="math display">\times\exp\!\left(-\tfrac{1}{2}(\boldsymbol{x}-\mu)^\top\Sigma^{-1}(\boldsymbol{x}-\mu)\right),</span> with <span class="math inline">\mathbb{E}[X]=\mu</span> and <span class="math inline">\mathrm{var}(X)=\Sigma</span>. Splitting <span class="math inline">X</span> into two blocks <span class="math inline">X=(X_A,X_B)</span> with <span class="math inline">\mu=(\mu_A,\mu_B)</span> and <span class="math inline">\Sigma = \begin{bmatrix}\Sigma_{AA} &amp; \Sigma_{AB}\\ \Sigma_{BA} &amp; \Sigma_{BB}\end{bmatrix}</span>, the marginal is again Gaussian, <span class="math inline">X_A \sim N(\mu_A,\Sigma_{AA})</span>, and the conditional is <span class="math display">X_A \mid X_B=x_B \sim N\big(\mu_A + \Sigma_{AB}\Sigma_{BB}^{-1}(x_B-\mu_B),\; \Sigma_{AA}-\Sigma_{AB}\Sigma_{BB}^{-1}\Sigma_{BA}\big),</span> where the conditional covariance does not depend on the observed value <span class="math inline">x_B</span>, only on which variables were observed.</p>
+<p><strong>Reading independence off <span class="math inline">\Sigma</span>.</strong> Marginal independence is simple: <span class="math inline">X_i \perp X_j</span> if and only if <span class="math inline">\Sigma_{ij}=0</span>. Conditioning on everything else is more useful for graphical models, and it is governed not by <span class="math inline">\Sigma</span> but by its inverse. Let <span class="math inline">K = \Sigma^{-1}</span>, the <strong>precision matrix</strong>. Writing <span class="math inline">R = V\setminus\{i,j\}</span> for every other variable, the following are equivalent: <span class="math inline">X_i \perp X_j \mid X_R</span>; <span class="math inline">\Sigma_{ij} - \Sigma_{i,R}\Sigma_{R,R}^{-1}\Sigma_{R,j} = 0</span>; and <span class="math inline">(\Sigma^{-1})_{ij} = K_{ij} = 0</span>. The last equivalence is the useful one: a single entry of the precision matrix tells us whether two variables are conditionally independent given everything else, with no matrix inversion needed per pair.</p>
+<div class="definition-block">
+<p><strong>Definition.</strong> A <strong>Gaussian graphical model</strong> represents <span class="math inline">X\sim N(\mu,\Sigma)</span> with precision matrix <span class="math inline">K=\Sigma^{-1}</span> as an undirected graph on the coordinates of <span class="math inline">X</span>, with an edge between <span class="math inline">i</span> and <span class="math inline">j</span> exactly when <span class="math inline">K_{ij}\neq 0</span>. Writing out the density in terms of <span class="math inline">K</span>, <span class="math display">p(\boldsymbol{x}\mid\mu,\Sigma) \propto \prod_s e^{-\frac{1}{2}K_{ss}(x_s-\mu_s)^2} \prod_{s&lt;t} e^{-K_{st}(x_s-\mu_s)(x_t-\mu_t)},</span> so <span class="math inline">K_{ij}=0</span> if and only if <span class="math inline">X_i \perp X_j \mid X_{\text{rest}}</span>, matching the Hammersley-Clifford statement of <a href="#sec-hc" class="quarto-xref"><span>The Hammersley-Clifford theorem</span></a>.</p>
+</div>
+<div style="overflow-x:auto; margin:1.5rem 0;">
+
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th data-quarto-table-cell-role="th" style="background: transparent; border: none"></th>
+<th style="text-align: center;" data-quarto-table-cell-role="th">1</th>
+<th style="text-align: center;" data-quarto-table-cell-role="th">2</th>
+<th style="text-align: center;" data-quarto-table-cell-role="th">3</th>
+<th style="text-align: center;" data-quarto-table-cell-role="th">4</th>
+<th style="text-align: center;" data-quarto-table-cell-role="th">5</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<th data-quarto-table-cell-role="th" style="background: var(--cn-navy); color: #fff; padding: 0.35rem 0.7rem">1</th>
+<td style="background: #D9534F">&nbsp;</td>
+<td style="background: #D9534F">&nbsp;</td>
+<td>&nbsp;</td>
+<td>&nbsp;</td>
+<td style="background: #D9534F">&nbsp;</td>
+</tr>
+<tr class="even">
+<th data-quarto-table-cell-role="th" style="background: var(--cn-navy); color: #fff; padding: 0.35rem 0.7rem">2</th>
+<td style="background: #D9534F">&nbsp;</td>
+<td style="background: #D9534F">&nbsp;</td>
+<td style="background: #D9534F">&nbsp;</td>
+<td>&nbsp;</td>
+<td>&nbsp;</td>
+</tr>
+<tr class="odd">
+<th data-quarto-table-cell-role="th" style="background: var(--cn-navy); color: #fff; padding: 0.35rem 0.7rem">3</th>
+<td>&nbsp;</td>
+<td style="background: #D9534F">&nbsp;</td>
+<td style="background: #D9534F">&nbsp;</td>
+<td style="background: #D9534F">&nbsp;</td>
+<td>&nbsp;</td>
+</tr>
+<tr class="even">
+<th data-quarto-table-cell-role="th" style="background: var(--cn-navy); color: #fff; padding: 0.35rem 0.7rem">4</th>
+<td>&nbsp;</td>
+<td>&nbsp;</td>
+<td style="background: #D9534F">&nbsp;</td>
+<td style="background: #D9534F">&nbsp;</td>
+<td style="background: #D9534F">&nbsp;</td>
+</tr>
+<tr class="odd">
+<th data-quarto-table-cell-role="th" style="background: var(--cn-navy); color: #fff; padding: 0.35rem 0.7rem">5</th>
+<td style="background: #D9534F">&nbsp;</td>
+<td>&nbsp;</td>
+<td>&nbsp;</td>
+<td style="background: #D9534F">&nbsp;</td>
+<td style="background: #D9534F">&nbsp;</td>
+</tr>
+</tbody>
+</table>
+
+</div>
+<div style="overflow-x:auto; margin:1rem 0 1.5rem;">
+<svg viewbox="0 0 320 300" width="100%" style="max-width:320px;display:block;margin:auto;font-family:Helvetica,'Helvetica Neue',Arial,sans-serif;" role="img" aria-label="A 5-cycle graph corresponding to the sparsity pattern of the precision matrix above">
+  <text x="160" y="28" text-anchor="middle" font-size="24" font-weight="600" fill="#333">The graph it encodes</text>
+  <line x1="160" y1="60" x2="270" y2="140" stroke="#555" stroke-width="1.5"></line>
+  <line x1="270" y1="140" x2="230" y2="250" stroke="#555" stroke-width="1.5"></line>
+  <line x1="230" y1="250" x2="90" y2="250" stroke="#555" stroke-width="1.5"></line>
+  <line x1="90" y1="250" x2="50" y2="140" stroke="#555" stroke-width="1.5"></line>
+  <line x1="50" y1="140" x2="160" y2="60" stroke="#555" stroke-width="1.5"></line>
+  <circle cx="160" cy="60" r="22" fill="#C6DEF1" stroke="#5795C7" stroke-width="1.5"></circle>
+  <text x="160" y="65" text-anchor="middle" font-size="15" fill="#205279">1</text>
+  <circle cx="270" cy="140" r="22" fill="#C9E4DE" stroke="#57C7AE" stroke-width="1.5"></circle>
+  <text x="270" y="145" text-anchor="middle" font-size="15" fill="#207965">2</text>
+  <circle cx="230" cy="250" r="22" fill="#F2C6DE" stroke="#C75794" stroke-width="1.5"></circle>
+  <text x="230" y="255" text-anchor="middle" font-size="15" fill="#792051">3</text>
+  <circle cx="90" cy="250" r="22" fill="#FAEDCB" stroke="#C7A857" stroke-width="1.5"></circle>
+  <text x="90" y="255" text-anchor="middle" font-size="15" fill="#796020">4</text>
+  <circle cx="50" cy="140" r="22" fill="#F7D9C4" stroke="#C78557" stroke-width="1.5"></circle>
+  <text x="50" y="145" text-anchor="middle" font-size="15" fill="#794520">5</text>
+</svg>
+</div>
+<p><strong>Figure 6.</strong> A precision matrix’s nonzero pattern (shaded cells; diagonal is always nonzero) determines the graph edges directly: here <span class="math inline">K_{12},K_{23},K_{34},K_{45},K_{15}</span> are nonzero and every other off-diagonal entry is zero, giving the 5-cycle <span class="math inline">1\text{-}2\text{-}3\text{-}4\text{-}5\text{-}1</span>.</p>
+<div class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+Note
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p><strong>Practice question.</strong> For the precision matrix in Figure 6, is <span class="math inline">X_1 \perp X_3</span>? Is <span class="math inline">X_1 \perp X_3 \mid X_2</span>?</p>
+<p><strong>Solution.</strong> Marginal independence is governed by <span class="math inline">\Sigma</span>, not <span class="math inline">K</span>, so the zero pattern of <span class="math inline">K</span> alone does not answer the first question; in general <span class="math inline">\Sigma_{13}\neq 0</span> even though <span class="math inline">K_{13}=0</span>, since matrix inversion mixes entries. For the conditional question, <span class="math inline">K_{13}=0</span> directly gives <span class="math inline">X_1 \perp X_3 \mid X_{\text{rest}} = X_1 \perp X_3 \mid \{X_2,X_4,X_5\}</span>, conditioning on <em>every</em> other variable, not just <span class="math inline">X_2</span>. Whether <span class="math inline">X_1\perp X_3\mid X_2</span> alone holds is a separate, graph-separation question: in the 5-cycle, removing only node 2 leaves a path <span class="math inline">1-5-4-3</span> still connecting 1 and 3, so <span class="math inline">\{2\}</span> does not separate them and <span class="math inline">X_1\not\perp X_3\mid X_2</span> in general.</p>
+</div>
+</div>
+<div class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+Note
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p><strong>Homework-relevant.</strong> Fitting a Gaussian graphical model by maximum likelihood is a direct continuous-variable analogue of Week 1’s Bernoulli MLE (<a href="week01.html#sec-mle" class="quarto-xref"><span>Maximum likelihood estimation</span></a> in Week 1): same “write the log-likelihood, then optimize” pattern, different sufficient statistic.</p>
+</div>
+</div>
+<p>Suppose we observe i.i.d. data <span class="math inline">\boldsymbol{x}_{1:n} = \{\boldsymbol{x}_1,\dots,\boldsymbol{x}_n\}</span> from an <span class="math inline">m</span>-variate Gaussian with (for simplicity, after centering the data) mean zero, and write <span class="math inline">K=\Sigma^{-1}</span>. The log-density is <span class="math display">\log f(\boldsymbol{x}; K) = -\tfrac{m}{2}\log(2\pi) + \tfrac{1}{2}\log\det K - \tfrac{1}{2}\boldsymbol{x}^\top K \boldsymbol{x}.</span> Dropping the constant that does not involve <span class="math inline">K</span>, the log-likelihood over <span class="math inline">n</span> points is <span class="math display">\ell_n(K;\boldsymbol{x}_{1:n}) = \frac{n}{2}\log\det(K) - \frac{1}{2}\sum_{i=1}^n \boldsymbol{x}_i^\top K \boldsymbol{x}_i.</span> The sum simplifies using the trace identity <span class="math inline">u^\top K u = \mathrm{tr}(Kuu^\top)</span> and linearity of trace: <span class="math display">\sum_{i=1}^n \boldsymbol{x}_i^\top K \boldsymbol{x}_i = \sum_{i=1}^n \mathrm{tr}(K\boldsymbol{x}_i\boldsymbol{x}_i^\top) = n\,\mathrm{tr}(K S_n),</span> <span class="math display">S_n = \frac{1}{n}\sum_{i=1}^n \boldsymbol{x}_i \boldsymbol{x}_i^\top,</span> where <span class="math inline">S_n</span> is the <strong>sample covariance matrix</strong>, playing the same role here that the sample mean played in Week 1’s Bernoulli MLE: it is the sufficient statistic that summarizes all <span class="math inline">n</span> data points for the purpose of estimating <span class="math inline">K</span>. Substituting back, <span class="math display">\ell_n(K;\boldsymbol{x}_{1:n}) = \frac{n}{2}\big(\log\det(K) - \mathrm{tr}(KS_n)\big).</span> Two facts about this objective, useful for actually solving the maximization: <span class="math inline">\log\det(K)</span> is a strictly concave function of <span class="math inline">K</span>, so the objective has a unique maximizer, and <span class="math inline">\mathrm{tr}(KS_n)</span> is linear in <span class="math inline">K</span>. Their gradients are <span class="math inline">\nabla \log\det(K) = K^{-1}</span> and <span class="math inline">\nabla\, \mathrm{tr}(KS_n) = S_n</span>, so setting the gradient of <span class="math inline">\ell_n</span> to zero gives <span class="math inline">K^{-1} = S_n</span>, i.e.&nbsp;the maximum likelihood estimate of the covariance matrix is simply the sample covariance matrix, and <span class="math inline">\hat K_{\text{MLE}} = S_n^{-1}</span>: the same “set the derivative to zero, read off an empirical average” pattern as every MLE derivation so far this course, just with a matrix-valued statistic in place of a scalar one.</p>
+</section>
+<section id="sec-inference" class="level2">
+<h2 class="anchored" data-anchor-id="sec-inference">Exact inference as a conditional distribution</h2>
+<p>Having built up two families of graphical models (DAGs in Week 2, MRFs in this lecture), we now ask a computational question common to both: given the model, how do we compute an actual number?</p>
+<div class="definition-block">
+<p><strong>Definition.</strong> In a graphical model over <span class="math inline">\boldsymbol{x}</span>, split the variables into <span class="math inline">x_E</span> (the <strong>observed evidence</strong>), <span class="math inline">x_F</span> (the <strong>unobserved variable(s) we want to infer</strong>), and <span class="math inline">x_R = \boldsymbol{x} - \{x_F,x_E\}</span> (<strong>remaining variables</strong>, summed out). <strong>Inference</strong> is computing the conditional distribution <span class="math display">p(x_F\mid x_E) = \frac{p(x_F,x_E)}{p(x_E)} = \frac{p(x_F,x_E)}{\sum_{x_F} p(x_F,x_E)},</span> where the joint over the subject of inference and the evidence is obtained by marginalizing out the remaining variables, <span class="math display">p(x_F,x_E) = \sum_{x_R} p(x_F,x_E,x_R).</span></p>
+</div>
+<p>Both the numerator and the normalizing sum over <span class="math inline">x_F</span> require summing over <span class="math inline">x_R</span> (and, for the denominator, over <span class="math inline">x_F</span> too), so the real computational question is how to perform these sums efficiently, which is exactly what variable elimination addresses.</p>
+</section>
+<section id="sec-ve" class="level2">
+<h2 class="anchored" data-anchor-id="sec-ve">Variable elimination</h2>
+<p>The <strong>order</strong> in which we marginalize out variables changes the computational cost dramatically, even though the final answer is the same regardless of order (summation commutes). <strong>Variable elimination</strong> is a simple, general exact-inference algorithm that applies to any graphical model, DAG or MRF, whose computational complexity depends on the graph structure and the chosen elimination order; it is a form of dynamic programming that avoids enumerating every joint assignment.</p>
+<p><strong>Worked example: a simple chain.</strong> Consider <span class="math inline">A\to B\to C\to D</span>, and suppose we want the marginal <span class="math inline">p(D)</span> with no evidence, so <span class="math inline">x_F=\{D\}</span>, <span class="math inline">x_E=\{\}</span>, <span class="math inline">x_R=\{A,B,C\}</span>. Week 2’s chain rule gives <span class="math inline">p(A,B,C,D) = p(A)p(B\mid A)p(C\mid B)p(D\mid C)</span>.</p>
+<div style="overflow-x:auto; margin:1.5rem 0;">
+<svg viewbox="0 0 560 160" width="100%" style="max-width:560px;display:block;margin:auto;font-family:Helvetica,'Helvetica Neue',Arial,sans-serif;" role="img" aria-label="A directed chain A to B to C to D">
+  <defs>
+    <marker id="arrW3b" markerwidth="7" markerheight="7" refx="6" refy="3.5" orient="auto">
+      <path d="M0,0 L0,7 L7,3.5 z" fill="#555"></path>
+    </marker>
+  </defs>
+  <text x="280" y="28" text-anchor="middle" font-size="24" font-weight="600" fill="#333">A simple chain</text>
+  <line x1="82" y1="100" x2="168" y2="100" stroke="#555" stroke-width="1.5" marker-end="url(#arrW3b)"></line>
+  <line x1="222" y1="100" x2="308" y2="100" stroke="#555" stroke-width="1.5" marker-end="url(#arrW3b)"></line>
+  <line x1="362" y1="100" x2="448" y2="100" stroke="#555" stroke-width="1.5" marker-end="url(#arrW3b)"></line>
+  <circle cx="60" cy="100" r="22" fill="#C6DEF1" stroke="#5795C7" stroke-width="1.5"></circle>
+  <text x="60" y="105" text-anchor="middle" font-size="16" fill="#205279">A</text>
+  <circle cx="200" cy="100" r="22" fill="#C9E4DE" stroke="#57C7AE" stroke-width="1.5"></circle>
+  <text x="200" y="105" text-anchor="middle" font-size="16" fill="#207965">B</text>
+  <circle cx="340" cy="100" r="22" fill="#F2C6DE" stroke="#C75794" stroke-width="1.5"></circle>
+  <text x="340" y="105" text-anchor="middle" font-size="16" fill="#792051">C</text>
+  <circle cx="480" cy="100" r="22" fill="#FAEDCB" stroke="#C7A857" stroke-width="1.5"></circle>
+  <text x="480" y="105" text-anchor="middle" font-size="16" fill="#796020">D</text>
+</svg>
+</div>
+<p><strong>Figure 7.</strong> A chain of four variables, used to compare naive marginalization against variable elimination.</p>
+<p>Assume each variable takes <span class="math inline">k</span> possible values. Marginalizing naively, <span class="math display">p(D) = \sum_{A,B,C} p(A,B,C,D) = \sum_C \sum_B \sum_A p(A)p(B\mid A)p(C\mid B)p(D\mid C),</span> costs <span class="math inline">O(k^4)</span>: every joint assignment of the four variables must be visited. Instead, choose an elimination order and push each sum as far inward as it will go, past every factor that does not mention the variable being summed: <span class="math display">p(D) = \sum_C p(D\mid C) \left(\sum_B p(C\mid B) \sum_A p(A)p(B\mid A)\right).</span> Working from the inside out, the innermost sum depends only on <span class="math inline">B</span> once <span class="math inline">A</span> is gone: <span class="math display">\sum_A p(A)p(B\mid A) = p(B).</span> Substituting back and repeating the same move for <span class="math inline">B</span>: <span class="math display">\sum_B p(C\mid B)\,p(B) = p(C).</span> So the whole expression collapses to <span class="math display">p(D) = \sum_C p(D\mid C)\,p(C).</span> Every intermediate sum here touches at most two variables at once (<span class="math inline">k^2</span> terms), and there are <span class="math inline">n</span> such sums, so the total cost is <span class="math inline">O(nk^2)</span>, compared to <span class="math inline">O(k^n)</span> for constructing and marginalizing the full joint table directly: an exponential-to-polynomial improvement from exactly the same reordering trick that made Week 2’s chain-rule factorization efficient (<a href="week02.html#sec-factoring" class="quarto-xref"><span>Why factor the joint</span></a> in Week 2).</p>
+<p><strong>Elimination ordering matters, and finding the best one is hard.</strong> The complexity of variable elimination depends on the chosen order, since different orders leave different numbers of variables inside each intermediate sum. Unfortunately, finding the elimination ordering that minimizes the worst intermediate sum is NP-hard in general, so in practice orderings are chosen by heuristics (or, in this course, simply given).</p>
+</section>
+<section id="sec-sum-product" class="level2">
+<h2 class="anchored" data-anchor-id="sec-sum-product">Sum-product inference: unifying DAGMs and MRFs</h2>
+<p>Variable elimination on a DAG is really the same algorithm as on an MRF, once we notice that a DAG’s conditional probability tables are themselves just a special kind of nonnegative potential. Introduce a nonnegative <strong>factor</strong> <span class="math inline">\phi</span> for each conditional probability table (or each MRF potential): for a DAG on <span class="math inline">X,A,B,C</span> with <span class="math inline">p(A,B,C) = \sum_X p(X)p(A\mid X)p(B\mid A)p(C\mid B,X)</span>, write <span class="math inline">\phi_1(X)=p(X)</span>, <span class="math inline">\phi_2(A,X)=p(A\mid X)</span>, <span class="math inline">\phi_3(A,B)=p(B\mid A)</span>, <span class="math inline">\phi_4(X,B,C)=p(C\mid B,X)</span>, so <span class="math display">p(A,B,C) = \sum_X \phi_1(X)\phi_2(A,X)\phi_3(A,B)\phi_4(X,B,C).</span> The factor <span class="math inline">\phi_3(A,B)</span> does not involve <span class="math inline">X</span>, so it can be pulled outside the sum over <span class="math inline">X</span>: <span class="math display">p(A,B,C) = \phi_3(A,B) \sum_X \phi_1(X)\phi_2(A,X)\phi_4(X,B,C) = \phi_3(A,B)\,\tau(A,B,C).</span> Marginalizing out <span class="math inline">X</span> produces a brand new factor <span class="math inline">\tau(A,B,C)</span>, an <strong>intermediate factor</strong> that generally is not any original conditional probability table; it is simply whatever function of the remaining variables the sum happened to produce. This is the mechanical step that repeats at every stage of variable elimination.</p>
+<p>Abstractly, both DAG and MRF inference reduce to the same <strong>sum-product</strong> computation: ::: {.boxed-eq} <span class="math display">p(x_F\mid x_E) \propto \tau(x_F,x_E) = \sum_{x_R} \prod_{C\in\mathcal{F}} \psi_C(x_C),</span> ::: where <span class="math inline">\mathcal{F}</span> is the set of factors: for a DAG, <span class="math inline">\mathcal{F}</span> consists of the sets <span class="math inline">\{i\}\cup\text{parents}(i)</span> for every node <span class="math inline">i</span> (one factor per conditional probability table); for an MRF, <span class="math inline">\mathcal{F}</span> is the set of maximal cliques.</p>
+</section>
+<section id="sec-ve-student" class="level2">
+<h2 class="anchored" data-anchor-id="sec-ve-student">Worked example: variable elimination on a Bayes net</h2>
+<div style="overflow-x:auto; margin:1.5rem 0;">
+<svg viewbox="0 0 480 410" width="100%" style="max-width:480px;display:block;margin:auto;font-family:Helvetica,'Helvetica Neue',Arial,sans-serif;" role="img" aria-label="An eight-node student-performance Bayes net with nodes C, D, I, G, S, L, J, H">
+  <defs>
+    <marker id="arrW3c" markerwidth="7" markerheight="7" refx="6" refy="3.5" orient="auto">
+      <path d="M0,0 L0,7 L7,3.5 z" fill="#555"></path>
+    </marker>
+  </defs>
+  <text x="240" y="28" text-anchor="middle" font-size="24" font-weight="600" fill="#333">A Bayes net example</text>
+  <line x1="100" y1="95" x2="100" y2="135" stroke="#555" stroke-width="1.5" marker-end="url(#arrW3c)"></line>
+  <line x1="110" y1="160" x2="180" y2="200" stroke="#555" stroke-width="1.5" marker-end="url(#arrW3c)"></line>
+  <line x1="320" y1="160" x2="230" y2="200" stroke="#555" stroke-width="1.5" marker-end="url(#arrW3c)"></line>
+  <line x1="335" y1="170" x2="345" y2="200" stroke="#555" stroke-width="1.5" marker-end="url(#arrW3c)"></line>
+  <line x1="200" y1="225" x2="180" y2="265" stroke="#555" stroke-width="1.5" marker-end="url(#arrW3c)"></line>
+  <line x1="220" y1="225" x2="340" y2="365" stroke="#555" stroke-width="1.5" marker-end="url(#arrW3c)"></line>
+  <line x1="160" y1="285" x2="300" y2="370" stroke="#555" stroke-width="1.5" marker-end="url(#arrW3c)"></line>
+  <line x1="350" y1="225" x2="320" y2="365" stroke="#555" stroke-width="1.5" marker-end="url(#arrW3c)"></line>
+  <line x1="320" y1="375" x2="230" y2="370" stroke="#555" stroke-width="1.5" marker-end="url(#arrW3c)"></line>
+  <circle cx="100" cy="75" r="20" fill="#C6DEF1" stroke="#5795C7" stroke-width="1.5"></circle>
+  <text x="100" y="80" text-anchor="middle" font-size="13" fill="#205279">C</text>
+  <circle cx="100" cy="155" r="20" fill="#C9E4DE" stroke="#57C7AE" stroke-width="1.5"></circle>
+  <text x="100" y="160" text-anchor="middle" font-size="13" fill="#207965">D</text>
+  <circle cx="330" cy="145" r="20" fill="#F2C6DE" stroke="#C75794" stroke-width="1.5"></circle>
+  <text x="330" y="150" text-anchor="middle" font-size="13" fill="#792051">I</text>
+  <circle cx="215" cy="215" r="20" fill="#FAEDCB" stroke="#C7A857" stroke-width="1.5"></circle>
+  <text x="215" y="220" text-anchor="middle" font-size="13" fill="#796020">G</text>
+  <circle cx="360" cy="215" r="20" fill="#F7D9C4" stroke="#C78557" stroke-width="1.5"></circle>
+  <text x="360" y="220" text-anchor="middle" font-size="13" fill="#794520">S</text>
+  <circle cx="160" cy="285" r="20" fill="#C6DEF1" stroke="#5795C7" stroke-width="1.5"></circle>
+  <text x="160" y="290" text-anchor="middle" font-size="13" fill="#205279">L</text>
+  <circle cx="310" cy="385" r="20" fill="#C9E4DE" stroke="#57C7AE" stroke-width="1.5"></circle>
+  <text x="310" y="390" text-anchor="middle" font-size="13" fill="#207965">J</text>
+  <circle cx="215" cy="385" r="20" fill="#F2C6DE" stroke="#C75794" stroke-width="1.5"></circle>
+  <text x="215" y="390" text-anchor="middle" font-size="13" fill="#792051">H</text>
+</svg>
+</div>
+<p><strong>Figure 8.</strong> A Bayes net over Coherence <span class="math inline">C</span>, Difficulty <span class="math inline">D</span>, Intelligence <span class="math inline">I</span>, Grade <span class="math inline">G</span>, SAT <span class="math inline">S</span>, Letter <span class="math inline">L</span>, Job <span class="math inline">J</span>, and Happiness <span class="math inline">H</span>.</p>
+<p>This graph gives the factorization <span class="math display">p(C,D,I,G,S,L,H,J) = p(C)p(D\mid C)p(I)\,p(G\mid D,I)p(L\mid G)p(S\mid I)p(J\mid S,L)p(H\mid J,G).</span> Reading off one factor per node (its own conditional probability table), <span class="math inline">\mathcal{F} = \big\{\{C\},\{C,D\},\{I\},\{G,D,I\},\{L,G\},\{S,I\},\{J,S,L\},\{H,J,G\}\big\}</span>, so <span class="math inline">m=|\mathcal{F}|=8</span>.</p>
+<p>Suppose we want <span class="math inline">p(J)</span>, the probability of getting a job, with the elimination order <span class="math inline">C,D,I,H,G,S,L</span> (an ordering the instructor supplies; finding an optimal one is the NP-hard problem from <a href="#sec-ve" class="quarto-xref"><span>Variable elimination</span></a>). Eliminate <span class="math inline">C</span> first: it appears only in <span class="math inline">\psi(C)</span> and <span class="math inline">\psi(C,D)</span>, so <span class="math display">\sum_C \psi(C)\,\psi(C,D) = \tau(D).</span> Eliminate <span class="math inline">D</span> next, in <span class="math inline">\psi(G,D,I)</span> and the new <span class="math inline">\tau(D)</span>: <span class="math display">\sum_D \psi(G,D,I)\,\tau(D) = \tau(G,I).</span> Eliminate <span class="math inline">I</span>, in <span class="math inline">\psi(S,I)</span>, <span class="math inline">\psi(I)</span>, and <span class="math inline">\tau(G,I)</span>: <span class="math display">\sum_I \psi(S,I)\,\psi(I)\,\tau(G,I) = \tau(S,G).</span> Eliminate <span class="math inline">H</span>, which appears only in <span class="math inline">\psi(H,G,J)</span>: <span class="math display">\sum_H \psi(H,G,J) = \tau(G,J).</span> Eliminate <span class="math inline">G</span>, now present in <span class="math inline">\psi(L,G)</span>, <span class="math inline">\tau(S,G)</span>, and <span class="math inline">\tau(G,J)</span>: <span class="math display">\sum_G \psi(L,G)\,\tau(S,G)\,\tau(G,J) = \tau(J,L,S).</span> Eliminate <span class="math inline">S</span>, in <span class="math inline">\psi(J,L,S)</span> and <span class="math inline">\tau(J,L,S)</span>: <span class="math display">\sum_S \psi(J,L,S)\,\tau(J,L,S) = \tau(J,L).</span> Finally eliminate <span class="math inline">L</span>: <span class="math display">\sum_L \tau(J,L) = \tau(J).</span> The result, <span class="math inline">\tau(J)</span>, is proportional to <span class="math inline">p(J)</span>; since <span class="math inline">Z=1</span> for a DAG’s own conditional probability tables (they are already properly normalized), no further rescaling is needed here, though for a general MRF the final <span class="math inline">\tau</span> would still require dividing by <span class="math inline">\sum_{x_F}\tau(x_F)</span> to become an actual probability.</p>
+<p><strong>Reading off the complexity.</strong> Each sum above is labeled by how many variables appear inside it: <span class="math inline">\sum_C</span> has <span class="math inline">N_C=2</span> (namely <span class="math inline">C,D</span>), <span class="math inline">\sum_D</span> has <span class="math inline">N_D=3</span> (<span class="math inline">G,D,I</span>), <span class="math inline">\sum_I</span> has <span class="math inline">N_I=3</span> (<span class="math inline">S,I,G</span>), <span class="math inline">\sum_H</span> has <span class="math inline">N_H=3</span> (<span class="math inline">H,G,J</span>), <span class="math inline">\sum_G</span> has <span class="math inline">N_G=4</span> (<span class="math inline">L,G,S,J</span>, the largest), <span class="math inline">\sum_S</span> has <span class="math inline">N_S=3</span>, and <span class="math inline">\sum_L</span> has <span class="math inline">N_L=2</span>. The complexity of variable elimination under a given ordering is <span class="math display">O\big(m\,k^{N_{\max}}\big), \qquad N_{\max}=\max_i N_i,</span> where <span class="math inline">m</span> is the number of initial factors and <span class="math inline">k</span> is the (assumed common) number of states per variable. Here <span class="math inline">N_{\max}=4</span> (achieved at the <span class="math inline">G</span>-elimination step), so the cost of this particular ordering is <span class="math inline">O(8k^4)</span>: substantially better than enumerating the full 8-variable joint, but not as good as the chain example of <a href="#sec-ve" class="quarto-xref"><span>Variable elimination</span></a>, because this graph has a genuinely more complex dependency structure than a simple chain.</p>
+</section>
+<section id="sec-ve-evidence" class="level2">
+<h2 class="anchored" data-anchor-id="sec-ve-evidence">Variable elimination with evidence</h2>
+<p>The student-network example above had no observed evidence. Reintroducing evidence changes only which variable is fixed rather than summed.</p>
+<p><strong>Worked example.</strong> Take the DAG <span class="math inline">X_1 \to X_2 \to X_4</span>, <span class="math inline">X_1 \to X_3 \to X_5 \to X_6</span>, <span class="math inline">X_2 \to X_6</span> (so <span class="math inline">X_6</span> has two parents, <span class="math inline">X_2</span> and <span class="math inline">X_5</span>), giving <span class="math inline">p(x_1,\dots,x_6) = p(x_1)p(x_2\mid x_1)p(x_3\mid x_1)p(x_4\mid x_2)p(x_5\mid x_3)p(x_6\mid x_2,x_5)</span>. Suppose <span class="math inline">X_6=\bar x_6</span> is observed and we want <span class="math inline">p(X_1\mid \bar x_6)</span>, so <span class="math inline">x_F=\{x_1\}</span>, <span class="math inline">x_E=\{x_6\}</span>, <span class="math inline">x_R=\{x_2,x_3,x_4,x_5\}</span>. By the definition in <a href="#sec-inference" class="quarto-xref"><span>Exact inference as a conditional distribution</span></a>, <span class="math display">p(x_1\mid \bar x_6) = \frac{p(x_1,\bar x_6)}{\sum_{x_1} p(x_1,\bar x_6)}.</span> Computing the numerator by variable elimination in the order <span class="math inline">2,3,4,5</span> (the observed value <span class="math inline">\bar x_6</span> is simply substituted into <span class="math inline">p(x_6\mid x_2,x_5)</span> wherever it appears, rather than summed over): <span class="math display">p(x_1,\bar x_6) = p(x_1)\sum_{x_2} p(x_2\mid x_1)\sum_{x_3} p(x_3\mid x_1)\sum_{x_4} p(x_4\mid x_2)\sum_{x_5} p(x_5\mid x_3)\,p(\bar x_6\mid x_2,x_5).</span> The innermost sum over <span class="math inline">x_5</span> produces a new factor depending on <span class="math inline">x_2,x_3</span>: <span class="math display">\sum_{x_5} p(x_5\mid x_3)\,p(\bar x_6\mid x_2,x_5) = p(\bar x_6\mid x_2,x_3).</span> The next sum, over <span class="math inline">x_4</span>, involves only <span class="math inline">p(x_4\mid x_2)</span>, none of whose terms depend on <span class="math inline">x_4</span> after it is summed out (it sums to 1), so it drops out entirely: <span class="math display">\sum_{x_4} p(x_4\mid x_2) = 1.</span> This leaves <span class="math display">p(x_1,\bar x_6) = p(x_1)\sum_{x_2} p(x_2\mid x_1)\sum_{x_3} p(x_3\mid x_1)\,p(\bar x_6\mid x_2,x_3).</span> Summing <span class="math inline">x_3</span> next produces <span class="math inline">p(\bar x_6\mid x_1,x_2)</span> (using <span class="math inline">\sum_{x_3}p(x_3\mid x_1)\,p(\bar x_6\mid x_2,x_3) = p(\bar x_6\mid x_1,x_2)</span> by the product and sum rules), and then <span class="math inline">x_2</span>: <span class="math display">p(x_1,\bar x_6) = p(x_1)\sum_{x_2} p(x_2\mid x_1)\,p(\bar x_6\mid x_1,x_2) = p(x_1)\,p(\bar x_6\mid x_1).</span> So the whole computation collapses to the two-factor product one would expect from a two-node chain <span class="math inline">X_1 \to X_6</span>, even though the actual graph has six nodes; every other variable was marginalized away without ever touching a table larger than three variables at once. Normalizing gives the final answer: <span class="math display">p(x_1\mid \bar x_6) = \frac{p(x_1)\,p(\bar x_6\mid x_1)}{\sum_{x_1} p(x_1)\,p(\bar x_6\mid x_1)}.</span> This is Bayes’ rule from Week 1 (<a href="week01.html#sec-bayes" class="quarto-xref"><span>Worked example: a diagnostic test</span></a> in Week 1), rederived as a special case of variable elimination: computing a posterior for a two-variable relationship, after algebraically marginalizing away every variable that connects them only indirectly.</p>
+</section>
+<section id="sec-rbm" class="level2">
+<h2 class="anchored" data-anchor-id="sec-rbm">Restricted Boltzmann machines</h2>
+<p>As a modern application tying together the Ising model, exponential families, and Hammersley-Clifford, consider a <strong>restricted Boltzmann machine (RBM)</strong>: a special Ising model over visible variables <span class="math inline">X_1,\dots,X_k</span> and hidden variables <span class="math inline">H_1,\dots,H_l</span>, all in <span class="math inline">\{-1,+1\}</span>, whose graph is <strong>bipartite</strong>: every <span class="math inline">H_i</span> connects to every <span class="math inline">X_j</span>, but no <span class="math inline">H_i</span>-<span class="math inline">H_{i'}</span> or <span class="math inline">X_j</span>-<span class="math inline">X_{j'}</span> edges exist at all.</p>
+<div style="overflow-x:auto; margin:1.5rem 0;">
+<svg viewbox="0 0 420 260" width="100%" style="max-width:420px;display:block;margin:auto;font-family:Helvetica,'Helvetica Neue',Arial,sans-serif;" role="img" aria-label="A bipartite RBM graph with three visible nodes and two hidden nodes, fully connected between the two groups">
+  <text x="210" y="28" text-anchor="middle" font-size="24" font-weight="600" fill="#333">An RBM's bipartite graph</text>
+  <line x1="90" y1="80" x2="90" y2="180" stroke="#555" stroke-width="1.2"></line>
+  <line x1="90" y1="80" x2="210" y2="180" stroke="#555" stroke-width="1.2"></line>
+  <line x1="90" y1="80" x2="330" y2="180" stroke="#555" stroke-width="1.2"></line>
+  <line x1="330" y1="80" x2="90" y2="180" stroke="#555" stroke-width="1.2"></line>
+  <line x1="330" y1="80" x2="210" y2="180" stroke="#555" stroke-width="1.2"></line>
+  <line x1="330" y1="80" x2="330" y2="180" stroke="#555" stroke-width="1.2"></line>
+  <circle cx="90" cy="60" r="20" fill="#F2C6DE" stroke="#C75794" stroke-width="1.5"></circle>
+  <text x="90" y="65" text-anchor="middle" font-size="13" fill="#792051">H1</text>
+  <circle cx="330" cy="60" r="20" fill="#F2C6DE" stroke="#C75794" stroke-width="1.5"></circle>
+  <text x="330" y="65" text-anchor="middle" font-size="13" fill="#792051">H2</text>
+  <circle cx="90" cy="200" r="20" fill="#C6DEF1" stroke="#5795C7" stroke-width="1.5"></circle>
+  <text x="90" y="205" text-anchor="middle" font-size="13" fill="#205279">X1</text>
+  <circle cx="210" cy="200" r="20" fill="#C6DEF1" stroke="#5795C7" stroke-width="1.5"></circle>
+  <text x="210" y="205" text-anchor="middle" font-size="13" fill="#205279">X2</text>
+  <circle cx="330" cy="200" r="20" fill="#C6DEF1" stroke="#5795C7" stroke-width="1.5"></circle>
+  <text x="330" y="205" text-anchor="middle" font-size="13" fill="#205279">X3</text>
+</svg>
+</div>
+<p><strong>Figure 9.</strong> An RBM’s graph: every hidden node connects to every visible node, and there are no hidden-hidden or visible-visible edges.</p>
+<p>Writing the Ising-style distribution with per-edge potentials <span class="math inline">\psi_{X_i,H_j}(x_i,h_j) = \exp\{\frac{1}{l}\alpha_i x_i + \frac{1}{k}\beta_j h_j + J_{ij}x_ih_j\}</span> (splitting the node biases evenly across the edges touching each node so that the product of edge potentials reproduces the full node bias), the joint is <span class="math display">p(x_1,\dots,x_k,h_1,\dots,h_l) = \frac{1}{Z}\prod_{i=1}^k\prod_{j=1}^l \psi_{X_i,H_j}(x_i,h_j).</span> Computing <span class="math inline">Z</span> exactly can be expensive (it is a sum over all <span class="math inline">2^{k+l}</span> joint settings), but the bipartite structure lets us compute the two conditional distributions <span class="math inline">p(x\mid h)</span> and <span class="math inline">p(h\mid x)</span> efficiently, without ever needing <span class="math inline">Z</span>. This is exactly what the Hammersley-Clifford theorem predicts: since there are no edges between different <span class="math inline">H_i</span>’s, they are all mutually independent given <span class="math inline">X</span> (every <span class="math inline">H_i</span>-<span class="math inline">H_{i'}</span> pair is separated by the fully-observed <span class="math inline">X</span>, the same non-adjacent-pair rule from <a href="#sec-hc" class="quarto-xref"><span>The Hammersley-Clifford theorem</span></a>), so the joint conditional factors into a per-node product, and each factor can be computed on its own: <span class="math display">p(h_j\mid x) = \frac{\prod_{i=1}^k \psi_{ij}(x_i,h_j)}{\prod_{i=1}^k\psi_{ij}(x_i,-1) + \prod_{i=1}^k\psi_{ij}(x_i,1)}</span> <span class="math display">= \sigma\Big(\beta_j + \sum_i J_{ij}x_i\Big),</span> where <span class="math inline">\sigma(y) = \frac{e^y}{e^{-y}+e^y} = \frac{1}{1+e^{-2y}}</span> is the <strong>sigmoid function</strong>. This is the origin of the sigmoid activation function used throughout neural networks: it is exactly the conditional-probability formula that falls out of treating a layer of binary units as conditionally independent given the layer below, under an Ising-style pairwise potential.</p>
+</section>
+<section id="sec-summary3" class="level2">
+<h2 class="anchored" data-anchor-id="sec-summary3">Summary</h2>
+<div class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+Note
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p><strong>Key takeaways from Week 3:</strong></p>
+<ul>
+<li>Markov random fields (MRFs) model undirected interactions: <span class="math inline">p(\boldsymbol{x}) \propto \prod_{C\in\mathcal{C}} \psi_C(x_C)</span> over maximal cliques <span class="math inline">\mathcal{C}</span>. The Hammersley-Clifford theorem says this factorization is equivalent to the global Markov property, <span class="math inline">X_A\perp X_B\mid X_S</span> whenever <span class="math inline">S</span> separates <span class="math inline">A</span> from <span class="math inline">B</span> in the graph.</li>
+<li>MRFs and DAGs are not nested: a 4-cycle’s independencies cannot be captured by any DAG, and explaining-away cannot be captured by any MRF.</li>
+<li>MRFs are exponential families when potentials are log-linear; a minimal representation drops one redundant coordinate per clique. The Ising model and Gaussian graphical models (where <span class="math inline">K_{ij}=0 \iff X_i\perp X_j\mid X_{\text{rest}}</span> for the precision matrix <span class="math inline">K</span>) are the two running examples, and Gaussian MLE reduces to <span class="math inline">\hat K^{-1}=S_n</span>, the sample covariance.</li>
+<li>Inference is computing <span class="math inline">p(x_F\mid x_E)</span> by marginalizing out <span class="math inline">x_R</span>. Variable elimination does this efficiently by choosing an order and pushing sums inward; the same sum-product algorithm handles DAGs and MRFs via a shared notion of factors, and the resulting intermediate factors (<span class="math inline">\tau</span>) are what make the computation dynamic-programming-style rather than exponential.</li>
+<li>Restricted Boltzmann machines are a bipartite Ising model where Hammersley-Clifford guarantees the hidden units are conditionally independent given the visible ones (and vice versa), giving the sigmoid activation as a direct consequence rather than an ad hoc choice.</li>
+</ul>
+</div>
+</div>
+<p><strong>Next week:</strong> continuing the inference thread, as listed on the course roadmap (not written yet).</p>
+</section>
+<section id="quick-self-check" class="level2">
+<h2 class="anchored" data-anchor-id="quick-self-check">Quick self-check</h2>
+<p>If you can explain, in your own words, why the same variable-elimination algorithm works on both a DAG and an MRF once conditional probability tables are treated as potentials, and why a bipartite Ising model makes the hidden units of a restricted Boltzmann machine conditionally independent given the visible ones, you have understood the core of Week 3.</p>
+
+
+</section>
+
+</main> <!-- /main -->
+<script id="quarto-html-after-body" type="application/javascript">
+  window.document.addEventListener("DOMContentLoaded", function (event) {
+    const icon = "";
+    const anchorJS = new window.AnchorJS();
+    anchorJS.options = {
+      placement: 'right',
+      icon: icon
+    };
+    anchorJS.add('.anchored');
+    const isCodeAnnotation = (el) => {
+      for (const clz of el.classList) {
+        if (clz.startsWith('code-annotation-')) {                     
+          return true;
+        }
+      }
+      return false;
+    }
+    const onCopySuccess = function(e) {
+      // button target
+      const button = e.trigger;
+      // don't keep focus
+      button.blur();
+      // flash "checked"
+      button.classList.add('code-copy-button-checked');
+      var currentTitle = button.getAttribute("title");
+      button.setAttribute("title", "Copied!");
+      let tooltip;
+      if (window.bootstrap) {
+        button.setAttribute("data-bs-toggle", "tooltip");
+        button.setAttribute("data-bs-placement", "left");
+        button.setAttribute("data-bs-title", "Copied!");
+        tooltip = new bootstrap.Tooltip(button, 
+          { trigger: "manual", 
+            customClass: "code-copy-button-tooltip",
+            offset: [0, -8]});
+        tooltip.show();    
+      }
+      setTimeout(function() {
+        if (tooltip) {
+          tooltip.hide();
+          button.removeAttribute("data-bs-title");
+          button.removeAttribute("data-bs-toggle");
+          button.removeAttribute("data-bs-placement");
+        }
+        button.setAttribute("title", currentTitle);
+        button.classList.remove('code-copy-button-checked');
+      }, 1000);
+      // clear code selection
+      e.clearSelection();
+    }
+    const getTextToCopy = function(trigger) {
+      const outerScaffold = trigger.parentElement.cloneNode(true);
+      const codeEl = outerScaffold.querySelector('code');
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+    }
+    const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
+      text: getTextToCopy
+    });
+    clipboard.on('success', onCopySuccess);
+    if (window.document.getElementById('quarto-embedded-source-code-modal')) {
+      const clipboardModal = new window.ClipboardJS('.code-copy-button[data-in-quarto-modal]', {
+        text: getTextToCopy,
+        container: window.document.getElementById('quarto-embedded-source-code-modal')
+      });
+      clipboardModal.on('success', onCopySuccess);
+    }
+      var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+      var mailtoRegex = new RegExp(/^mailto:/);
+        var filterRegex = new RegExp('/' + window.location.host + '/');
+      var isInternal = (href) => {
+          return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+      }
+      // Inspect non-navigation links and adorn them if external
+     var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+      for (var i=0; i<links.length; i++) {
+        const link = links[i];
+        if (!isInternal(link.href)) {
+          // undo the damage that might have been done by quarto-nav.js in the case of
+          // links that we want to consider external
+          if (link.dataset.originalHref !== undefined) {
+            link.href = link.dataset.originalHref;
+          }
+            // target, if specified
+            link.setAttribute("target", "_blank");
+            if (link.getAttribute("rel") === null) {
+              link.setAttribute("rel", "noopener");
+            }
+        }
+      }
+    function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+      const config = {
+        allowHTML: true,
+        maxWidth: 500,
+        delay: 100,
+        arrow: false,
+        appendTo: function(el) {
+            return el.parentElement;
+        },
+        interactive: true,
+        interactiveBorder: 10,
+        theme: 'quarto',
+        placement: 'bottom-start',
+      };
+      if (contentFn) {
+        config.content = contentFn;
+      }
+      if (onTriggerFn) {
+        config.onTrigger = onTriggerFn;
+      }
+      if (onUntriggerFn) {
+        config.onUntrigger = onUntriggerFn;
+      }
+      window.tippy(el, config); 
+    }
+    const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+    for (var i=0; i<noterefs.length; i++) {
+      const ref = noterefs[i];
+      tippyHover(ref, function() {
+        // use id or data attribute instead here
+        let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+        try { href = new URL(href).hash; } catch {}
+        const id = href.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note) {
+          return note.innerHTML;
+        } else {
+          return "";
+        }
+      });
+    }
+    const xrefs = window.document.querySelectorAll('a.quarto-xref');
+    const processXRef = (id, note) => {
+      // Strip column container classes
+      const stripColumnClz = (el) => {
+        el.classList.remove("page-full", "page-columns");
+        if (el.children) {
+          for (const child of el.children) {
+            stripColumnClz(child);
+          }
+        }
+      }
+      stripColumnClz(note)
+      if (id === null || id.startsWith('sec-')) {
+        // Special case sections, only their first couple elements
+        const container = document.createElement("div");
+        if (note.children && note.children.length > 2) {
+          container.appendChild(note.children[0].cloneNode(true));
+          for (let i = 1; i < note.children.length; i++) {
+            const child = note.children[i];
+            if (child.tagName === "P" && child.innerText === "") {
+              continue;
+            } else {
+              container.appendChild(child.cloneNode(true));
+              break;
+            }
+          }
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(container);
+          }
+          return container.innerHTML
+        } else {
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(note);
+          }
+          return note.innerHTML;
+        }
+      } else {
+        // Remove any anchor links if they are present
+        const anchorLink = note.querySelector('a.anchorjs-link');
+        if (anchorLink) {
+          anchorLink.remove();
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        if (note.classList.contains("callout")) {
+          return note.outerHTML;
+        } else {
+          return note.innerHTML;
+        }
+      }
+    }
+    for (var i=0; i<xrefs.length; i++) {
+      const xref = xrefs[i];
+      tippyHover(xref, undefined, function(instance) {
+        instance.disable();
+        let url = xref.getAttribute('href');
+        let hash = undefined; 
+        if (url.startsWith('#')) {
+          hash = url;
+        } else {
+          try { hash = new URL(url).hash; } catch {}
+        }
+        if (hash) {
+          const id = hash.replace(/^#\/?/, "");
+          const note = window.document.getElementById(id);
+          if (note !== null) {
+            try {
+              const html = processXRef(id, note.cloneNode(true));
+              instance.setContent(html);
+            } finally {
+              instance.enable();
+              instance.show();
+            }
+          } else {
+            // See if we can fetch this
+            fetch(url.split('#')[0])
+            .then(res => res.text())
+            .then(html => {
+              const parser = new DOMParser();
+              const htmlDoc = parser.parseFromString(html, "text/html");
+              const note = htmlDoc.getElementById(id);
+              if (note !== null) {
+                const html = processXRef(id, note);
+                instance.setContent(html);
+              } 
+            }).finally(() => {
+              instance.enable();
+              instance.show();
+            });
+          }
+        } else {
+          // See if we can fetch a full url (with no hash to target)
+          // This is a special case and we should probably do some content thinning / targeting
+          fetch(url)
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.querySelector('main.content');
+            if (note !== null) {
+              // This should only happen for chapter cross references
+              // (since there is no id in the URL)
+              // remove the first header
+              if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+                note.children[0].remove();
+              }
+              const html = processXRef(null, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      }, function(instance) {
+      });
+    }
+        let selectedAnnoteEl;
+        const selectorForAnnotation = ( cell, annotation) => {
+          let cellAttr = 'data-code-cell="' + cell + '"';
+          let lineAttr = 'data-code-annotation="' +  annotation + '"';
+          const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+          return selector;
+        }
+        const selectCodeLines = (annoteEl) => {
+          const doc = window.document;
+          const targetCell = annoteEl.getAttribute("data-target-cell");
+          const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+          const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+          const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+          const lineIds = lines.map((line) => {
+            return targetCell + "-" + line;
+          })
+          let top = null;
+          let height = null;
+          let parent = null;
+          if (lineIds.length > 0) {
+              //compute the position of the single el (top and bottom and make a div)
+              const el = window.document.getElementById(lineIds[0]);
+              top = el.offsetTop;
+              height = el.offsetHeight;
+              parent = el.parentElement.parentElement;
+            if (lineIds.length > 1) {
+              const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+              const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+              height = bottom - top;
+            }
+            if (top !== null && height !== null && parent !== null) {
+              // cook up a div (if necessary) and position it 
+              let div = window.document.getElementById("code-annotation-line-highlight");
+              if (div === null) {
+                div = window.document.createElement("div");
+                div.setAttribute("id", "code-annotation-line-highlight");
+                div.style.position = 'absolute';
+                parent.appendChild(div);
+              }
+              div.style.top = top - 2 + "px";
+              div.style.height = height + 4 + "px";
+              div.style.left = 0;
+              let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+              if (gutterDiv === null) {
+                gutterDiv = window.document.createElement("div");
+                gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+                gutterDiv.style.position = 'absolute';
+                const codeCell = window.document.getElementById(targetCell);
+                const gutter = codeCell.querySelector('.code-annotation-gutter');
+                gutter.appendChild(gutterDiv);
+              }
+              gutterDiv.style.top = top - 2 + "px";
+              gutterDiv.style.height = height + 4 + "px";
+            }
+            selectedAnnoteEl = annoteEl;
+          }
+        };
+        const unselectCodeLines = () => {
+          const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+          elementsIds.forEach((elId) => {
+            const div = window.document.getElementById(elId);
+            if (div) {
+              div.remove();
+            }
+          });
+          selectedAnnoteEl = undefined;
+        };
+          // Handle positioning of the toggle
+      window.addEventListener(
+        "resize",
+        throttle(() => {
+          elRect = undefined;
+          if (selectedAnnoteEl) {
+            selectCodeLines(selectedAnnoteEl);
+          }
+        }, 10)
+      );
+      function throttle(fn, ms) {
+      let throttle = false;
+      let timer;
+        return (...args) => {
+          if(!throttle) { // first call gets through
+              fn.apply(this, args);
+              throttle = true;
+          } else { // all the others get throttled
+              if(timer) clearTimeout(timer); // cancel #2
+              timer = setTimeout(() => {
+                fn.apply(this, args);
+                timer = throttle = false;
+              }, ms);
+          }
+        };
+      }
+        // Attach click handler to the DT
+        const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+        for (const annoteDlNode of annoteDls) {
+          annoteDlNode.addEventListener('click', (event) => {
+            const clickedEl = event.target;
+            if (clickedEl !== selectedAnnoteEl) {
+              unselectCodeLines();
+              const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+              if (activeEl) {
+                activeEl.classList.remove('code-annotation-active');
+              }
+              selectCodeLines(clickedEl);
+              clickedEl.classList.add('code-annotation-active');
+            } else {
+              // Unselect the line
+              unselectCodeLines();
+              clickedEl.classList.remove('code-annotation-active');
+            }
+          });
+        }
+    const findCites = (el) => {
+      const parentEl = el.parentElement;
+      if (parentEl) {
+        const cites = parentEl.dataset.cites;
+        if (cites) {
+          return {
+            el,
+            cites: cites.split(' ')
+          };
+        } else {
+          return findCites(el.parentElement)
+        }
+      } else {
+        return undefined;
+      }
+    };
+    var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+    for (var i=0; i<bibliorefs.length; i++) {
+      const ref = bibliorefs[i];
+      const citeInfo = findCites(ref);
+      if (citeInfo) {
+        tippyHover(citeInfo.el, function() {
+          var popup = window.document.createElement('div');
+          citeInfo.cites.forEach(function(cite) {
+            var citeDiv = window.document.createElement('div');
+            citeDiv.classList.add('hanging-indent');
+            citeDiv.classList.add('csl-entry');
+            var biblioDiv = window.document.getElementById('ref-' + cite);
+            if (biblioDiv) {
+              citeDiv.innerHTML = biblioDiv.innerHTML;
+            }
+            popup.appendChild(citeDiv);
+          });
+          return popup.innerHTML;
+        });
+      }
+    }
+  });
+  </script>
+<nav class="page-navigation">
+  <div class="nav-page nav-page-previous">
+      <a href="../lectures/week02-practice.html" class="pagination-link" aria-label="Week 2 practice: Decision theory and graphical models">
+        <i class="bi bi-arrow-left-short"></i> <span class="nav-page-text"><span class="chapter-title">Week 2 practice: Decision theory and graphical models</span></span>
+      </a>          
+  </div>
+  <div class="nav-page nav-page-next">
+      <a href="../glossary.html" class="pagination-link" aria-label="Glossary">
+        <span class="nav-page-text"><span class="chapter-title">Glossary</span></span> <i class="bi bi-arrow-right-short"></i>
+      </a>
+  </div>
+</nav>
+</div> <!-- /content -->
+
+
+
+
+<script src="../site_libs/quarto-html/zenscroll-min.js"></script>
+</body></html>

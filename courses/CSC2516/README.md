@@ -1,6 +1,6 @@
-# [COURSE-CODE] [Course Name]: Course Notes
+# CSC413/2516 Neural Networks and Deep Learning: Course Notes
 
-Index of this course's note files. Fill `[BRACKETED]` placeholders after `/course-notes init`.
+Index of this course's note files.
 
 - **Rulebook:** `COURSE.md` (audience, course URL, design tokens)
 - **Book:** `_quarto.yml` (Quarto project). Preview with `quarto preview`, or open `_site/index.html` after `quarto render`
