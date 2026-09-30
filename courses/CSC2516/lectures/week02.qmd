@@ -191,7 +191,7 @@ fnDefs = ({
   },
   relu: {
     f:  x => Math.max(0, x),
-    df: x => x >= 0 ? 1 : 0,
+    df: x => x > 0 ? 1 : 0,
     color: "#e53935", label: "ReLU(x)"
   },
   tanh: {
@@ -282,10 +282,10 @@ $$\operatorname{ReLU}(x) = \max(0,\, x) = \begin{cases} 0 & x < 0 \\ x & x \geq 
 
 **Derivative** (the Heaviside step function):
 
-$$\frac{d}{dx}\operatorname{ReLU}(x) = \begin{cases} 0 & x < 0 \\ 1 & x \geq 0 \end{cases}$$
+$$\frac{d}{dx}\operatorname{ReLU}(x) = \begin{cases} 0 & x < 0 \\ 1 & x > 0 \end{cases}$$
 
-At $x=0$, ReLU is not classically differentiable; by convention the
-subgradient is set to 1 there.
+At $x=0$, ReLU is not differentiable; any value in $[0,1]$ is a valid
+subgradient there. Frameworks such as PyTorch use $0$, the convention Week 3 follows.
 
 **Why ReLU dominates modern practice:**
 
@@ -740,7 +740,7 @@ Rerunning the forward pass on the same batch gives $\mathcal{L} \approx 0.138$, 
 **Theorem (Universal Approximation).** The Universal Approximation
 Theorem states that a feedforward neural network with a single hidden layer
 and a sufficiently large number of neurons can approximate any continuous
-function on a bounded domain to arbitrary accuracy, provided it uses a
+function on a compact (closed and bounded) domain to arbitrary accuracy, provided it uses a
 suitable nonlinear activation function. This means that, in principle, even
 a relatively simple neural-network architecture can represent highly complex
 mappings with multiple inputs and outputs. The theorem establishes the
@@ -986,8 +986,10 @@ html`<div style="display:flex; gap:1.2rem; flex-wrap:wrap; align-items:center; j
 Partition the input range into $K$ equal intervals and place one bump per
 interval, each pair of neurons contributing one bump. Setting each bump's
 height to $f\!\left(\tfrac{i+0.5}{K}\right)$, the target value at the
-interval centre, gives a piecewise-constant approximation with error
-$O(1/K)$, so as $K \to \infty$ it converges uniformly to any continuous $f$.
+interval centre, gives a piecewise-constant approximation whose error is at
+most how much $f$ varies within one interval ($O(1/K)$ when $f$ is Lipschitz).
+Because a continuous $f$ on a closed interval is uniformly continuous, that
+error goes to $0$ as $K \to \infty$, so the approximation converges uniformly.
 The network diagram now scales with $K$: every extra bump costs one more
 pair of hidden neurons.
 
@@ -1138,11 +1140,11 @@ same trick builds a *tower*: use two neuron pairs to make an x-bump and a
 y-bump, then combine all four with a fifth neuron whose large bias makes it
 fire only when *both* bumps are active simultaneously (an AND-like gate).
 Concretely, each bump neuron outputs $\approx 1$ when "on" and $\approx 0$
-when "off". Give the combining neuron weight $+1$ from each of the four, so
-its pre-activation is $(\text{number of active bumps}) + b$. For the neuron
-to fire only when *all four* are on, this must be positive at 4 active
-bumps but negative at 3: $4+b>0$ and $3+b<0$, i.e. $b \in (-4,-3)$. Picking
-$b = -3.5$ (the midpoint of that range) gives the largest safety margin
+when "off". Give the combining neuron the bump weights $+1, -1$ from the
+x-pair and $+1, -1$ from the y-pair, so its pre-activation is $2 + b$ inside
+the footprint, $1 + b$ where only one bump is on, and $b$ elsewhere. For the
+neuron to fire only when both bumps are on: $2+b>0$ and $1+b<0$, i.e.
+$b \in (-2,-1)$. Picking $b = -1.5$ (the midpoint of that range) gives the largest safety margin
 against the bump neurons' outputs being only approximately 0/1; a steep
 sigmoid then turns this pre-activation into a clean AND gate. The result is
 a rectangular tower of height $h$ over the footprint
@@ -1268,7 +1270,8 @@ foreshadow most of what we'll learn this semester.
   to get weight gradients. The forward pass caches activations to avoid
   recomputation.
 - The **Universal Approximation Theorem** guarantees a wide enough
-  single-hidden-layer MLP can fit any function, but overfitting, model size,
+  single-hidden-layer MLP can approximate any continuous function on a
+  compact domain to arbitrary accuracy, but overfitting, model size,
   and the question of *how* to train are all open challenges.
 :::
 
