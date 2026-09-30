@@ -1,0 +1,659 @@
+---
+title: "Week 3 practice: Variance, Autodiff, and Regularization"
+---
+
+```{=html}
+<style>#title-block-header { display: none; }</style>
+<div class="lecture-header">
+  <h1>Week 3 practice: Variance, Autodiff, and Regularization</h1>
+</div>
+```
+
+**Overview.** These problems drill [Week 3](week03.qmd). Try each stem before opening the worked solution. Every numeric problem has a single number as its answer, the same shape as the course's quiz questions. The chapter has five parts:
+
+1. **Variance rules.** A context section (expected value, variance, what dropout does, and the variance rules), then four problems that use it.
+2. **Autodiff and backprop.** Six problems on computational graphs and gradients through shared parameters.
+3. **Official Week 4 quiz practice.** Four questions provided by the course for this offering, reproduced with their answers.
+4. **Past-offering quiz questions.** Two Week 4 quiz questions from a past offering of the course, then two new problems in the same style.
+5. **Conceptual questions.** Two short-answer questions with no numeric answer.
+
+In Parts 1 and 2 and the two new problems in Part 4, the numbers and setups are invented for practice. They are not homework answers, and the specific calculations Homework 3 asks for are left to the assignment. Notation matches the week chapter: $a^m$ is a pre-activation and $h^m$ is an activation.
+
+## Part 1: Variance rules {#sec-variance-rules}
+
+### Context for these questions {#sec-part1-context}
+
+Every question in this part asks for the [variance](https://en.wikipedia.org/wiki/Variance) (and sometimes the mean) of a neuron's or a layer's output. That output is random for one of two reasons from Week 3:
+
+- **Random initialization** ([Parameter Initialization](week03.qmd#sec-init)). The weights are sampled from a distribution, and the inputs are treated as random too. Problems 2 and 3 are of this kind, and Problem 1 is a warm-up with fixed weights and random inputs.
+- **Dropout** ([Regularization](week03.qmd#sec-regularization)). The weights and inputs are fixed numbers, and the randomness comes from which inputs are dropped. Problem 4 is of this kind.
+
+To answer them we need four things, covered below in order:
+
+1. What $\mathbb{E}[\cdot]$ and $\operatorname{Var}[\cdot]$ take in and give back, and the rules for $\mathbb{E}[\cdot]$.
+2. The definition of variance.
+3. What dropout does, written as a random variable.
+4. The five variance rules. The worked solutions cite them by number.
+
+#### Expected value and variance: what goes in and what comes out {#sec-e-var}
+
+Both $\mathbb{E}[\cdot]$ and $\operatorname{Var}[\cdot]$ act on a **random variable**: a quantity whose value is decided by chance, with a probability attached to each value it can take. A randomly initialized weight $W_{ij}$, an input $x_j$ drawn from data, and a dropped-out feature $x'$ are all random variables.
+
+::: {.definition-block}
+**Definition.** The *expected value* (or *mean*) $\mathbb{E}[X]$ of a random variable $X$ is the probability-weighted average of its values. For a variable that takes a list of values,
+
+$$\mathbb{E}[X] = \sum_{x} x \cdot P(X = x)$$
+
+For a continuous variable, such as a normal one, the sum becomes an integral over its density. See [expected value](https://en.wikipedia.org/wiki/Expected_value).
+:::
+
+So the input and output are:
+
+| Symbol | Input | Output |
+|---|---|---|
+| $\mathbb{E}[X]$ | a random variable, or an expression built from random variables | one ordinary number: the average value |
+| $\operatorname{Var}[X]$ | the same | one ordinary number, never negative: how spread out the values are |
+
+Neither result is random. Once we know the probabilities, $\mathbb{E}[X]$ and $\operatorname{Var}[X]$ are fixed numbers, which is why they can be set equal to things like $\sigma^2$ or $1$.
+
+**An expression inside the brackets is computed first, then averaged.** $\mathbb{E}[X^2]$ means: square each possible value, then take the weighted average. That is different from $(\mathbb{E}[X])^2$, which averages first and squares after. For example, take $X = -1$ or $1$, each with probability $1/2$:
+
+$$\mathbb{E}[X] = \tfrac{1}{2}(-1) + \tfrac{1}{2}(1) = 0, \qquad \mathbb{E}[X^2] = \tfrac{1}{2}(-1)^2 + \tfrac{1}{2}(1)^2 = 1$$
+
+Here $(\mathbb{E}[X])^2 = 0$ but $\mathbb{E}[X^2] = 1$. The gap between the two is exactly the variance (rule 1 below).
+
+::: {.callout-note}
+**Expectation rules.** For random variables $X$ and $Y$ and constants $a$, $b$, $c$:
+
+1. **Constants pass through.** $\mathbb{E}[c] = c$: a quantity that is always $c$ averages to $c$.
+2. **Linearity.** $\mathbb{E}[aX + bY + c] = a\,\mathbb{E}[X] + b\,\mathbb{E}[Y] + c$. This holds **always**, whether or not $X$ and $Y$ are independent.
+3. **Products need independence.** If $X$ and $Y$ are independent, $\mathbb{E}[XY] = \mathbb{E}[X]\,\mathbb{E}[Y]$. Without independence this can fail.
+4. **Squares do not pass through.** In general $\mathbb{E}[X^2] \neq (\mathbb{E}[X])^2$, as the example above shows. The same goes for other nonlinear functions: $\mathbb{E}[g(X)]$ is usually not $g(\mathbb{E}[X])$.
+:::
+
+Linearity is why sums are easy for expectations and why the mean of a neuron's output is just the neuron applied to the mean inputs. Variance is not linear (a constant factor comes out squared), which is why it needs its own rules.
+
+#### The definition of variance {#sec-var-def}
+
+The variance rules below all come from one definition. Write $\mu = \mathbb{E}[X]$ for the mean of a random variable $X$. The variance is
+
+$$\operatorname{Var}[X] = \mathbb{E}\big[(X - \mu)^2\big]$$
+
+It is the average squared distance of $X$ from its own mean, so it measures how spread out the values of $X$ are. A variable that always takes the same value has variance $0$.
+
+Each piece of the definition has a reason:
+
+- **Subtract the mean.** Spread is about distance from the center, so we measure each value relative to $\mu$. Shifting every value by the same amount moves $\mu$ too and leaves the spread unchanged.
+- **Square the distance.** The plain deviations $X - \mu$ always average to exactly $0$, because values above the mean cancel values below it. Squaring makes every deviation count as positive, and it weights large deviations more than small ones.
+- **Square rather than absolute value.** Squares expand algebraically, $(A + B)^2 = A^2 + 2AB + B^2$. That expansion is what makes the rules below short to derive, in particular that variances of independent terms add.
+
+Because of the square, variance is in squared units. Its square root, the standard deviation $\sigma$, is back in the units of $X$, which is why initialization schemes are usually stated as a value of $\sigma$.
+
+#### What dropout means in these questions {#sec-dropout-context}
+
+[Dropout](https://en.wikipedia.org/wiki/Dropout_(neural_networks)) is the regularizer from Week 3 that randomly removes features during training, so the model cannot come to rely on any single one. Three terms appear in the questions.
+
+- **Dropout probability $p$.** On each training step, each feature is dropped (set to $0$) with probability $p$ and kept with probability $1 - p$. It is a hyperparameter we choose. With $p = 0.75$, a feature is dropped on about $3$ steps in $4$ and kept on about $1$ in $4$.
+- **Dropout mask.** The keep-or-drop decisions for one step, one per feature. Write $m_j = 1$ if feature $j$ is kept and $m_j = 0$ if it is dropped, so $P(m_j = 0) = p$ and $P(m_j = 1) = 1 - p$. Each feature gets its own independent decision, and a fresh mask is drawn on every training step. It is called a mask because multiplying the features by it entry by entry zeroes out the dropped ones and leaves the rest.
+- **Rescaling.** A kept feature is divided by $1 - p$. Putting the mask and the rescaling together, the feature the network actually sees is
+
+$$x_j' = \frac{m_j\, x_j}{1 - p}$$
+
+The division makes up for the features that were dropped: on average, $x_j'$ equals $x_j$ (rule 5 below). That is why at test time we skip dropout and use $x_j$ unchanged.
+
+::: {.callout-note}
+**Example.** Take features $\bm{x} = (2,\; 1,\; 3)$ and $p = 0.5$, so a kept feature is multiplied by $1/(1 - 0.5) = 2$. Each mask entry is $0$ or $1$ with probability $1/2$, independently, so each of the $2^3 = 8$ possible masks has probability $1/8$. Three of them:
+
+| Mask $\bm{m}$ | What the network sees, $\bm{x}'$ |
+|---|---|
+| $(1,\; 1,\; 1)$ | $(4,\; 2,\; 6)$ |
+| $(1,\; 0,\; 1)$ | $(4,\; 0,\; 6)$ |
+| $(0,\; 0,\; 1)$ | $(0,\; 0,\; 6)$ |
+:::
+
+**"The randomness comes only from the dropout masks."** Several questions include this phrase. It means the weights $w_j$ and the original features $x_j$ are fixed numbers, and only the mask is random. A neuron's output during training, $o = \sum_j w_j x_j'$, therefore changes from step to step as the mask changes, which makes it a random variable. $\mathbb{E}[o]$ asks for its average over all possible masks, and $\operatorname{Var}[o]$ asks how much it jumps around from step to step. A larger $p$ drops more features per step and makes the jumps larger: that is the noise dropout adds to training.
+
+::: {.callout-tip collapse="true" .clarification title="Question: What does dropout do to a single feature, step by step?"}
+Take the smallest case: one feature $x = 4$, a neuron $o = w\,x'$ with weight $w = 1$, and dropout probability $p = 0.5$. A kept feature is multiplied by $1/(1 - 0.5) = 2$, so on each training step exactly one of two things happens:
+
+| Mask $m$ | Probability | What the network sees, $x'$ | Output $o$ |
+|---|---|---|---|
+| $1$ (kept) | $1/2$ | $2 \cdot 4 = 8$ | $8$ |
+| $0$ (dropped) | $1/2$ | $0$ | $0$ |
+
+**Over a few training steps.** A fresh mask is drawn each step, so the output might go $8, 0, 8, 8, 0, \ldots$. It never equals $4$ on any single step, but it averages to $4$ over many steps:
+
+$$\mathbb{E}[o] = \tfrac{1}{2}\cdot 8 + \tfrac{1}{2}\cdot 0 = 4 = x$$
+
+**Why the rescaling.** Without dividing by $1 - p$, a kept feature would stay $4$ and the average output would be $\tfrac{1}{2}\cdot 4 + \tfrac{1}{2}\cdot 0 = 2$, half of the true value. At test time, when nothing is dropped, the network would suddenly see inputs twice as large as it saw on average during training. Rescaling keeps the training-time average equal to the test-time value, so at test time we use $x = 4$ with no dropout and no rescaling.
+
+**How much it jumps.** The output is $4$ above or below its mean on every step. By rule 1 below,
+
+$$\operatorname{Var}[o] = \mathbb{E}[o^2] - (\mathbb{E}[o])^2 = \tfrac{1}{2}\cdot 64 - 4^2 = 16$$
+
+which matches rule 5's formula $x^2\,p/(1-p) = 16 \cdot 1$. With several features, each gets its own independent mask, and rule 3 adds up their variances.
+:::
+
+#### The variance rules {#sec-var-rules}
+
+::: {.callout-note}
+**Variance rules used in this chapter.** For random variables $X$ and $Y$ and a constant $c$:
+
+1. **Definition, rearranged.** $\operatorname{Var}[X] = \mathbb{E}[X^2] - (\mathbb{E}[X])^2$, so $\mathbb{E}[X^2] = \operatorname{Var}[X] + (\mathbb{E}[X])^2$. When the mean is $0$, $\mathbb{E}[X^2] = \operatorname{Var}[X]$.
+2. **Scaling and shifting.** $\operatorname{Var}[cX] = c^2\operatorname{Var}[X]$ and $\operatorname{Var}[X + c] = \operatorname{Var}[X]$. A constant factor comes out squared; a constant shift changes nothing.
+3. **Sums of independent variables.** If $X$ and $Y$ are [independent](https://en.wikipedia.org/wiki/Independence_(probability_theory)), $\operatorname{Var}[X + Y] = \operatorname{Var}[X] + \operatorname{Var}[Y]$. For $n$ independent terms with the same variance $v$, the sum has variance $nv$.
+4. **Products of independent zero-mean variables.** If $X$ and $Y$ are independent and both have mean $0$, then $\operatorname{Var}[XY] = \operatorname{Var}[X]\,\operatorname{Var}[Y]$. (This follows from rule 1: $\mathbb{E}[XY] = 0$ and $\mathbb{E}[X^2Y^2] = \mathbb{E}[X^2]\,\mathbb{E}[Y^2]$. Without zero means, extra terms appear.)
+5. **A dropped-out feature.** With dropout probability $p$, the feature $x' = m\,x/(1-p)$ is $0$ with probability $p$ and $x/(1-p)$ with probability $1 - p$. Then $\mathbb{E}[x'] = x$ and $\operatorname{Var}[x'] = x^2\,\dfrac{p}{1-p}$.
+:::
+
+::: {.callout-tip collapse="true" .clarification title="Question: Where do these five rules come from?"}
+Each rule follows from the definition $\operatorname{Var}[X] = \mathbb{E}[(X - \mu)^2]$ and two facts about expectation: it is linear, $\mathbb{E}[aX + bY + c] = a\,\mathbb{E}[X] + b\,\mathbb{E}[Y] + c$, and for independent variables $\mathbb{E}[XY] = \mathbb{E}[X]\,\mathbb{E}[Y]$.
+
+**Rule 1.** Expand the square and take the expectation term by term, using that $\mu$ is a constant:
+
+$$\begin{aligned}
+\operatorname{Var}[X] &= \mathbb{E}[X^2 - 2\mu X + \mu^2] \\
+&= \mathbb{E}[X^2] - 2\mu\,\mathbb{E}[X] + \mu^2 \\
+&= \mathbb{E}[X^2] - 2\mu^2 + \mu^2 = \mathbb{E}[X^2] - \mu^2
+\end{aligned}$$
+
+**Rule 2.** Apply the definition to the random variable $cX$. Its deviation is measured from its own mean, $\mathbb{E}[cX]$:
+
+$$\operatorname{Var}[cX] = \mathbb{E}\left[\Big(cX - \mathbb{E}[cX]\Big)^2\right]$$
+
+By linearity, $\mathbb{E}[cX] = c\,\mathbb{E}[X] = c\mu$. Substituting, and factoring $c$ out of the difference $cX - c\mu$:
+
+$$\operatorname{Var}[cX] = \mathbb{E}\left[\Big(c(X - \mu)\Big)^2\right]$$
+
+Squaring a product squares each factor, $(c\,A)^2 = c^2A^2$:
+
+$$\operatorname{Var}[cX] = \mathbb{E}\left[c^2(X - \mu)^2\right]$$
+
+Now $c^2$ is a constant, so linearity pulls it outside the expectation, and what remains is the definition of $\operatorname{Var}[X]$:
+
+$$\operatorname{Var}[cX] = c^2\,\mathbb{E}\left[(X - \mu)^2\right] = c^2\operatorname{Var}[X]$$
+
+For a shift, the mean of $X + c$ is $\mu + c$, so the deviation is $(X + c) - (\mu + c) = X - \mu$, exactly as before. The variance is unchanged.
+
+**Rule 3.** Write $\mu_X$ and $\mu_Y$ for the two means. The deviation of $X + Y$ from its mean $\mu_X + \mu_Y$ is $(X - \mu_X) + (Y - \mu_Y)$. Squaring gives two squared terms and a cross term:
+
+$$\begin{aligned}
+\operatorname{Var}[X + Y] &= \mathbb{E}\big[(X - \mu_X)^2\big] + \mathbb{E}\big[(Y - \mu_Y)^2\big] \\
+&\quad + 2\,\mathbb{E}\big[(X - \mu_X)(Y - \mu_Y)\big]
+\end{aligned}$$
+
+By independence the cross term splits into $2\,\mathbb{E}[X - \mu_X]\,\mathbb{E}[Y - \mu_Y] = 2 \cdot 0 \cdot 0 = 0$, leaving $\operatorname{Var}[X] + \operatorname{Var}[Y]$. Applying this repeatedly to $n$ independent terms adds $n$ variances. The cross term is also why independence matters: without it, the variances need not add.
+
+**Rule 4.** With independent zero-mean $X$ and $Y$, the product has mean $\mathbb{E}[XY] = \mathbb{E}[X]\,\mathbb{E}[Y] = 0$. By rule 1, its variance is then just its second moment. Since $X^2$ and $Y^2$ are also independent, that splits:
+
+$$\operatorname{Var}[XY] = \mathbb{E}[X^2 Y^2] = \mathbb{E}[X^2]\,\mathbb{E}[Y^2] = \operatorname{Var}[X]\,\operatorname{Var}[Y]$$
+
+The last step uses rule 1 again with zero means. If the means are not zero, $\mathbb{E}[X^2]$ and $\mathbb{E}[Y^2]$ each carry an extra squared-mean term, which is where the extra terms come from.
+
+**Rule 5.** The dropped-out feature takes two values: $0$ with probability $p$, and $x/(1-p)$ with probability $1 - p$. Average each quantity over those two cases:
+
+$$\mathbb{E}[x'] = (1 - p)\cdot\frac{x}{1-p} = x, \qquad \mathbb{E}[x'^2] = (1 - p)\cdot\frac{x^2}{(1-p)^2} = \frac{x^2}{1-p}$$
+
+Then rule 1 gives
+
+$$\operatorname{Var}[x'] = \frac{x^2}{1-p} - x^2 = x^2\cdot\frac{1 - (1 - p)}{1-p} = x^2\,\frac{p}{1-p}$$
+:::
+
+Rules 3 and 4 together give the one-layer result from the week chapter: each output $h_i = \sum_j W_{ij}x_j$ is a sum of $n_\text{in}$ independent zero-mean products, so $\operatorname{Var}[h_i] = n_\text{in}\operatorname{Var}[W_{ij}]\operatorname{Var}[x_j]$.
+
+### Problem 1: Variance of a neuron's output {#prb-1}
+
+A neuron computes $o = \sum_{j=1}^{3} w_j x_j$ with fixed weights $\bm{w} = (2,\; -1,\; 3)$. The inputs $x_1, x_2, x_3$ are independent, each with mean $0$ and variance $2$. What is $\operatorname{Var}[o]$?
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+This uses rules 2 and 3 above.
+
+Here the weights are fixed numbers and only the inputs are random, so each term $w_j x_j$ is a constant times a random variable. By rule 2 its variance is $w_j^2\operatorname{Var}[x_j]$, and the sign of $w_j$ disappears when it is squared. The inputs are independent, so by rule 3 the three variances add:
+
+$$\operatorname{Var}[o] = \sum_{j=1}^{3} w_j^2 \operatorname{Var}[x_j] = (4 + 1 + 9) \cdot 2$$
+
+A common slip is to let the negative weight cancel part of the others. Variances of independent terms always add.
+
+**Answer:** $28$.
+:::
+
+### Problem 2: He initialization with non-unit inputs {#prb-2}
+
+A dense layer has $n_\text{in} = 50$ inputs and uses He initialization, $W_{ij} \sim \mathcal{N}(0, \sigma^2)$ with $\sigma = \sqrt{2/n_\text{in}}$, each weight independent. The inputs are independent, have mean $0$, and each has variance $3$. Ignoring any nonlinearity, what is the variance of each entry of $W\bm{x}$?
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+This uses [Week 3, Variance of one linear layer](week03.qmd#sec-init) together with rules 3 and 4.
+
+Each entry is $(W\bm{x})_i = \sum_{j=1}^{50} W_{ij}x_j$. Every term is a product of two independent zero-mean variables, so by rule 4 each term has variance $\operatorname{Var}[W_{ij}]\operatorname{Var}[x_j]$. The terms are independent, so by rule 3 their variances add.
+
+With He initialization, $\operatorname{Var}[W_{ij}] = \sigma^2 = 2/50$. The input variance is $3$, not $1$, so it does not drop out of the product:
+
+$$\operatorname{Var}\big[(W\bm{x})_i\big] = 50 \cdot \frac{2}{50} \cdot 3$$
+
+The $n_\text{in}$ in the He scale cancels the $n_\text{in}$ from the sum, which is why He initialization multiplies the input variance by exactly $2$.
+
+**Answer:** $6$.
+:::
+
+### Problem 3: Xavier initialization with unequal widths {#prb-3}
+
+A dense layer has $n_\text{in} = 60$ and $n_\text{out} = 20$ and uses Xavier initialization, $\sigma = \sqrt{2/(n_\text{in} + n_\text{out})}$. The inputs are independent, zero-mean, with variance $4$. Ignoring any nonlinearity, what is the variance of each entry of $W\bm{x}$?
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+This uses [Week 3, Choosing sigma](week03.qmd#sec-init).
+
+First the weight variance:
+
+$$\sigma^2 = \frac{2}{60 + 20} = \frac{1}{40}$$
+
+The forward computation is the same as Problem 2: a sum of $n_\text{in} = 60$ independent zero-mean products, each with variance $\sigma^2 \cdot 4$:
+
+$$\operatorname{Var}\big[(W\bm{x})_i\big] = 60 \cdot \frac{1}{40} \cdot 4$$
+
+The layer multiplies the input variance by $n_\text{in}\sigma^2 = 60/40 = 1.5$, not by $1$. Xavier is a compromise between the forward requirement $n_\text{in}\sigma^2 = 1$ and the backward requirement $n_\text{out}\sigma^2 = 1$, so when the widths differ it satisfies neither exactly.
+
+**Answer:** $6$.
+:::
+
+### Problem 4: Variance of a neuron under dropout {#prb-4}
+
+A neuron computes $o = \sum_{j=1}^{3} w_j x_j'$ with weights $\bm{w} = (1,\; 2,\; 1)$ and inputs $\bm{x} = (2,\; 1,\; 3)$. Dropout with $p = 0.75$ is applied independently to each input during training, so $x_j' = 0$ with probability $p$ and $x_j' = x_j/(1-p)$ otherwise. What is $\operatorname{Var}[o]$, where the randomness comes only from the dropout masks?
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+This uses [Week 3, Dropout](week03.qmd#sec-regularization) and rules 2, 3, and 5.
+
+With $p = 0.75$, each input is kept with probability $0.25$ and then multiplied by $1/0.25 = 4$. For one input:
+
+- Mean: $\mathbb{E}[x_j'] = 0.25 \cdot 4x_j = x_j$
+- Second moment: $\mathbb{E}[x_j'^2] = 0.25 \cdot 16x_j^2 = 4x_j^2$
+- Variance: $\operatorname{Var}[x_j'] = 4x_j^2 - x_j^2 = 3x_j^2$
+
+This matches rule 5, since $p/(1-p) = 0.75/0.25 = 3$.
+
+The masks are independent, so rule 2 brings each weight out squared and rule 3 adds the terms:
+
+$$\operatorname{Var}[o] = \sum_{j=1}^{3} w_j^2 \cdot 3x_j^2 = 3(1 \cdot 4 + 4 \cdot 1 + 1 \cdot 9) = 3 \cdot 17$$
+
+**Answer:** $51$.
+:::
+
+## Part 2: Autodiff and backprop {#sec-autodiff-practice}
+
+These problems use the computational graph and the backward pass from [Week 3, Automatic Differentiation](week03.qmd#sec-autodiff). Unless a problem says otherwise, the autodiff library supports only these operations: add, subtract, multiply, raise to a constant power (the exponent is its own leaf node), and ReLU. Every add, subtract, and multiply takes exactly two inputs.
+
+### Problem 5: Counting nodes in a graph {#prb-5}
+
+A model computes
+
+$$h = \operatorname{ReLU}(w_1 x_1 + w_2 x_2 + b), \qquad \mathcal{L} = (y - h)^2$$
+
+How many nodes (leaf nodes plus operation nodes) are in its computational graph?
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+This uses the computational-graph definition in [Week 3, What autodiff needs to do](week03.qmd#sec-autodiff).
+
+**Leaf nodes.** Every input and parameter is a leaf, and so is the constant exponent: $w_1, x_1, w_2, x_2, b, y$, and $2$. That is $7$ leaves.
+
+**Operation nodes.** Break the computation into single two-input operations, as the week chapter does for its running example:
+
+| # | Operation | Result |
+|---|---|---|
+| 1 | $w_1 \cdot x_1$ | first product |
+| 2 | $w_2 \cdot x_2$ | second product |
+| 3 | add the two products | partial sum |
+| 4 | add $b$ | pre-activation |
+| 5 | ReLU | $h$ |
+| 6 | $y - h$ | error |
+| 7 | raise to the power $2$ | $\mathcal{L}$ |
+
+The three-term sum $w_1x_1 + w_2x_2 + b$ needs two add nodes, because each add takes exactly two inputs. That is $7$ operation nodes.
+
+**Answer:** $7 + 7 = 14$.
+:::
+
+### Problem 6: A leaf used twice {#prb-6}
+
+A model computes
+
+$$g = x \cdot x, \qquad o = g \cdot w + g, \qquad \mathcal{L} = o^2$$
+
+For $x = 1$ and $w = 2$, what is $\partial\mathcal{L}/\partial x$?
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+This uses [Week 3, the Automatic Differentiation algorithm](week03.qmd#sec-autodiff), in particular the rule that contributions from different paths are added.
+
+**Forward pass.** $g = 1 \cdot 1 = 1$, then $o = 1 \cdot 2 + 1 = 3$, then $\mathcal{L} = 9$.
+
+**Backward pass.** Start from $\partial\mathcal{L}/\partial\mathcal{L} = 1$ and work toward $x$.
+
+- At the power node: $\partial\mathcal{L}/\partial o = 2o = 6$.
+- At the add node $o = (g w) + g$: each input gets the upstream gradient $6$. So the product node $gw$ receives $6$, and $g$ receives $6$ directly.
+- At the multiply node $g \cdot w$: the input $g$ receives $6 \cdot w = 12$.
+- $g$ was used on two paths, so its gradient is $6 + 12 = 18$.
+- At the multiply node $x \cdot x$: both inputs are $x$. Each input slot receives $18 \cdot x = 18$, and the two contributions add: $18 + 18 = 36$.
+
+**Check.** Written out, $\mathcal{L} = x^4(w + 1)^2$, so $\partial\mathcal{L}/\partial x = 4x^3(w+1)^2 = 4 \cdot 9 = 36$.
+
+**Answer:** $36$.
+:::
+
+### Problem 7: A parameter on two paths {#prb-7}
+
+A model computes
+
+$$m = w + x, \qquad g = m \cdot w, \qquad \mathcal{L} = g^2$$
+
+For $w = 2$ and $x = 1$, what is $\partial\mathcal{L}/\partial w$?
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+This uses the sum-over-paths rule in [Week 3, Automatic Differentiation](week03.qmd#sec-autodiff).
+
+**Forward pass.** $m = 3$, $g = 3 \cdot 2 = 6$, $\mathcal{L} = 36$.
+
+**Backward pass.** $w$ feeds into both $m$ and $g$, so the gradients along both paths must be summed.
+
+- $\partial\mathcal{L}/\partial g = 2g = 12$.
+- At the multiply node $g = m \cdot w$: $w$ receives $12 \cdot m = 36$ along this direct path, and $m$ receives $12 \cdot w = 24$.
+- At the add node $m = w + x$: the local derivative with respect to $w$ is $1$, so $w$ receives a second contribution of $24$.
+- Adding the two paths: $36 + 24 = 60$.
+
+**Check.** Written out, $g = w^2 + wx$, so $\partial g/\partial w = 2w + x = 5$, and $12 \cdot 5 = 60$.
+
+**Answer:** $60$.
+:::
+
+### Problem 8: Following the backward sweep {#prb-8}
+
+A graph computes $c = a \cdot b$ and then $\mathcal{L} = c + a$, with $a = 3$ and $b = 4$. What is $\partial\mathcal{L}/\partial a$?
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+This uses the backward-pass step of [the Automatic Differentiation algorithm](week03.qmd#sec-autodiff): visit the operation nodes in reverse topological order, multiply each node's gradient by the local derivative, and **add** the result into each input's running gradient.
+
+**Forward pass.** $c = 12$ and $\mathcal{L} = 15$.
+
+**Backward pass.** The sweep starts with $\partial\mathcal{L}/\partial\mathcal{L} = 1$ and visits the add node first, then the multiply node.
+
+- At the add node $\mathcal{L} = c + a$: the local derivative is $1$ for each input, so $c$'s gradient becomes $1$ and $a$'s running gradient becomes $1$.
+- At the multiply node $c = a \cdot b$: $c$'s gradient is $1$, so $a$ receives $1 \cdot b = 4$. Adding into the running total gives $1 + 4 = 5$.
+
+After the add node, $a$'s gradient is incomplete, because the path through $c$ has not been visited yet. A node is only processed after every node that uses it, so by the time the sweep reaches $c$, its gradient is complete and can be passed on.
+
+**Check.** $\mathcal{L} = ab + a$, so $\partial\mathcal{L}/\partial a = b + 1 = 5$.
+
+**Answer:** $5$.
+:::
+
+### Problem 9: Counting nodes with shared leaves {#prb-9}
+
+A model computes
+
+$$\begin{aligned}
+h_1 &= \operatorname{ReLU}(w_1 x + b) \\
+h_2 &= \operatorname{ReLU}(w_2 x + b) \\
+o &= h_1 + h_2 + c \\
+\mathcal{L} &= (o - y)^2
+\end{aligned}$$
+
+Both hidden units use the same bias $b$. How many nodes (leaf nodes plus operation nodes) are in the computational graph?
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+This uses the computational-graph definition in [Week 3, What autodiff needs to do](week03.qmd#sec-autodiff).
+
+**Leaf nodes.** A value used more than once is still one leaf. The input $x$ feeds both hidden units, and the bias $b$ is added in both, but each is a single node. The leaves are $w_1, w_2, x, b, c, y$, and the exponent $2$: $7$ leaves.
+
+**Operation nodes.**
+
+| # | Operation |
+|---|---|
+| 1 | $w_1 \cdot x$ |
+| 2 | $+\, b$ |
+| 3 | ReLU ($h_1$) |
+| 4 | $w_2 \cdot x$ |
+| 5 | $+\, b$ |
+| 6 | ReLU ($h_2$) |
+| 7 | $h_1 + h_2$ |
+| 8 | $+\, c$ |
+| 9 | $o - y$ |
+| 10 | $(\cdot)^2$ (loss) |
+
+The shared bias is one leaf, but the two additions that use it are two separate operation nodes. The three-term sum $h_1 + h_2 + c$ needs two add nodes. That is $10$ operation nodes.
+
+**Answer:** $7 + 10 = 17$.
+:::
+
+### Problem 10: A path through an inactive ReLU {#prb-10}
+
+A model computes
+
+$$m = w \cdot x, \qquad h = \operatorname{ReLU}(m - c), \qquad o = h + m, \qquad \mathcal{L} = o^2$$
+
+For $w = 2$, $x = 1$, and $c = 3$, what is $\partial\mathcal{L}/\partial w$?
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+This uses the sum-over-paths rule in [Week 3, Automatic Differentiation](week03.qmd#sec-autodiff) and the ReLU derivative from the same section.
+
+**Forward pass.** $m = 2$, then $m - c = -1$, so $h = \operatorname{ReLU}(-1) = 0$. Then $o = 0 + 2 = 2$ and $\mathcal{L} = 4$.
+
+**Backward pass.** $m$ reaches $o$ along two paths: directly, and through the ReLU.
+
+- $\partial\mathcal{L}/\partial o = 2o = 4$.
+- At the add node $o = h + m$: $h$ receives $4$, and $m$ receives $4$ along the direct path.
+- At the ReLU node: its forward input was $-1$, which is not positive, so the slope is $0$ and the node sends $4 \cdot 0 = 0$ back. The path through the ReLU contributes nothing to $m$.
+- $m$'s total gradient is $4 + 0 = 4$.
+- At the multiply node $m = w \cdot x$: $w$ receives $4 \cdot x = 4$.
+
+**Check.** Near $w = 2$ the ReLU input stays negative, so $o = wx$ and $\mathcal{L} = w^2x^2$. Then $\partial\mathcal{L}/\partial w = 2wx^2 = 4$.
+
+**Answer:** $4$.
+:::
+
+## Part 3: Official Week 4 quiz practice {#sec-official-quiz}
+
+The four questions below were provided by the course as Week 4 quiz practice, and they test Week 3 material. They are reproduced with the course's own numbers and answers. The first two were labeled for CSC413 and the last two for CSC2516.
+
+### Quiz question 1: Counting graph nodes (CSC413) {#quiz-1}
+
+An autodiff library supports only these ops: add, subtract, multiply, raise to a constant power (the exponent is a separate leaf node), and ReLU. A model computes
+
+$$\begin{aligned}
+h_1 &= \operatorname{ReLU}(w_1 x + b_1) \\
+h_2 &= \operatorname{ReLU}(w_2 x + b_2) \\
+o &= w_3 h_1 + w_4 h_2 \\
+\mathcal{L} &= (y - o)^2
+\end{aligned}$$
+
+How many nodes (leaf nodes plus operation nodes) are in the computational graph?
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+**Leaf nodes (9):** $w_1, w_2, w_3, w_4, b_1, b_2, x, y$, and the constant exponent $2$. The input $x$ is a single leaf shared by both hidden units.
+
+**Operation nodes (11):**
+
+| # | Operation |
+|---|---|
+| 1 | $w_1 \cdot x$ |
+| 2 | $+\, b_1$ |
+| 3 | ReLU ($h_1$) |
+| 4 | $w_2 \cdot x$ |
+| 5 | $+\, b_2$ |
+| 6 | ReLU ($h_2$) |
+| 7 | $w_3 \cdot h_1$ |
+| 8 | $w_4 \cdot h_2$ |
+| 9 | $+$ ($o$) |
+| 10 | $y - o$ |
+| 11 | $(\cdot)^2$ (loss) |
+
+**Answer:** $9 + 11 = 20$.
+:::
+
+### Quiz question 2: He initialization variance (CSC413) {#quiz-2}
+
+A dense layer with weight matrix $W \in \mathbb{R}^{256 \times 64}$ is initialized with He initialization, $\sigma = \sqrt{2/n_\text{in}}$, with each weight drawn independently. The input $\bm{x} \in \mathbb{R}^{64}$ has independent, zero-mean entries with variance $1$. Ignoring any nonlinearity, what is the variance of each entry of $W\bm{x}$?
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+Here $n_\text{in} = 64$ (the input dimension), so $\operatorname{Var}(W_{ij}) = \sigma^2 = 2/64$.
+
+Each output entry is $(W\bm{x})_i = \sum_{j=1}^{64} W_{ij} x_j$. Since the weights and inputs are independent and zero-mean:
+
+$$\operatorname{Var}\big[(W\bm{x})_i\big] = \sum_{j=1}^{64} \operatorname{Var}(W_{ij})\,\operatorname{Var}(x_j) = 64 \cdot \frac{2}{64} \cdot 1$$
+
+**Answer:** $2$.
+:::
+
+### Quiz question 3: Variance under dropout (CSC2516) {#quiz-3}
+
+A neuron computes $o = \sum_{j=1}^{4} w_j x_j'$ with $w_j = 1$ for all $j$ and inputs $\bm{x} = (1, 2, 3, 4)$. Dropout with $p = 0.8$ is applied independently to each input during training, so $x_j' = 0$ with probability $p$ and $x_j' = x_j/(1-p)$ otherwise. What is $\operatorname{Var}[o]$, where the randomness comes only from the dropout masks?
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+With $p = 0.8$, the keep probability is $1 - p = 0.2$, so $x_j' = 5x_j$ with probability $0.2$ and $0$ otherwise.
+
+- Mean: $\mathbb{E}[x_j'] = 0.2 \cdot 5x_j = x_j$
+- Second moment: $\mathbb{E}[x_j'^2] = 0.2 \cdot 25x_j^2 = 5x_j^2$
+- Variance: $\operatorname{Var}[x_j'] = 5x_j^2 - x_j^2 = 4x_j^2$
+
+The masks are independent, so variances add (with $w_j = 1$):
+
+$$\operatorname{Var}[o] = \sum_{j=1}^{4} 4x_j^2 = 4(1 + 4 + 9 + 16) = 4 \cdot 30$$
+
+(General form: $\operatorname{Var}[x_j'] = x_j^2 \cdot \frac{p}{1-p}$, and $\frac{0.8}{0.2} = 4$.)
+
+**Answer:** $120$.
+:::
+
+### Quiz question 4: A parameter on two paths (CSC2516) {#quiz-4}
+
+Consider the computation
+
+$$m = w \cdot x, \qquad g = m \cdot w, \qquad e = g + m, \qquad \mathcal{L} = e^2$$
+
+For $w = 1$ and $x = 2$, what is $d\mathcal{L}/dw$?
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+**Forward pass** at $w = 1$, $x = 2$: $m = wx = 2$, $g = mw = 2$, $e = g + m = 4$, $\mathcal{L} = 16$.
+
+**Backward pass.** $w$ feeds into both $m$ and $g$, so gradients along both paths must be summed:
+
+- $\dfrac{d\mathcal{L}}{de} = 2e = 8$
+- $\dfrac{dm}{dw} = x = 2$
+- $\dfrac{dg}{dw} = m + w\dfrac{dm}{dw} = 2 + 1 \cdot 2 = 4$ (the direct path through $w$ plus the path through $m$)
+- $\dfrac{de}{dw} = \dfrac{dg}{dw} + \dfrac{dm}{dw} = 4 + 2 = 6$
+
+$$\frac{d\mathcal{L}}{dw} = 8 \cdot 6$$
+
+**Check:** $e = w^2 x + wx$, so $\frac{de}{dw} = 2wx + x = 4 + 2 = 6$.
+
+**Answer:** $48$.
+:::
+
+## Part 4: Past-offering quiz questions {#sec-past-quiz}
+
+The two questions below are from the Week 4 quiz (Section 2) of a **past offering** of the course, not this term's. They are reproduced with the original numbers and answers. Problems 11 and 12 after them are new, written in the same style.
+
+### Past quiz question 1: Standard deviation compared to Glorot {#past-1}
+
+When initializing a dense layer with a weight matrix $W \in \mathbb{R}^{100 \times 100}$, instead of using Glorot initialization, I initialize all of the values to either $-1$ or $1$ uniformly at random, a distribution with a standard deviation of $1$. How many times larger is this standard deviation than what I should have used according to Glorot initialization?
+
+(Note: $1$ is $n$ times larger than $1/n$.)
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+**Glorot (Xavier) initialization.** For a dense layer with $n_\text{in}$ inputs and $n_\text{out}$ outputs, Glorot initialization uses variance $\dfrac{2}{n_\text{in} + n_\text{out}}$, so the standard deviation is its square root:
+
+$$\sigma_\text{Glorot} = \sqrt{\frac{2}{n_\text{in} + n_\text{out}}}$$
+
+**For $W \in \mathbb{R}^{100 \times 100}$,** $n_\text{in} = n_\text{out} = 100$:
+
+$$\sigma_\text{Glorot} = \sqrt{\frac{2}{200}} = \sqrt{\frac{1}{100}} = \frac{1}{10}$$
+
+**Compare.** The standard deviation used is $1$, so the factor is $1 / (1/10) = 10$.
+
+**Answer:** $10$.
+:::
+
+### Past quiz question 2: Counting computed gradients {#past-2}
+
+A standard neural network classifier contains a total of $10$ trainable weights (and no bias terms) and has $6$ outputs. Consider a training run with $14$ steps, where each step involves training on a single example (input/target pair). What is the total number of gradients (of loss with respect to individual weights) computed during this training run?
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+**Gradients per step.** Each training step computes the gradient of the loss with respect to every trainable weight, so $10$ gradients per step. The number of outputs, $6$, does not change this: only the $10$ weights get gradients.
+
+**Across the run.**
+
+$$10 \times 14 = 140$$
+
+**Answer:** $140$.
+:::
+
+### Problem 11: A layer initialized too small {#prb-11}
+
+A dense layer has weight matrix $W \in \mathbb{R}^{120 \times 80}$, so it maps $80$ inputs to $120$ outputs. Instead of using Glorot initialization, every weight is set to either $-0.02$ or $0.02$ uniformly at random, a distribution with a standard deviation of $0.02$. How many times larger is the Glorot standard deviation than the one used?
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+This uses [Week 3, Choosing sigma](week03.qmd#sec-init).
+
+**Read off the widths.** The week chapter writes a layer's weight matrix with one row per output and one column per input, $W \in \mathbb{R}^{n_\text{out} \times n_\text{in}}$. So $n_\text{out} = 120$ and $n_\text{in} = 80$. Glorot only uses their sum, so mixing up which is which would not change the answer here.
+
+**Glorot standard deviation.**
+
+$$\sigma_\text{Glorot} = \sqrt{\frac{2}{80 + 120}} = \sqrt{\frac{1}{100}} = \frac{1}{10}$$
+
+**Compare.** A variable equal to $\pm 0.02$ with equal probability has mean $0$ and $\mathbb{E}[W_{ij}^2] = 0.0004$, so its standard deviation is $0.02$. This time the used value is the smaller one, so the factor is
+
+$$\frac{\sigma_\text{Glorot}}{\sigma_\text{used}} = \frac{0.1}{0.02}$$
+
+A layer initialized this small multiplies the variance of its input by $n_\text{in}\sigma^2 = 80 \cdot 0.0004 = 0.032$, so activations shrink quickly with depth.
+
+**Answer:** $5$.
+:::
+
+### Problem 12: Counting gradients with biases {#prb-12}
+
+An MLP has $5$ inputs, one hidden layer of $4$ units, and $3$ outputs. Both layers are dense with an affine transformation (weights and biases). Consider a training run with $20$ steps, where each step trains on a single example. What is the total number of gradients (of loss with respect to individual weights and biases) computed during this run?
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+This uses the weight and bias gradients from [Week 3, Backprop Revisited](week03.qmd#sec-backprop-revisited): every trainable parameter gets exactly one gradient per step.
+
+**Count the parameters.** A dense layer from $n_\text{in}$ to $n_\text{out}$ has an $n_\text{out} \times n_\text{in}$ weight matrix and one bias per output.
+
+- Layer 1 ($5 \to 4$): $4 \cdot 5 = 20$ weights and $4$ biases.
+- Layer 2 ($4 \to 3$): $3 \cdot 4 = 12$ weights and $3$ biases.
+
+Total: $20 + 4 + 12 + 3 = 39$ parameters, so $39$ gradients per step.
+
+Unlike the past quiz question, the number of outputs matters here: it sets the size of the last layer and so the number of its parameters.
+
+**Across the run.**
+
+$$39 \times 20 = 780$$
+
+**Answer:** $780$.
+:::
+
+## Part 5: Conceptual questions {#sec-conceptual}
+
+These have no numeric answer. Try answering in two or three sentences before opening the solution.
+
+### Conceptual 1: Why ReLU helps with vanishing gradients {#con-1}
+
+A 20-layer network with sigmoid hidden units trains very slowly in its early layers, while the same network with ReLU hidden units does not. Using the backward recursion, explain why.
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+This uses [Week 3, Vanishing and Exploding Gradients](week03.qmd#sec-vanishing).
+
+Each step of the backward recursion multiplies the gradient by two things: ${W^{m+1}}^\top$ and the activation's slope $\partial h^m/\partial a^m$. Both repeat once per layer, so the gradient reaching layer $1$ carries about $20$ of each.
+
+The sigmoid's slope is at most $1/4$ and is close to $0$ whenever the pre-activation is far from $0$. A product of $20$ factors that are each at most $1/4$ is at most $(1/4)^{20}$, so the early layers receive almost no gradient and barely change.
+
+ReLU's slope is exactly $1$ wherever the unit is active. Multiplying by $1$ neither shrinks nor grows the gradient, so the slope factor no longer forces it toward $0$. (The weight factor can still shrink or grow it, which is what careful initialization controls.)
+:::
+
+### Conceptual 2: Why a flexible model can overfit {#con-2}
+
+A classmate says overfitting is a problem specific to deep neural networks. Explain why that is not right, and describe how even a linear model can overfit.
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+This uses [Week 3, Overfitting](week03.qmd#sec-overfitting).
+
+Overfitting happens whenever a model is flexible enough to fit the noise in a finite training set, not only the pattern behind it. The Universal Approximation Theorem says a wide enough network can fit essentially any function, including one that memorizes the training points, so deep networks are one clear case. The same risk applies to any sufficiently flexible model.
+
+A linear model can overfit through over-reliance on a feature. If every feature is an equally noisy signal about the label, then with a small training set one feature can separate the training labels perfectly by chance. The model can fit the training data by putting a large weight on that feature, but on new data it is no more informative than the others, so validation loss rises. Weight decay and dropout both push against this kind of over-reliance.
+:::

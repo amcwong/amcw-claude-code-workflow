@@ -233,6 +233,27 @@ Why not give every weight the same nonzero constant, say $1$? Then every row of 
 
 The derivation below uses three facts about a random variable $X$. The [variance](https://en.wikipedia.org/wiki/Variance) is $\operatorname{Var}[X] = \mathbb{E}[X^2] - (\mathbb{E}[X])^2$, which reduces to $\mathbb{E}[X^2]$ when $\mathbb{E}[X] = 0$. The [normal distribution](https://en.wikipedia.org/wiki/Normal_distribution) $\mathcal{N}(0, s^2)$ has mean $0$ and variance $s^2$. For [independent](https://en.wikipedia.org/wiki/Independence_(probability_theory)) variables, the expectation of a product is the product of expectations, $\mathbb{E}[XY] = \mathbb{E}[X]\,\mathbb{E}[Y]$.
 
+::: {.callout-tip collapse="true" .clarification title="Question: Can these three facts be checked on actual numbers before we use them?"}
+Take a random variable $X$ that equals $-1$ or $1$, each with probability $1/2$. Its mean is $\mathbb{E}[X] = \tfrac{1}{2}(-1) + \tfrac{1}{2}(1) = 0$, and $\mathbb{E}[X^2] = \tfrac{1}{2}(-1)^2 + \tfrac{1}{2}(1)^2 = 1$. Since the mean is $0$, the variance is just $\mathbb{E}[X^2]$:
+
+$$\operatorname{Var}[X] = \mathbb{E}[X^2] - (\mathbb{E}[X])^2 = 1 - 0^2 = 1$$
+
+This matches a $\mathcal{N}(0, 1)$ variable, which by definition has variance $1$.
+
+Now take a second variable $W$, independent of $X$, equal to $-2$ or $2$, each with probability $1/2$. By the same computation, $\mathbb{E}[W] = 0$ and $\operatorname{Var}[W] = \mathbb{E}[W^2] = 4$, matching a $\mathcal{N}(0, 4)$ variable, so its $\sigma^2 = 4$.
+
+To check $\mathbb{E}[WX] = \mathbb{E}[W]\,\mathbb{E}[X]$, list all four equally likely combinations of $(W, X)$ and their products:
+
+| $W$ | $X$ | $WX$ |
+|---|---|---|
+| $-2$ | $-1$ | $2$ |
+| $-2$ | $1$ | $-2$ |
+| $2$ | $-1$ | $-2$ |
+| $2$ | $1$ | $2$ |
+
+Averaging the last column, $\mathbb{E}[WX] = \tfrac{1}{4}(2 - 2 - 2 + 2) = 0$, and indeed $\mathbb{E}[W]\,\mathbb{E}[X] = 0 \cdot 0 = 0$. The two sides agree because every value of $W$ pairs with both values of $X$ equally often, so the positive and negative products cancel. This is the same cancellation used below to drop the cross terms $W_{ij}x_jW_{ik}x_k$ with $j \neq k$: the sum has both signs of each factor appearing equally often, so its average is $0$.
+:::
+
 ### Variance of one linear layer
 
 Consider a single linear layer with no nonlinearity, mapping an input $\bm{x} \in \mathbb{R}^{n_\text{in}}$ to an output $\bm{h} \in \mathbb{R}^{n_\text{out}}$:
@@ -246,6 +267,16 @@ Because every $W_{ij}$ and $x_j$ has mean $0$ and they are independent, $\mathbb
 $$\operatorname{Var}[h_i] = \mathbb{E}[h_i^2] = \sum_{j=1}^{n_\text{in}} \mathbb{E}[W_{ij}^2\, x_j^2]$$
 
 Independence splits each expectation, and $\mathbb{E}[W_{ij}^2] = \sigma^2$ and $\mathbb{E}[x_j^2] = 1$:
+
+::: {.callout-tip collapse="true" .clarification title="Question: Where do the values E[W_ij^2] = sigma^2 and E[x_j^2] = 1 come from?"}
+Both follow from the identity in the variance refresher above, $\mathbb{E}[X^2] = (\mathbb{E}[X])^2 + \operatorname{Var}[X]$, applied to a mean-$0$ variable, where the first term vanishes and $\mathbb{E}[X^2]$ reduces to $\operatorname{Var}[X]$.
+
+$W_{ij} \sim \mathcal{N}(0, \sigma^2)$ by assumption, so $\mathbb{E}[W_{ij}] = 0$ and $\operatorname{Var}[W_{ij}] = \sigma^2$. Then $\mathbb{E}[W_{ij}^2] = 0^2 + \sigma^2 = \sigma^2$.
+
+Likewise $x_j \sim \mathcal{N}(0, 1)$, so $\mathbb{E}[x_j] = 0$ and $\operatorname{Var}[x_j] = 1$, giving $\mathbb{E}[x_j^2] = 0^2 + 1 = 1$.
+
+Neither value takes any work beyond reading off the variance of the assumed distribution, because the assumed mean is $0$ in both cases.
+:::
 
 $$\operatorname{Var}[h_i] = \sum_{j=1}^{n_\text{in}} \mathbb{E}[W_{ij}^2]\,\mathbb{E}[x_j^2] = n_\text{in}\,\sigma^2$$
 
@@ -280,6 +311,8 @@ Backpropagation for an MLP took a page of matrix calculus. Can a program produce
 The slides use a tiny network with one hidden unit. We treat every quantity as a single number, so that the chain of operations is easy to see:
 
 $$h = \operatorname{ReLU}(w_h x + b_h), \qquad o = w_o h + b_o, \qquad \mathcal{L} = (y - o)^2$$
+
+The subscripts $h$ and $o$ name which layer a quantity belongs to, hidden or output, not an index running over several units: $w_h$ and $b_h$ are the hidden layer's weight and bias, and $w_o$ and $b_o$ are the output layer's. The same convention carries into the computational-graph diagram below, where the intermediate results $m_h$, $a_h$, and $m_o$ take the subscript of whichever layer's computation produced them.
 
 Here $\operatorname{ReLU}(a) = \max(0, a)$ as in Week 2. The parameters are $w_h, b_h, w_o, b_o$, and we want the four gradients $\partial\mathcal{L}/\partial w_o$, $\partial\mathcal{L}/\partial b_o$, $\partial\mathcal{L}/\partial w_h$, and $\partial\mathcal{L}/\partial b_h$. Here $h$ is the single hidden unit's output, the one-number version of the activation $h^m$ above, and $o$ is the network output.
 
@@ -423,6 +456,20 @@ So an autodiff system does three jobs:
 ```
 
 To compute $\partial\mathcal{L}/\partial w_h$, find the path in the graph between $\mathcal{L}$ and $w_h$ and multiply the derivatives of the operations along it. That product is exactly the chain-rule product above, so autodiff is backpropagation applied to an arbitrary graph of operations instead of only to a stack of layers. The forward values that some of the derivatives need, such as $x$ or $a_h$, are the intermediate results the graph has already recorded.
+
+::: {.callout-tip collapse="true" .clarification title="Question: Why does the exponent 2 get its own node in the graph?"}
+The slides draw the loss $\mathcal{L} = e^2$ as a "pow" operation with two inputs: $e$, and a separate leaf holding the number $2$. That follows from how an autodiff library defines its operations.
+
+**One power operation, not one per exponent.** Rather than having separate "square", "cube", and so on, the library defines a single power operation, $\operatorname{pow}(u, k) = u^k$, that works for any exponent. The exponent is then an input to the operation, the same way $w_o$ and $h$ are the two inputs to the multiply that forms $m_o$. Every input to an operation is a node in the graph, so the exponent appears as a node too.
+
+**It is a leaf because nothing computes it.** Leaf nodes are the values the computation starts from. The constant $2$ is not produced by any earlier operation, so it sits at the edge of the graph alongside $x$, $y$, and the parameters.
+
+**The backward pass needs its value.** The backward rule for power is $\partial u^k/\partial u = k\,u^{k-1}$. To apply it at the loss node, the library must know $k$, and it reads the inputs of an operation from the nodes the graph recorded, just as the multiply rule reads $h$ to compute $\partial m_o/\partial w_o = h$. With $k = 2$ the rule gives $2e$, which is the $\partial\mathcal{L}/\partial e$ in the table above.
+
+**No gradient is needed for it.** The $2$ is not a parameter we train, so, like $x$ and $y$, we never use a gradient with respect to it.
+
+This is a design choice, not a law. A library that had a dedicated "square" operation with a single input would have no node for the $2$. That is why a question that asks you to count nodes states the convention up front, for example "raise to a constant power (the exponent is a separate leaf node)".
+:::
 
 Putting the pieces together gives the general procedure:
 

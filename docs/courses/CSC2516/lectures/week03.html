@@ -37,7 +37,7 @@ ul.task-list li input[type="checkbox"] {
 <script src="../site_libs/quarto-search/fuse.min.js"></script>
 <script src="../site_libs/quarto-search/quarto-search.js"></script>
 <meta name="quarto:offset" content="../">
-<link href="../glossary.html" rel="next">
+<link href="../lectures/week03-practice.html" rel="next">
 <link href="../lectures/week02.html" rel="prev">
 <script src="../site_libs/quarto-html/quarto.js" type="module"></script>
 <script src="../site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
@@ -180,6 +180,11 @@ window.Quarto = {
         <li class="sidebar-item">
   <div class="sidebar-item-container"> 
   <a href="../lectures/week03.html" class="sidebar-item-text sidebar-link active"><span class="chapter-title">Week 3: Initialization, Autodiff, Overfitting &amp; Regularization</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../lectures/week03-practice.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Week 3 practice: Variance, Autodiff, and Regularization</span></a>
   </div>
 </li>
         <li class="sidebar-item">
@@ -553,6 +558,58 @@ Warning
 <section id="a-variance-refresher" class="level3">
 <h3 class="anchored" data-anchor-id="a-variance-refresher">A variance refresher</h3>
 <p>The derivation below uses three facts about a random variable <span class="math inline">X</span>. The <a href="https://en.wikipedia.org/wiki/Variance">variance</a> is <span class="math inline">\operatorname{Var}[X] = \mathbb{E}[X^2] - (\mathbb{E}[X])^2</span>, which reduces to <span class="math inline">\mathbb{E}[X^2]</span> when <span class="math inline">\mathbb{E}[X] = 0</span>. The <a href="https://en.wikipedia.org/wiki/Normal_distribution">normal distribution</a> <span class="math inline">\mathcal{N}(0, s^2)</span> has mean <span class="math inline">0</span> and variance <span class="math inline">s^2</span>. For <a href="https://en.wikipedia.org/wiki/Independence_(probability_theory)">independent</a> variables, the expectation of a product is the product of expectations, <span class="math inline">\mathbb{E}[XY] = \mathbb{E}[X]\,\mathbb{E}[Y]</span>.</p>
+<div class="clarification callout callout-style-default callout-tip callout-titled" title="Question: Can these three facts be checked on actual numbers before we use them?">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-7-contents" aria-controls="callout-7" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Question: Can these three facts be checked on actual numbers before we use them?
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-7" class="callout-7-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>Take a random variable <span class="math inline">X</span> that equals <span class="math inline">-1</span> or <span class="math inline">1</span>, each with probability <span class="math inline">1/2</span>. Its mean is <span class="math inline">\mathbb{E}[X] = \tfrac{1}{2}(-1) + \tfrac{1}{2}(1) = 0</span>, and <span class="math inline">\mathbb{E}[X^2] = \tfrac{1}{2}(-1)^2 + \tfrac{1}{2}(1)^2 = 1</span>. Since the mean is <span class="math inline">0</span>, the variance is just <span class="math inline">\mathbb{E}[X^2]</span>:</p>
+<p><span class="math display">\operatorname{Var}[X] = \mathbb{E}[X^2] - (\mathbb{E}[X])^2 = 1 - 0^2 = 1</span></p>
+<p>This matches a <span class="math inline">\mathcal{N}(0, 1)</span> variable, which by definition has variance <span class="math inline">1</span>.</p>
+<p>Now take a second variable <span class="math inline">W</span>, independent of <span class="math inline">X</span>, equal to <span class="math inline">-2</span> or <span class="math inline">2</span>, each with probability <span class="math inline">1/2</span>. By the same computation, <span class="math inline">\mathbb{E}[W] = 0</span> and <span class="math inline">\operatorname{Var}[W] = \mathbb{E}[W^2] = 4</span>, matching a <span class="math inline">\mathcal{N}(0, 4)</span> variable, so its <span class="math inline">\sigma^2 = 4</span>.</p>
+<p>To check <span class="math inline">\mathbb{E}[WX] = \mathbb{E}[W]\,\mathbb{E}[X]</span>, list all four equally likely combinations of <span class="math inline">(W, X)</span> and their products:</p>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th><span class="math inline">W</span></th>
+<th><span class="math inline">X</span></th>
+<th><span class="math inline">WX</span></th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><span class="math inline">-2</span></td>
+<td><span class="math inline">-1</span></td>
+<td><span class="math inline">2</span></td>
+</tr>
+<tr class="even">
+<td><span class="math inline">-2</span></td>
+<td><span class="math inline">1</span></td>
+<td><span class="math inline">-2</span></td>
+</tr>
+<tr class="odd">
+<td><span class="math inline">2</span></td>
+<td><span class="math inline">-1</span></td>
+<td><span class="math inline">-2</span></td>
+</tr>
+<tr class="even">
+<td><span class="math inline">2</span></td>
+<td><span class="math inline">1</span></td>
+<td><span class="math inline">2</span></td>
+</tr>
+</tbody>
+</table>
+<p>Averaging the last column, <span class="math inline">\mathbb{E}[WX] = \tfrac{1}{4}(2 - 2 - 2 + 2) = 0</span>, and indeed <span class="math inline">\mathbb{E}[W]\,\mathbb{E}[X] = 0 \cdot 0 = 0</span>. The two sides agree because every value of <span class="math inline">W</span> pairs with both values of <span class="math inline">X</span> equally often, so the positive and negative products cancel. This is the same cancellation used below to drop the cross terms <span class="math inline">W_{ij}x_jW_{ik}x_k</span> with <span class="math inline">j \neq k</span>: the sum has both signs of each factor appearing equally often, so its average is <span class="math inline">0</span>.</p>
+</div>
+</div>
+</div>
 </section>
 <section id="variance-of-one-linear-layer" class="level3">
 <h3 class="anchored" data-anchor-id="variance-of-one-linear-layer">Variance of one linear layer</h3>
@@ -562,6 +619,25 @@ Warning
 <p>Because every <span class="math inline">W_{ij}</span> and <span class="math inline">x_j</span> has mean <span class="math inline">0</span> and they are independent, <span class="math inline">\mathbb{E}[h_i] = 0</span>. So the variance of <span class="math inline">h_i</span> is just <span class="math inline">\mathbb{E}[h_i^2]</span>. Expanding the square of the sum produces cross terms of the form <span class="math inline">W_{ij}x_j W_{ik}x_k</span> with <span class="math inline">j \neq k</span>; each has expectation <span class="math inline">0</span> by independence and zero mean, so only the squared terms remain:</p>
 <p><span class="math display">\operatorname{Var}[h_i] = \mathbb{E}[h_i^2] = \sum_{j=1}^{n_\text{in}} \mathbb{E}[W_{ij}^2\, x_j^2]</span></p>
 <p>Independence splits each expectation, and <span class="math inline">\mathbb{E}[W_{ij}^2] = \sigma^2</span> and <span class="math inline">\mathbb{E}[x_j^2] = 1</span>:</p>
+<div class="clarification callout callout-style-default callout-tip callout-titled" title="Question: Where do the values E[W_ij^2] = sigma^2 and E[x_j^2] = 1 come from?">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-8-contents" aria-controls="callout-8" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Question: Where do the values E[W_ij^2] = sigma^2 and E[x_j^2] = 1 come from?
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-8" class="callout-8-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>Both follow from the identity in the variance refresher above, <span class="math inline">\mathbb{E}[X^2] = (\mathbb{E}[X])^2 + \operatorname{Var}[X]</span>, applied to a mean-<span class="math inline">0</span> variable, where the first term vanishes and <span class="math inline">\mathbb{E}[X^2]</span> reduces to <span class="math inline">\operatorname{Var}[X]</span>.</p>
+<p><span class="math inline">W_{ij} \sim \mathcal{N}(0, \sigma^2)</span> by assumption, so <span class="math inline">\mathbb{E}[W_{ij}] = 0</span> and <span class="math inline">\operatorname{Var}[W_{ij}] = \sigma^2</span>. Then <span class="math inline">\mathbb{E}[W_{ij}^2] = 0^2 + \sigma^2 = \sigma^2</span>.</p>
+<p>Likewise <span class="math inline">x_j \sim \mathcal{N}(0, 1)</span>, so <span class="math inline">\mathbb{E}[x_j] = 0</span> and <span class="math inline">\operatorname{Var}[x_j] = 1</span>, giving <span class="math inline">\mathbb{E}[x_j^2] = 0^2 + 1 = 1</span>.</p>
+<p>Neither value takes any work beyond reading off the variance of the assumed distribution, because the assumed mean is <span class="math inline">0</span> in both cases.</p>
+</div>
+</div>
+</div>
 <p><span class="math display">\operatorname{Var}[h_i] = \sum_{j=1}^{n_\text{in}} \mathbb{E}[W_{ij}^2]\,\mathbb{E}[x_j^2] = n_\text{in}\,\sigma^2</span></p>
 <p>The output has variance <span class="math inline">n_\text{in}\sigma^2</span> while the input has variance <span class="math inline">1</span>, so the layer multiplies the variance by <span class="math inline">n_\text{in}\sigma^2</span>. Stack many layers and this factor is applied repeatedly: if it is above <span class="math inline">1</span> activations grow with depth, if below <span class="math inline">1</span> they shrink.</p>
 </section>
@@ -597,6 +673,7 @@ Note
 <h3 class="anchored" data-anchor-id="a-small-running-example">A small running example</h3>
 <p>The slides use a tiny network with one hidden unit. We treat every quantity as a single number, so that the chain of operations is easy to see:</p>
 <p><span class="math display">h = \operatorname{ReLU}(w_h x + b_h), \qquad o = w_o h + b_o, \qquad \mathcal{L} = (y - o)^2</span></p>
+<p>The subscripts <span class="math inline">h</span> and <span class="math inline">o</span> name which layer a quantity belongs to, hidden or output, not an index running over several units: <span class="math inline">w_h</span> and <span class="math inline">b_h</span> are the hidden layer’s weight and bias, and <span class="math inline">w_o</span> and <span class="math inline">b_o</span> are the output layer’s. The same convention carries into the computational-graph diagram below, where the intermediate results <span class="math inline">m_h</span>, <span class="math inline">a_h</span>, and <span class="math inline">m_o</span> take the subscript of whichever layer’s computation produced them.</p>
 <p>Here <span class="math inline">\operatorname{ReLU}(a) = \max(0, a)</span> as in Week 2. The parameters are <span class="math inline">w_h, b_h, w_o, b_o</span>, and we want the four gradients <span class="math inline">\partial\mathcal{L}/\partial w_o</span>, <span class="math inline">\partial\mathcal{L}/\partial b_o</span>, <span class="math inline">\partial\mathcal{L}/\partial w_h</span>, and <span class="math inline">\partial\mathcal{L}/\partial b_h</span>. Here <span class="math inline">h</span> is the single hidden unit’s output, the one-number version of the activation <span class="math inline">h^m</span> above, and <span class="math inline">o</span> is the network output.</p>
 </section>
 <section id="break-the-computation-into-single-operations" class="level3">
@@ -762,6 +839,27 @@ m_o &amp;= w_o h, &amp; o &amp;= m_o + b_o, &amp; e &amp;= y - o, \\
 <figcaption style="text-align:center; font-size:0.9em; margin-top:0.5rem;">Figure 2. The computational graph of the small network. Arrows show the direction values flow in the forward computation. Operations run up the left column, ending at the loss L. Leaf nodes (inputs and parameters) hang off to the right, and x sits at the bottom. The highlighted path from L to w_h is the one whose local derivatives are multiplied to give the gradient of L with respect to w_h.</figcaption>
 </figure>
 <p>To compute <span class="math inline">\partial\mathcal{L}/\partial w_h</span>, find the path in the graph between <span class="math inline">\mathcal{L}</span> and <span class="math inline">w_h</span> and multiply the derivatives of the operations along it. That product is exactly the chain-rule product above, so autodiff is backpropagation applied to an arbitrary graph of operations instead of only to a stack of layers. The forward values that some of the derivatives need, such as <span class="math inline">x</span> or <span class="math inline">a_h</span>, are the intermediate results the graph has already recorded.</p>
+<div class="clarification callout callout-style-default callout-tip callout-titled" title="Question: Why does the exponent 2 get its own node in the graph?">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-10-contents" aria-controls="callout-10" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Question: Why does the exponent 2 get its own node in the graph?
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-10" class="callout-10-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>The slides draw the loss <span class="math inline">\mathcal{L} = e^2</span> as a “pow” operation with two inputs: <span class="math inline">e</span>, and a separate leaf holding the number <span class="math inline">2</span>. That follows from how an autodiff library defines its operations.</p>
+<p><strong>One power operation, not one per exponent.</strong> Rather than having separate “square”, “cube”, and so on, the library defines a single power operation, <span class="math inline">\operatorname{pow}(u, k) = u^k</span>, that works for any exponent. The exponent is then an input to the operation, the same way <span class="math inline">w_o</span> and <span class="math inline">h</span> are the two inputs to the multiply that forms <span class="math inline">m_o</span>. Every input to an operation is a node in the graph, so the exponent appears as a node too.</p>
+<p><strong>It is a leaf because nothing computes it.</strong> Leaf nodes are the values the computation starts from. The constant <span class="math inline">2</span> is not produced by any earlier operation, so it sits at the edge of the graph alongside <span class="math inline">x</span>, <span class="math inline">y</span>, and the parameters.</p>
+<p><strong>The backward pass needs its value.</strong> The backward rule for power is <span class="math inline">\partial u^k/\partial u = k\,u^{k-1}</span>. To apply it at the loss node, the library must know <span class="math inline">k</span>, and it reads the inputs of an operation from the nodes the graph recorded, just as the multiply rule reads <span class="math inline">h</span> to compute <span class="math inline">\partial m_o/\partial w_o = h</span>. With <span class="math inline">k = 2</span> the rule gives <span class="math inline">2e</span>, which is the <span class="math inline">\partial\mathcal{L}/\partial e</span> in the table above.</p>
+<p><strong>No gradient is needed for it.</strong> The <span class="math inline">2</span> is not a parameter we train, so, like <span class="math inline">x</span> and <span class="math inline">y</span>, we never use a gradient with respect to it.</p>
+<p>This is a design choice, not a law. A library that had a dedicated “square” operation with a single input would have no node for the <span class="math inline">2</span>. That is why a question that asks you to count nodes states the convention up front, for example “raise to a constant power (the exponent is a separate leaf node)”.</p>
+</div>
+</div>
+</div>
 <p>Putting the pieces together gives the general procedure:</p>
 <section id="automatic-differentiation" class="level4 algorithm">
 <h4 class="anchored" data-anchor-id="automatic-differentiation">Automatic Differentiation</h4>
@@ -1353,8 +1451,8 @@ Note
       </a>          
   </div>
   <div class="nav-page nav-page-next">
-      <a href="../glossary.html" class="pagination-link" aria-label="Glossary">
-        <span class="nav-page-text"><span class="chapter-title">Glossary</span></span> <i class="bi bi-arrow-right-short"></i>
+      <a href="../lectures/week03-practice.html" class="pagination-link" aria-label="Week 3 practice: Variance, Autodiff, and Regularization">
+        <span class="nav-page-text"><span class="chapter-title">Week 3 practice: Variance, Autodiff, and Regularization</span></span> <i class="bi bi-arrow-right-short"></i>
       </a>
   </div>
 </nav>

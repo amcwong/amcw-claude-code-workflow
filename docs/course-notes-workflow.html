@@ -179,11 +179,14 @@
       <li>Drop lecture PDFs in <code>courses/&lt;slug&gt;/sources/weekN/</code>.</li>
       <li><code>/course-notes add &lt;slug&gt; N</code> — approve the pre-flight, then one week chapter is written and rendered.</li>
       <li>Read the chapter. <code>/course-notes revise &lt;slug&gt; [N]</code> — ask questions; <strong>promote</strong> fixes into the section or <strong>park</strong> a clarification dropdown.</li>
-      <li><code>/course-notes audit &lt;slug&gt;</code> — cold fact check of the whole course.</li>
+      <li>(Optional) <code>/course-notes practice &lt;slug&gt; N</code> — approve the practice pre-flight, then a self-study chapter with collapsed worked solutions.</li>
+      <li><code>/course-notes audit &lt;slug&gt;</code> — cold fact check of the whole course (including practice chapters).</li>
       <li><code>/commit</code> — source <code>.qmd</code> on git.</li>
-      <li><code>/deploy-course-notes &lt;slug&gt;</code> then <code>/commit</code> and push — when the public Pages book should update. Parked dropdowns ship with that HTML.</li>
+      <li><code>/deploy-course-notes &lt;slug&gt;</code> then <code>/commit</code> and push — when the public Pages book should update. Parked dropdowns and practice solutions ship with that HTML.</li>
     </ol>
     <pre><code>/course-notes add CSC2506 3
+/course-notes revise CSC2506 3
+/course-notes practice CSC2506 3
 /course-notes revise CSC2506 3
 /course-notes audit CSC2506
 /commit
@@ -212,12 +215,16 @@
             <td>Plan, then write one week (<code>1</code> → <code>lectures/week01.qmd</code>), append the glossary, list the chapter in <code>_quarto.yml</code>, render locally.</td>
           </tr>
           <tr>
+            <td><code>/course-notes practice &lt;slug&gt; &lt;N&gt;</code></td>
+            <td>Plan, then write a self-study practice chapter (<code>lectures/weekNN-practice.qmd</code>) with collapsed worked solutions. Requires the week chapter first. Does not run automatically after <code>add</code>.</td>
+          </tr>
+          <tr>
             <td><code>/course-notes revise &lt;slug&gt; [N]</code></td>
-            <td>Pre-audit pass on that week. Questions stay in chat. Writes only on the cues below.</td>
+            <td>Pre-audit pass on that week (or the practice chapter if you name it). Questions stay in chat. Writes only on the cues below.</td>
           </tr>
           <tr>
             <td><code>/course-notes audit &lt;slug&gt;</code></td>
-            <td>Fact-audit the whole course (every week chapter, glossary, index). Writes <code>FACT_AUDIT.md</code>. No per-week form.</td>
+            <td>Fact-audit the whole course (every week chapter, practice chapter, glossary, index). Writes <code>FACT_AUDIT.md</code>. No per-week form.</td>
           </tr>
         </tbody>
       </table>
@@ -225,13 +232,38 @@
 
     <p><strong>Flags</strong> (on <code>/course-notes</code>):</p>
     <ul>
-      <li><code>--no-render</code> — skip <code>quarto render</code> on <code>add</code>, and after a revise park or promote.</li>
-      <li><code>--no-audit</code> — do not run audit after <code>add</code> even if you asked in the same message. Does not block saying <strong>audit</strong> during revise.</li>
+      <li><code>--no-render</code> — skip <code>quarto render</code> on <code>add</code> and <code>practice</code>, and after a revise park or promote.</li>
+      <li><code>--no-audit</code> — do not run audit after <code>add</code> or <code>practice</code> even if you asked in the same message. Does not block saying <strong>audit</strong> during revise.</li>
+      <li><code>--count N</code> — (<code>practice</code> only) total number of problems; default is 5–8 covering the week's takeaways.</li>
     </ul>
     <p>
       Slug is kebab-case (<code>CSC2506</code>, <code>imaging-2026</code>).
       Week <code>N</code> is an integer; the file is always zero-padded
       <code>weekNN.qmd</code>.
+    </p>
+
+    <h2>Practice pages (per week)</h2>
+    <p>
+      After the week chapter exists and you have revised it enough to trust the spine,
+      add optional self-study problems in the same book. Answers live on the page in
+      collapsed dropdowns. This is <strong>not</strong> a graded set with a separate key
+      (use <code>/scaffold-exercises</code> for that).
+    </p>
+    <ol>
+      <li>Confirm <code>lectures/weekNN.qmd</code> already exists (run <code>add</code> first if not).</li>
+      <li>Run <code>/course-notes practice &lt;slug&gt; N</code> (optionally <code>--count 6</code>).</li>
+      <li>Approve the practice pre-flight: learning objectives, difficulty mix, counts by type (conceptual / numeric / code-reading), skipped homework items, and proposed problem briefs. Nothing is written until you approve.</li>
+      <li>The skill writes <code>lectures/weekNN-practice.qmd</code>, inserts it in <code>_quarto.yml</code> immediately after that week's chapter, renders, and scores.</li>
+      <li>Read the stems and open a few worked solutions. <code>/course-notes revise &lt;slug&gt; N</code> naming the <strong>practice</strong> chapter for promote/park edits.</li>
+      <li>Then audit / commit / deploy as usual. Practice solutions ship with the Pages HTML.</li>
+    </ol>
+    <pre><code>/course-notes practice CSC2516 3
+/course-notes practice CSC2516 3 --count 6
+/course-notes revise CSC2516 3</code></pre>
+    <p>
+      If <code>weekNN-practice.qmd</code> already exists, the skill stops and asks whether to
+      regenerate or revise. Homework handouts in <code>sources/</code> are a negative list only:
+      invent new numbers and setups; never reproduce assignment answers.
     </p>
 
     <h3>Cues during <code>revise</code></h3>
@@ -314,9 +346,11 @@
     <h2>Not supported</h2>
     <pre><code>/course-notes audit CSC2506 3
 /course-notes add CSC2506
+/course-notes practice CSC2506
 /course-notes deploy CSC2506</code></pre>
     <p>
-      Audit is always the whole course. <code>add</code> needs a week number.
+      Audit is always the whole course. <code>add</code> and <code>practice</code> need a week number.
+      <code>practice</code> also needs the week chapter already on disk.
       Publishing is <code>/deploy-course-notes</code>, not a course-notes subcommand.
     </p>
 
