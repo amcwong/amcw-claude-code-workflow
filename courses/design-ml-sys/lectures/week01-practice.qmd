@@ -1,0 +1,198 @@
+---
+title: "Chapter 1 practice: Overview of Machine Learning Systems"
+---
+
+```{=html}
+<style>#title-block-header { display: none; }</style>
+<div class="lecture-header">
+  <h1>Chapter 1 practice: Overview of Machine Learning Systems</h1>
+</div>
+```
+
+**Overview.** These are interview-style questions on [Chapter 1](week01.qmd). Answer each one out loud before opening the worked solution, the way you would in an interview. The scenarios and numbers are invented for practice. Each solution says which chapter section it draws on, walks through the reasoning, and ends with a short answer you could give.
+
+## Problem 1: Does this task need ML at all? {#prb-1}
+
+A hospital IT lead says: "We want to use AI for three things: (a) mapping drug brand names to their generic names, (b) predicting which discharged patients will be readmitted within 30 days, and (c) flagging duplicate patient records where the same person was registered twice with small spelling differences." Which of these would you use ML for, and why?
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+This uses [Chapter 1, The five-part test](week01.qmd#sec-five-part) and [When not to use ML](week01.qmd#sec-not-ml).
+
+The test is whether there is a **complex pattern** to learn from **existing data**, and whether a **simpler solution** would already work.
+
+- **(a) Brand to generic name.** The relationship is fixed and known: each brand maps to a defined generic. Like the book's zip-code-to-state example, this is a [lookup table](https://en.wikipedia.org/wiki/Lookup_table) maintained from a drug reference database. ML would add error to a problem that has an exact answer.
+- **(b) 30-day readmission.** Readmission depends on many interacting factors (diagnoses, prior admissions, medications, follow-up care), and no one can write that rule down by hand. There is historical data with outcomes, the task is predictive, it repeats for every discharge, and it runs at scale. This fits ML, provided future patients resemble past ones.
+- **(c) Duplicate records.** This sits in between. Exact matching on identifiers is a rule, not ML. But spelling variants, transposed dates, and changed addresses form a messy pattern that hand-written rules handle badly, and labeled examples of confirmed duplicates often exist. A reasonable answer is to start with rules and add a learned matcher for the cases rules miss. This is the book's point about using ML for **part** of a problem.
+
+**Answer:** (a) no, use a lookup table; (b) yes; (c) rules first, and ML for the fuzzy matches the rules miss.
+:::
+
+## Problem 2: Predicting adverse reactions before there is trial data {#prb-2}
+
+A pharma team asks: "Can we build a model now to predict which patients will have an adverse reaction to our new drug? It hasn't entered clinical trials yet." Walk through whether ML can do this, condition by condition, and say what you would propose.
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+This uses [Chapter 1, The five-part test](week01.qmd#sec-five-part).
+
+Go through the five conditions:
+
+1. **Learn.** Only if there is something to learn from.
+2. **Complex patterns.** Plausibly yes: who reacts badly likely depends on genetics, other conditions, other medications, and dose in complicated ways.
+3. **Existing data.** This is where it fails. There are no outcomes for this drug. Two partial workarounds from the chapter:
+   - **[Zero-shot](https://en.wikipedia.org/wiki/Zero-shot_learning)-style transfer.** Train on adverse-event data from related drugs (the same class or mechanism) and apply it to the new drug. The model still learns from data, just not data for this exact task.
+   - **"Fake it till you make it."** Have experts make the risk judgments during early trials, and log their judgments and the outcomes as future training data.
+4. **Predictions.** Yes, it is a predictive question.
+5. **Unseen data resembles training data.** This is the main risk of the transfer approach. Patients on a new drug, and the drug's biology, may differ from the related drugs the model learned from, so we are assuming the distributions are similar. That needs checking as soon as trial data arrives.
+
+Also note the cost of errors. The chapter says ML suits problems where wrong predictions are cheap, or where the benefits outweigh the costs on average. Missing a serious reaction is expensive, so any early model should support expert judgment rather than replace it.
+
+**Answer:** Not as a standalone model yet, because condition 3 fails. Propose transfer from related drugs plus expert review, collect outcomes during the trials, and retrain once real data exists, checking that the new patients resemble the training data.
+:::
+
+## Problem 3: Batching, latency, and cost {#prb-3}
+
+A model serving team measures three ways to run the same model on one GPU:
+
+| Option | How queries are processed | Time per run |
+|---|---|---|
+| A | one query at a time | 8 ms |
+| B | batches of 32 | 16 ms per batch |
+| C | batches of 128 | 40 ms per batch |
+
+The product requirement is that every response returns within 30 ms. Traffic is 3,200 queries per second, arriving into a single shared queue.
+
+1. What is the throughput of each option on one GPU, and what is the processing latency?
+2. Which options can meet 30 ms once you count the time a query waits for its batch to fill?
+3. How many GPUs does each feasible option need to serve 3,200 queries per second?
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+This uses [Chapter 1, Latency and throughput under batching](week01.qmd#sec-batching).
+
+**1. Throughput and processing latency.** Throughput is batch size divided by time per batch:
+
+- A: $1 / 0.008\,\text{s} = 125$ queries/s, latency 8 ms.
+- B: $32 / 0.016\,\text{s} = 2{,}000$ queries/s, latency 16 ms.
+- C: $128 / 0.040\,\text{s} = 3{,}200$ queries/s, latency 40 ms.
+
+Option C already misses 30 ms on processing time alone.
+
+**2. Add the batch-fill wait.** The chapter warns that online batching makes queries wait for the batch to fill. At 3,200 queries per second, filling a batch takes:
+
+- B: $32 / 3{,}200 = 0.010\,\text{s} = 10$ ms. The first query in a batch waits about 10 ms, then 16 ms of processing, so about 26 ms in the worst case. That is within 30 ms.
+- C: $128 / 3{,}200 = 40$ ms of filling plus 40 ms of processing, about 80 ms. It fails.
+- A: no fill wait, 8 ms. It passes.
+
+**3. GPUs needed.**
+
+- A: $3{,}200 / 125 = 25.6$, so 26 GPUs.
+- B: $3{,}200 / 2{,}000 = 1.6$, so 2 GPUs, fed batches from the shared queue.
+
+This is the chapter's trade-off in numbers: lowering latency by processing fewer queries at a time underuses hardware and raises the cost per query. Option A meets latency with lots of margin but needs about 13 times the hardware.
+
+**Answer:** Throughput is 125, 2,000, and 3,200 queries/s. Only A and B meet 30 ms (B at about 26 ms worst case). B serves the traffic on 2 GPUs versus 26 for A, so B is the better choice unless the latency budget tightens.
+:::
+
+## Problem 4: Explaining latency percentiles to a product manager {#prb-4}
+
+Over one minute, a service logged these 20 response latencies in milliseconds, already sorted:
+
+42, 45, 47, 48, 50, 50, 51, 52, 53, 55, 55, 56, 58, 60, 61, 63, 65, 70, 900, 1,200
+
+1. Compute the mean and the median (p50).
+2. Compute p90 and p95 using two definitions: nearest rank, and linear interpolation (NumPy's default).
+3. The PM's dashboard shows "average latency: 154 ms." What would you tell them?
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+This uses [Chapter 1, Latency is a distribution](week01.qmd#sec-percentiles).
+
+**1. Mean and median.** The values sum to 3,081 ms, so the mean is $3{,}081 / 20 \approx 154$ ms. With 20 values, the median is the average of the 10th and 11th: $(55 + 55)/2 = 55$ ms. Eighteen of the twenty requests took 70 ms or less, so the mean describes almost no actual request.
+
+**2. Tail percentiles, two ways.**
+
+*Nearest rank* takes the $\lceil q \times n \rceil$-th sorted value:
+
+- p90: $\lceil 0.90 \times 20 \rceil = 18$th value, **70 ms**.
+- p95: $\lceil 0.95 \times 20 \rceil = 19$th value, **900 ms**.
+
+*Linear interpolation* uses position $q \times (n-1)$ in 0-indexed order and interpolates between neighbours:
+
+- p90: position $0.90 \times 19 = 17.1$, between index 17 (70) and index 18 (900): $70 + 0.1 \times 830 = $ **153 ms**.
+- p95: position $0.95 \times 19 = 18.05$, between index 18 (900) and index 19 (1,200): $900 + 0.05 \times 300 = $ **915 ms**.
+
+p90 is 70 ms under one definition and 153 ms under the other. With only 20 requests, the tail estimate depends on one or two data points.
+
+**3. What to tell the PM.** The typical request takes about 55 ms. The average is pulled up by two very slow requests (900 and 1,200 ms) that are worth investigating on their own, since they could be a network error or a particular kind of user. The chapter's Amazon example is a reminder that the slowest requests can come from the most valuable users. Targets should be written as percentiles (for example, "p95 under 100 ms"), measured over enough traffic that the tail is stable. A minute with 20 requests is not enough.
+
+**Answer:** Mean ≈ 154 ms, p50 = 55 ms. p90 = 70 ms (nearest rank) or 153 ms (interpolated); p95 = 900 or 915 ms. Report percentiles over a larger window, and investigate the two outliers.
+:::
+
+## Problem 5: The ensemble that wins by 0.4 points {#prb-5}
+
+"Your team built a clinical deterioration-risk model. An ensemble of five models reaches an AUC of 0.861 on the validation set; the best single gradient-boosted model reaches 0.857. The ensemble takes about 120 ms per prediction versus 40 ms, and its predictions are harder to explain to clinicians. Which would you ship?"
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+This uses [Chapter 1, Stakeholders and requirements](week01.qmd#sec-stakeholders) and [Interpretability](week01.qmd#sec-interpretability).
+
+The chapter's answer to "which model?" is "it depends on the requirements, and on how strict each one is." So the strong answer asks the questions that decide it:
+
+1. **Is latency a must-have?** If the score is shown live at the bedside, 120 ms may be fine or may not, depending on the screen's budget. If scores are computed in a nightly batch, latency hardly matters.
+2. **Does the 0.004 [AUC](https://en.wikipedia.org/wiki/Receiver_operating_characteristic#Area_under_the_curve) gain change outcomes?** The chapter separates tasks where a small gain is worth a lot (click-through on a large e-commerce site) from tasks where users would not notice. Ask what the gain means at the alert threshold clinicians will actually use: how many more true deteriorations caught, or false alarms avoided, per week. A gain this small on one validation set may also be noise.
+3. **What do clinicians need to trust and act on it?** Interpretability matters for two reasons in the chapter: users need to understand a decision to trust it and spot bias, and developers need it to debug. If clinicians will not act on an alert they cannot understand, the ensemble's extra accuracy never reaches patients.
+4. **Who maintains it?** Five models means five things to retrain, monitor, and debug.
+
+This is the chapter's ensemble example: ensembles win competitions but are not widely used in production, because they are slower and harder to interpret.
+
+**Answer:** Default to the single model unless the gain shows up in a meaningful clinical metric at the operating threshold and latency and explainability requirements still allow the ensemble. Make the case with those stakeholder questions, not with AUC alone.
+:::
+
+## Problem 6: 97% accurate overall {#prb-6}
+
+"A sepsis screening model is 97% accurate across all patients. One patient subgroup makes up 6% of the population. Can the model still be failing that subgroup? Show how, and say what you would check."
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+This uses [Chapter 1, Fairness](week01.qmd#sec-fairness).
+
+Yes. Overall accuracy is a weighted average of subgroup accuracies, and a small subgroup barely moves it. Suppose the model is 99% accurate on the other 94% of patients. Then the subgroup accuracy $a$ satisfies
+
+$$
+0.94 \times 0.99 + 0.06 \times a = 0.97 ,
+$$
+
+so $0.06\,a = 0.97 - 0.9306 = 0.0394$ and $a \approx 0.66$. The model is right on about two-thirds of the subgroup, and the headline number still reads 97%.
+
+The chapter's version of this point: errors on a minority group have only a small effect on overall metrics, and at scale a model can make those errors about many people at once. It also notes that models "encode the past," so if the subgroup was under-represented or treated differently in the historical data, the model inherits that.
+
+What to check:
+
+- **Break every metric down by subgroup**, not just accuracy. For a screening task, the subgroup's miss rate (sensitivity) matters most.
+- **Check representation and labels.** How many training examples come from this subgroup, and were their labels recorded the same way?
+- **Check proxies.** Features like zip code can encode group membership even when group is not an input.
+
+The same arithmetic explains why accuracy misleads on rare outcomes in general: a model that ignores a small class can still post a high overall number. Chapter 11 covers fairness in depth.
+
+**Answer:** Yes. 97% overall is consistent with about 66% on a 6% subgroup if everyone else is at 99%. Report metrics per subgroup, focusing on misses, and check the subgroup's data and proxy features.
+:::
+
+## Problem 7: Performance dropped and nobody changed the code {#prb-7}
+
+"Our readmission model's precision dropped noticeably over the last two months. No one has deployed new code. What could have happened, and what should we have had in place?"
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+This uses [Chapter 1, ML systems versus traditional software](week01.qmd#sec-vs-software), [Data](week01.qmd#sec-data), and the i.i.d. definition in [The five-part test](week01.qmd#sec-five-part).
+
+In traditional software, unchanged code means unchanged behaviour. An ML system is part code, part data, and part artifacts built from both, so its behaviour can change when only the data changes. Likely causes:
+
+- **The input distribution moved.** New patient mix, a new hospital joining, seasonal illness, or a change in how a lab test is ordered. The model assumed future patients look like training patients (the i.i.d. assumption), and they no longer do.
+- **The relationship changed.** A new discharge-follow-up program may have changed who gets readmitted, so the same inputs now lead to different outcomes ([concept drift](https://en.wikipedia.org/wiki/Concept_drift)).
+- **An upstream data change.** A field renamed, a unit changed, or a default value introduced in the source system. This fails silently: the model still runs.
+
+What should have been in place:
+
+- **Versioned data and model artifacts**, not just code, so we can say exactly what the model was trained on and compare it with what it sees now.
+- **Monitoring of inputs and predictions**, so a shift shows up before the outcome labels (readmissions arrive 30 days late) reveal it.
+- **A retraining path**, so the model can be updated on recent data.
+
+The book covers monitoring in Chapter 8 and continual learning in Chapter 9.
+
+**Answer:** The data changed, not the code: input shift, concept drift, or a silent upstream data change. Version data and models as well as code, monitor input and prediction distributions, and have a way to retrain.
+:::

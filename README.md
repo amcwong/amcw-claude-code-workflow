@@ -25,7 +25,7 @@ Live books: [CSC2506](https://amcwong.github.io/claude-code-my-workflow/courses/
 /course-notes practice <slug> <N>      # self-study problems (approve pre-flight first)
 /course-notes audit <slug>             # fact-audit the whole course
 /commit
-/deploy-course-notes <slug>            # or `all`
+/deploy-course-notes [slug]            # default: all courses
 /commit                                # then push; Pages serves docs/
 ```
 

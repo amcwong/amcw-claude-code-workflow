@@ -3,7 +3,9 @@
 # Render a course-notes Quarto book and sync _site/ to docs/courses/<slug>/ for GitHub Pages.
 #
 # Usage: ./scripts/sync_course_notes_to_docs.sh [slug|all]
+# With no argument, deploys all courses (same as `all`).
 # Examples:
+#   ./scripts/sync_course_notes_to_docs.sh            # all courses (default)
 #   ./scripts/sync_course_notes_to_docs.sh CSC2506
 #   ./scripts/sync_course_notes_to_docs.sh all
 #   ./scripts/sync_course_notes_to_docs.sh ALL   # same as all (case-insensitive)
@@ -20,6 +22,7 @@ usage() {
     echo "Usage: $0 [slug|all]" >&2
     echo "  slug  Course directory name under courses/ (e.g. CSC2506)" >&2
     echo "  all   Deploy every courses/* book that has _quarto.yml (case-insensitive: ALL, All)" >&2
+    echo "  (no argument) same as all" >&2
     exit 1
 }
 
@@ -152,11 +155,12 @@ deploy_one() {
     return 0
 }
 
-if [[ $# -ne 1 ]]; then
+if [[ $# -gt 1 ]]; then
     usage
 fi
 
-TARGET="$1"
+# Default target is every course
+TARGET="${1:-all}"
 # Case-insensitive "all" / "ALL" / "All"
 TARGET_LC="$(printf '%s' "$TARGET" | tr '[:upper:]' '[:lower:]')"
 

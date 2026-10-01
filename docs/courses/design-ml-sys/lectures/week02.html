@@ -1,0 +1,1232 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.10.18">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+
+<title>Chapter 2: Introduction to Machine Learning Systems Design – Designing ML Systems: Interview Notes</title>
+<style>
+/* Default styles provided by pandoc.
+** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
+*/
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: 1.5em;}
+div.column{flex: auto;}
+@media screen {
+div.columns{gap: min(4vw, 1.5em);}
+div.column{overflow-x: auto;}
+}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+</style>
+
+
+<script src="../site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="../site_libs/quarto-nav/headroom.min.js"></script>
+<script src="../site_libs/clipboard/clipboard.min.js"></script>
+<script src="../site_libs/quarto-search/autocomplete.umd.js"></script>
+<script src="../site_libs/quarto-search/fuse.min.js"></script>
+<script src="../site_libs/quarto-search/quarto-search.js"></script>
+<meta name="quarto:offset" content="../">
+<link href="../lectures/week02-practice.html" rel="next">
+<link href="../lectures/week01-practice.html" rel="prev">
+<script src="../site_libs/quarto-html/quarto.js" type="module"></script>
+<script src="../site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
+<script src="../site_libs/quarto-html/popper.min.js"></script>
+<script src="../site_libs/quarto-html/tippy.umd.min.js"></script>
+<script src="../site_libs/quarto-html/anchor.min.js"></script>
+<link href="../site_libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="../site_libs/quarto-html/quarto-syntax-highlighting-bb62276ab45c84d9efd712f51ff97b5a.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<script src="../site_libs/bootstrap/bootstrap.min.js"></script>
+<link href="../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="../site_libs/bootstrap/bootstrap-ce0958bf53307a1b0bb60f85d87db72f.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
+<script id="quarto-search-options" type="application/json">{
+  "location": "sidebar",
+  "copy-button": false,
+  "collapse-after": 3,
+  "panel-placement": "start",
+  "type": "textbox",
+  "limit": 50,
+  "keyboard-shortcut": [
+    "f",
+    "/",
+    "s"
+  ],
+  "show-item-context": false,
+  "language": {
+    "search-no-results-text": "No results",
+    "search-matching-documents-text": "matching documents",
+    "search-copy-link-title": "Copy link to search",
+    "search-hide-matches-text": "Hide additional matches",
+    "search-more-match-text": "more match in this document",
+    "search-more-matches-text": "more matches in this document",
+    "search-clear-button-title": "Clear",
+    "search-text-placeholder": "",
+    "search-detached-cancel-button-title": "Cancel",
+    "search-submit-button-title": "Submit",
+    "search-label": "Search"
+  }
+}</script>
+<style>html{ scroll-behavior: smooth; }</style>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+<link href="https://fonts.googleapis.com/css2?family=Source+Code+Pro:wght@400;600&amp;family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&amp;display=swap" rel="stylesheet">
+
+  <script>window.backupDefine = window.define; window.define = undefined;</script><script src="https://cdn.jsdelivr.net/npm/katex@latest/dist/katex.min.js"></script>
+  <script>document.addEventListener("DOMContentLoaded", function () {
+ var mathElements = document.getElementsByClassName("math");
+ var macros = [];
+ for (var i = 0; i < mathElements.length; i++) {
+  var texText = mathElements[i].firstChild;
+  if (mathElements[i].tagName == "SPAN") {
+   katex.render(texText.data, mathElements[i], {
+    displayMode: mathElements[i].classList.contains('display'),
+    throwOnError: false,
+    macros: macros,
+    fleqn: false
+   });
+}}});
+  </script>
+  <script>window.define = window.backupDefine; window.backupDefine = undefined;</script><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@latest/dist/katex.min.css">
+
+<script type="text/javascript">
+const typesetMath = (el) => {
+  if (window.MathJax) {
+    // MathJax Typeset
+    window.MathJax.typeset([el]);
+  } else if (window.katex) {
+    // KaTeX Render
+    var mathElements = el.getElementsByClassName("math");
+    var macros = [];
+    for (var i = 0; i < mathElements.length; i++) {
+      var texText = mathElements[i].firstChild;
+      if (mathElements[i].tagName == "SPAN" && texText && texText.data) {
+        window.katex.render(texText.data, mathElements[i], {
+          displayMode: mathElements[i].classList.contains('display'),
+          throwOnError: false,
+          macros: macros,
+          fleqn: false
+        });
+      }
+    }
+  }
+}
+window.Quarto = {
+  typesetMath
+};
+</script>
+
+<link rel="stylesheet" href="../styles/custom.css">
+</head>
+
+<body class="nav-sidebar floating quarto-light">
+
+<div id="quarto-search-results"></div>
+  <header id="quarto-header" class="headroom fixed-top">
+  <nav class="quarto-secondary-nav">
+    <div class="container-fluid d-flex">
+      <button type="button" class="quarto-btn-toggle btn" data-bs-toggle="collapse" role="button" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+        <i class="bi bi-layout-text-sidebar-reverse"></i>
+      </button>
+        <nav class="quarto-page-breadcrumbs" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../lectures/week02.html"><span class="chapter-title">Chapter 2: Introduction to Machine Learning Systems Design</span></a></li></ol></nav>
+        <a class="flex-grow-1" role="navigation" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">      
+        </a>
+      <button type="button" class="btn quarto-search-button" aria-label="Search" onclick="window.quartoOpenSearch();">
+        <i class="bi bi-search"></i>
+      </button>
+    </div>
+  </nav>
+</header>
+<!-- content -->
+<div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-article">
+<!-- sidebar -->
+  <nav id="quarto-sidebar" class="sidebar collapse collapse-horizontal quarto-sidebar-collapse-item sidebar-navigation floating overflow-auto">
+    <div class="pt-lg-2 mt-2 text-left sidebar-header">
+    <div class="sidebar-title mb-0 py-0">
+      <a href="../">Designing ML Systems: Interview Notes</a> 
+    </div>
+      </div>
+        <div class="mt-2 flex-shrink-0 align-items-center">
+        <div class="sidebar-search">
+        <div id="quarto-search" class="" title="Search"></div>
+        </div>
+        </div>
+    <div class="sidebar-menu-container"> 
+    <ul class="list-unstyled mt-1">
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../index.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Designing ML Systems: Interview Notes</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../lectures/week01.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Chapter 1: Overview of Machine Learning Systems</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../lectures/week01-practice.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Chapter 1 practice: Overview of Machine Learning Systems</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../lectures/week02.html" class="sidebar-item-text sidebar-link active"><span class="chapter-title">Chapter 2: Introduction to Machine Learning Systems Design</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../lectures/week02-practice.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Chapter 2 practice: Introduction to Machine Learning Systems Design</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../glossary.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Glossary</span></a>
+  </div>
+</li>
+    </ul>
+    </div>
+</nav>
+<div id="quarto-sidebar-glass" class="quarto-sidebar-collapse-item" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item"></div>
+<!-- margin-sidebar -->
+    <div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
+        <nav id="TOC" role="doc-toc" class="toc-active">
+    <h2 id="toc-title">On this page</h2>
+   
+  <ul>
+  <li><a href="#sec-objectives" id="toc-sec-objectives" class="nav-link active" data-scroll-target="#sec-objectives">Business and ML objectives</a></li>
+  <li><a href="#sec-requirements" id="toc-sec-requirements" class="nav-link" data-scroll-target="#sec-requirements">Requirements for ML systems</a>
+  <ul class="collapse">
+  <li><a href="#sec-reliability" id="toc-sec-reliability" class="nav-link" data-scroll-target="#sec-reliability">Reliability</a></li>
+  <li><a href="#sec-scalability" id="toc-sec-scalability" class="nav-link" data-scroll-target="#sec-scalability">Scalability</a></li>
+  <li><a href="#sec-maintainability" id="toc-sec-maintainability" class="nav-link" data-scroll-target="#sec-maintainability">Maintainability</a></li>
+  <li><a href="#sec-adaptability" id="toc-sec-adaptability" class="nav-link" data-scroll-target="#sec-adaptability">Adaptability</a></li>
+  </ul></li>
+  <li><a href="#sec-iterative" id="toc-sec-iterative" class="nav-link" data-scroll-target="#sec-iterative">The iterative process</a></li>
+  <li><a href="#sec-framing" id="toc-sec-framing" class="nav-link" data-scroll-target="#sec-framing">Framing ML problems</a></li>
+  <li><a href="#sec-task-types" id="toc-sec-task-types" class="nav-link" data-scroll-target="#sec-task-types">Types of ML tasks</a>
+  <ul class="collapse">
+  <li><a href="#sec-class-vs-reg" id="toc-sec-class-vs-reg" class="nav-link" data-scroll-target="#sec-class-vs-reg">Classification versus regression</a></li>
+  <li><a href="#sec-binary-multiclass" id="toc-sec-binary-multiclass" class="nav-link" data-scroll-target="#sec-binary-multiclass">Binary versus multiclass classification</a></li>
+  <li><a href="#sec-multilabel" id="toc-sec-multilabel" class="nav-link" data-scroll-target="#sec-multilabel">Multiclass versus multilabel classification</a></li>
+  <li><a href="#sec-multiple-framings" id="toc-sec-multiple-framings" class="nav-link" data-scroll-target="#sec-multiple-framings">Multiple ways to frame a problem</a></li>
+  </ul></li>
+  <li><a href="#sec-objective-functions" id="toc-sec-objective-functions" class="nav-link" data-scroll-target="#sec-objective-functions">Objective functions</a>
+  <ul class="collapse">
+  <li><a href="#sec-decoupling" id="toc-sec-decoupling" class="nav-link" data-scroll-target="#sec-decoupling">Decoupling objectives</a></li>
+  </ul></li>
+  <li><a href="#sec-mind-vs-data" id="toc-sec-mind-vs-data" class="nav-link" data-scroll-target="#sec-mind-vs-data">Mind versus data</a></li>
+  <li><a href="#sec-summary" id="toc-sec-summary" class="nav-link" data-scroll-target="#sec-summary">Summary</a></li>
+  <li><a href="#quick-self-check" id="toc-quick-self-check" class="nav-link" data-scroll-target="#quick-self-check">Quick self-check</a></li>
+  </ul>
+</nav>
+    </div>
+<!-- main -->
+<main class="content" id="quarto-document-content">
+
+<header id="title-block-header" class="quarto-title-block default">
+<div class="quarto-title">
+<h1 class="title"><span class="chapter-title">Chapter 2: Introduction to Machine Learning Systems Design</span></h1>
+</div>
+
+
+
+<div class="quarto-title-meta">
+
+    
+  
+    
+  </div>
+  
+
+
+</header>
+
+
+<style>#title-block-header { display: none; }</style>
+<div class="lecture-header">
+  <h1>Chapter 2: Introduction to Machine Learning Systems Design</h1>
+</div>
+<p><strong>Overview.</strong> Chapter 1 defined ML systems design as a system approach to MLOps: treating requirements, data, infrastructure, deployment, monitoring, and stakeholders as one whole. This chapter covers the decisions made before any model is trained. Why does the system exist (business objectives, translated into ML objectives)? What must it satisfy (reliability, scalability, maintainability, adaptability)? How does development actually proceed (an iterative cycle, not a line)? And how do we turn a business problem into something a model can learn (choosing the task type and the objective function)? It closes with the debate over whether progress comes from better algorithms or from more data.</p>
+<section id="sec-objectives" class="level2">
+<h2 class="anchored" data-anchor-id="sec-objectives">Business and ML objectives</h2>
+<p>Data scientists tend to care about <strong>ML objectives</strong>: metrics about the model itself, such as accuracy, F1 score, or inference latency. They may spend substantial data, compute, and engineering time raising accuracy from 94% to 94.2%. Why might that effort still get the project cancelled?</p>
+<p>Because most companies do not care about ML metrics unless they move a <strong>business metric</strong>. The book’s view (citing the <a href="https://en.wikipedia.org/wiki/Friedman_doctrine">Friedman doctrine</a>) is that the goal of a project inside a business is to increase profit, either directly (more sales, lower costs) or indirectly (higher customer satisfaction, more time spent on the site). A pattern in short-lived ML projects is a team optimizing ML metrics while their managers, who only see business metrics, cannot tell what the project is doing for the business and shut it down.</p>
+<div class="definition-block">
+<p><strong>Definition.</strong> A <strong>business objective</strong> is the outcome the organization wants (revenue, cost, retention, monthly active users). An <strong>ML objective</strong> is a measurable property of the model (accuracy, F1, latency, loss). An ML project succeeds inside a business only when its ML objectives are tied to the business objectives it is supposed to influence.</p>
+</div>
+<p>Some use cases make the link easy. Every increase in ad <a href="https://en.wikipedia.org/wiki/Click-through_rate">click-through rate</a> is ad revenue, and every fraudulent transaction stopped is money saved. That ease of mapping is one reason ad click-through prediction and fraud detection are among the most popular ML use cases.</p>
+<p>When the link is not direct, companies build a bridge metric. Netflix measures its recommender by <strong>take-rate</strong>:</p>
+<div class="boxed-eq">
+<p><span class="math display">
+\text{take-rate} = \frac{\text{number of quality plays}}{\text{number of recommendations a user sees}}
+</span></p>
+</div>
+<p>A higher take-rate means more of what the recommender shows actually gets watched. Netflix then checked take-rate against business metrics and found that a higher take-rate went with more total streaming hours and fewer subscription cancellations, which is what makes it a useful proxy.</p>
+<p>The effect of a model on the business can be hard to reason about in advance. A more personalized model might make customers happier and spend more, or solve their problems faster and spend less. To settle it, companies run experiments such as <a href="https://en.wikipedia.org/wiki/A/B_testing">A/B tests</a> and pick the model that improves the business metric, <strong>even if it is not the model with the better ML metric</strong>.</p>
+<p>Even experiments are not always enough. The book’s example is a cybersecurity pipeline: a model flags anomalous traffic, if-else rules decide which anomalies are potential threats, security experts review those, and a separate process stops the real ones. When a threat gets through, it may be impossible to tell whether the ML component had anything to do with it.</p>
+<p>Finally, be realistic about returns. ML can transform a business, but not overnight. Returns grow with how long a company has been using ML: mature pipelines run more efficiently, iterate faster, need less engineering time, and cost less to run. The book cites a 2020 Algorithmia survey in which companies with models in production for over five years mostly deployed a new model in under 30 days, while most companies just starting took longer than 30 days.</p>
+</section>
+<section id="sec-requirements" class="level2">
+<h2 class="anchored" data-anchor-id="sec-requirements">Requirements for ML systems</h2>
+<p>Requirements vary by use case, but the book argues that most ML systems should have four properties.</p>
+<section id="sec-reliability" class="level3">
+<h3 class="anchored" data-anchor-id="sec-reliability">Reliability</h3>
+<div class="definition-block">
+<p><strong>Definition.</strong> A system is <strong>reliable</strong> if it keeps performing the correct function at the desired level of performance even when things go wrong (hardware faults, software faults, human error).</p>
+</div>
+<p>“Correct” is hard to pin down for ML. A system can call <code>model.predict()</code> without error and still return wrong predictions, and without <a href="https://en.wikipedia.org/wiki/Ground_truth">ground truth</a> labels we may not know they are wrong. Traditional software usually fails loudly: a crash, a runtime error, a 404. <strong>ML systems can fail silently.</strong> If Google Translate mistranslates a sentence into a language you do not read, you have no way to notice. Chapter 8 covers how ML systems fail in production.</p>
+</section>
+<section id="sec-scalability" class="level3">
+<h3 class="anchored" data-anchor-id="sec-scalability">Scalability</h3>
+<p>An ML system can grow in three ways:</p>
+<ul>
+<li><strong>Complexity.</strong> Last year a logistic regression fit in a 1 GB free-tier cloud instance; this year a 100-million-parameter network needs 16 GB of RAM to serve.</li>
+<li><strong>Traffic.</strong> From 10,000 prediction requests a day to between 1 and 10 million.</li>
+<li><strong>Model count.</strong> One model for trending hashtags becomes three when filters for unsafe content and bot posts are added. Enterprise products often grow one model per customer: a startup the author worked with ran 8,000 models for 8,000 customers.</li>
+</ul>
+<div class="definition-block">
+<p><strong>Definition.</strong> <strong><a href="https://en.wikipedia.org/wiki/Scalability">Scalability</a></strong> is having reasonable ways to handle growth. It covers <strong>resource scaling</strong> (adding resources when load grows, releasing them when it drops) and <strong>artifact management</strong> (keeping many models reproducible, monitored, and up to date).</p>
+</div>
+<p>For resource scaling, a system that needs 100 GPUs at peak but 10 most of the time should not keep 100 running. <a href="https://en.wikipedia.org/wiki/Autoscaling">Autoscaling</a> adjusts machine count automatically with usage, but it is hard to get right: Amazon’s autoscaling failed on Prime Day 2018 and the site went down.</p>
+<p>For artifact management, one model can be monitored and retrained by hand from a single reproduction script. With a hundred models, monitoring and retraining have to be automated, and you need a systematic way to reproduce any model. The book returns to scaling in Chapter 6 (distributed training), Chapter 7 (model optimization), and Chapter 10 (resource management, experiment tracking and versioning).</p>
+</section>
+<section id="sec-maintainability" class="level3">
+<h3 class="anchored" data-anchor-id="sec-maintainability">Maintainability</h3>
+<p>Many people work on an ML system: ML engineers, DevOps engineers, and subject matter experts (SMEs), often with different languages and tools. A maintainable system lets each group use the tools they are comfortable with rather than having one group’s tools forced on everyone. Code is documented. Code, data, and artifacts are versioned. Models are <a href="https://en.wikipedia.org/wiki/Reproducibility">reproducible</a> enough that others can build on them after the original authors leave. When something breaks, people can find and fix it together without blaming each other. Chapter 11 covers team structure.</p>
+</section>
+<section id="sec-adaptability" class="level3">
+<h3 class="anchored" data-anchor-id="sec-adaptability">Adaptability</h3>
+<div class="definition-block">
+<p><strong>Definition.</strong> A system is <strong>adaptable</strong> if it can discover where performance can be improved and accept updates without interrupting service, so it keeps up with shifting data distributions and changing business requirements.</p>
+</div>
+<p>Recall from Chapter 1 that ML systems are part code and part data, and data changes quickly. Adaptability depends on maintainability: you cannot update quickly what you cannot understand or reproduce. Chapter 8 covers distribution shift and Chapter 9 covers continual learning.</p>
+</section>
+</section>
+<section id="sec-iterative" class="level2">
+<h2 class="anchored" data-anchor-id="sec-iterative">The iterative process</h2>
+<p>Developing an ML system is iterative and usually never finished: once in production, a system has to be monitored and updated. The book makes this concrete with a story about building a model that decides whether to show an ad for a search query. Condensed:</p>
+<ol type="1">
+<li>Choose a metric: <strong>impressions</strong> (how often an ad is shown).</li>
+<li>Collect data, get labels, engineer features, train.</li>
+<li>Error analysis shows wrong labels, so relabel and retrain.</li>
+<li>Error analysis shows the model <strong>always predicts “don’t show,”</strong> because 99.99% of the examples are negative. Collect more positive examples and retrain. (This is class imbalance, covered in Chapter 4.)</li>
+<li>The model does well on the test set, which is now two months old, but poorly on yesterday’s data. It is stale; retrain on recent data.</li>
+<li>Deploy. Then revenue falls: ads are shown, but few are clicked. The metric was wrong. Switch to <strong>click-through rate</strong> and go back to step 1.</li>
+</ol>
+<p>Two of these loops are about the metric, not the model: the system did what it was told, and what it was told did not serve the business.</p>
+<p>The book’s generalization of this story is the six-step cycle in <a href="#fig-cycle">Figure 1</a>, drawn from a data scientist’s or ML engineer’s point of view. A platform or DevOps engineer would see the same project differently, with more time spent on infrastructure.</p>
+<figure id="fig-cycle" style="margin:1.5rem 0;" class="figure">
+<svg viewbox="0 0 900 540" width="100%" style="max-width:820px;display:block;margin:auto;font-family:Helvetica,'Helvetica Neue',Arial,sans-serif;">
+  <defs>
+    <marker id="arrW2a" markerwidth="8" markerheight="8" refx="7" refy="4" orient="auto"><path d="M0,0 L0,8 L8,4 z" fill="#555"></path></marker>
+    <marker id="arrW2aS" markerwidth="8" markerheight="8" refx="1" refy="4" orient="auto"><path d="M8,0 L8,8 L0,4 z" fill="#888"></path></marker>
+    <marker id="arrW2aE" markerwidth="8" markerheight="8" refx="7" refy="4" orient="auto"><path d="M0,0 L0,8 L8,4 z" fill="#888"></path></marker>
+  </defs>
+  <text x="450" y="34" text-anchor="middle" font-size="24" font-weight="700" fill="#002A5C">The iterative process</text>
+
+  <!-- Solid cycle arrows -->
+  <path d="M540,95 L730,95 L730,164" fill="none" stroke="#555" stroke-width="1.8" marker-end="url(#arrW2a)"></path>
+  <line x1="730" y1="240" x2="730" y2="324" stroke="#555" stroke-width="1.8" marker-end="url(#arrW2a)"></line>
+  <path d="M730,400 L730,465 L546,465" fill="none" stroke="#555" stroke-width="1.8" marker-end="url(#arrW2a)"></path>
+  <path d="M360,465 L170,465 L170,406" fill="none" stroke="#555" stroke-width="1.8" marker-end="url(#arrW2a)"></path>
+  <line x1="170" y1="330" x2="170" y2="246" stroke="#555" stroke-width="1.8" marker-end="url(#arrW2a)"></line>
+  <path d="M170,170 L170,95 L354,95" fill="none" stroke="#555" stroke-width="1.8" marker-end="url(#arrW2a)"></path>
+
+  <!-- Dashed back-and-forth arrows -->
+  <g stroke="#888" stroke-width="1.5" stroke-dasharray="7,6" fill="none">
+    <line x1="266" y1="205" x2="634" y2="205" marker-start="url(#arrW2aS)" marker-end="url(#arrW2aE)"></line>
+    <line x1="266" y1="365" x2="634" y2="365" marker-start="url(#arrW2aS)" marker-end="url(#arrW2aE)"></line>
+    <line x1="266" y1="225" x2="634" y2="345" marker-start="url(#arrW2aS)" marker-end="url(#arrW2aE)"></line>
+    <line x1="266" y1="345" x2="634" y2="225" marker-start="url(#arrW2aS)" marker-end="url(#arrW2aE)"></line>
+  </g>
+
+  <!-- Step boxes -->
+  <rect x="360" y="60" width="180" height="70" rx="8" fill="#F2C6DE" stroke="#C75794" stroke-width="1.5"></rect>
+  <text x="450" y="91" text-anchor="middle" font-size="17" font-weight="600" fill="#792051">1. Project</text>
+  <text x="450" y="113" text-anchor="middle" font-size="17" font-weight="600" fill="#792051">scoping</text>
+
+  <rect x="640" y="170" width="180" height="70" rx="8" fill="#C6DEF1" stroke="#5795C7" stroke-width="1.5"></rect>
+  <text x="730" y="201" text-anchor="middle" font-size="17" font-weight="600" fill="#205279">2. Data</text>
+  <text x="730" y="223" text-anchor="middle" font-size="17" font-weight="600" fill="#205279">engineering</text>
+
+  <rect x="640" y="330" width="180" height="70" rx="8" fill="#C9E4DE" stroke="#57C7AE" stroke-width="1.5"></rect>
+  <text x="730" y="361" text-anchor="middle" font-size="17" font-weight="600" fill="#207965">3. ML model</text>
+  <text x="730" y="383" text-anchor="middle" font-size="17" font-weight="600" fill="#207965">development</text>
+
+  <rect x="360" y="430" width="180" height="70" rx="8" fill="#F7D9C4" stroke="#C78557" stroke-width="1.5"></rect>
+  <text x="450" y="471" text-anchor="middle" font-size="17" font-weight="600" fill="#794520">4. Deployment</text>
+
+  <rect x="80" y="330" width="180" height="70" rx="8" fill="#FAEDCB" stroke="#C7A857" stroke-width="1.5"></rect>
+  <text x="170" y="361" text-anchor="middle" font-size="17" font-weight="600" fill="#796020">5. Monitoring and</text>
+  <text x="170" y="383" text-anchor="middle" font-size="17" font-weight="600" fill="#796020">continual learning</text>
+
+  <rect x="80" y="170" width="180" height="70" rx="8" fill="#F2C6DE" stroke="#C75794" stroke-width="1.5"></rect>
+  <text x="170" y="201" text-anchor="middle" font-size="17" font-weight="600" fill="#792051">6. Business</text>
+  <text x="170" y="223" text-anchor="middle" font-size="17" font-weight="600" fill="#792051">analysis</text>
+</svg>
+<figcaption style="text-align:center;font-size:0.9em;color:#555;">Figure 1. Developing an ML system is a cycle (solid arrows) with frequent back-and-forth between steps (dashed arrows) (after the book's Figure 2-2).</figcaption>
+</figure>
+<p>What each step means, and where the book covers it:</p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 33%">
+<col style="width: 33%">
+<col style="width: 33%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Step</th>
+<th>What happens</th>
+<th>Book chapter</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>1. Project scoping</td>
+<td>Set goals, objectives, and constraints; identify and involve stakeholders; estimate and allocate resources</td>
+<td>Ch 1, this chapter, Ch 11 (teams)</td>
+</tr>
+<tr class="even">
+<td>2. Data engineering</td>
+<td>Handle data from different sources and formats; curate training data by sampling and labeling</td>
+<td>Ch 3, Ch 4</td>
+</tr>
+<tr class="odd">
+<td>3. ML model development</td>
+<td>Extract features, then select, train, and evaluate models (the part most ML courses teach)</td>
+<td>Ch 5, Ch 6</td>
+</tr>
+<tr class="even">
+<td>4. Deployment</td>
+<td>Make the model accessible to users. The system is never “done,” but at some point it has to ship</td>
+<td>Ch 7</td>
+</tr>
+<tr class="odd">
+<td>5. Monitoring and continual learning</td>
+<td>Watch for performance decay; keep the model adapted to changing data and requirements</td>
+<td>Ch 8, Ch 9</td>
+</tr>
+<tr class="even">
+<td>6. Business analysis</td>
+<td>Evaluate model performance against business goals; use the findings to drop unproductive projects or scope new ones (feeds back into step 1)</td>
+<td>this chapter</td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="sec-framing" class="level2">
+<h2 class="anchored" data-anchor-id="sec-framing">Framing ML problems</h2>
+<p>Suppose you lead ML engineering at a bank. Your boss hears that a rival bank used ML to handle customer requests twice as fast and asks your team to do the same. Is “speed up customer service” an ML problem?</p>
+<p>No.&nbsp;Slow customer service is a business problem.</p>
+<div class="definition-block">
+<p><strong>Definition.</strong> An <strong>ML problem</strong> is defined by three things: the <strong>inputs</strong>, the <strong>outputs</strong>, and the <strong>objective function</strong> that guides learning. Framing a problem means choosing all three.</p>
+</div>
+<p>None of the three is obvious from the request. Investigating, you find the bottleneck is routing each request to the right one of four departments: accounting, inventory, HR, and IT. Now there is an ML problem. The input is the customer request, the output is one of four departments, and the objective is to minimize the difference between the predicted and actual department. This is a classification problem. The rest of this chapter looks at the two choices that most change how hard the problem is: the type of output (the <strong>task type</strong>) and the <strong>objective function</strong>. Turning raw inputs into features is Chapter 5.</p>
+</section>
+<section id="sec-task-types" class="level2">
+<h2 class="anchored" data-anchor-id="sec-task-types">Types of ML tasks</h2>
+<p>The model’s output determines the task type. <a href="#fig-task-types">Figure 2</a> shows the common types.</p>
+<figure id="fig-task-types" style="margin:1.5rem 0;" class="figure">
+<svg viewbox="0 0 900 430" width="100%" style="max-width:820px;display:block;margin:auto;font-family:Helvetica,'Helvetica Neue',Arial,sans-serif;">
+  <defs>
+    <marker id="arrW2b" markerwidth="8" markerheight="8" refx="7" refy="4" orient="auto"><path d="M0,0 L0,8 L8,4 z" fill="#555"></path></marker>
+  </defs>
+  <text x="450" y="34" text-anchor="middle" font-size="24" font-weight="700" fill="#002A5C">Common ML task types</text>
+
+  <g stroke="#555" stroke-width="1.6" fill="none">
+    <path d="M450,116 L450,136 L210,136 L210,156" marker-end="url(#arrW2b)"></path>
+    <path d="M450,136 L615,136 L615,156" marker-end="url(#arrW2b)"></path>
+    <path d="M615,216 L615,236 L470,236 L470,256" marker-end="url(#arrW2b)"></path>
+    <path d="M615,236 L615,256" marker-end="url(#arrW2b)"></path>
+    <path d="M615,236 L760,236 L760,256" marker-end="url(#arrW2b)"></path>
+    <path d="M615,316 L615,336 L540,336 L540,356" marker-end="url(#arrW2b)"></path>
+    <path d="M615,336 L690,336 L690,356" marker-end="url(#arrW2b)"></path>
+  </g>
+
+  <rect x="360" y="60" width="180" height="56" rx="8" fill="#FAEDCB" stroke="#C7A857" stroke-width="1.5"></rect>
+  <text x="450" y="94" text-anchor="middle" font-size="18" font-weight="700" fill="#796020">Task type</text>
+
+  <rect x="120" y="160" width="180" height="56" rx="8" fill="#F7D9C4" stroke="#C78557" stroke-width="1.5"></rect>
+  <text x="210" y="194" text-anchor="middle" font-size="17" fill="#794520">Regression</text>
+
+  <rect x="525" y="160" width="180" height="56" rx="8" fill="#C9E4DE" stroke="#57C7AE" stroke-width="1.5"></rect>
+  <text x="615" y="194" text-anchor="middle" font-size="17" fill="#207965">Classification</text>
+
+  <rect x="400" y="260" width="140" height="56" rx="8" fill="#C9E4DE" stroke="#57C7AE" stroke-width="1.5"></rect>
+  <text x="470" y="294" text-anchor="middle" font-size="17" fill="#207965">Binary</text>
+  <rect x="545" y="260" width="140" height="56" rx="8" fill="#C9E4DE" stroke="#57C7AE" stroke-width="1.5"></rect>
+  <text x="615" y="294" text-anchor="middle" font-size="17" fill="#207965">Multiclass</text>
+  <rect x="690" y="260" width="140" height="56" rx="8" fill="#C9E4DE" stroke="#57C7AE" stroke-width="1.5"></rect>
+  <text x="760" y="294" text-anchor="middle" font-size="17" fill="#207965">Multilabel</text>
+
+  <rect x="470" y="360" width="140" height="56" rx="8" fill="#DBCDF0" stroke="#8457C7" stroke-width="1.5"></rect>
+  <text x="540" y="384" text-anchor="middle" font-size="16" fill="#442079">Low</text>
+  <text x="540" y="404" text-anchor="middle" font-size="16" fill="#442079">cardinality</text>
+  <rect x="620" y="360" width="140" height="56" rx="8" fill="#DBCDF0" stroke="#8457C7" stroke-width="1.5"></rect>
+  <text x="690" y="384" text-anchor="middle" font-size="16" fill="#442079">High</text>
+  <text x="690" y="404" text-anchor="middle" font-size="16" fill="#442079">cardinality</text>
+</svg>
+<figcaption style="text-align:center;font-size:0.9em;color:#555;">Figure 2. Common task types. Classification splits by the number of classes and by whether an example can carry more than one label (after the book's Figure 2-3).</figcaption>
+</figure>
+<section id="sec-class-vs-reg" class="level3">
+<h3 class="anchored" data-anchor-id="sec-class-vs-reg">Classification versus regression</h3>
+<div class="definition-block">
+<p><strong>Definition.</strong> A <strong><a href="https://en.wikipedia.org/wiki/Statistical_classification">classification</a></strong> model assigns each input to one of a set of categories (spam or not spam). A <strong><a href="https://en.wikipedia.org/wiki/Regression_analysis">regression</a></strong> model outputs a continuous value (the price of a house).</p>
+</div>
+<p>Either can be reframed as the other.</p>
+<ul>
+<li><strong>Regression → classification:</strong> bucket house prices (under $100,000; $100,000–$200,000; $200,000–$500,000; and so on) and predict the bucket.</li>
+<li><strong>Classification → regression:</strong> have the spam model output a value between 0 and 1, then pick a <strong>threshold</strong> (for example, above 0.5 means spam).</li>
+</ul>
+<p>The second reframing is how probabilistic classifiers such as <a href="https://en.wikipedia.org/wiki/Logistic_regression">logistic regression</a> already work: the model outputs a score or probability, and a separate decision threshold turns it into a class. The threshold does not have to be 0.5. Where to set it depends on the relative cost of false positives and false negatives, which matters most when one class is rare. The book takes up evaluation metrics in Chapter 6.</p>
+</section>
+<section id="sec-binary-multiclass" class="level3">
+<h3 class="anchored" data-anchor-id="sec-binary-multiclass">Binary versus multiclass classification</h3>
+<div class="definition-block">
+<p><strong>Definition.</strong> <strong><a href="https://en.wikipedia.org/wiki/Binary_classification">Binary classification</a></strong> has exactly two classes. <strong><a href="https://en.wikipedia.org/wiki/Multiclass_classification">Multiclass classification</a></strong> has more than two, and each example belongs to exactly one of them.</p>
+</div>
+<p>The book’s binary examples include whether a comment is toxic, whether a lung scan shows signs of cancer, and whether a transaction is fraudulent. Fewer classes generally means an easier problem. Binary problems are easier to work with than multiclass ones: computing F1 or reading a <a href="https://en.wikipedia.org/wiki/Confusion_matrix">confusion matrix</a> is far more intuitive with two classes.</p>
+<div class="definition-block">
+<p><strong>Definition.</strong> A classification task has <strong>high cardinality</strong> when the number of classes is large, for example thousands of diseases in diagnosis or tens of thousands of products in product classification.</p>
+</div>
+<p>High cardinality is hard first because of data. The author’s rule of thumb is that a model needs <strong>at least 100 examples per class</strong> to learn that class.</p>
+<div class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+Note
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p><strong>Worked example (the book’s numbers).</strong> With 1,000 classes and at least 100 examples each, we need at least <span class="math inline">1{,}000 \times 100 = 100{,}000</span> labeled examples, and that minimum must hold for the rarest class, not just on average. With thousands of classes, some are almost certainly rare, so collecting the minimum for them is the bottleneck.</p>
+</div>
+</div>
+<p>One remedy is <strong><a href="https://en.wikipedia.org/wiki/Hierarchical_classification">hierarchical classification</a></strong>: one classifier assigns a coarse group, then a second classifier picks a subgroup within it. For products, first classify into electronics, home and kitchen, fashion, or pet supplies; then, for a product classified as fashion, classify into shoes, shirts, jeans, or accessories.</p>
+</section>
+<section id="sec-multilabel" class="level3">
+<h3 class="anchored" data-anchor-id="sec-multilabel">Multiclass versus multilabel classification</h3>
+<div class="definition-block">
+<p><strong>Definition.</strong> In <strong><a href="https://en.wikipedia.org/wiki/Multi-label_classification">multilabel classification</a></strong>, an example can belong to more than one class at the same time.</p>
+</div>
+<p>The book’s running example classifies articles into four topics: tech, entertainment, finance, politics. An article can be about both tech and finance. The label encoding shows the difference.</p>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th>Setting</th>
+<th>Label for “entertainment”</th>
+<th>Label for “entertainment and finance”</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>Multiclass (<a href="https://en.wikipedia.org/wiki/One-hot">one-hot</a>)</td>
+<td><span class="math inline">[0, 1, 0, 0]</span></td>
+<td>not allowed</td>
+</tr>
+<tr class="even">
+<td>Multilabel (multi-hot)</td>
+<td><span class="math inline">[0, 1, 0, 0]</span></td>
+<td><span class="math inline">[0, 1, 1, 0]</span></td>
+</tr>
+</tbody>
+</table>
+<p>There are two main approaches to a multilabel problem:</p>
+<ol type="1">
+<li>Treat it like multiclass, but with multi-hot label vectors.</li>
+<li>Turn it into a set of binary problems: one model per topic, each answering “is this article in this topic?”</li>
+</ol>
+<p>The author reports that multilabel is the task type companies struggle with most, for two reasons. First, labeling is harder. Annotators may disagree on how many classes an example belongs to (one annotator says two topics, another says one), which is the <strong>label multiplicity</strong> problem of Chapter 4. Second, turning probabilities into predictions is harder.</p>
+<div class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+Note
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p><strong>Worked example (the book’s numbers).</strong> The model outputs <span class="math inline">[0.45, 0.2, 0.02, 0.33]</span> for [tech, entertainment, finance, politics].</p>
+<ul>
+<li><strong>Multiclass:</strong> exactly one class is correct, so take the largest: tech (0.45).</li>
+<li><strong>Multilabel:</strong> the number of correct classes is unknown. Taking the top two gives tech and politics (0.45, 0.33); taking the top three adds entertainment (0.2). Nothing in the output says which is right, so we need an extra rule, such as a per-class threshold or a fixed count.</li>
+</ul>
+</div>
+</div>
+</section>
+<section id="sec-multiple-framings" class="level3">
+<h3 class="anchored" data-anchor-id="sec-multiple-framings">Multiple ways to frame a problem</h3>
+<p>The same goal can be framed in ways that make it much easier or harder. The book’s example: predict which app a phone user will open next. <a href="#fig-framings">Figure 3</a> compares two framings.</p>
+<figure id="fig-framings" style="margin:1.5rem 0;" class="figure">
+<svg viewbox="0 0 1000 420" width="100%" style="max-width:960px;display:block;margin:auto;font-family:Helvetica,'Helvetica Neue',Arial,sans-serif;">
+  <defs>
+    <marker id="arrW2c" markerwidth="8" markerheight="8" refx="7" refy="4" orient="auto"><path d="M0,0 L0,8 L8,4 z" fill="#555"></path></marker>
+  </defs>
+  <text x="500" y="34" text-anchor="middle" font-size="24" font-weight="700" fill="#002A5C">Two framings of next-app prediction</text>
+
+  <!-- Row 1: classification -->
+  <text x="40" y="84" font-size="18" font-weight="700" fill="#333">A. Multiclass classification</text>
+  <rect x="40" y="100" width="250" height="60" rx="6" fill="#C6DEF1" stroke="#5795C7" stroke-width="1.4"></rect>
+  <text x="165" y="126" text-anchor="middle" font-size="16" fill="#205279">User features +</text>
+  <text x="165" y="148" text-anchor="middle" font-size="16" fill="#205279">context (time, location)</text>
+  <line x1="294" y1="130" x2="346" y2="130" stroke="#555" stroke-width="1.6" marker-end="url(#arrW2c)"></line>
+  <rect x="352" y="100" width="130" height="60" rx="8" fill="#C9E4DE" stroke="#57C7AE" stroke-width="1.5"></rect>
+  <text x="417" y="136" text-anchor="middle" font-size="17" font-weight="600" fill="#207965">Model</text>
+  <line x1="486" y1="130" x2="538" y2="130" stroke="#555" stroke-width="1.6" marker-end="url(#arrW2c)"></line>
+  <rect x="544" y="94" width="420" height="72" rx="6" fill="#F7D9C4" stroke="#C78557" stroke-width="1.4"></rect>
+  <text x="754" y="122" text-anchor="middle" font-size="16" fill="#794520">One call: N probabilities, one per app</text>
+  <text x="754" y="148" text-anchor="middle" font-size="15" fill="#792051">Output size tied to N: new app means retraining</text>
+
+  <line x1="30" y1="196" x2="970" y2="196" stroke="#bbb" stroke-width="1" stroke-dasharray="6,5"></line>
+
+  <!-- Row 2: scoring -->
+  <text x="40" y="232" font-size="18" font-weight="700" fill="#333">B. One score per app (the book calls this regression)</text>
+  <rect x="40" y="250" width="250" height="40" rx="6" fill="#C6DEF1" stroke="#5795C7" stroke-width="1.4"></rect>
+  <text x="165" y="276" text-anchor="middle" font-size="15" fill="#205279">User + context + app 0</text>
+  <rect x="40" y="300" width="250" height="40" rx="6" fill="#C6DEF1" stroke="#5795C7" stroke-width="1.4"></rect>
+  <text x="165" y="326" text-anchor="middle" font-size="15" fill="#205279">User + context + app 1</text>
+  <rect x="40" y="350" width="250" height="40" rx="6" fill="#C6DEF1" stroke="#5795C7" stroke-width="1.4"></rect>
+  <text x="165" y="376" text-anchor="middle" font-size="15" fill="#205279">User + context + app ...</text>
+  <g stroke="#555" stroke-width="1.5" fill="none">
+    <line x1="294" y1="270" x2="346" y2="310" marker-end="url(#arrW2c)"></line>
+    <line x1="294" y1="320" x2="346" y2="320" marker-end="url(#arrW2c)"></line>
+    <line x1="294" y1="370" x2="346" y2="330" marker-end="url(#arrW2c)"></line>
+  </g>
+  <rect x="352" y="290" width="130" height="60" rx="8" fill="#C9E4DE" stroke="#57C7AE" stroke-width="1.5"></rect>
+  <text x="417" y="326" text-anchor="middle" font-size="17" font-weight="600" fill="#207965">Model</text>
+  <line x1="486" y1="320" x2="538" y2="320" stroke="#555" stroke-width="1.6" marker-end="url(#arrW2c)"></line>
+  <rect x="544" y="284" width="420" height="72" rx="6" fill="#F7D9C4" stroke="#C78557" stroke-width="1.4"></rect>
+  <text x="754" y="312" text-anchor="middle" font-size="16" fill="#794520">N calls: one score in [0, 1] each</text>
+  <text x="754" y="338" text-anchor="middle" font-size="15" fill="#207965">New app is a new input row: no retraining</text>
+</svg>
+<figcaption style="text-align:center;font-size:0.9em;color:#555;">Figure 3. Framing A ties the model's output layer to the number of apps. Framing B moves the app into the input, so the model scores any app, including new ones (after the book's Figures 2-5 and 2-6).</figcaption>
+</figure>
+<ul>
+<li><strong>Framing A (multiclass).</strong> Input: the user’s features and the environment’s features (demographics, time, location, previously used apps). Output: a probability distribution over all <span class="math inline">N</span> apps. One prediction per user per moment, but it is a vector of size <span class="math inline">N</span>. When a new app is added, we have to retrain the model from scratch, or at least every component whose parameter count depends on <span class="math inline">N</span>.</li>
+<li><strong>Framing B (score each app).</strong> Input: the user’s, environment’s, <em>and the app’s</em> features. Output: a single number between 0 and 1, where higher means the user is more likely to open that app. That means <span class="math inline">N</span> predictions per user per moment, each just a number. A new app needs only its features as a new input row.</li>
+</ul>
+<p>The book calls framing B regression because the output is a continuous score. Since the target is whether the user opens the app, it is commonly trained as a binary classifier on (user, context, app) examples with log loss (defined below). Either way, the lesson is the same: moving the item into the input decouples the model from the size of the catalog.</p>
+</section>
+</section>
+<section id="sec-objective-functions" class="level2">
+<h2 class="anchored" data-anchor-id="sec-objective-functions">Objective functions</h2>
+<p>To learn, a model needs an objective function to optimize.</p>
+<div class="definition-block">
+<p><strong>Definition.</strong> An <strong>objective function</strong> is the mathematical function a model optimizes during training. It is also called a <strong><a href="https://en.wikipedia.org/wiki/Loss_function">loss function</a></strong>, because training usually minimizes the loss caused by wrong predictions. In supervised learning, the loss compares the model’s outputs with the ground-truth labels.</p>
+</div>
+<p>This is a different sense of “objective” from §<a href="#sec-objectives">Business and ML objectives</a>: there, an objective was a goal for the project; here, it is a function the training algorithm minimizes.</p>
+<p>Most practitioners use a standard loss rather than designing one:</p>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th>Task</th>
+<th>Common loss</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>Regression</td>
+<td><a href="https://en.wikipedia.org/wiki/Root-mean-square_deviation">RMSE</a> (root mean squared error) or <a href="https://en.wikipedia.org/wiki/Mean_absolute_error">MAE</a> (mean absolute error)</td>
+</tr>
+<tr class="even">
+<td>Binary classification</td>
+<td>Logistic loss (log loss)</td>
+</tr>
+<tr class="odd">
+<td>Multiclass classification</td>
+<td><a href="https://en.wikipedia.org/wiki/Cross-entropy">Cross-entropy</a></td>
+</tr>
+</tbody>
+</table>
+<p>The book gives cross-entropy only as code. The definitions are as follows.</p>
+<div class="definition-block">
+<p><strong>Definition.</strong> For a true label distribution <span class="math inline">p</span> and a predicted distribution <span class="math inline">q</span> over <span class="math inline">K</span> classes, the <strong>cross-entropy</strong> is</p>
+<p><span class="math display">
+H(p, q) = -\sum_{i=1}^{K} p_i \log q_i .
+</span></p>
+<p>When the label is one-hot with true class <span class="math inline">k</span>, every term but one vanishes and <span class="math inline">H(p, q) = -\log q_k</span>.</p>
+<p><strong>Log loss</strong> is the binary case. For a label <span class="math inline">y \in \{0, 1\}</span> and predicted probability <span class="math inline">q</span> that <span class="math inline">y = 1</span>,</p>
+<p><span class="math display">
+\ell(y, q) = -\big[\, y \log q + (1 - y) \log (1 - q) \,\big].
+</span></p>
+</div>
+<p>Cross-entropy only looks at the probability assigned to the true class, and <span class="math inline">-\log</span> grows sharply as that probability approaches 0. So a confident wrong prediction costs far more than a hesitant one.</p>
+<div class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+Note
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p><strong>Worked example (the book’s numbers).</strong> An article’s true topic is politics, so <span class="math inline">p = [0, 0, 0, 1]</span>. The model outputs <span class="math inline">q = [0.45, 0.2, 0.02, 0.33]</span>.</p>
+<p><span class="math display">
+H(p, q) = -\big(0 \cdot \log 0.45 + 0 \cdot \log 0.2 + 0 \cdot \log 0.02 + 1 \cdot \log 0.33\big) = -\ln 0.33 \approx 1.11 .
+</span></p>
+<p>Only the 0.33 on the true class counts. Had the model put 0.9 on politics, the loss would be <span class="math inline">-\ln 0.9 \approx 0.11</span>; had it put 0.02 there, the loss would be <span class="math inline">-\ln 0.02 \approx 3.91</span>.</p>
+</div>
+</div>
+<section id="sec-decoupling" class="level3">
+<h3 class="anchored" data-anchor-id="sec-decoupling">Decoupling objectives</h3>
+<p>Framing gets harder when there are several objectives. The book’s example is ranking posts in a newsfeed. The original goal is to maximize engagement, through three objectives: filter out spam, filter out unsafe content, and rank by engagement (how likely a user is to click).</p>
+<p>Optimizing engagement alone turns out to promote extreme posts, which get more engagement. So the goal becomes: maximize engagement <em>while</em> minimizing the spread of extreme views and misinformation. Two objectives are added (filter misinformation, rank by quality), and now two of them conflict. Should an engaging but low-quality post rank high or low?</p>
+<p>Each ranking objective becomes a loss. To rank by quality, predict each post’s quality and minimize <span class="math inline">L_{\text{quality}}</span>, the gap between predicted and true quality. To rank by engagement, predict each post’s clicks and minimize <span class="math inline">L_{\text{engagement}}</span>, the gap between predicted and actual clicks. There are two ways to combine them (<a href="#fig-decoupling">Figure 4</a>).</p>
+<p><strong>Option 1: one model, combined loss.</strong></p>
+<div class="boxed-eq">
+<p><span class="math display">
+L = \alpha \, L_{\text{quality}} + \beta \, L_{\text{engagement}}
+</span></p>
+</div>
+<p>The weights <span class="math inline">\alpha</span> and <span class="math inline">\beta</span> set the trade-off, and they can be tuned by trial or more systematically with Pareto (<a href="https://en.wikipedia.org/wiki/Multi-objective_optimization">multi-objective</a>) optimization. The cost is that <strong>every change to <span class="math inline">\alpha</span> or <span class="math inline">\beta</span> means retraining</strong>, for example when quality rises but engagement falls and we want to shift weight toward engagement.</p>
+<p><strong>Option 2: one model per objective, combined scores.</strong> Train a quality model that minimizes <span class="math inline">L_{\text{quality}}</span> and outputs a quality score, and an engagement model that minimizes <span class="math inline">L_{\text{engagement}}</span> and outputs predicted clicks. Rank posts by</p>
+<div class="boxed-eq">
+<p><span class="math display">
+\text{score} = \alpha \cdot \text{quality score} + \beta \cdot \text{engagement score}
+</span></p>
+</div>
+<p>Now <span class="math inline">\alpha</span> and <span class="math inline">\beta</span> can change without retraining anything.</p>
+<figure id="fig-decoupling" style="margin:1.5rem 0;" class="figure">
+<svg viewbox="0 0 1000 370" width="100%" style="max-width:960px;display:block;margin:auto;font-family:Helvetica,'Helvetica Neue',Arial,sans-serif;">
+  <defs>
+    <marker id="arrW2d" markerwidth="8" markerheight="8" refx="7" refy="4" orient="auto"><path d="M0,0 L0,8 L8,4 z" fill="#555"></path></marker>
+  </defs>
+  <text x="500" y="34" text-anchor="middle" font-size="24" font-weight="700" fill="#002A5C">Combined loss vs decoupled models</text>
+
+  <!-- Left: combined -->
+  <text x="250" y="78" text-anchor="middle" font-size="18" font-weight="700" fill="#333">Option 1: one model</text>
+  <rect x="150" y="94" width="200" height="44" rx="6" fill="#C6DEF1" stroke="#5795C7" stroke-width="1.4"></rect>
+  <text x="250" y="122" text-anchor="middle" font-size="16" fill="#205279">Posts</text>
+  <line x1="250" y1="140" x2="250" y2="164" stroke="#555" stroke-width="1.6" marker-end="url(#arrW2d)"></line>
+  <rect x="70" y="170" width="360" height="70" rx="8" fill="#C9E4DE" stroke="#57C7AE" stroke-width="1.5"></rect>
+  <text x="250" y="198" text-anchor="middle" font-size="17" font-weight="600" fill="#207965">One model trained on</text>
+  <text x="250" y="222" text-anchor="middle" font-size="16" fill="#207965">α · quality loss + β · engagement loss</text>
+  <line x1="250" y1="242" x2="250" y2="266" stroke="#555" stroke-width="1.6" marker-end="url(#arrW2d)"></line>
+  <rect x="150" y="272" width="200" height="44" rx="6" fill="#F7D9C4" stroke="#C78557" stroke-width="1.4"></rect>
+  <text x="250" y="300" text-anchor="middle" font-size="16" fill="#794520">Ranking</text>
+  <text x="250" y="346" text-anchor="middle" font-size="16" fill="#792051">Change α or β: retrain</text>
+
+  <line x1="500" y1="64" x2="500" y2="356" stroke="#bbb" stroke-width="1" stroke-dasharray="6,5"></line>
+
+  <!-- Right: decoupled -->
+  <text x="750" y="78" text-anchor="middle" font-size="18" font-weight="700" fill="#333">Option 2: two models</text>
+  <rect x="650" y="94" width="200" height="44" rx="6" fill="#C6DEF1" stroke="#5795C7" stroke-width="1.4"></rect>
+  <text x="750" y="122" text-anchor="middle" font-size="16" fill="#205279">Posts</text>
+  <line x1="720" y1="140" x2="648" y2="166" stroke="#555" stroke-width="1.6" marker-end="url(#arrW2d)"></line>
+  <line x1="780" y1="140" x2="852" y2="166" stroke="#555" stroke-width="1.6" marker-end="url(#arrW2d)"></line>
+  <rect x="540" y="170" width="200" height="56" rx="8" fill="#C9E4DE" stroke="#57C7AE" stroke-width="1.5"></rect>
+  <text x="640" y="204" text-anchor="middle" font-size="16" font-weight="600" fill="#207965">Quality model</text>
+  <rect x="760" y="170" width="200" height="56" rx="8" fill="#C9E4DE" stroke="#57C7AE" stroke-width="1.5"></rect>
+  <text x="860" y="204" text-anchor="middle" font-size="16" font-weight="600" fill="#207965">Engagement model</text>
+  <line x1="648" y1="228" x2="712" y2="266" stroke="#555" stroke-width="1.6" marker-end="url(#arrW2d)"></line>
+  <line x1="852" y1="228" x2="788" y2="266" stroke="#555" stroke-width="1.6" marker-end="url(#arrW2d)"></line>
+  <rect x="620" y="272" width="260" height="44" rx="6" fill="#F7D9C4" stroke="#C78557" stroke-width="1.4"></rect>
+  <text x="750" y="300" text-anchor="middle" font-size="16" fill="#794520">Rank by α · q + β · e</text>
+  <text x="750" y="346" text-anchor="middle" font-size="16" fill="#207965">Change α or β: no retraining</text>
+</svg>
+<figcaption style="text-align:center;font-size:0.9em;color:#555;">Figure 4. Folding both objectives into one loss fixes the trade-off at training time. Separate models move the trade-off to ranking time.</figcaption>
+</figure>
+<p>The book’s general advice: <strong>when there are multiple objectives, decouple them first.</strong> Two reasons:</p>
+<ol type="1">
+<li><strong>Tuning without retraining.</strong> The trade-off between objectives can be adjusted at ranking time.</li>
+<li><strong>Separate maintenance schedules.</strong> Spam tactics change much faster than how people judge post quality, so the spam filter needs updating far more often than the quality ranker.</li>
+</ol>
+<p>This resolves the conflict from Chapter 1’s restaurant app: one model for what users will order, one for what earns the most, and a tunable combination of the two.</p>
+</section>
+</section>
+<section id="sec-mind-vs-data" class="level2">
+<h2 class="anchored" data-anchor-id="sec-mind-vs-data">Mind versus data</h2>
+<p>Is progress in ML driven by better algorithms (the “mind” side, including <a href="https://en.wikipedia.org/wiki/Inductive_bias">inductive biases</a> and clever architectures) or by more data and the computation that comes with it? In principle we can pursue both, but time spent on one is usually taken from the other.</p>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th>Mind over data</th>
+<th>Data over mind</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><a href="https://en.wikipedia.org/wiki/Judea_Pearl">Judea Pearl</a>: “Data is profoundly dumb.” In 2020 he predicted that data-centric ML practitioners would be outdated within 3–5 years.</td>
+<td><a href="https://en.wikipedia.org/wiki/Richard_S._Sutton">Richard Sutton</a>, “The Bitter Lesson”: general methods that leverage computation are ultimately the most effective, by a large margin.</td>
+</tr>
+<tr class="even">
+<td>Christopher Manning (milder): huge compute and data with a simple learning algorithm make very bad learners; structure lets systems learn more from less data.</td>
+<td><a href="https://en.wikipedia.org/wiki/Peter_Norvig">Peter Norvig</a>, on Google Search: “We don’t have better algorithms. We just have more data.”</td>
+</tr>
+</tbody>
+</table>
+<p>Monica Rogati’s “data science hierarchy of needs” makes the data side concrete: data collection and infrastructure sit at the base of a pyramid with ML near the top, so without good data (quality and quantity) there is no data science.</p>
+<p>The book frames the debate precisely: nobody doubts that <em>finite</em> data is necessary; the question is whether it is <em>sufficient</em>. With infinite data we might simply look up the answer, but a lot of data is not infinite data.</p>
+<p>For now, the trend favors data. Language-model datasets grew from 0.8 billion tokens (the One Billion Word Benchmark, 2013) to 10 billion (GPT-2, 2019) to 500 billion (GPT-3, 2020). But more data is not automatically better. <strong>More data of lower quality, such as outdated data or incorrectly labeled data, can hurt performance.</strong> That is the motivation for the data chapters that follow.</p>
+</section>
+<section id="sec-summary" class="level2">
+<h2 class="anchored" data-anchor-id="sec-summary">Summary</h2>
+<div class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+Note
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p><strong>Key takeaways from Chapter 2</strong> (and what an interviewer is usually checking):</p>
+<ul>
+<li><strong>Start from the business metric.</strong> ML metrics matter only if they move a business metric. Bridge metrics (take-rate) and A/B tests connect the two, and the model with the better business result wins even if its ML metric is worse.</li>
+<li><strong>Four requirements: reliability, scalability, maintainability, adaptability.</strong> ML fails silently; scaling covers complexity, traffic, and model count, plus artifact management; adaptability depends on maintainability.</li>
+<li><strong>Development is a cycle.</strong> Scoping, data, modeling, deployment, monitoring, business analysis, then back to scoping. Real iterations are often caused by the wrong metric or the wrong data rather than the wrong model.</li>
+<li><strong>Framing means choosing inputs, outputs, and the objective function.</strong> Classification and regression convert into each other; a probability plus a threshold is a classifier, and the threshold is a choice.</li>
+<li><strong>Know the task types and their difficulties.</strong> Binary is easiest; high cardinality needs data for rare classes (hierarchical classification helps); multilabel is hard to label and hard to decode.</li>
+<li><strong>Framing changes difficulty.</strong> Putting the item into the input (one score per app) avoids retraining whenever the catalog changes.</li>
+<li><strong>Know the standard losses.</strong> RMSE/MAE for regression, log loss for binary, cross-entropy for multiclass; with one-hot labels, cross-entropy is <span class="math inline">-\log</span> of the probability on the true class.</li>
+<li><strong>Decouple multiple objectives.</strong> Separate models plus a weighted score let you retune trade-offs without retraining and maintain each model on its own schedule.</li>
+<li><strong>Data matters, but quality matters too.</strong> More low-quality data can make a model worse.</li>
+</ul>
+</div>
+</div>
+<p><strong>Next chapter:</strong> Chapter 3, <em>Data Engineering Fundamentals</em>, covers data sources, data formats, data models, storage engines for transactional and analytical processing, how data passes between processes, and batch versus stream processing.</p>
+</section>
+<section id="quick-self-check" class="level2">
+<h2 class="anchored" data-anchor-id="quick-self-check">Quick self-check</h2>
+<p>If you can take “reduce customer support wait times” and, using only “business metric,” “task type,” and “objective function,” turn it into an ML problem and say how you would know it worked, you have understood the core of Chapter 2.</p>
+
+
+</section>
+
+</main> <!-- /main -->
+<script id="quarto-html-after-body" type="application/javascript">
+  window.document.addEventListener("DOMContentLoaded", function (event) {
+    const icon = "";
+    const anchorJS = new window.AnchorJS();
+    anchorJS.options = {
+      placement: 'right',
+      icon: icon
+    };
+    anchorJS.add('.anchored');
+    const isCodeAnnotation = (el) => {
+      for (const clz of el.classList) {
+        if (clz.startsWith('code-annotation-')) {                     
+          return true;
+        }
+      }
+      return false;
+    }
+    const onCopySuccess = function(e) {
+      // button target
+      const button = e.trigger;
+      // don't keep focus
+      button.blur();
+      // flash "checked"
+      button.classList.add('code-copy-button-checked');
+      var currentTitle = button.getAttribute("title");
+      button.setAttribute("title", "Copied!");
+      let tooltip;
+      if (window.bootstrap) {
+        button.setAttribute("data-bs-toggle", "tooltip");
+        button.setAttribute("data-bs-placement", "left");
+        button.setAttribute("data-bs-title", "Copied!");
+        tooltip = new bootstrap.Tooltip(button, 
+          { trigger: "manual", 
+            customClass: "code-copy-button-tooltip",
+            offset: [0, -8]});
+        tooltip.show();    
+      }
+      setTimeout(function() {
+        if (tooltip) {
+          tooltip.hide();
+          button.removeAttribute("data-bs-title");
+          button.removeAttribute("data-bs-toggle");
+          button.removeAttribute("data-bs-placement");
+        }
+        button.setAttribute("title", currentTitle);
+        button.classList.remove('code-copy-button-checked');
+      }, 1000);
+      // clear code selection
+      e.clearSelection();
+    }
+    const getTextToCopy = function(trigger) {
+      const outerScaffold = trigger.parentElement.cloneNode(true);
+      const codeEl = outerScaffold.querySelector('code');
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+    }
+    const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
+      text: getTextToCopy
+    });
+    clipboard.on('success', onCopySuccess);
+    if (window.document.getElementById('quarto-embedded-source-code-modal')) {
+      const clipboardModal = new window.ClipboardJS('.code-copy-button[data-in-quarto-modal]', {
+        text: getTextToCopy,
+        container: window.document.getElementById('quarto-embedded-source-code-modal')
+      });
+      clipboardModal.on('success', onCopySuccess);
+    }
+      var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+      var mailtoRegex = new RegExp(/^mailto:/);
+        var filterRegex = new RegExp('/' + window.location.host + '/');
+      var isInternal = (href) => {
+          return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+      }
+      // Inspect non-navigation links and adorn them if external
+     var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+      for (var i=0; i<links.length; i++) {
+        const link = links[i];
+        if (!isInternal(link.href)) {
+          // undo the damage that might have been done by quarto-nav.js in the case of
+          // links that we want to consider external
+          if (link.dataset.originalHref !== undefined) {
+            link.href = link.dataset.originalHref;
+          }
+            // target, if specified
+            link.setAttribute("target", "_blank");
+            if (link.getAttribute("rel") === null) {
+              link.setAttribute("rel", "noopener");
+            }
+        }
+      }
+    function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+      const config = {
+        allowHTML: true,
+        maxWidth: 500,
+        delay: 100,
+        arrow: false,
+        appendTo: function(el) {
+            return el.parentElement;
+        },
+        interactive: true,
+        interactiveBorder: 10,
+        theme: 'quarto',
+        placement: 'bottom-start',
+      };
+      if (contentFn) {
+        config.content = contentFn;
+      }
+      if (onTriggerFn) {
+        config.onTrigger = onTriggerFn;
+      }
+      if (onUntriggerFn) {
+        config.onUntrigger = onUntriggerFn;
+      }
+      window.tippy(el, config); 
+    }
+    const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+    for (var i=0; i<noterefs.length; i++) {
+      const ref = noterefs[i];
+      tippyHover(ref, function() {
+        // use id or data attribute instead here
+        let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+        try { href = new URL(href).hash; } catch {}
+        const id = href.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note) {
+          return note.innerHTML;
+        } else {
+          return "";
+        }
+      });
+    }
+    const xrefs = window.document.querySelectorAll('a.quarto-xref');
+    const processXRef = (id, note) => {
+      // Strip column container classes
+      const stripColumnClz = (el) => {
+        el.classList.remove("page-full", "page-columns");
+        if (el.children) {
+          for (const child of el.children) {
+            stripColumnClz(child);
+          }
+        }
+      }
+      stripColumnClz(note)
+      if (id === null || id.startsWith('sec-')) {
+        // Special case sections, only their first couple elements
+        const container = document.createElement("div");
+        if (note.children && note.children.length > 2) {
+          container.appendChild(note.children[0].cloneNode(true));
+          for (let i = 1; i < note.children.length; i++) {
+            const child = note.children[i];
+            if (child.tagName === "P" && child.innerText === "") {
+              continue;
+            } else {
+              container.appendChild(child.cloneNode(true));
+              break;
+            }
+          }
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(container);
+          }
+          return container.innerHTML
+        } else {
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(note);
+          }
+          return note.innerHTML;
+        }
+      } else {
+        // Remove any anchor links if they are present
+        const anchorLink = note.querySelector('a.anchorjs-link');
+        if (anchorLink) {
+          anchorLink.remove();
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        if (note.classList.contains("callout")) {
+          return note.outerHTML;
+        } else {
+          return note.innerHTML;
+        }
+      }
+    }
+    for (var i=0; i<xrefs.length; i++) {
+      const xref = xrefs[i];
+      tippyHover(xref, undefined, function(instance) {
+        instance.disable();
+        let url = xref.getAttribute('href');
+        let hash = undefined; 
+        if (url.startsWith('#')) {
+          hash = url;
+        } else {
+          try { hash = new URL(url).hash; } catch {}
+        }
+        if (hash) {
+          const id = hash.replace(/^#\/?/, "");
+          const note = window.document.getElementById(id);
+          if (note !== null) {
+            try {
+              const html = processXRef(id, note.cloneNode(true));
+              instance.setContent(html);
+            } finally {
+              instance.enable();
+              instance.show();
+            }
+          } else {
+            // See if we can fetch this
+            fetch(url.split('#')[0])
+            .then(res => res.text())
+            .then(html => {
+              const parser = new DOMParser();
+              const htmlDoc = parser.parseFromString(html, "text/html");
+              const note = htmlDoc.getElementById(id);
+              if (note !== null) {
+                const html = processXRef(id, note);
+                instance.setContent(html);
+              } 
+            }).finally(() => {
+              instance.enable();
+              instance.show();
+            });
+          }
+        } else {
+          // See if we can fetch a full url (with no hash to target)
+          // This is a special case and we should probably do some content thinning / targeting
+          fetch(url)
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.querySelector('main.content');
+            if (note !== null) {
+              // This should only happen for chapter cross references
+              // (since there is no id in the URL)
+              // remove the first header
+              if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+                note.children[0].remove();
+              }
+              const html = processXRef(null, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      }, function(instance) {
+      });
+    }
+        let selectedAnnoteEl;
+        const selectorForAnnotation = ( cell, annotation) => {
+          let cellAttr = 'data-code-cell="' + cell + '"';
+          let lineAttr = 'data-code-annotation="' +  annotation + '"';
+          const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+          return selector;
+        }
+        const selectCodeLines = (annoteEl) => {
+          const doc = window.document;
+          const targetCell = annoteEl.getAttribute("data-target-cell");
+          const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+          const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+          const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+          const lineIds = lines.map((line) => {
+            return targetCell + "-" + line;
+          })
+          let top = null;
+          let height = null;
+          let parent = null;
+          if (lineIds.length > 0) {
+              //compute the position of the single el (top and bottom and make a div)
+              const el = window.document.getElementById(lineIds[0]);
+              top = el.offsetTop;
+              height = el.offsetHeight;
+              parent = el.parentElement.parentElement;
+            if (lineIds.length > 1) {
+              const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+              const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+              height = bottom - top;
+            }
+            if (top !== null && height !== null && parent !== null) {
+              // cook up a div (if necessary) and position it 
+              let div = window.document.getElementById("code-annotation-line-highlight");
+              if (div === null) {
+                div = window.document.createElement("div");
+                div.setAttribute("id", "code-annotation-line-highlight");
+                div.style.position = 'absolute';
+                parent.appendChild(div);
+              }
+              div.style.top = top - 2 + "px";
+              div.style.height = height + 4 + "px";
+              div.style.left = 0;
+              let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+              if (gutterDiv === null) {
+                gutterDiv = window.document.createElement("div");
+                gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+                gutterDiv.style.position = 'absolute';
+                const codeCell = window.document.getElementById(targetCell);
+                const gutter = codeCell.querySelector('.code-annotation-gutter');
+                gutter.appendChild(gutterDiv);
+              }
+              gutterDiv.style.top = top - 2 + "px";
+              gutterDiv.style.height = height + 4 + "px";
+            }
+            selectedAnnoteEl = annoteEl;
+          }
+        };
+        const unselectCodeLines = () => {
+          const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+          elementsIds.forEach((elId) => {
+            const div = window.document.getElementById(elId);
+            if (div) {
+              div.remove();
+            }
+          });
+          selectedAnnoteEl = undefined;
+        };
+          // Handle positioning of the toggle
+      window.addEventListener(
+        "resize",
+        throttle(() => {
+          elRect = undefined;
+          if (selectedAnnoteEl) {
+            selectCodeLines(selectedAnnoteEl);
+          }
+        }, 10)
+      );
+      function throttle(fn, ms) {
+      let throttle = false;
+      let timer;
+        return (...args) => {
+          if(!throttle) { // first call gets through
+              fn.apply(this, args);
+              throttle = true;
+          } else { // all the others get throttled
+              if(timer) clearTimeout(timer); // cancel #2
+              timer = setTimeout(() => {
+                fn.apply(this, args);
+                timer = throttle = false;
+              }, ms);
+          }
+        };
+      }
+        // Attach click handler to the DT
+        const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+        for (const annoteDlNode of annoteDls) {
+          annoteDlNode.addEventListener('click', (event) => {
+            const clickedEl = event.target;
+            if (clickedEl !== selectedAnnoteEl) {
+              unselectCodeLines();
+              const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+              if (activeEl) {
+                activeEl.classList.remove('code-annotation-active');
+              }
+              selectCodeLines(clickedEl);
+              clickedEl.classList.add('code-annotation-active');
+            } else {
+              // Unselect the line
+              unselectCodeLines();
+              clickedEl.classList.remove('code-annotation-active');
+            }
+          });
+        }
+    const findCites = (el) => {
+      const parentEl = el.parentElement;
+      if (parentEl) {
+        const cites = parentEl.dataset.cites;
+        if (cites) {
+          return {
+            el,
+            cites: cites.split(' ')
+          };
+        } else {
+          return findCites(el.parentElement)
+        }
+      } else {
+        return undefined;
+      }
+    };
+    var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+    for (var i=0; i<bibliorefs.length; i++) {
+      const ref = bibliorefs[i];
+      const citeInfo = findCites(ref);
+      if (citeInfo) {
+        tippyHover(citeInfo.el, function() {
+          var popup = window.document.createElement('div');
+          citeInfo.cites.forEach(function(cite) {
+            var citeDiv = window.document.createElement('div');
+            citeDiv.classList.add('hanging-indent');
+            citeDiv.classList.add('csl-entry');
+            var biblioDiv = window.document.getElementById('ref-' + cite);
+            if (biblioDiv) {
+              citeDiv.innerHTML = biblioDiv.innerHTML;
+            }
+            popup.appendChild(citeDiv);
+          });
+          return popup.innerHTML;
+        });
+      }
+    }
+  });
+  </script>
+<nav class="page-navigation">
+  <div class="nav-page nav-page-previous">
+      <a href="../lectures/week01-practice.html" class="pagination-link" aria-label="Chapter 1 practice: Overview of Machine Learning Systems">
+        <i class="bi bi-arrow-left-short"></i> <span class="nav-page-text"><span class="chapter-title">Chapter 1 practice: Overview of Machine Learning Systems</span></span>
+      </a>          
+  </div>
+  <div class="nav-page nav-page-next">
+      <a href="../lectures/week02-practice.html" class="pagination-link" aria-label="Chapter 2 practice: Introduction to Machine Learning Systems Design">
+        <span class="nav-page-text"><span class="chapter-title">Chapter 2 practice: Introduction to Machine Learning Systems Design</span></span> <i class="bi bi-arrow-right-short"></i>
+      </a>
+  </div>
+</nav>
+</div> <!-- /content -->
+
+
+
+
+<script src="../site_libs/quarto-html/zenscroll-min.js"></script>
+</body></html>

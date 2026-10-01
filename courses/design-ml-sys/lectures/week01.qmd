@@ -1,0 +1,460 @@
+---
+title: "Chapter 1: Overview of Machine Learning Systems"
+---
+
+```{=html}
+<style>#title-block-header { display: none; }</style>
+<div class="lecture-header">
+  <h1>Chapter 1: Overview of Machine Learning Systems</h1>
+</div>
+```
+
+**Overview.** This chapter asks two questions before any model is trained: when is [machine learning](https://en.wikipedia.org/wiki/Machine_learning) (ML) the right tool at all, and what changes when a model leaves the notebook and runs in production? The answers set up the rest of the book. A production ML system is mostly not the algorithm. It is the requirements, data, infrastructure, and the logic for deploying, monitoring, and updating models. Most of the chapter contrasts ML in research with ML in production along five axes (stakeholders, computational priority, data, fairness, interpretability), then contrasts ML systems with traditional software.
+
+## What an ML system is {#sec-ml-system}
+
+When people hear "machine learning system," they usually picture the algorithm: logistic regression, a gradient-boosted tree, a neural network. What else has to exist before that algorithm is useful to anyone?
+
+::: {.definition-block}
+**Definition.** An **ML system** is the whole production setup around a model: the business requirements that motivated it, the interface where users and developers interact with it, the data stack, the logic for developing, evaluating, deploying, monitoring, and updating models, and the infrastructure that delivers that logic.
+:::
+
+The book is organized around this picture. [Figure 1](#fig-components) redraws the book's Figure 1-1 and marks which chapter covers each part.
+
+```{=html}
+<figure id="fig-components" style="margin:1.5rem 0;">
+<svg viewBox="0 0 1000 470" width="100%" style="max-width:960px;display:block;margin:auto;font-family:Helvetica,'Helvetica Neue',Arial,sans-serif;">
+  <defs>
+    <marker id="arrW1a" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L0,8 L8,4 z" fill="#555"/></marker>
+  </defs>
+  <text x="500" y="34" text-anchor="middle" font-size="24" font-weight="700" fill="#002A5C">Components of an ML system</text>
+
+  <!-- Actors -->
+  <rect x="20" y="95" width="220" height="70" rx="8" fill="#F7D9C4" stroke="#C78557" stroke-width="1.5"/>
+  <text x="130" y="136" text-anchor="middle" font-size="17" font-weight="600" fill="#794520">ML system users</text>
+
+  <rect x="20" y="205" width="220" height="70" rx="8" fill="#F2C6DE" stroke="#C75794" stroke-width="1.5"/>
+  <text x="130" y="246" text-anchor="middle" font-size="17" font-weight="600" fill="#792051">Business requirements</text>
+
+  <rect x="20" y="315" width="220" height="70" rx="8" fill="#DBCDF0" stroke="#8457C7" stroke-width="1.5"/>
+  <text x="130" y="356" text-anchor="middle" font-size="17" font-weight="600" fill="#442079">ML system developers</text>
+
+  <!-- Arrows between actors and system -->
+  <line x1="326" y1="130" x2="246" y2="130" stroke="#555" stroke-width="1.6" marker-end="url(#arrW1a)"/>
+  <text x="286" y="120" text-anchor="middle" font-size="15" fill="#555">Ch 11</text>
+  <line x1="244" y1="240" x2="324" y2="240" stroke="#555" stroke-width="1.6" marker-end="url(#arrW1a)"/>
+  <text x="284" y="230" text-anchor="middle" font-size="15" fill="#555">Ch 1, 2</text>
+  <line x1="244" y1="350" x2="324" y2="350" stroke="#555" stroke-width="1.6" marker-end="url(#arrW1a)"/>
+  <text x="284" y="340" text-anchor="middle" font-size="15" fill="#555">all</text>
+
+  <!-- System container -->
+  <rect x="330" y="62" width="650" height="390" rx="10" fill="#ffffff" stroke="#888" stroke-width="1.5"/>
+  <text x="655" y="90" text-anchor="middle" font-size="19" font-weight="700" fill="#333">ML system</text>
+
+  <rect x="350" y="105" width="610" height="62" rx="6" fill="#F7D9C4" stroke="#C78557" stroke-width="1.2"/>
+  <text x="655" y="132" text-anchor="middle" font-size="17" fill="#794520">Deployment, monitoring, updating</text>
+  <text x="655" y="154" text-anchor="middle" font-size="15" fill="#794520">Ch 7, 8, 9</text>
+
+  <rect x="350" y="185" width="194" height="72" rx="6" fill="#C9E4DE" stroke="#57C7AE" stroke-width="1.2"/>
+  <text x="447" y="216" text-anchor="middle" font-size="17" fill="#207965">Feature engineering</text>
+  <text x="447" y="240" text-anchor="middle" font-size="15" fill="#207965">Ch 5</text>
+  <rect x="558" y="185" width="194" height="72" rx="6" fill="#C9E4DE" stroke="#57C7AE" stroke-width="1.2"/>
+  <text x="655" y="216" text-anchor="middle" font-size="17" fill="#207965">ML algorithms</text>
+  <text x="655" y="240" text-anchor="middle" font-size="15" fill="#207965">Ch 6</text>
+  <rect x="766" y="185" width="194" height="72" rx="6" fill="#C9E4DE" stroke="#57C7AE" stroke-width="1.2"/>
+  <text x="863" y="216" text-anchor="middle" font-size="17" fill="#207965">Evaluation</text>
+  <text x="863" y="240" text-anchor="middle" font-size="15" fill="#207965">Ch 6</text>
+
+  <rect x="350" y="275" width="610" height="62" rx="6" fill="#C6DEF1" stroke="#5795C7" stroke-width="1.2"/>
+  <text x="655" y="302" text-anchor="middle" font-size="17" fill="#205279">Data</text>
+  <text x="655" y="324" text-anchor="middle" font-size="15" fill="#205279">Ch 3, 4</text>
+
+  <rect x="350" y="355" width="610" height="62" rx="6" fill="#FAEDCB" stroke="#C7A857" stroke-width="1.2"/>
+  <text x="655" y="382" text-anchor="middle" font-size="17" fill="#796020">Infrastructure</text>
+  <text x="655" y="404" text-anchor="middle" font-size="15" fill="#796020">Ch 10</text>
+</svg>
+<figcaption style="text-align:center;font-size:0.9em;color:#555;">Figure 1. The parts of an ML system and the book chapters that cover them (after the book's Figure 1-1). The algorithm is one box among many.</figcaption>
+</figure>
+```
+
+Two terms come up immediately and are easy to blur in an interview.
+
+::: {.definition-block}
+**Definition.** **[MLOps](https://en.wikipedia.org/wiki/MLOps)** is a set of tools and best practices for bringing ML into production: deploying, monitoring, and maintaining models. The "Ops" comes from [DevOps](https://en.wikipedia.org/wiki/DevOps) (development and operations); to *operationalize* something is to bring it into production.
+
+**ML systems design** takes a system approach to MLOps. It considers the ML system as a whole, so that all the components and their stakeholders work together to meet the stated objectives and requirements.
+:::
+
+So MLOps names the practices and tooling, and systems design is the discipline of fitting all the pieces (and people) together. The book deliberately covers no algorithm in detail. Algorithms go out of date quickly, while the framework for choosing and running one should survive them.
+
+## When to use machine learning {#sec-when-ml}
+
+ML can solve many problems, but even for problems it can solve, it may not be the best solution. Before starting a project, ask whether ML is necessary and whether it is cost-effective. (The book notes it never asks whether ML is *sufficient*, because the answer is always no: ML is always one part of a larger system.)
+
+### The five-part test {#sec-five-part}
+
+The book frames what ML does in one sentence and then examines each part.
+
+::: {.definition-block}
+**Definition.** Machine learning is an approach to (1) **learn** (2) **complex patterns** from (3) **existing data** and use these patterns to make (4) **predictions** on (5) **unseen data**.
+:::
+
+Each phrase is a condition a problem must satisfy.
+
+1. **Learn: the system can learn.** A relational database is not an ML system. You can state a relationship between two columns, but the database cannot discover one. In [supervised learning](https://en.wikipedia.org/wiki/Supervised_learning), the system learns from input–output pairs. The book's running example: learn to predict an Airbnb listing's rental price from its characteristics (square footage, rooms, neighborhood, amenities, rating), given a dataset of listings and their prices.
+
+2. **Complex patterns: there are patterns, and they are complex.** There is no pattern to learn in the outcome of a fair die. (The book separates *patterns* from *distributions*: we know the distribution of a fair die exactly, but nothing about how each outcome is generated is learnable.) If the pattern is simple, skip ML. Mapping an Airbnb listing's zip code to its state needs a [lookup table](https://en.wikipedia.org/wiki/Lookup_table), not a model. Mapping a listing's characteristics to its price is complex enough that hand-specifying it is impractical, which is where ML fits. What is complex for machines differs from what is complex for humans: raising a number to the power of 10 is easy for a machine, while spotting a cat in a photo used to be hard.
+
+3. **Existing data: data is available, or can be collected.** No tax and income records, no tax-prediction model. Two edge cases look like exceptions but are not. In [zero-shot learning](https://en.wikipedia.org/wiki/Zero-shot_learning), a model predicts well on a task it never saw data for, but it was trained on data for related tasks. In continual learning, a model can be deployed untrained and learn from production traffic, at the risk of a poor experience for early users. Without data, some companies "fake it till they make it": humans make the predictions at first, and the logged results later become training data.
+
+4. **Predictions: the problem is predictive.** ML outputs predictions, so it suits problems where many cheap, approximate answers are useful. Many questions can be reframed as "what would the answer be?", including about the present or past. Compute-heavy processes are a common case: rather than run the exact computation, train a model to approximate its output (the book's examples are image denoising and screen-space shading in graphics).
+
+5. **Unseen data: unseen data shares patterns with the training data.** A model trained on 2008 app-store data will not predict which apps get downloaded on Christmas 2020. Technically, training and unseen data should come from similar distributions. We cannot know the distribution of data we have not seen, so we assume (for instance, that users behave tomorrow roughly as they did today) and check with monitoring.
+
+::: {.definition-block}
+**Definition.** Condition 5 is the informal version of the assumption that data are **[independent and identically distributed](https://en.wikipedia.org/wiki/Independent_and_identically_distributed_random_variables)** (i.i.d.): training examples and future examples are drawn from the same distribution. When that fails in production we call it **distribution shift**.
+:::
+
+Distribution shift is the subject of Chapter 8 (monitoring), and adapting to it is Chapter 9 (continual learning and testing in production).
+
+[Figure 2](#fig-software2) shows the contrast behind conditions 1 and 2. Traditional software takes inputs plus hand-written patterns and produces outputs. ML takes inputs plus outputs and produces the patterns. This is why Andrej Karpathy called ML "Software 2.0."
+
+```{=html}
+<figure id="fig-software2" style="margin:1.5rem 0;">
+<svg viewBox="0 0 900 330" width="100%" style="max-width:860px;display:block;margin:auto;font-family:Helvetica,'Helvetica Neue',Arial,sans-serif;">
+  <defs>
+    <marker id="arrW1b" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L0,8 L8,4 z" fill="#555"/></marker>
+  </defs>
+  <text x="450" y="34" text-anchor="middle" font-size="24" font-weight="700" fill="#002A5C">Traditional software vs ML</text>
+
+  <!-- Row 1 -->
+  <rect x="40" y="68" width="170" height="46" rx="6" fill="#C6DEF1" stroke="#5795C7" stroke-width="1.4"/>
+  <text x="125" y="97" text-anchor="middle" font-size="17" fill="#205279">Inputs</text>
+  <rect x="40" y="128" width="170" height="46" rx="6" fill="#DBCDF0" stroke="#8457C7" stroke-width="1.4"/>
+  <text x="125" y="157" text-anchor="middle" font-size="17" fill="#442079">Patterns (by hand)</text>
+  <line x1="214" y1="91" x2="330" y2="111" stroke="#555" stroke-width="1.5" marker-end="url(#arrW1b)"/>
+  <line x1="214" y1="151" x2="330" y2="131" stroke="#555" stroke-width="1.5" marker-end="url(#arrW1b)"/>
+  <rect x="336" y="86" width="220" height="70" rx="10" fill="#C9E4DE" stroke="#57C7AE" stroke-width="1.6"/>
+  <text x="446" y="127" text-anchor="middle" font-size="18" font-weight="600" fill="#207965">Traditional software</text>
+  <line x1="560" y1="121" x2="670" y2="121" stroke="#555" stroke-width="1.5" marker-end="url(#arrW1b)"/>
+  <rect x="676" y="98" width="180" height="46" rx="6" fill="#F7D9C4" stroke="#C78557" stroke-width="1.4"/>
+  <text x="766" y="127" text-anchor="middle" font-size="17" fill="#794520">Outputs</text>
+
+  <line x1="30" y1="200" x2="870" y2="200" stroke="#bbb" stroke-width="1" stroke-dasharray="6,5"/>
+
+  <!-- Row 2 -->
+  <rect x="40" y="218" width="170" height="46" rx="6" fill="#C6DEF1" stroke="#5795C7" stroke-width="1.4"/>
+  <text x="125" y="247" text-anchor="middle" font-size="17" fill="#205279">Inputs</text>
+  <rect x="40" y="278" width="170" height="46" rx="6" fill="#C6DEF1" stroke="#5795C7" stroke-width="1.4"/>
+  <text x="125" y="307" text-anchor="middle" font-size="17" fill="#205279">Outputs (labels)</text>
+  <line x1="214" y1="241" x2="330" y2="261" stroke="#555" stroke-width="1.5" marker-end="url(#arrW1b)"/>
+  <line x1="214" y1="301" x2="330" y2="281" stroke="#555" stroke-width="1.5" marker-end="url(#arrW1b)"/>
+  <rect x="336" y="236" width="220" height="70" rx="10" fill="#C9E4DE" stroke="#57C7AE" stroke-width="1.6"/>
+  <text x="446" y="277" text-anchor="middle" font-size="18" font-weight="600" fill="#207965">Machine learning</text>
+  <line x1="560" y1="271" x2="670" y2="271" stroke="#555" stroke-width="1.5" marker-end="url(#arrW1b)"/>
+  <rect x="676" y="248" width="180" height="46" rx="6" fill="#DBCDF0" stroke="#8457C7" stroke-width="1.4"/>
+  <text x="766" y="277" text-anchor="middle" font-size="17" fill="#442079">Patterns (learned)</text>
+</svg>
+<figcaption style="text-align:center;font-size:0.9em;color:#555;">Figure 2. Traditional software needs the pattern specified by hand. ML learns the pattern from input–output examples (after the book's Figure 1-2).</figcaption>
+</figure>
+```
+
+### When ML shines {#sec-shines}
+
+Given how most current algorithms learn, ML works especially well when the problem has four more traits.
+
+- **It is repetitive.** Humans learn from a few examples. Most ML algorithms need many, so a pattern that repeats often is easier to learn.
+- **Wrong predictions are cheap.** No model is right every time. [Recommender systems](https://en.wikipedia.org/wiki/Recommender_system) are a large ML use case partly because a bad recommendation costs little: the user just does not click. If a single mistake can be catastrophic, ML can still make sense when the benefit of correct predictions outweighs the cost of wrong ones *on average*. The book's example is self-driving cars, which are worth pursuing if they become statistically safer than human drivers despite the risk of fatal errors.
+- **It is at scale.** ML needs real up-front investment in data, compute, infrastructure, and people, so it pays off when the model makes many predictions. Some problems that look like one prediction are really many. An election-outcome model predicts once every four years in name, but in practice it updates its prediction hourly as new information arrives. Scale also means more data to train on.
+- **The patterns keep changing.** Hand-written rules go stale. Spam that today features a foreign prince will tomorrow feature something else. An ML model can be retrained on new data without anyone working out exactly how the data changed (this is the problem [concept drift](https://en.wikipedia.org/wiki/Concept_drift) names; Chapters 8 and 9 return to it).
+
+The "wrong predictions are cheap" trait is an [expected value](https://en.wikipedia.org/wiki/Expected_value) argument. Written as a rule of thumb:
+
+::: {.boxed-eq}
+$$
+P(\text{correct}) \cdot \text{benefit} \;>\; P(\text{wrong}) \cdot \text{cost}
+$$
+:::
+
+The left side is the average value of being right and the right side is the average cost of being wrong. ML is a reasonable choice when the expected value of acting on its predictions beats the expected cost of its errors, even if individual errors are severe.
+
+### When not to use ML {#sec-not-ml}
+
+Most current ML algorithms should not be used if any of these hold:
+
+- **It is unethical.** (The book's Chapter 11 has a case study on an automated grader's biases.)
+- **A simpler solution does the job.** Chapter 6 makes "start with a non-ML solution" the first phase of model development.
+- **It is not cost-effective.**
+
+Even when ML cannot solve a whole problem, it may solve a piece of it. If a chatbot cannot answer every customer query, a model can still predict whether a query matches a frequently asked question: if so, show the answer; if not, route the customer to a human. The book also cautions against rejecting a technology only because it is not cost-effective *yet*, since most advances are incremental and waiting for others to prove it can leave a company years behind.
+
+## Machine learning use cases {#sec-use-cases}
+
+Consumers meet ML mainly through search and recommendations, predictive typing, photo enhancement, face or fingerprint unlock, machine translation, smart assistants, and home monitoring (such as fall detection for an elderly person living alone). But most ML use cases are in the enterprise, and enterprise requirements differ.
+
+::: {.definition-block}
+**Definition.** As a general tendency (with many exceptions), **enterprise** ML applications have **stricter accuracy requirements** but are **more forgiving of latency** than consumer applications.
+:::
+
+The book's reasoning: moving a speech recognizer from 95% to 95.5% accuracy is unnoticeable to most consumers, but a 0.1% efficiency gain in a large company's resource allocation can be worth millions. Meanwhile, a one-second delay can send a consumer to another app, while an enterprise user will usually wait.
+
+The enterprise uses the chapter names, grouped by what they do:
+
+| Use case | What the model predicts |
+|---|---|
+| Fraud detection | Whether a transaction is fraudulent, learned from past fraud ([anomaly detection](https://en.wikipedia.org/wiki/Anomaly_detection)); one of the oldest enterprise uses |
+| Price optimization | The price for a time period that maximizes an objective (margin, revenue, growth); suits many transactions with fluctuating demand, such as ads, flights, ride-sharing |
+| Demand forecasting | Customer demand, for budgeting, inventory, and staffing (understock loses sales; overstock spoils) |
+| Customer acquisition | Which prospects to target, which ads to show, when to offer discounts |
+| Churn prediction | When a customer (or employee) is about to leave ([customer attrition](https://en.wikipedia.org/wiki/Customer_attrition)); retaining a customer is estimated to cost 5 to 25 times less than acquiring a new one |
+| Support ticket classification | Which department a ticket should go to, shortening response time |
+| Brand monitoring | Mentions of the brand and their sentiment ([sentiment analysis](https://en.wikipedia.org/wiki/Sentiment_analysis)) |
+
+Health care is singled out. There are systems that detect skin cancer and diagnose diabetes, but because of strict accuracy and privacy requirements they are usually delivered through a health-care provider or used to assist a clinician's diagnosis, rather than sold directly to consumers.
+
+## ML in research versus in production {#sec-research-vs-production}
+
+Most people with ML expertise learned it in academia: courses, research, papers. The book's claim is that production ML differs from research ML in at least five ways, summarized in its Table 1-1.
+
+| | Research | Production |
+|---|---|---|
+| **Requirements** | State-of-the-art performance on benchmark datasets | Different stakeholders have different requirements |
+| **Computational priority** | Fast training, high throughput | Fast inference, low latency |
+| **Data** | Static | Constantly shifting |
+| **Fairness** | Often not a focus | Must be considered |
+| **Interpretability** | Often not a focus | Must be considered |
+
+: Key differences between ML in research and in production (after the book's Table 1-1). {#tbl-research-production}
+
+### Stakeholders and requirements {#sec-stakeholders}
+
+A research or leaderboard project usually has one objective: beat the state of the art on a benchmark. A production project has many stakeholders, each with their own, often conflicting, requirements.
+
+The book's running example is a restaurant-recommendation app that earns a 10% service fee on each order, so expensive orders earn more.
+
+- **ML engineers** want to recommend the restaurants users are most likely to order from, and believe a more complex model with more data will do it.
+- **Sales** wants to recommend expensive restaurants, because they bring in larger fees.
+- **Product** has seen that every increase in latency loses orders, and wants recommendations returned in under 100 milliseconds.
+- **The ML platform team** is being paged at night over scaling problems, and wants to pause model updates to fix the platform.
+- **The manager** wants to maximize margin (and one way to do that might be to cut the ML team).
+
+"Recommend what users will most likely click" and "recommend what earns the most" are different objectives. Chapter 2 resolves this by **decoupling objectives**: train one model per objective and combine their predictions. Suppose model A optimizes clicks and model B optimizes revenue, and neither meets the 100 ms requirement. Which do we deploy? It depends on how strict each requirement is. If 100 ms is a must-have (say, the company found 10% of users close the app beyond that), neither model works. If it is a nice-to-have, either might. Part of the ML engineer's job is finding out which requirements are hard constraints.
+
+This mismatch is one reason successful research often does not ship. [Ensemble learning](https://en.wikipedia.org/wiki/Ensemble_learning) is the book's example.
+
+::: {.definition-block}
+**Definition.** **Ensembling** combines multiple learning algorithms to obtain better predictive performance than any of the constituent algorithms could alone.
+:::
+
+Ensembles win competitions, including the [Netflix Prize](https://en.wikipedia.org/wiki/Netflix_Prize), but they are not widely used in production. The small accuracy gain usually costs slower predictions and results that are harder to interpret. (Chapter 6 covers ensembles properly.) Whether a small gain is worth that cost depends on the task. A 0.2% improvement in click-through rate for an e-commerce recommender can be worth millions in revenue. For many other tasks users would not notice a small gain, so a complex model has to beat a simple one by a wide margin to justify itself.
+
+::: {.callout-note}
+**Criticism of ML leaderboards.** The book summarizes three objections to leaderboards like Kaggle, ImageNet, and GLUE:
+
+1. The hard steps of building an ML system (framing the problem, collecting and labeling data) are already done for you.
+2. When many teams evaluate against the same held-out test set, one model can come out on top by chance. This is a [multiple comparisons problem](https://en.wikipedia.org/wiki/Multiple_comparisons_problem).
+3. Ethayarajh and Jurafsky (EMNLP 2020) argue that benchmarks reward accuracy at the expense of qualities practitioners value, such as compactness, fairness, and energy efficiency.
+:::
+
+### Computational priorities {#sec-compute}
+
+People who have not deployed a model tend to focus on model development and neglect deployment and maintenance. During development we train many models, each over many passes through the training data, and evaluate each once on a smaller validation set, so **training is the bottleneck**. Once deployed, the model's job is to make predictions, so **inference is the bottleneck**. Research prioritizes fast training; production prioritizes fast inference.
+
+A corollary is that research cares about throughput and production cares about latency.
+
+::: {.definition-block}
+**Definition.** **[Latency](https://en.wikipedia.org/wiki/Latency_(engineering))** is the time from receiving a query to returning its result. **[Throughput](https://en.wikipedia.org/wiki/Throughput)** is how many queries are processed in a given period of time.
+:::
+
+The book flags a terminology clash. Kleppmann's *Designing Data-Intensive Applications* separates *response time* (what the client sees, including network and queueing delays) from *latency* (only the time a request waits to be handled). The book, following ML usage, uses "latency" to mean the full response time: from when a request is sent to when the response arrives. In an interview it is worth saying which one you mean.
+
+#### Latency and throughput under batching {#sec-batching}
+
+If a system handles one query at a time, the two quantities are tied: higher latency means lower throughput. At 10 ms per query, throughput is 100 queries per second; at 100 ms, it is 10. Most modern systems instead process queries in batches, often concurrently, and then higher latency can come with *higher* throughput. When batches run one after another,
+
+::: {.boxed-eq}
+$$
+\text{throughput} = \frac{\text{batch size}}{\text{time per batch}}
+$$
+:::
+
+so a larger batch can raise throughput even if each batch takes longer.
+
+::: {.callout-note}
+**Worked example (the book's numbers).**
+
+- One query at a time, 10 ms each: latency 10 ms, throughput $1 / 0.010\,\text{s} = 100$ queries/s.
+- Batches of 10, each taking 10 ms: latency is still 10 ms, but throughput is $10 / 0.010\,\text{s} = 1{,}000$ queries/s.
+- Batches of 50, each taking 20 ms: latency rises to 20 ms, and throughput rises to $50 / 0.020\,\text{s} = 2{,}500$ queries/s.
+
+In the last line both latency and throughput went up compared with the first.
+:::
+
+```{=html}
+<figure id="fig-batching" style="margin:1.5rem 0;">
+<svg viewBox="0 0 1000 420" width="100%" style="max-width:960px;display:block;margin:auto;font-family:Helvetica,'Helvetica Neue',Arial,sans-serif;">
+  <defs>
+    <marker id="arrW1c" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L0,8 L8,4 z" fill="#555"/></marker>
+  </defs>
+  <text x="500" y="34" text-anchor="middle" font-size="24" font-weight="700" fill="#002A5C">One query at a time vs batched</text>
+
+  <!-- Row A: 1 query, 10 ms -->
+  <text x="20" y="84" font-size="16" fill="#333">1 query per run, 10 ms</text>
+  <text x="20" y="104" font-size="15" fill="#555">Latency 10 ms · 100 q/s</text>
+  <g fill="#C6DEF1" stroke="#5795C7" stroke-width="1.3">
+    <rect x="300" y="68" width="152" height="46" rx="5"/><rect x="460" y="68" width="152" height="46" rx="5"/>
+    <rect x="620" y="68" width="152" height="46" rx="5"/><rect x="780" y="68" width="152" height="46" rx="5"/>
+  </g>
+  <g font-size="16" fill="#205279" text-anchor="middle">
+    <text x="376" y="96">10 ms</text><text x="536" y="96">10 ms</text><text x="696" y="96">10 ms</text><text x="856" y="96">10 ms</text>
+  </g>
+
+  <!-- Row B: 1 query, 20 ms -->
+  <text x="20" y="154" font-size="16" fill="#333">1 query per run, 20 ms</text>
+  <text x="20" y="174" font-size="15" fill="#555">Latency 20 ms · 50 q/s</text>
+  <g fill="#C6DEF1" stroke="#5795C7" stroke-width="1.3">
+    <rect x="300" y="138" width="312" height="46" rx="5"/><rect x="620" y="138" width="312" height="46" rx="5"/>
+  </g>
+  <g font-size="16" fill="#205279" text-anchor="middle">
+    <text x="456" y="166">20 ms</text><text x="776" y="166">20 ms</text>
+  </g>
+
+  <line x1="20" y1="206" x2="980" y2="206" stroke="#bbb" stroke-width="1" stroke-dasharray="6,5"/>
+
+  <!-- Row C: batch 10, 10 ms -->
+  <text x="20" y="246" font-size="16" fill="#333">Batch of 10, 10 ms</text>
+  <text x="20" y="266" font-size="15" fill="#555">Latency 10 ms · 1,000 q/s</text>
+  <g fill="#C9E4DE" stroke="#57C7AE" stroke-width="1.3">
+    <rect x="300" y="230" width="152" height="46" rx="5"/><rect x="460" y="230" width="152" height="46" rx="5"/>
+    <rect x="620" y="230" width="152" height="46" rx="5"/><rect x="780" y="230" width="152" height="46" rx="5"/>
+  </g>
+  <g font-size="15" fill="#207965" text-anchor="middle">
+    <text x="376" y="258">10 queries</text><text x="536" y="258">10 queries</text><text x="696" y="258">10 queries</text><text x="856" y="258">10 queries</text>
+  </g>
+
+  <!-- Row D: batch 50, 20 ms -->
+  <text x="20" y="316" font-size="16" fill="#333">Batch of 50, 20 ms</text>
+  <text x="20" y="336" font-size="15" fill="#555">Latency 20 ms · 2,500 q/s</text>
+  <g fill="#C9E4DE" stroke="#57C7AE" stroke-width="1.3">
+    <rect x="300" y="300" width="312" height="46" rx="5"/><rect x="620" y="300" width="312" height="46" rx="5"/>
+  </g>
+  <g font-size="15" fill="#207965" text-anchor="middle">
+    <text x="456" y="328">50 queries</text><text x="776" y="328">50 queries</text>
+  </g>
+
+  <!-- Time axis -->
+  <line x1="300" y1="372" x2="950" y2="372" stroke="#555" stroke-width="1.5" marker-end="url(#arrW1c)"/>
+  <g font-size="15" fill="#555" text-anchor="middle">
+    <text x="300" y="396">0</text><text x="460" y="396">10</text><text x="620" y="396">20</text><text x="780" y="396">30</text><text x="940" y="396">40 ms</text>
+  </g>
+</svg>
+<figcaption style="text-align:center;font-size:0.9em;color:#555;">Figure 3. Over the same 40 ms window: one query per run trades latency against throughput, while batching can raise both (after the book's Figure 1-4).</figcaption>
+</figure>
+```
+
+These numbers leave out one cost. For online queries, a batch has to *fill* before it runs, so each query also waits for the others to arrive, which adds latency the worked example does not count. Research happily trades latency for throughput through aggressive batching. Production often cannot: lowering latency may mean running fewer queries at a time on the same hardware, which underuses that hardware and raises the cost per query.
+
+Latency matters commercially. The book cites a 2017 Akamai study finding that a 100 ms delay can cut conversion rates by 7%, and Booking.com finding that roughly 30% more latency cost about 0.5% in conversions.
+
+#### Latency is a distribution {#sec-percentiles}
+
+It is tempting to summarize latency as one number, the mean over a time window. That number can mislead, because latency is a distribution and the mean is pulled by outliers.
+
+::: {.definition-block}
+**Definition.** The **$q$-th [percentile](https://en.wikipedia.org/wiki/Percentile)** (written p$q$) of a set of measurements is a value below which roughly $q$% of the measurements fall. **p50** is the **[median](https://en.wikipedia.org/wiki/Median)**: half of requests are faster, half slower. Latency targets usually use high percentiles: **p90, p95, p99** (sometimes p99.9).
+:::
+
+::: {.callout-note}
+**Worked example (the book's 10 requests).** Latencies in ms: 100, 102, 100, 100, 99, 104, 110, 90, 3,000, 95.
+
+1. **Mean.** The sum is 3,900 ms, so the mean is $3{,}900 / 10 = 390$ ms. Nine of ten requests took about 100 ms, so 390 ms makes the system look much slower than it usually is.
+2. **Sort.** 90, 95, 99, 100, 100, 100, 102, 104, 110, 3,000.
+3. **Median (p50).** The middle two values are 100 and 100, so p50 = 100 ms, which describes the typical request.
+4. **The outlier.** The 3,000 ms request is an [outlier](https://en.wikipedia.org/wiki/Outlier), perhaps a network error, and is worth investigating on its own.
+:::
+
+The book says the p90 of these ten requests is 3,000 ms. That depends on which percentile definition you use, and with only ten samples the definitions disagree widely:
+
+- **Nearest rank** (take the $\lceil 0.9 \times 10 \rceil = 9$th sorted value): p90 = 110 ms.
+- **Linear interpolation** (NumPy's default; position $0.9 \times (10-1) = 8.1$ in 0-indexed order, so one tenth of the way from 110 to 3,000): p90 = $110 + 0.1 \times 2{,}890 = 399$ ms.
+- **Round up to the next sample** (NumPy's `method="higher"`): p90 = 3,000 ms, the book's figure.
+
+The practical lesson is that a tail percentile computed from a handful of requests is unstable. A real p99 needs enough traffic that 1% of it is many requests.
+
+High percentiles matter because the slowest requests can come from the most important users. At Amazon, the customers with the slowest requests are often those with the most data on their accounts, because they have made the most purchases. So performance requirements are commonly written as tail percentiles, for example "p90 (or p99.9) latency must stay below some threshold."
+
+### Data {#sec-data}
+
+Research datasets are clean, well formatted, and static so the community can benchmark against them. Many people have used them, their quirks are known, and preprocessing scripts are often public.
+
+Production data, if it exists at all, is messier:
+
+- noisy, possibly unstructured, and constantly shifting;
+- likely biased, in ways you probably do not know;
+- labels, if any, may be sparse, imbalanced, or wrong, and changing business requirements can force relabeling;
+- user data brings privacy and regulatory obligations.
+
+Research mostly uses historical data that already sits somewhere. Production also consumes data generated continuously by users, systems, and third parties. The book illustrates this with a graphic adapted from Andrej Karpathy (its Figure 1-5): during his PhD most of his time went to models and little to data, while at Tesla the proportions reversed.
+
+### Fairness {#sec-fairness}
+
+In research a model is not yet used on people, so fairness is easy to postpone: "get state of the art first, worry about fairness in production." By production it is too late. Accuracy and latency have public benchmarks to beat; fairness, as of the book's writing, has no equivalent state of the art.
+
+The examples are concrete: a loan rejected because the model leans on zip code, which encodes socioeconomic background; a résumé ranked lower because of the spelling of a name; a mortgage rate tied to credit scores that favor the wealthy. The book quotes a 2019 Berkeley study finding that lenders rejected about 1.3 million creditworthy Black and Latino applicants between 2008 and 2015.
+
+::: {.definition-block}
+**Definition.** **[Algorithmic bias](https://en.wikipedia.org/wiki/Algorithmic_bias)** is systematic error in a model's outputs that disadvantages some group. In the book's phrasing, ML algorithms "don't predict the future, but encode the past," so they reproduce the biases in their training data, and at scale.
+:::
+
+Scale is what makes this worse than individual human bias. A human makes sweeping judgments about a few people at a time; a model can make them about millions in seconds. And aggregate metrics hide it. Errors on a minority group barely move overall performance: a model that is correct on 98% of a population can be badly wrong on the other 2%, and if fixing that 2% would cost several times more, some companies choose not to. This is the same arithmetic as a rare-positive classification problem, where a high overall accuracy says little about the small class. Chapter 11 covers fairness and responsible AI in depth.
+
+### Interpretability {#sec-interpretability}
+
+Geoffrey Hinton posed this question in 2020: if you had cancer, would you choose a black-box AI surgeon with a 90% cure rate that cannot explain how it works, or a human surgeon with an 80% cure rate? When the book's author asked 30 technology executives, they split about evenly.
+
+::: {.definition-block}
+**Definition.** A model is **interpretable** (or **explainable**; see [explainable artificial intelligence](https://en.wikipedia.org/wiki/Explainable_artificial_intelligence)) to the extent that people can understand why it produced a given output.
+:::
+
+Research is still scored mainly on performance, so researchers have little incentive to work on interpretability. In industry it is usually a requirement, for two reasons:
+
+1. **For users** (business leaders and end users): to understand why a decision was made, so they can trust the model and detect the biases described above.
+2. **For developers**: to debug and improve the model.
+
+In some countries and for some uses there is also a legal [right to explanation](https://en.wikipedia.org/wiki/Right_to_explanation) of an algorithm's output. This is the clinical setting of the Hinton question: a clinician deciding whether to act on a model's flag needs a reason, not only a score. The book does not cover specific explanation methods in this chapter.
+
+The book closes the comparison with a short discussion: knowing only the academic side of ML is fine, but most companies cannot fund pure research without short-term applications, so most ML jobs are, and will be, in putting ML into production.
+
+## ML systems versus traditional software {#sec-vs-software}
+
+ML is part of software engineering, and software engineering has decades of production practice. Why not just apply those practices? Partly we should: production ML would be better if ML practitioners were better software engineers, and many standard tools apply. But some challenges are specific to ML.
+
+**Code and data are entangled.** Software engineering separates concerns and keeps code and data apart ([separation of concerns](https://en.wikipedia.org/wiki/Separation_of_concerns)). An ML system is part code, part data, and part artifacts built from both. Because the best data tends to win, companies put more effort into data than into algorithms, and because data changes quickly, ML systems need faster development and deployment cycles.
+
+**Data must be tested and versioned too.** In ordinary software we test and version code. In ML we also have to test and version data, which is harder. How do you version a large dataset? How do you tell whether a sample helps or hurts?
+
+Not all samples are equally valuable. The book's example: a model already trained on one million scans of normal lungs and one thousand scans of cancerous lungs gains far more from another cancerous scan than another normal one. This is the class-imbalance problem seen from the data side, and Chapter 4 (training data) returns to it. Accepting all incoming data indiscriminately can hurt performance and expose the model to **data poisoning**, where an attacker plants training examples to manipulate the model (a form of [adversarial machine learning](https://en.wikipedia.org/wiki/Adversarial_machine_learning)).
+
+**Models are large.** As of 2022, models with hundreds of millions or billions of parameters need gigabytes of memory just to load. Getting them into production, especially on [edge devices](https://en.wikipedia.org/wiki/Edge_computing) (covered in Chapter 7), is a major engineering task, and they also have to run fast enough to be useful. An autocomplete model that is slower than your typing is useless. The book's example of progress: in 2018 people called [BERT](https://en.wikipedia.org/wiki/BERT_(language_model)) (large BERT: 340 million parameters, 1.35 GB) too big and slow to be practical; two years later it and its variants were used in almost every English search on Google.
+
+**Monitoring and debugging are harder.** As models grow more complex and less transparent, it is harder to see what went wrong, or to be alerted quickly when something does.
+
+## Summary {#sec-summary}
+
+::: {.callout-note}
+**Key takeaways from Chapter 1** (and what an interviewer is usually checking):
+
+- **The algorithm is a small part of the system.** Requirements, data, infrastructure, and deployment, monitoring, and update logic are most of the work. MLOps is the tooling and practice; ML systems design is fitting the whole thing together.
+- **Justify ML before using it.** Check the five-part test (learn, complex patterns, existing data, predictive, unseen data resembles training data) and the four traits (repetitive, cheap errors on average, at scale, changing patterns). Name the alternatives: a lookup table, a rule, or a non-ML baseline.
+- **Production has many stakeholders.** Expect conflicting objectives, and separate must-have constraints from nice-to-haves. Ensembles show how a research win can fail production constraints on latency and interpretability.
+- **Latency and throughput are different.** Batching can raise both. Production usually optimizes latency, and latency should be reported as percentiles (p50, p90, p99), not a mean, with enough samples for the tail to be stable.
+- **Production data shifts.** Training and serving distributions should match (the i.i.d. assumption), and in production they often drift.
+- **Fairness and interpretability are requirements in production.** Aggregate accuracy can hide failure on a small subgroup; users need explanations to trust a model, and developers need them to debug it.
+- **ML differs from traditional software** because data is part of the system: it needs testing and versioning, samples differ in value, and it can be poisoned.
+:::
+
+**Next chapter:** Chapter 2, *Introduction to Machine Learning Systems Design*, connects business objectives to ML objectives, sets out the requirements for an ML system (reliability, scalability, maintainability, adaptability), describes the iterative development process, and covers framing ML problems, including choosing objective functions and decoupling objectives.
+
+## Quick self-check
+
+If you can explain to an interviewer, using only "five-part test," "latency versus throughput," and "research versus production," why a team might ship a simple model instead of a 0.5%-better ensemble, you have understood the core of Chapter 1.

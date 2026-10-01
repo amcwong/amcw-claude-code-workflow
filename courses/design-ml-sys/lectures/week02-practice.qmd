@@ -1,0 +1,222 @@
+---
+title: "Chapter 2 practice: Introduction to Machine Learning Systems Design"
+---
+
+```{=html}
+<style>#title-block-header { display: none; }</style>
+<div class="lecture-header">
+  <h1>Chapter 2 practice: Introduction to Machine Learning Systems Design</h1>
+</div>
+```
+
+**Overview.** These are interview-style questions on [Chapter 2](week02.qmd). Answer each one out loud before opening the worked solution. The scenarios and numbers are invented for practice. Each solution says which chapter section it draws on, walks through the reasoning, and ends with a short answer you could give.
+
+## Problem 1: The AUC went up and nothing else did {#prb-1}
+
+"Our team built a model that ranks patients by how likely they are to be eligible for a clinical trial, so recruiters call the most promising ones first. We raised the model's AUC from 0.78 to 0.84 over a quarter. Enrollment didn't change. Leadership wants to cancel the project. What went wrong, and what would you do now?"
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+This uses [Chapter 2, Business and ML objectives](week02.qmd#sec-objectives).
+
+The team optimized an **ML objective** (AUC) without checking that it moves the **business objective** (enrollment). That is the chapter's pattern for short-lived projects: data scientists improve ML metrics, managers see no business result, the project is cancelled.
+
+Possible reasons the gain did not reach enrollment:
+
+- **The bottleneck is elsewhere.** If recruiters already reach everyone on the list, or trial sites cannot take more patients, a better ranking changes nothing.
+- **The gain is where it does not matter.** AUC summarizes the whole ranking. Recruiters only call the top of the list, and the improvement may be in the part they never reach.
+- **Eligibility is not enrollment.** Eligible patients may still decline. The model predicts the first step, and the business needs the last.
+
+What to do:
+
+1. **Define a bridge metric**, the way Netflix uses take-rate, that sits between the model and the business outcome. For example: the fraction of patients called from the top of the list who end up enrolling.
+2. **Run an A/B test.** Let some recruiters work from the new ranking and some from the old (or from the current manual process), and compare enrollment. The chapter's rule is to choose the model that improves the business metric, whether or not its ML metric is better.
+3. **Scope the next iteration from the result.** That is step 6 of the iterative cycle (business analysis) feeding back into step 1.
+
+**Answer:** AUC was never tied to enrollment. Find where the real bottleneck is, define a metric that links the ranking to enrollment, and A/B test the model against the current process before investing more in AUC.
+:::
+
+## Problem 2: The unit change nobody announced {#prb-2}
+
+"A hospital's lab system changed how it reports blood glucose, from mg/dL to mmol/L, without telling the ML team. Our risk model, which uses glucose as an input, kept running with no errors for three weeks. Which system requirement does this test, and how would you have caught it?"
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+This uses [Chapter 2, Reliability](week02.qmd#sec-reliability) and [Adaptability](week02.qmd#sec-adaptability).
+
+This is the chapter's **silent failure** case, so the requirement is **reliability**. Traditional software tends to fail loudly with a crash or an error. Here `predict()` ran fine on every request, but glucose values were now roughly 18 times smaller (1 mmol/L of glucose is about 18 mg/dL), so the model saw every patient as having very low glucose. Nothing errored, so nothing alerted.
+
+We cannot wait for ground truth to catch this: outcome labels may arrive weeks later, and by then patients have been mis-scored. Checks that do not need labels:
+
+- **Input monitoring.** Track each feature's distribution. A sudden drop in the median of a key feature (for glucose, by a factor of about 18) is easy to detect.
+- **Schema and range checks** at the input boundary. A glucose value of 5 is plausible in mmol/L but implausible in mg/dL.
+- **Prediction monitoring.** A sudden shift in the share of high-risk predictions is a signal even when no single input looks wrong.
+
+Recovering also tests **adaptability** (can we fix the input path and update without stopping service?) and **maintainability** (do data owners and ML engineers have a shared contract and a way to work through a problem without blame?). Chapter 8 covers monitoring in detail.
+
+**Answer:** Reliability, because this is a silent failure. Catch it without labels by monitoring input distributions, validating ranges and units at ingestion, and watching the distribution of predictions.
+:::
+
+## Problem 3: "Use AI to reduce clinic no-shows" {#prb-3}
+
+"Our outpatient clinics lose a lot of capacity to patients who miss appointments. Leadership asks you to 'use AI to reduce no-shows.' Turn this into an ML problem, and tell me how you would know it worked."
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+This uses [Chapter 2, Framing ML problems](week02.qmd#sec-framing), [Classification versus regression](week02.qmd#sec-class-vs-reg), and [Objective functions](week02.qmd#sec-objective-functions).
+
+"Reduce no-shows" is a business problem, like the chapter's "speed up customer service." An ML problem needs **inputs, outputs, and an objective function**. First ask what action the prediction will drive, because that decides what to predict. Common actions are an extra reminder call or controlled overbooking of a slot.
+
+A framing that supports those actions:
+
+- **Input:** one scheduled appointment, described by features known at booking or reminder time, such as lead time between booking and visit, the patient's past attendance, appointment type, and day and time.
+- **Output:** the probability that this appointment will be a no-show. That is **binary classification**, with a probability output.
+- **Objective function:** **log loss**, the standard loss for binary classification.
+- **Decision:** a **threshold** on the probability decides who gets the extra call. It should be set from the cost of a call versus the cost of an empty slot, not left at 0.5.
+
+How to know it worked: the business metric is the no-show rate (or the share of clinic capacity used), not AUC. Run an A/B test: patients flagged by the model get the intervention, and a comparable group gets the current process.
+
+One more point from Chapter 1: check features for fairness. Distance from the clinic or zip code can act as a proxy for income, and "overbook the patients predicted to miss" can systematically disadvantage some groups.
+
+**Answer:** Predict, per appointment, the probability of a no-show (binary classification, log loss), threshold it to trigger a reminder or overbooking, and judge it by an A/B test on the no-show rate, with a fairness check on proxy features.
+:::
+
+## Problem 4: Choosing a threshold for a rare, serious event {#prb-4}
+
+A model scores 10 patients for risk of a serious adverse reaction. Two of them (A and B) actually had the reaction.
+
+| Patient | A | C | D | B | E | F | G | H | I | J |
+|---|---|---|---|---|---|---|---|---|---|---|
+| Score | 0.62 | 0.55 | 0.41 | 0.38 | 0.33 | 0.20 | 0.15 | 0.10 | 0.07 | 0.04 |
+| Reaction? | yes | no | no | yes | no | no | no | no | no | no |
+
+1. At a threshold of 0.5, count the true positives, false positives, and false negatives. Do the same at 0.3.
+2. Compute the accuracy at each threshold, and the accuracy of a model that always predicts "no reaction."
+3. Which threshold would you argue for, and why?
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+This uses [Chapter 2, Classification versus regression](week02.qmd#sec-class-vs-reg).
+
+The chapter frames a classifier as a model that outputs a score between 0 and 1 plus a **threshold** that turns the score into a class. The threshold is a choice.
+
+**1. Counts.**
+
+- **Threshold 0.5:** flagged are A (0.62) and C (0.55). A had the reaction, C did not. **TP = 1, FP = 1, FN = 1** (B, at 0.38, is missed), TN = 7.
+- **Threshold 0.3:** flagged are A, C, D, B, and E. **TP = 2, FP = 3, FN = 0**, TN = 5.
+
+**2. Accuracy.**
+
+- At 0.5: $(1 + 7)/10 = 80\%$.
+- At 0.3: $(2 + 5)/10 = 70\%$.
+- Always "no reaction": 8 of 10 correct, **80%**.
+
+By accuracy, the 0.5 threshold looks better than 0.3, and it ties a model that never flags anyone. That is why accuracy misleads when one class is rare: the large class dominates the count.
+
+**3. The argument.** For a serious reaction, a missed case (FN) costs far more than an extra check on a patient who would have been fine (FP). At 0.3 we catch both reactions at the cost of two more false alarms. Whether that is right depends on what a flag triggers: if it means extra monitoring, false alarms are cheap and 0.3 or lower is reasonable; if it means withholding a useful drug, false alarms are expensive.
+
+Choosing an evaluation metric that reflects those costs (for example, recall at a fixed precision) is covered in Chapter 6, and handling class imbalance in Chapter 4.
+
+**Answer:** At 0.5, TP 1, FP 1, FN 1 (80% accuracy); at 0.3, TP 2, FP 3, FN 0 (70%); always-negative is 80%. Argue for the lower threshold if missing a reaction is worse than a false alarm, and say that accuracy is the wrong yardstick here.
+:::
+
+## Problem 5: Cross-entropy and log loss by hand {#prb-5}
+
+A model grades adverse-event severity into three classes: [none, mild, severe]. For a patient whose true severity is **severe**, compute the cross-entropy loss for each of these predicted distributions:
+
+- (a) $q = [0.05, 0.10, 0.85]$
+- (b) $q = [0.30, 0.30, 0.40]$
+- (c) $q = [0.80, 0.15, 0.05]$
+
+Then, for a binary model that predicts a 0.2 probability of an event, compute the log loss when the event did happen ($y = 1$) and when it did not ($y = 0$). Use natural logarithms.
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+This uses [Chapter 2, Objective functions](week02.qmd#sec-objective-functions).
+
+The true label is one-hot: $p = [0, 0, 1]$. Cross-entropy is $H(p, q) = -\sum_i p_i \log q_i$, and with a one-hot label only the true class's term survives, so $H = -\log q_{\text{severe}}$.
+
+- (a) $-\ln 0.85 \approx 0.16$. Confident and correct: small loss.
+- (b) $-\ln 0.40 \approx 0.92$. Unsure, but leaning correct: moderate loss.
+- (c) $-\ln 0.05 \approx 3.00$. Confident and wrong: large loss.
+
+The probabilities on "none" and "mild" do not enter the loss directly. They matter only by taking probability away from the true class. Because $-\log$ grows sharply near 0, (c) costs almost 20 times as much as (a).
+
+For the binary case, log loss is $\ell(y, q) = -[\,y \log q + (1-y)\log(1-q)\,]$ with $q = 0.2$:
+
+- $y = 1$: $-\ln 0.2 \approx 1.61$. The event happened and the model said 20%.
+- $y = 0$: $-\ln 0.8 \approx 0.22$. No event, and the model leaned that way.
+
+**Answer:** (a) ≈ 0.16, (b) ≈ 0.92, (c) ≈ 3.00. Log loss ≈ 1.61 when $y = 1$ and ≈ 0.22 when $y = 0$.
+:::
+
+## Problem 6: Patients with more than one diagnosis {#prb-6}
+
+"We want a model that reads a discharge summary and outputs the patient's diagnoses. A patient can have several at once. How would you frame this, and what goes wrong if we treat it as ordinary multiclass? Later the team wants to predict specific diagnosis codes, of which there are thousands. What changes?"
+
+For a concrete case, suppose for one summary the model outputs these probabilities for four conditions: diabetes 0.81, hypertension 0.64, chronic kidney disease 0.38, asthma 0.06.
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+This uses [Chapter 2, Multiclass versus multilabel classification](week02.qmd#sec-multilabel) and [Binary versus multiclass classification](week02.qmd#sec-binary-multiclass).
+
+**Framing.** Each patient can have several diagnoses, so this is **multilabel** classification. For [diabetes, hypertension, CKD, asthma], a patient with diabetes and hypertension has the multi-hot label $[1, 1, 0, 0]$. Multiclass would force a one-hot label and could record only one diagnosis.
+
+The two approaches from the chapter:
+
+1. One model with a multi-hot output (one probability per condition, not forced to sum to 1).
+2. One binary model per condition ("does this patient have diabetes?").
+
+**Why multiclass breaks, using the example.** Multiclass picks the single top class: diabetes. That silently drops hypertension, which at 0.64 is also likely. Multilabel needs a decoding rule instead:
+
+- A threshold of 0.5 per condition gives diabetes and hypertension.
+- "Take the top 3" adds CKD at 0.38.
+
+Nothing in the output says which is right. That is the chapter's second reason multilabel is hard. The first is labeling: coders may disagree on how many diagnoses a summary supports (the label multiplicity problem of Chapter 4).
+
+**Thousands of codes.** Now the task also has **high cardinality**. With the chapter's rule of thumb of at least 100 examples per class, 5,000 codes would need at least 500,000 labeled examples, with at least 100 for each rare code, which many rare codes will not have. A common remedy is **hierarchical classification**: [diagnosis codes](https://en.wikipedia.org/wiki/International_Classification_of_Diseases) are already organized into chapters and blocks, so predict the broad group first and the specific code within it second.
+
+**Answer:** Multilabel, with multi-hot labels, using one multi-output model or one binary model per condition, and a decoding rule such as per-class thresholds (here giving diabetes and hypertension). At thousands of codes, expect too few examples for rare codes, and consider predicting through the code hierarchy.
+:::
+
+## Problem 7: Recommending from a catalog that changes every week {#prb-7}
+
+"We want to recommend open clinical trials to patients. New trials open and old ones close every week. One engineer proposes a classifier that outputs a probability for each trial. What do you think?"
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+This uses [Chapter 2, Multiple ways to frame a problem](week02.qmd#sec-multiple-framings).
+
+The proposal is the chapter's next-app example, framing A: **multiclass over $N$ trials**. The output layer has one unit per trial, so its size is tied to the catalog. Every new trial means retraining (at least every part of the model whose parameters depend on $N$), and closed trials linger in the output until the next retrain. With weekly changes, the model is always behind.
+
+The better framing is the chapter's framing B: **score each (patient, trial) pair**.
+
+- **Input:** patient features plus *trial* features (condition, phase, eligibility criteria, location).
+- **Output:** one number in $[0, 1]$, how good a match this trial is for this patient.
+- To recommend, score the patient against every open trial and rank.
+
+A new trial is just a new set of trial features to score, with no retraining, and a closed trial is simply not scored. The model learns what makes a patient and a trial a good match, rather than memorizing a fixed list of trial IDs.
+
+The book calls framing B regression because the output is a continuous score. If the training target is "did the patient enroll," it is usually trained as binary classification with log loss.
+
+**Answer:** Don't tie the output layer to the catalog. Score (patient, trial) pairs with trial features in the input, so new trials need no retraining and closed ones simply drop out.
+:::
+
+## Problem 8: Engagement versus medical accuracy {#prb-8}
+
+"Our health-information app ranks articles in a feed. We want engagement, but we also must not promote medically inaccurate content. One proposal trains a single ranking model on $L = \alpha \, L_{\text{accuracy}} + \beta \, L_{\text{engagement}}$. Another trains an accuracy model and an engagement model separately. Which would you choose? What happens in each design when the product team wants to shift the balance toward accuracy next month?"
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+This uses [Chapter 2, Decoupling objectives](week02.qmd#sec-decoupling).
+
+This is the chapter's newsfeed example with "quality" replaced by "medical accuracy." The two objectives conflict: an engaging but inaccurate article should rank lower than engagement alone suggests.
+
+**Single model, combined loss.** The weights $\alpha$ and $\beta$ are fixed at training time. When the product team wants more weight on accuracy, we change $\alpha$ and $\beta$ and **retrain**. Each adjustment is a full training cycle, and finding the right balance takes several.
+
+**Decoupled models.** Train an accuracy model (minimizing $L_{\text{accuracy}}$) and an engagement model (minimizing $L_{\text{engagement}}$), and rank by
+
+$$
+\text{score} = \alpha \cdot \text{accuracy score} + \beta \cdot \text{engagement score} .
+$$
+
+Shifting toward accuracy is a change to $\alpha$ and $\beta$ at ranking time, with **no retraining**, and it can be A/B tested quickly.
+
+The second reason the chapter gives is **maintenance schedules**. Here, engagement patterns change with news cycles and seasons, while what counts as medically accurate changes when guidance changes. They may need retraining at different frequencies. A filter for known misinformation would likely need updating most often, much like the chapter's spam filter. Decoupled models can each be updated on their own schedule.
+
+If the team wants a principled way to choose the weights, that is Pareto (multi-objective) optimization, which the chapter mentions.
+
+**Answer:** Decouple. With separate models, rebalancing is a change to the ranking weights rather than a retrain, and each model can be maintained on its own schedule.
+:::

@@ -1,0 +1,500 @@
+---
+title: "Chapter 2: Introduction to Machine Learning Systems Design"
+---
+
+```{=html}
+<style>#title-block-header { display: none; }</style>
+<div class="lecture-header">
+  <h1>Chapter 2: Introduction to Machine Learning Systems Design</h1>
+</div>
+```
+
+**Overview.** Chapter 1 defined ML systems design as a system approach to MLOps: treating requirements, data, infrastructure, deployment, monitoring, and stakeholders as one whole. This chapter covers the decisions made before any model is trained. Why does the system exist (business objectives, translated into ML objectives)? What must it satisfy (reliability, scalability, maintainability, adaptability)? How does development actually proceed (an iterative cycle, not a line)? And how do we turn a business problem into something a model can learn (choosing the task type and the objective function)? It closes with the debate over whether progress comes from better algorithms or from more data.
+
+## Business and ML objectives {#sec-objectives}
+
+Data scientists tend to care about **ML objectives**: metrics about the model itself, such as accuracy, F1 score, or inference latency. They may spend substantial data, compute, and engineering time raising accuracy from 94% to 94.2%. Why might that effort still get the project cancelled?
+
+Because most companies do not care about ML metrics unless they move a **business metric**. The book's view (citing the [Friedman doctrine](https://en.wikipedia.org/wiki/Friedman_doctrine)) is that the goal of a project inside a business is to increase profit, either directly (more sales, lower costs) or indirectly (higher customer satisfaction, more time spent on the site). A pattern in short-lived ML projects is a team optimizing ML metrics while their managers, who only see business metrics, cannot tell what the project is doing for the business and shut it down.
+
+::: {.definition-block}
+**Definition.** A **business objective** is the outcome the organization wants (revenue, cost, retention, monthly active users). An **ML objective** is a measurable property of the model (accuracy, F1, latency, loss). An ML project succeeds inside a business only when its ML objectives are tied to the business objectives it is supposed to influence.
+:::
+
+Some use cases make the link easy. Every increase in ad [click-through rate](https://en.wikipedia.org/wiki/Click-through_rate) is ad revenue, and every fraudulent transaction stopped is money saved. That ease of mapping is one reason ad click-through prediction and fraud detection are among the most popular ML use cases.
+
+When the link is not direct, companies build a bridge metric. Netflix measures its recommender by **take-rate**:
+
+::: {.boxed-eq}
+$$
+\text{take-rate} = \frac{\text{number of quality plays}}{\text{number of recommendations a user sees}}
+$$
+:::
+
+A higher take-rate means more of what the recommender shows actually gets watched. Netflix then checked take-rate against business metrics and found that a higher take-rate went with more total streaming hours and fewer subscription cancellations, which is what makes it a useful proxy.
+
+The effect of a model on the business can be hard to reason about in advance. A more personalized model might make customers happier and spend more, or solve their problems faster and spend less. To settle it, companies run experiments such as [A/B tests](https://en.wikipedia.org/wiki/A/B_testing) and pick the model that improves the business metric, **even if it is not the model with the better ML metric**.
+
+Even experiments are not always enough. The book's example is a cybersecurity pipeline: a model flags anomalous traffic, if-else rules decide which anomalies are potential threats, security experts review those, and a separate process stops the real ones. When a threat gets through, it may be impossible to tell whether the ML component had anything to do with it.
+
+Finally, be realistic about returns. ML can transform a business, but not overnight. Returns grow with how long a company has been using ML: mature pipelines run more efficiently, iterate faster, need less engineering time, and cost less to run. The book cites a 2020 Algorithmia survey in which companies with models in production for over five years mostly deployed a new model in under 30 days, while most companies just starting took longer than 30 days.
+
+## Requirements for ML systems {#sec-requirements}
+
+Requirements vary by use case, but the book argues that most ML systems should have four properties.
+
+### Reliability {#sec-reliability}
+
+::: {.definition-block}
+**Definition.** A system is **reliable** if it keeps performing the correct function at the desired level of performance even when things go wrong (hardware faults, software faults, human error).
+:::
+
+"Correct" is hard to pin down for ML. A system can call `model.predict()` without error and still return wrong predictions, and without [ground truth](https://en.wikipedia.org/wiki/Ground_truth) labels we may not know they are wrong. Traditional software usually fails loudly: a crash, a runtime error, a 404. **ML systems can fail silently.** If Google Translate mistranslates a sentence into a language you do not read, you have no way to notice. Chapter 8 covers how ML systems fail in production.
+
+### Scalability {#sec-scalability}
+
+An ML system can grow in three ways:
+
+- **Complexity.** Last year a logistic regression fit in a 1 GB free-tier cloud instance; this year a 100-million-parameter network needs 16 GB of RAM to serve.
+- **Traffic.** From 10,000 prediction requests a day to between 1 and 10 million.
+- **Model count.** One model for trending hashtags becomes three when filters for unsafe content and bot posts are added. Enterprise products often grow one model per customer: a startup the author worked with ran 8,000 models for 8,000 customers.
+
+::: {.definition-block}
+**Definition.** **[Scalability](https://en.wikipedia.org/wiki/Scalability)** is having reasonable ways to handle growth. It covers **resource scaling** (adding resources when load grows, releasing them when it drops) and **artifact management** (keeping many models reproducible, monitored, and up to date).
+:::
+
+For resource scaling, a system that needs 100 GPUs at peak but 10 most of the time should not keep 100 running. [Autoscaling](https://en.wikipedia.org/wiki/Autoscaling) adjusts machine count automatically with usage, but it is hard to get right: Amazon's autoscaling failed on Prime Day 2018 and the site went down.
+
+For artifact management, one model can be monitored and retrained by hand from a single reproduction script. With a hundred models, monitoring and retraining have to be automated, and you need a systematic way to reproduce any model. The book returns to scaling in Chapter 6 (distributed training), Chapter 7 (model optimization), and Chapter 10 (resource management, experiment tracking and versioning).
+
+### Maintainability {#sec-maintainability}
+
+Many people work on an ML system: ML engineers, DevOps engineers, and subject matter experts (SMEs), often with different languages and tools. A maintainable system lets each group use the tools they are comfortable with rather than having one group's tools forced on everyone. Code is documented. Code, data, and artifacts are versioned. Models are [reproducible](https://en.wikipedia.org/wiki/Reproducibility) enough that others can build on them after the original authors leave. When something breaks, people can find and fix it together without blaming each other. Chapter 11 covers team structure.
+
+### Adaptability {#sec-adaptability}
+
+::: {.definition-block}
+**Definition.** A system is **adaptable** if it can discover where performance can be improved and accept updates without interrupting service, so it keeps up with shifting data distributions and changing business requirements.
+:::
+
+Recall from Chapter 1 that ML systems are part code and part data, and data changes quickly. Adaptability depends on maintainability: you cannot update quickly what you cannot understand or reproduce. Chapter 8 covers distribution shift and Chapter 9 covers continual learning.
+
+## The iterative process {#sec-iterative}
+
+Developing an ML system is iterative and usually never finished: once in production, a system has to be monitored and updated. The book makes this concrete with a story about building a model that decides whether to show an ad for a search query. Condensed:
+
+1. Choose a metric: **impressions** (how often an ad is shown).
+2. Collect data, get labels, engineer features, train.
+3. Error analysis shows wrong labels, so relabel and retrain.
+4. Error analysis shows the model **always predicts "don't show,"** because 99.99% of the examples are negative. Collect more positive examples and retrain. (This is class imbalance, covered in Chapter 4.)
+5. The model does well on the test set, which is now two months old, but poorly on yesterday's data. It is stale; retrain on recent data.
+6. Deploy. Then revenue falls: ads are shown, but few are clicked. The metric was wrong. Switch to **click-through rate** and go back to step 1.
+
+Two of these loops are about the metric, not the model: the system did what it was told, and what it was told did not serve the business.
+
+The book's generalization of this story is the six-step cycle in [Figure 1](#fig-cycle), drawn from a data scientist's or ML engineer's point of view. A platform or DevOps engineer would see the same project differently, with more time spent on infrastructure.
+
+```{=html}
+<figure id="fig-cycle" style="margin:1.5rem 0;">
+<svg viewBox="0 0 900 540" width="100%" style="max-width:820px;display:block;margin:auto;font-family:Helvetica,'Helvetica Neue',Arial,sans-serif;">
+  <defs>
+    <marker id="arrW2a" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L0,8 L8,4 z" fill="#555"/></marker>
+    <marker id="arrW2aS" markerWidth="8" markerHeight="8" refX="1" refY="4" orient="auto"><path d="M8,0 L8,8 L0,4 z" fill="#888"/></marker>
+    <marker id="arrW2aE" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L0,8 L8,4 z" fill="#888"/></marker>
+  </defs>
+  <text x="450" y="34" text-anchor="middle" font-size="24" font-weight="700" fill="#002A5C">The iterative process</text>
+
+  <!-- Solid cycle arrows -->
+  <path d="M540,95 L730,95 L730,164" fill="none" stroke="#555" stroke-width="1.8" marker-end="url(#arrW2a)"/>
+  <line x1="730" y1="240" x2="730" y2="324" stroke="#555" stroke-width="1.8" marker-end="url(#arrW2a)"/>
+  <path d="M730,400 L730,465 L546,465" fill="none" stroke="#555" stroke-width="1.8" marker-end="url(#arrW2a)"/>
+  <path d="M360,465 L170,465 L170,406" fill="none" stroke="#555" stroke-width="1.8" marker-end="url(#arrW2a)"/>
+  <line x1="170" y1="330" x2="170" y2="246" stroke="#555" stroke-width="1.8" marker-end="url(#arrW2a)"/>
+  <path d="M170,170 L170,95 L354,95" fill="none" stroke="#555" stroke-width="1.8" marker-end="url(#arrW2a)"/>
+
+  <!-- Dashed back-and-forth arrows -->
+  <g stroke="#888" stroke-width="1.5" stroke-dasharray="7,6" fill="none">
+    <line x1="266" y1="205" x2="634" y2="205" marker-start="url(#arrW2aS)" marker-end="url(#arrW2aE)"/>
+    <line x1="266" y1="365" x2="634" y2="365" marker-start="url(#arrW2aS)" marker-end="url(#arrW2aE)"/>
+    <line x1="266" y1="225" x2="634" y2="345" marker-start="url(#arrW2aS)" marker-end="url(#arrW2aE)"/>
+    <line x1="266" y1="345" x2="634" y2="225" marker-start="url(#arrW2aS)" marker-end="url(#arrW2aE)"/>
+  </g>
+
+  <!-- Step boxes -->
+  <rect x="360" y="60" width="180" height="70" rx="8" fill="#F2C6DE" stroke="#C75794" stroke-width="1.5"/>
+  <text x="450" y="91" text-anchor="middle" font-size="17" font-weight="600" fill="#792051">1. Project</text>
+  <text x="450" y="113" text-anchor="middle" font-size="17" font-weight="600" fill="#792051">scoping</text>
+
+  <rect x="640" y="170" width="180" height="70" rx="8" fill="#C6DEF1" stroke="#5795C7" stroke-width="1.5"/>
+  <text x="730" y="201" text-anchor="middle" font-size="17" font-weight="600" fill="#205279">2. Data</text>
+  <text x="730" y="223" text-anchor="middle" font-size="17" font-weight="600" fill="#205279">engineering</text>
+
+  <rect x="640" y="330" width="180" height="70" rx="8" fill="#C9E4DE" stroke="#57C7AE" stroke-width="1.5"/>
+  <text x="730" y="361" text-anchor="middle" font-size="17" font-weight="600" fill="#207965">3. ML model</text>
+  <text x="730" y="383" text-anchor="middle" font-size="17" font-weight="600" fill="#207965">development</text>
+
+  <rect x="360" y="430" width="180" height="70" rx="8" fill="#F7D9C4" stroke="#C78557" stroke-width="1.5"/>
+  <text x="450" y="471" text-anchor="middle" font-size="17" font-weight="600" fill="#794520">4. Deployment</text>
+
+  <rect x="80" y="330" width="180" height="70" rx="8" fill="#FAEDCB" stroke="#C7A857" stroke-width="1.5"/>
+  <text x="170" y="361" text-anchor="middle" font-size="17" font-weight="600" fill="#796020">5. Monitoring and</text>
+  <text x="170" y="383" text-anchor="middle" font-size="17" font-weight="600" fill="#796020">continual learning</text>
+
+  <rect x="80" y="170" width="180" height="70" rx="8" fill="#F2C6DE" stroke="#C75794" stroke-width="1.5"/>
+  <text x="170" y="201" text-anchor="middle" font-size="17" font-weight="600" fill="#792051">6. Business</text>
+  <text x="170" y="223" text-anchor="middle" font-size="17" font-weight="600" fill="#792051">analysis</text>
+</svg>
+<figcaption style="text-align:center;font-size:0.9em;color:#555;">Figure 1. Developing an ML system is a cycle (solid arrows) with frequent back-and-forth between steps (dashed arrows) (after the book's Figure 2-2).</figcaption>
+</figure>
+```
+
+What each step means, and where the book covers it:
+
+| Step | What happens | Book chapter |
+|---|---|---|
+| 1. Project scoping | Set goals, objectives, and constraints; identify and involve stakeholders; estimate and allocate resources | Ch 1, this chapter, Ch 11 (teams) |
+| 2. Data engineering | Handle data from different sources and formats; curate training data by sampling and labeling | Ch 3, Ch 4 |
+| 3. ML model development | Extract features, then select, train, and evaluate models (the part most ML courses teach) | Ch 5, Ch 6 |
+| 4. Deployment | Make the model accessible to users. The system is never "done," but at some point it has to ship | Ch 7 |
+| 5. Monitoring and continual learning | Watch for performance decay; keep the model adapted to changing data and requirements | Ch 8, Ch 9 |
+| 6. Business analysis | Evaluate model performance against business goals; use the findings to drop unproductive projects or scope new ones (feeds back into step 1) | this chapter |
+
+## Framing ML problems {#sec-framing}
+
+Suppose you lead ML engineering at a bank. Your boss hears that a rival bank used ML to handle customer requests twice as fast and asks your team to do the same. Is "speed up customer service" an ML problem?
+
+No. Slow customer service is a business problem.
+
+::: {.definition-block}
+**Definition.** An **ML problem** is defined by three things: the **inputs**, the **outputs**, and the **objective function** that guides learning. Framing a problem means choosing all three.
+:::
+
+None of the three is obvious from the request. Investigating, you find the bottleneck is routing each request to the right one of four departments: accounting, inventory, HR, and IT. Now there is an ML problem. The input is the customer request, the output is one of four departments, and the objective is to minimize the difference between the predicted and actual department. This is a classification problem. The rest of this chapter looks at the two choices that most change how hard the problem is: the type of output (the **task type**) and the **objective function**. Turning raw inputs into features is Chapter 5.
+
+## Types of ML tasks {#sec-task-types}
+
+The model's output determines the task type. [Figure 2](#fig-task-types) shows the common types.
+
+```{=html}
+<figure id="fig-task-types" style="margin:1.5rem 0;">
+<svg viewBox="0 0 900 430" width="100%" style="max-width:820px;display:block;margin:auto;font-family:Helvetica,'Helvetica Neue',Arial,sans-serif;">
+  <defs>
+    <marker id="arrW2b" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L0,8 L8,4 z" fill="#555"/></marker>
+  </defs>
+  <text x="450" y="34" text-anchor="middle" font-size="24" font-weight="700" fill="#002A5C">Common ML task types</text>
+
+  <g stroke="#555" stroke-width="1.6" fill="none">
+    <path d="M450,116 L450,136 L210,136 L210,156" marker-end="url(#arrW2b)"/>
+    <path d="M450,136 L615,136 L615,156" marker-end="url(#arrW2b)"/>
+    <path d="M615,216 L615,236 L470,236 L470,256" marker-end="url(#arrW2b)"/>
+    <path d="M615,236 L615,256" marker-end="url(#arrW2b)"/>
+    <path d="M615,236 L760,236 L760,256" marker-end="url(#arrW2b)"/>
+    <path d="M615,316 L615,336 L540,336 L540,356" marker-end="url(#arrW2b)"/>
+    <path d="M615,336 L690,336 L690,356" marker-end="url(#arrW2b)"/>
+  </g>
+
+  <rect x="360" y="60" width="180" height="56" rx="8" fill="#FAEDCB" stroke="#C7A857" stroke-width="1.5"/>
+  <text x="450" y="94" text-anchor="middle" font-size="18" font-weight="700" fill="#796020">Task type</text>
+
+  <rect x="120" y="160" width="180" height="56" rx="8" fill="#F7D9C4" stroke="#C78557" stroke-width="1.5"/>
+  <text x="210" y="194" text-anchor="middle" font-size="17" fill="#794520">Regression</text>
+
+  <rect x="525" y="160" width="180" height="56" rx="8" fill="#C9E4DE" stroke="#57C7AE" stroke-width="1.5"/>
+  <text x="615" y="194" text-anchor="middle" font-size="17" fill="#207965">Classification</text>
+
+  <rect x="400" y="260" width="140" height="56" rx="8" fill="#C9E4DE" stroke="#57C7AE" stroke-width="1.5"/>
+  <text x="470" y="294" text-anchor="middle" font-size="17" fill="#207965">Binary</text>
+  <rect x="545" y="260" width="140" height="56" rx="8" fill="#C9E4DE" stroke="#57C7AE" stroke-width="1.5"/>
+  <text x="615" y="294" text-anchor="middle" font-size="17" fill="#207965">Multiclass</text>
+  <rect x="690" y="260" width="140" height="56" rx="8" fill="#C9E4DE" stroke="#57C7AE" stroke-width="1.5"/>
+  <text x="760" y="294" text-anchor="middle" font-size="17" fill="#207965">Multilabel</text>
+
+  <rect x="470" y="360" width="140" height="56" rx="8" fill="#DBCDF0" stroke="#8457C7" stroke-width="1.5"/>
+  <text x="540" y="384" text-anchor="middle" font-size="16" fill="#442079">Low</text>
+  <text x="540" y="404" text-anchor="middle" font-size="16" fill="#442079">cardinality</text>
+  <rect x="620" y="360" width="140" height="56" rx="8" fill="#DBCDF0" stroke="#8457C7" stroke-width="1.5"/>
+  <text x="690" y="384" text-anchor="middle" font-size="16" fill="#442079">High</text>
+  <text x="690" y="404" text-anchor="middle" font-size="16" fill="#442079">cardinality</text>
+</svg>
+<figcaption style="text-align:center;font-size:0.9em;color:#555;">Figure 2. Common task types. Classification splits by the number of classes and by whether an example can carry more than one label (after the book's Figure 2-3).</figcaption>
+</figure>
+```
+
+### Classification versus regression {#sec-class-vs-reg}
+
+::: {.definition-block}
+**Definition.** A **[classification](https://en.wikipedia.org/wiki/Statistical_classification)** model assigns each input to one of a set of categories (spam or not spam). A **[regression](https://en.wikipedia.org/wiki/Regression_analysis)** model outputs a continuous value (the price of a house).
+:::
+
+Either can be reframed as the other.
+
+- **Regression → classification:** bucket house prices (under \$100,000; \$100,000–\$200,000; \$200,000–\$500,000; and so on) and predict the bucket.
+- **Classification → regression:** have the spam model output a value between 0 and 1, then pick a **threshold** (for example, above 0.5 means spam).
+
+The second reframing is how probabilistic classifiers such as [logistic regression](https://en.wikipedia.org/wiki/Logistic_regression) already work: the model outputs a score or probability, and a separate decision threshold turns it into a class. The threshold does not have to be 0.5. Where to set it depends on the relative cost of false positives and false negatives, which matters most when one class is rare. The book takes up evaluation metrics in Chapter 6.
+
+### Binary versus multiclass classification {#sec-binary-multiclass}
+
+::: {.definition-block}
+**Definition.** **[Binary classification](https://en.wikipedia.org/wiki/Binary_classification)** has exactly two classes. **[Multiclass classification](https://en.wikipedia.org/wiki/Multiclass_classification)** has more than two, and each example belongs to exactly one of them.
+:::
+
+The book's binary examples include whether a comment is toxic, whether a lung scan shows signs of cancer, and whether a transaction is fraudulent. Fewer classes generally means an easier problem. Binary problems are easier to work with than multiclass ones: computing F1 or reading a [confusion matrix](https://en.wikipedia.org/wiki/Confusion_matrix) is far more intuitive with two classes.
+
+::: {.definition-block}
+**Definition.** A classification task has **high cardinality** when the number of classes is large, for example thousands of diseases in diagnosis or tens of thousands of products in product classification.
+:::
+
+High cardinality is hard first because of data. The author's rule of thumb is that a model needs **at least 100 examples per class** to learn that class.
+
+::: {.callout-note}
+**Worked example (the book's numbers).** With 1,000 classes and at least 100 examples each, we need at least $1{,}000 \times 100 = 100{,}000$ labeled examples, and that minimum must hold for the rarest class, not just on average. With thousands of classes, some are almost certainly rare, so collecting the minimum for them is the bottleneck.
+:::
+
+One remedy is **[hierarchical classification](https://en.wikipedia.org/wiki/Hierarchical_classification)**: one classifier assigns a coarse group, then a second classifier picks a subgroup within it. For products, first classify into electronics, home and kitchen, fashion, or pet supplies; then, for a product classified as fashion, classify into shoes, shirts, jeans, or accessories.
+
+### Multiclass versus multilabel classification {#sec-multilabel}
+
+::: {.definition-block}
+**Definition.** In **[multilabel classification](https://en.wikipedia.org/wiki/Multi-label_classification)**, an example can belong to more than one class at the same time.
+:::
+
+The book's running example classifies articles into four topics: tech, entertainment, finance, politics. An article can be about both tech and finance. The label encoding shows the difference.
+
+| Setting | Label for "entertainment" | Label for "entertainment and finance" |
+|---|---|---|
+| Multiclass ([one-hot](https://en.wikipedia.org/wiki/One-hot)) | $[0, 1, 0, 0]$ | not allowed |
+| Multilabel (multi-hot) | $[0, 1, 0, 0]$ | $[0, 1, 1, 0]$ |
+
+There are two main approaches to a multilabel problem:
+
+1. Treat it like multiclass, but with multi-hot label vectors.
+2. Turn it into a set of binary problems: one model per topic, each answering "is this article in this topic?"
+
+The author reports that multilabel is the task type companies struggle with most, for two reasons. First, labeling is harder. Annotators may disagree on how many classes an example belongs to (one annotator says two topics, another says one), which is the **label multiplicity** problem of Chapter 4. Second, turning probabilities into predictions is harder.
+
+::: {.callout-note}
+**Worked example (the book's numbers).** The model outputs $[0.45, 0.2, 0.02, 0.33]$ for [tech, entertainment, finance, politics].
+
+- **Multiclass:** exactly one class is correct, so take the largest: tech (0.45).
+- **Multilabel:** the number of correct classes is unknown. Taking the top two gives tech and politics (0.45, 0.33); taking the top three adds entertainment (0.2). Nothing in the output says which is right, so we need an extra rule, such as a per-class threshold or a fixed count.
+:::
+
+### Multiple ways to frame a problem {#sec-multiple-framings}
+
+The same goal can be framed in ways that make it much easier or harder. The book's example: predict which app a phone user will open next. [Figure 3](#fig-framings) compares two framings.
+
+```{=html}
+<figure id="fig-framings" style="margin:1.5rem 0;">
+<svg viewBox="0 0 1000 420" width="100%" style="max-width:960px;display:block;margin:auto;font-family:Helvetica,'Helvetica Neue',Arial,sans-serif;">
+  <defs>
+    <marker id="arrW2c" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L0,8 L8,4 z" fill="#555"/></marker>
+  </defs>
+  <text x="500" y="34" text-anchor="middle" font-size="24" font-weight="700" fill="#002A5C">Two framings of next-app prediction</text>
+
+  <!-- Row 1: classification -->
+  <text x="40" y="84" font-size="18" font-weight="700" fill="#333">A. Multiclass classification</text>
+  <rect x="40" y="100" width="250" height="60" rx="6" fill="#C6DEF1" stroke="#5795C7" stroke-width="1.4"/>
+  <text x="165" y="126" text-anchor="middle" font-size="16" fill="#205279">User features +</text>
+  <text x="165" y="148" text-anchor="middle" font-size="16" fill="#205279">context (time, location)</text>
+  <line x1="294" y1="130" x2="346" y2="130" stroke="#555" stroke-width="1.6" marker-end="url(#arrW2c)"/>
+  <rect x="352" y="100" width="130" height="60" rx="8" fill="#C9E4DE" stroke="#57C7AE" stroke-width="1.5"/>
+  <text x="417" y="136" text-anchor="middle" font-size="17" font-weight="600" fill="#207965">Model</text>
+  <line x1="486" y1="130" x2="538" y2="130" stroke="#555" stroke-width="1.6" marker-end="url(#arrW2c)"/>
+  <rect x="544" y="94" width="420" height="72" rx="6" fill="#F7D9C4" stroke="#C78557" stroke-width="1.4"/>
+  <text x="754" y="122" text-anchor="middle" font-size="16" fill="#794520">One call: N probabilities, one per app</text>
+  <text x="754" y="148" text-anchor="middle" font-size="15" fill="#792051">Output size tied to N: new app means retraining</text>
+
+  <line x1="30" y1="196" x2="970" y2="196" stroke="#bbb" stroke-width="1" stroke-dasharray="6,5"/>
+
+  <!-- Row 2: scoring -->
+  <text x="40" y="232" font-size="18" font-weight="700" fill="#333">B. One score per app (the book calls this regression)</text>
+  <rect x="40" y="250" width="250" height="40" rx="6" fill="#C6DEF1" stroke="#5795C7" stroke-width="1.4"/>
+  <text x="165" y="276" text-anchor="middle" font-size="15" fill="#205279">User + context + app 0</text>
+  <rect x="40" y="300" width="250" height="40" rx="6" fill="#C6DEF1" stroke="#5795C7" stroke-width="1.4"/>
+  <text x="165" y="326" text-anchor="middle" font-size="15" fill="#205279">User + context + app 1</text>
+  <rect x="40" y="350" width="250" height="40" rx="6" fill="#C6DEF1" stroke="#5795C7" stroke-width="1.4"/>
+  <text x="165" y="376" text-anchor="middle" font-size="15" fill="#205279">User + context + app ...</text>
+  <g stroke="#555" stroke-width="1.5" fill="none">
+    <line x1="294" y1="270" x2="346" y2="310" marker-end="url(#arrW2c)"/>
+    <line x1="294" y1="320" x2="346" y2="320" marker-end="url(#arrW2c)"/>
+    <line x1="294" y1="370" x2="346" y2="330" marker-end="url(#arrW2c)"/>
+  </g>
+  <rect x="352" y="290" width="130" height="60" rx="8" fill="#C9E4DE" stroke="#57C7AE" stroke-width="1.5"/>
+  <text x="417" y="326" text-anchor="middle" font-size="17" font-weight="600" fill="#207965">Model</text>
+  <line x1="486" y1="320" x2="538" y2="320" stroke="#555" stroke-width="1.6" marker-end="url(#arrW2c)"/>
+  <rect x="544" y="284" width="420" height="72" rx="6" fill="#F7D9C4" stroke="#C78557" stroke-width="1.4"/>
+  <text x="754" y="312" text-anchor="middle" font-size="16" fill="#794520">N calls: one score in [0, 1] each</text>
+  <text x="754" y="338" text-anchor="middle" font-size="15" fill="#207965">New app is a new input row: no retraining</text>
+</svg>
+<figcaption style="text-align:center;font-size:0.9em;color:#555;">Figure 3. Framing A ties the model's output layer to the number of apps. Framing B moves the app into the input, so the model scores any app, including new ones (after the book's Figures 2-5 and 2-6).</figcaption>
+</figure>
+```
+
+- **Framing A (multiclass).** Input: the user's features and the environment's features (demographics, time, location, previously used apps). Output: a probability distribution over all $N$ apps. One prediction per user per moment, but it is a vector of size $N$. When a new app is added, we have to retrain the model from scratch, or at least every component whose parameter count depends on $N$.
+- **Framing B (score each app).** Input: the user's, environment's, *and the app's* features. Output: a single number between 0 and 1, where higher means the user is more likely to open that app. That means $N$ predictions per user per moment, each just a number. A new app needs only its features as a new input row.
+
+The book calls framing B regression because the output is a continuous score. Since the target is whether the user opens the app, it is commonly trained as a binary classifier on (user, context, app) examples with log loss (defined below). Either way, the lesson is the same: moving the item into the input decouples the model from the size of the catalog.
+
+## Objective functions {#sec-objective-functions}
+
+To learn, a model needs an objective function to optimize.
+
+::: {.definition-block}
+**Definition.** An **objective function** is the mathematical function a model optimizes during training. It is also called a **[loss function](https://en.wikipedia.org/wiki/Loss_function)**, because training usually minimizes the loss caused by wrong predictions. In supervised learning, the loss compares the model's outputs with the ground-truth labels.
+:::
+
+This is a different sense of "objective" from §[Business and ML objectives](#sec-objectives): there, an objective was a goal for the project; here, it is a function the training algorithm minimizes.
+
+Most practitioners use a standard loss rather than designing one:
+
+| Task | Common loss |
+|---|---|
+| Regression | [RMSE](https://en.wikipedia.org/wiki/Root-mean-square_deviation) (root mean squared error) or [MAE](https://en.wikipedia.org/wiki/Mean_absolute_error) (mean absolute error) |
+| Binary classification | Logistic loss (log loss) |
+| Multiclass classification | [Cross-entropy](https://en.wikipedia.org/wiki/Cross-entropy) |
+
+The book gives cross-entropy only as code. The definitions are as follows.
+
+::: {.definition-block}
+**Definition.** For a true label distribution $p$ and a predicted distribution $q$ over $K$ classes, the **cross-entropy** is
+
+$$
+H(p, q) = -\sum_{i=1}^{K} p_i \log q_i .
+$$
+
+When the label is one-hot with true class $k$, every term but one vanishes and $H(p, q) = -\log q_k$.
+
+**Log loss** is the binary case. For a label $y \in \{0, 1\}$ and predicted probability $q$ that $y = 1$,
+
+$$
+\ell(y, q) = -\big[\, y \log q + (1 - y) \log (1 - q) \,\big].
+$$
+:::
+
+Cross-entropy only looks at the probability assigned to the true class, and $-\log$ grows sharply as that probability approaches 0. So a confident wrong prediction costs far more than a hesitant one.
+
+::: {.callout-note}
+**Worked example (the book's numbers).** An article's true topic is politics, so $p = [0, 0, 0, 1]$. The model outputs $q = [0.45, 0.2, 0.02, 0.33]$.
+
+$$
+H(p, q) = -\big(0 \cdot \log 0.45 + 0 \cdot \log 0.2 + 0 \cdot \log 0.02 + 1 \cdot \log 0.33\big) = -\ln 0.33 \approx 1.11 .
+$$
+
+Only the 0.33 on the true class counts. Had the model put 0.9 on politics, the loss would be $-\ln 0.9 \approx 0.11$; had it put 0.02 there, the loss would be $-\ln 0.02 \approx 3.91$.
+:::
+
+### Decoupling objectives {#sec-decoupling}
+
+Framing gets harder when there are several objectives. The book's example is ranking posts in a newsfeed. The original goal is to maximize engagement, through three objectives: filter out spam, filter out unsafe content, and rank by engagement (how likely a user is to click).
+
+Optimizing engagement alone turns out to promote extreme posts, which get more engagement. So the goal becomes: maximize engagement *while* minimizing the spread of extreme views and misinformation. Two objectives are added (filter misinformation, rank by quality), and now two of them conflict. Should an engaging but low-quality post rank high or low?
+
+Each ranking objective becomes a loss. To rank by quality, predict each post's quality and minimize $L_{\text{quality}}$, the gap between predicted and true quality. To rank by engagement, predict each post's clicks and minimize $L_{\text{engagement}}$, the gap between predicted and actual clicks. There are two ways to combine them ([Figure 4](#fig-decoupling)).
+
+**Option 1: one model, combined loss.**
+
+::: {.boxed-eq}
+$$
+L = \alpha \, L_{\text{quality}} + \beta \, L_{\text{engagement}}
+$$
+:::
+
+The weights $\alpha$ and $\beta$ set the trade-off, and they can be tuned by trial or more systematically with Pareto ([multi-objective](https://en.wikipedia.org/wiki/Multi-objective_optimization)) optimization. The cost is that **every change to $\alpha$ or $\beta$ means retraining**, for example when quality rises but engagement falls and we want to shift weight toward engagement.
+
+**Option 2: one model per objective, combined scores.** Train a quality model that minimizes $L_{\text{quality}}$ and outputs a quality score, and an engagement model that minimizes $L_{\text{engagement}}$ and outputs predicted clicks. Rank posts by
+
+::: {.boxed-eq}
+$$
+\text{score} = \alpha \cdot \text{quality score} + \beta \cdot \text{engagement score}
+$$
+:::
+
+Now $\alpha$ and $\beta$ can change without retraining anything.
+
+```{=html}
+<figure id="fig-decoupling" style="margin:1.5rem 0;">
+<svg viewBox="0 0 1000 370" width="100%" style="max-width:960px;display:block;margin:auto;font-family:Helvetica,'Helvetica Neue',Arial,sans-serif;">
+  <defs>
+    <marker id="arrW2d" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L0,8 L8,4 z" fill="#555"/></marker>
+  </defs>
+  <text x="500" y="34" text-anchor="middle" font-size="24" font-weight="700" fill="#002A5C">Combined loss vs decoupled models</text>
+
+  <!-- Left: combined -->
+  <text x="250" y="78" text-anchor="middle" font-size="18" font-weight="700" fill="#333">Option 1: one model</text>
+  <rect x="150" y="94" width="200" height="44" rx="6" fill="#C6DEF1" stroke="#5795C7" stroke-width="1.4"/>
+  <text x="250" y="122" text-anchor="middle" font-size="16" fill="#205279">Posts</text>
+  <line x1="250" y1="140" x2="250" y2="164" stroke="#555" stroke-width="1.6" marker-end="url(#arrW2d)"/>
+  <rect x="70" y="170" width="360" height="70" rx="8" fill="#C9E4DE" stroke="#57C7AE" stroke-width="1.5"/>
+  <text x="250" y="198" text-anchor="middle" font-size="17" font-weight="600" fill="#207965">One model trained on</text>
+  <text x="250" y="222" text-anchor="middle" font-size="16" fill="#207965">α · quality loss + β · engagement loss</text>
+  <line x1="250" y1="242" x2="250" y2="266" stroke="#555" stroke-width="1.6" marker-end="url(#arrW2d)"/>
+  <rect x="150" y="272" width="200" height="44" rx="6" fill="#F7D9C4" stroke="#C78557" stroke-width="1.4"/>
+  <text x="250" y="300" text-anchor="middle" font-size="16" fill="#794520">Ranking</text>
+  <text x="250" y="346" text-anchor="middle" font-size="16" fill="#792051">Change α or β: retrain</text>
+
+  <line x1="500" y1="64" x2="500" y2="356" stroke="#bbb" stroke-width="1" stroke-dasharray="6,5"/>
+
+  <!-- Right: decoupled -->
+  <text x="750" y="78" text-anchor="middle" font-size="18" font-weight="700" fill="#333">Option 2: two models</text>
+  <rect x="650" y="94" width="200" height="44" rx="6" fill="#C6DEF1" stroke="#5795C7" stroke-width="1.4"/>
+  <text x="750" y="122" text-anchor="middle" font-size="16" fill="#205279">Posts</text>
+  <line x1="720" y1="140" x2="648" y2="166" stroke="#555" stroke-width="1.6" marker-end="url(#arrW2d)"/>
+  <line x1="780" y1="140" x2="852" y2="166" stroke="#555" stroke-width="1.6" marker-end="url(#arrW2d)"/>
+  <rect x="540" y="170" width="200" height="56" rx="8" fill="#C9E4DE" stroke="#57C7AE" stroke-width="1.5"/>
+  <text x="640" y="204" text-anchor="middle" font-size="16" font-weight="600" fill="#207965">Quality model</text>
+  <rect x="760" y="170" width="200" height="56" rx="8" fill="#C9E4DE" stroke="#57C7AE" stroke-width="1.5"/>
+  <text x="860" y="204" text-anchor="middle" font-size="16" font-weight="600" fill="#207965">Engagement model</text>
+  <line x1="648" y1="228" x2="712" y2="266" stroke="#555" stroke-width="1.6" marker-end="url(#arrW2d)"/>
+  <line x1="852" y1="228" x2="788" y2="266" stroke="#555" stroke-width="1.6" marker-end="url(#arrW2d)"/>
+  <rect x="620" y="272" width="260" height="44" rx="6" fill="#F7D9C4" stroke="#C78557" stroke-width="1.4"/>
+  <text x="750" y="300" text-anchor="middle" font-size="16" fill="#794520">Rank by α · q + β · e</text>
+  <text x="750" y="346" text-anchor="middle" font-size="16" fill="#207965">Change α or β: no retraining</text>
+</svg>
+<figcaption style="text-align:center;font-size:0.9em;color:#555;">Figure 4. Folding both objectives into one loss fixes the trade-off at training time. Separate models move the trade-off to ranking time.</figcaption>
+</figure>
+```
+
+The book's general advice: **when there are multiple objectives, decouple them first.** Two reasons:
+
+1. **Tuning without retraining.** The trade-off between objectives can be adjusted at ranking time.
+2. **Separate maintenance schedules.** Spam tactics change much faster than how people judge post quality, so the spam filter needs updating far more often than the quality ranker.
+
+This resolves the conflict from Chapter 1's restaurant app: one model for what users will order, one for what earns the most, and a tunable combination of the two.
+
+## Mind versus data {#sec-mind-vs-data}
+
+Is progress in ML driven by better algorithms (the "mind" side, including [inductive biases](https://en.wikipedia.org/wiki/Inductive_bias) and clever architectures) or by more data and the computation that comes with it? In principle we can pursue both, but time spent on one is usually taken from the other.
+
+| Mind over data | Data over mind |
+|---|---|
+| [Judea Pearl](https://en.wikipedia.org/wiki/Judea_Pearl): "Data is profoundly dumb." In 2020 he predicted that data-centric ML practitioners would be outdated within 3–5 years. | [Richard Sutton](https://en.wikipedia.org/wiki/Richard_S._Sutton), "The Bitter Lesson": general methods that leverage computation are ultimately the most effective, by a large margin. |
+| Christopher Manning (milder): huge compute and data with a simple learning algorithm make very bad learners; structure lets systems learn more from less data. | [Peter Norvig](https://en.wikipedia.org/wiki/Peter_Norvig), on Google Search: "We don't have better algorithms. We just have more data." |
+
+Monica Rogati's "data science hierarchy of needs" makes the data side concrete: data collection and infrastructure sit at the base of a pyramid with ML near the top, so without good data (quality and quantity) there is no data science.
+
+The book frames the debate precisely: nobody doubts that *finite* data is necessary; the question is whether it is *sufficient*. With infinite data we might simply look up the answer, but a lot of data is not infinite data.
+
+For now, the trend favors data. Language-model datasets grew from 0.8 billion tokens (the One Billion Word Benchmark, 2013) to 10 billion (GPT-2, 2019) to 500 billion (GPT-3, 2020). But more data is not automatically better. **More data of lower quality, such as outdated data or incorrectly labeled data, can hurt performance.** That is the motivation for the data chapters that follow.
+
+## Summary {#sec-summary}
+
+::: {.callout-note}
+**Key takeaways from Chapter 2** (and what an interviewer is usually checking):
+
+- **Start from the business metric.** ML metrics matter only if they move a business metric. Bridge metrics (take-rate) and A/B tests connect the two, and the model with the better business result wins even if its ML metric is worse.
+- **Four requirements: reliability, scalability, maintainability, adaptability.** ML fails silently; scaling covers complexity, traffic, and model count, plus artifact management; adaptability depends on maintainability.
+- **Development is a cycle.** Scoping, data, modeling, deployment, monitoring, business analysis, then back to scoping. Real iterations are often caused by the wrong metric or the wrong data rather than the wrong model.
+- **Framing means choosing inputs, outputs, and the objective function.** Classification and regression convert into each other; a probability plus a threshold is a classifier, and the threshold is a choice.
+- **Know the task types and their difficulties.** Binary is easiest; high cardinality needs data for rare classes (hierarchical classification helps); multilabel is hard to label and hard to decode.
+- **Framing changes difficulty.** Putting the item into the input (one score per app) avoids retraining whenever the catalog changes.
+- **Know the standard losses.** RMSE/MAE for regression, log loss for binary, cross-entropy for multiclass; with one-hot labels, cross-entropy is $-\log$ of the probability on the true class.
+- **Decouple multiple objectives.** Separate models plus a weighted score let you retune trade-offs without retraining and maintain each model on its own schedule.
+- **Data matters, but quality matters too.** More low-quality data can make a model worse.
+:::
+
+**Next chapter:** Chapter 3, *Data Engineering Fundamentals*, covers data sources, data formats, data models, storage engines for transactional and analytical processing, how data passes between processes, and batch versus stream processing.
+
+## Quick self-check
+
+If you can take "reduce customer support wait times" and, using only "business metric," "task type," and "objective function," turn it into an ML problem and say how you would know it worked, you have understood the core of Chapter 2.

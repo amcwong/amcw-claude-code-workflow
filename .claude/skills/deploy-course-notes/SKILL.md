@@ -1,7 +1,7 @@
 ---
 name: deploy-course-notes
 description: Render course-notes Quarto books and sync to docs/courses/ for GitHub Pages. Use when user says "deploy course notes", "publish notes", "host notes on github", "ship CSC2506 notes", "deploy all course notes", or after course-notes edits that should go public. NOT for instructor RevealJS slides — use `/deploy`. NOT for writing week chapters — use `/course-notes`.
-argument-hint: "[slug | all | ALL]"
+argument-hint: "[slug | all]  (default: all)"
 allowed-tools: ["Read", "Bash"]
 ---
 
@@ -15,10 +15,10 @@ GitHub **Settings → Pages → Source:** branch `main`, folder `/docs`. Without
 
 ## Steps
 
-1. **Run the sync script:**
-   - One course: `./scripts/sync_course_notes_to_docs.sh CSC2506`
-   - **Every** course with `_quarto.yml`: `./scripts/sync_course_notes_to_docs.sh all`
+1. **Run the sync script.** With no argument, `/deploy-course-notes` deploys **all** courses.
+   - **Every** course with `_quarto.yml` (default): `./scripts/sync_course_notes_to_docs.sh` or `./scripts/sync_course_notes_to_docs.sh all`
      - `ALL` / `All` / `all` are equivalent (case-insensitive)
+   - One course, only when a slug is given: `./scripts/sync_course_notes_to_docs.sh CSC2506`
      - Deploys each `courses/*/` book in sorted order; if one fails the quality gate, remaining courses still run, then the script exits non-zero
 
 2. **What the script does (per course):**
