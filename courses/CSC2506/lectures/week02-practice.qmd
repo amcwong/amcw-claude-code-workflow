@@ -9,11 +9,11 @@ title: "Week 2 practice: Decision theory and graphical models"
 </div>
 ```
 
-**Overview.** These problems drill [Week 2](week02.qmd). Try each stem before opening the worked solution. The loss matrices, distributions, and graphs here are invented for practice; they are not the cancer-screening, regression, or Bayes-Ball examples from the lecture. Notation matches the week chapter.
+**Overview.** These problems drill [Week 2](week02.qmd). Try each stem before opening the worked solution. The loss matrices, distributions, and graphs here are invented for practice; they are not the cancer-screening, regression, or Bayes-Ball examples from the lecture. Notation matches the week chapter. The exception is the final section, @sec-tut2, which restates the Week 2 tutorial's own examples.
 
 ## Problem 1: Two ways to be wrong {#prb-1}
 
-A helpdesk routes each incoming ticket either to an [autoresponder](https://en.wikipedia.org/wiki/Automated_information_system) (for routine questions) or to a human agent (for anything else). Two people disagree about how to design the router:
+A helpdesk routes each incoming ticket either to an [autoresponder](https://en.wikipedia.org/wiki/Autoresponder) (for routine questions) or to a human agent (for anything else). Two people disagree about how to design the router:
 
 - **Person A** wants to minimize the fraction of tickets sent to the wrong handler.
 - **Person B** points out that sending a genuinely urgent ticket to the autoresponder is much worse than sending a routine ticket to a human (wasted agent time, but no harm done), and wants the router to reflect that.
@@ -27,7 +27,7 @@ Person A wants to minimize $p(\text{mistake})$, the plain count of wrong handler
 
 The two objectives can agree. Misclassification rate is the special case of expected loss where the loss matrix has 0 on the diagonal and 1 everywhere off it, so if Person B's matrix happened to be symmetric with equal off-diagonal costs, the discriminant rule would reduce to Person A's rule exactly. They diverge only once the loss matrix is asymmetric, which is what Person B is actually asking for.
 
-**Answer.** Person A: misclassification rate. Person B: expected loss with an asymmetric loss matrix. The two agree exactly when the loss matrix is the symmetric 0/1 matrix; a loss matrix is a strict generalization, not a different framework.
+**Answer.** Person A: misclassification rate. Person B: expected loss with an asymmetric loss matrix. The two agree whenever the loss matrix has zero diagonal and equal off-diagonal costs (the 0/1 matrix or any positive multiple of it); a loss matrix is a strict generalization, not a different framework.
 :::
 
 ## Problem 2: Inspecting a batch of widgets {#prb-2}
@@ -173,4 +173,242 @@ This uses [Week 2, Naive Bayes as a graphical model](week02.qmd#sec-naivebayes) 
 **(b) Why the parameter count shrinks.** Without any independence assumption, the DAG on $C, X_1, X_2, X_3$ is fully connected in the chain-rule order $C,X_1,X_2,X_3$: the $i$-th feature's CPT conditions on $C$ and every feature before it, so its table size doubles with each additional feature, giving a total that grows as $2^{d+1}-1$ in the number of features $d$ (@sec-freeparams, @sec-factoring). Removing every edge between features and keeping only the edges from $C$ means each feature's CPT now conditions on $C$ alone, a table of fixed size regardless of how many other features exist. Summing a fixed-size table once per feature gives a total that grows linearly in $d$ instead of exponentially. The structural reason is the same one from @sec-dag: restricting how many parents a node can have is what buys the saving, and Naive Bayes pushes every feature's parent set down to just $\{C\}$, the most aggressive restriction available short of assuming no dependence on $C$ at all.
 
 **Answer.** (a) Common cause, with $C$ as the shared parent of every feature. (b) Fully connected costs grow exponentially in the number of features because each new feature's CPT can condition on every earlier feature; capping every feature's parent set at $\{C\}$ makes each CPT a fixed size, so the total grows linearly instead.
+:::
+
+## Conditional independence drills {#sec-w2-ci-drills}
+
+These problems drill conditional independence from both sides: checking it numerically from a table, and reading it off a graph. All setups are invented.
+
+### Problem 9: Independent given $C$, dependent without it {#prb-9}
+
+Three binary variables $A,B,C$ have the joint distribution
+
+| $(a,b,c)$ | 001 | 011 | 101 | 111 | 000 | 010 | 100 | 110 |
+|---|---|---|---|---|---|---|---|---|
+| $p$ | 0.03 | 0.07 | 0.12 | 0.28 | 0.36 | 0.04 | 0.09 | 0.01 |
+
+1. Check that $A\perp B\mid C$ for $C=1$: is $p(A{=}1,B{=}1\mid C{=}1)=p(A{=}1\mid C{=}1)\,p(B{=}1\mid C{=}1)$? (The other entries and $C=0$ work the same way.)
+2. Are $A$ and $B$ independent marginally?
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+This uses the definition in [Week 2, Conditional independence: three canonical structures](week02.qmd#sec-cistructures), together with Week 1's sum rule.
+
+1. First $p(C{=}1)=0.03+0.07+0.12+0.28=0.5$. Then
+$$p(A{=}1\mid C{=}1)=\frac{0.12+0.28}{0.5}=0.8, \qquad p(B{=}1\mid C{=}1)=\frac{0.07+0.28}{0.5}=0.7,$$
+$$p(A{=}1,B{=}1\mid C{=}1)=\frac{0.28}{0.5}=0.56=0.8\times0.7.$$
+The product rule holds. Doing the same for $C=0$ gives $0.02=0.2\times0.1$, so $A\perp B\mid C$.
+
+2. Sum out $C$: $p(A{=}1)=0.12+0.28+0.09+0.01=0.5$, $p(B{=}1)=0.07+0.28+0.04+0.01=0.4$, and $p(A{=}1,B{=}1)=0.28+0.01=0.29$. Since $0.29\neq0.5\times0.4=0.20$, $A$ and $B$ are dependent.
+
+$C$ is a common cause: it makes both $A$ and $B$ likely to be 1 together. Once $C$ is known it explains everything they share, but if $C$ is summed out, seeing $A{=}1$ hints that $C{=}1$, which makes $B{=}1$ more likely.
+
+**Answer.** (1) Yes, $0.56=0.8\times0.7$. (2) No: $p(A{=}1,B{=}1)=0.29\neq0.20$.
+:::
+
+### Problem 10: Why the three definitions agree {#prb-10}
+
+The week chapter gives three equivalent ways to say $A\perp B\mid C$. Show that $p(a\mid b,c)=p(a\mid c)$ implies $p(a,b\mid c)=p(a\mid c)\,p(b\mid c)$, and then show the reverse (assuming $p(b\mid c)>0$).
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+This proves the equivalence stated in the definition of [Week 2, Conditional independence: three canonical structures](week02.qmd#sec-cistructures). The only tool is the product rule with everything conditioned on $c$: $p(a,b\mid c)=p(a\mid b,c)\,p(b\mid c)$.
+
+**Forward.** Substitute $p(a\mid b,c)=p(a\mid c)$ into the product rule: $p(a,b\mid c)=p(a\mid c)\,p(b\mid c)$.
+
+**Reverse.** Rearrange the product rule and substitute the factorization:
+$$p(a\mid b,c)=\frac{p(a,b\mid c)}{p(b\mid c)}=\frac{p(a\mid c)\,p(b\mid c)}{p(b\mid c)}=p(a\mid c).$$
+
+The third form, $p(b\mid a,c)=p(b\mid c)$, follows the same way with $a$ and $b$ swapped. All three say "once $c$ is known, learning one of $a,b$ tells us nothing more about the other".
+
+**Answer.** Both directions follow from $p(a,b\mid c)=p(a\mid b,c)\,p(b\mid c)$.
+:::
+
+### Problem 11: Explaining away with two coins {#prb-11}
+
+Flip two independent fair coins, $X$ and $Z$ (1 for heads), and let $Y=1$ if at least one of them is heads, $Y=0$ otherwise. Compute $p(Z{=}1)$, $p(Z{=}1\mid Y{=}1)$, and $p(Z{=}1\mid Y{=}1,X{=}1)$. What does this say about $X$ and $Z$ once $Y$ is observed?
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+This is the explaining-away structure of [Week 2, Conditional independence: three canonical structures](week02.qmd#sec-cistructures), with $Y$ a collider: $X\to Y\leftarrow Z$.
+
+- $p(Z{=}1)=\frac12$.
+- $Y=1$ in three of the four equally likely outcomes ($HT,TH,HH$), and $Z=1$ in two of them, so $p(Z{=}1\mid Y{=}1)=\frac{2/4}{3/4}=\frac23$.
+- If also $X=1$, then $Y=1$ is already guaranteed, so it carries no information about $Z$: $p(Z{=}1\mid Y{=}1,X{=}1)=p(Z{=}1)=\frac12$.
+
+Given $Y=1$, learning $X=1$ moves our belief about $Z$ from $\frac23$ down to $\frac12$: $X=1$ has "explained away" why $Y=1$. So $X$ and $Z$, independent to begin with, are dependent once their common effect is observed.
+
+**Answer.** $\frac12$, $\frac23$, $\frac12$: $X\perp Z$ but $X\not\perp Z\mid Y$.
+:::
+
+### Problem 12: Which statements hold in a chain? {#prb-12}
+
+In the first-order chain $X_1\to X_2\to X_3\to X_4$, mark each statement as always true or not true in general:
+
+1. $X_1\perp X_3\mid X_2$
+2. $X_1\perp X_4\mid X_2$
+3. $X_1\perp X_4\mid X_3$
+4. $X_1\perp X_3$
+5. $X_2\perp X_4\mid X_1$
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+This uses the chain structure of [Week 2, Conditional independence: three canonical structures](week02.qmd#sec-cistructures) and the blocking rule of [Week 2, The Bayes Ball algorithm](week02.qmd#sec-bayesball). There is only one path between any two nodes, and every interior node on it is a chain node, so a path is blocked exactly when some node strictly between the endpoints is observed.
+
+1. The path $X_1\to X_2\to X_3$ passes through the observed $X_2$: blocked. True.
+2. The path $X_1\to X_2\to X_3\to X_4$ passes through the observed $X_2$: blocked. True.
+3. The same path passes through the observed $X_3$: blocked. True.
+4. Nothing is observed, so the path is open. Not true in general.
+5. The path $X_2\to X_3\to X_4$ does not pass through $X_1$, so observing $X_1$ does not block it. Not true in general.
+
+**Answer.** 1, 2, 3 true; 4 and 5 not true in general.
+:::
+
+### Problem 13: d-separation on a new graph {#prb-13}
+
+A DAG has edges $u\to v$, $w\to v$, $v\to x$, $w\to y$, $y\to z$. Decide each of the following:
+
+1. $u\perp w$
+2. $u\perp w\mid x$
+3. $u\perp y\mid x$
+4. $u\perp z\mid\{x,y\}$
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+This applies the d-separation definition of [Week 2, The Bayes Ball algorithm](week02.qmd#sec-bayesball). Every path from $u$ must go $u\to v\leftarrow w$, so $v$ is always a collider on it; its only descendant is $x$. From $w$ the path can continue $w\to y\to z$, where $w$ is a fork and $y$ is a chain node.
+
+1. Path $u\to v\leftarrow w$. Neither $v$ nor $x$ is observed, so the collider blocks. Independent.
+2. Now $x$, a descendant of $v$, is observed, so the collider is open. The path is active: not independent.
+3. Path $u\to v\leftarrow w\to y$. The collider $v$ is open (via $x$), and the fork $w$ is unobserved, so it is open too. Active: not independent.
+4. Path $u\to v\leftarrow w\to y\to z$. The collider is open, but the chain node $y$ is observed, which blocks it. This is the only path, so independent.
+
+**Answer.** (1) Yes. (2) No. (3) No. (4) Yes.
+:::
+
+## Tutorial questions {#sec-tut2}
+
+The questions below are the Week 2 tutorial's examples, restated as questions. They use the tutorial's own graphs and models, so several are also worked in the week chapter; each solution says where.
+
+### Tutorial question 1: Factorize the Bayes Ball graph {#tut2-1}
+
+A DAG has five nodes with edges $a\to e$, $f\to e$, $e\to c$, and $f\to b$ (the graph of [Week 2, Figure 3](week02.qmd#sec-bayesball)). Ignoring any observed nodes, what factorization of $p(a,b,c,e,f)$ does it imply?
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+This uses [Week 2, Directed graphical models](week02.qmd#sec-dag): one factor per node, conditioned on that node's parents. $a$ and $f$ have no parents, $e$ has parents $a$ and $f$, $c$ has parent $e$, and $b$ has parent $f$.
+
+**Answer.** $p(a,b,c,e,f)=p(a)\,p(f)\,p(e\mid a,f)\,p(c\mid e)\,p(b\mid f)$.
+:::
+
+### Tutorial question 2: Is $a$ independent of $b$? {#tut2-2}
+
+On the same graph, use Bayes Ball to decide whether $a\perp b$:
+
+a) conditioned on $c$;
+b) conditioned on $f$.
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+This is the tutorial example worked in [Week 2, The Bayes Ball algorithm](week02.qmd#sec-bayesball).
+
+The only path from $a$ to $b$ is $a\to e\leftarrow f\to b$. It has two interior nodes: $e$, where the arrows meet head-to-head, and $f$, where they meet tail-to-tail.
+
+a) Conditioning on $c$: $e$ is a collider that is not observed, but its descendant $c$ is, so rule (b) does not block it. $f$ is tail-to-tail and not observed, so rule (a) does not block it either. The path is open.
+
+b) Conditioning on $f$: $f$ is tail-to-tail and observed, which blocks the path by rule (a). ($e$ is also blocking, since neither it nor its descendant $c$ is observed.)
+
+**Answer.** (a) No, $a\not\perp b\mid c$. (b) Yes, $a\perp b\mid f$.
+:::
+
+### Tutorial question 3: The general spam model {#tut2-3}
+
+A text is classified as spam ($C=1$) or not ($C=0$) from a bag-of-words vector $X=(X_1,\dots,X_d)$, where $X_i\in\{0,1\}$ records whether dictionary word $i$ appears. Without any independence assumptions, factorize $p(C,X)$ with the chain rule in the order $C,X_1,\dots,X_d$. Draw the corresponding DAG in your head: how many edges enter $X_i$, and how many parameters does the whole model need?
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+This uses [Week 2, Free parameters and the cost of the full joint](week02.qmd#sec-freeparams) and [Week 2, Naive Bayes as a graphical model](week02.qmd#sec-naivebayes).
+
+The chain rule gives
+$$p(C,X)=p(C)\,p(X_1\mid C)\prod_{i=2}^dp(X_i\mid X_1,\dots,X_{i-1},C).$$
+Each factor conditions on everything to its left, so the DAG has an edge into each node from every earlier node. The graph on $d+1$ nodes is fully connected.
+
+Node $X_i$ has $i$ parents ($C$ and $X_1,\dots,X_{i-1}$), all binary, so its table has $2^i$ rows, each needing one number. $C$ needs 1 number. The total is
+$$1+\sum_{i=1}^d2^i=1+(2^{d+1}-2)=2^{d+1}-1,$$
+the same as specifying the full joint table over $d+1$ binary variables. This factorization assumes nothing, so it saves nothing.
+
+**Answer.** $X_i$ has $i$ incoming edges; the model needs $2^{d+1}-1$ parameters.
+:::
+
+### Tutorial question 4: Naive Bayes {#tut2-4}
+
+Now remove every edge between the $X_i$'s and keep only the edges from $C$. What factorization does this imply, what independence does it assume, and how many parameters does it need?
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+This is [Week 2, Naive Bayes as a graphical model](week02.qmd#sec-naivebayes).
+
+Each $X_i$ now has the single parent $C$, so
+$$p(C,X)=p(C)\prod_{i=1}^dp(X_i\mid C).$$
+The assumption is $p(X_i\mid X_1,\dots,X_{i-1},C)=p(X_i\mid C)$: every word is independent of every other word given the class. $C$ needs 1 parameter and each $X_i$ needs 2 (one for each value of $C$).
+
+**Answer.** $p(C)\prod_ip(X_i\mid C)$, with $1+2d$ parameters: linear in $d$ instead of exponential.
+:::
+
+### Tutorial question 5: Learning Naive Bayes by maximum likelihood {#tut2-5}
+
+Parameterize the Naive Bayes model by $p(C=1)=\pi$ and $p(X_j=1\mid C=c)=\theta_{jc}$. Given $N$ labelled texts $(x^{(i)},c^{(i)})$, write the log-likelihood as a sum of Bernoulli log-likelihoods and find the MLEs of $\pi$ and $\theta_{jc}$.
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+This reteaches [Week 2, Naive Bayes as a graphical model](week02.qmd#sec-naivebayes) using the Bernoulli MLE of [Week 1, Maximum likelihood estimation](week01.qmd#sec-mle).
+
+**Split the log-likelihood.** The factorization turns the log of each example's probability into a sum:
+$$\ell(\theta)=\sum_{i=1}^N\log p(c^{(i)})+\sum_{j=1}^d\sum_{i=1}^N\log p\big(x_j^{(i)}\mid c^{(i)}\big).$$
+The first sum involves only $\pi$; the $j$-th inner sum involves only $\theta_{j0}$ and $\theta_{j1}$. Each piece can be maximized separately.
+
+**The labels.** $p(c^{(i)})=\pi^{c^{(i)}}(1-\pi)^{1-c^{(i)}}$, so the first sum is $\sum_ic^{(i)}\log\pi+\sum_i(1-c^{(i)})\log(1-\pi)$, a Bernoulli log-likelihood.
+
+**The features.** $p(x_j^{(i)}\mid c)=\theta_{jc}^{x_j^{(i)}}(1-\theta_{jc})^{1-x_j^{(i)}}$. Splitting the examples by label, the $j$-th sum is a Bernoulli log-likelihood for $\theta_{j1}$ over the spam texts plus one for $\theta_{j0}$ over the others.
+
+**Set derivatives to zero.** Each Bernoulli MLE is a fraction of ones:
+$$\hat\pi=\frac{\sum_i\mathbb{1}[c^{(i)}=1]}{N}, \qquad \hat\theta_{jc}=\frac{\sum_i\mathbb{1}[x_j^{(i)}=1,\ c^{(i)}=c]}{\sum_i\mathbb{1}[c^{(i)}=c]}.$$
+
+**Answer.** $\hat\pi$ is the fraction of texts that are spam; $\hat\theta_{j1}$ is the fraction of spam texts containing word $j$ (and $\hat\theta_{j0}$ the same among non-spam texts).
+:::
+
+### Tutorial question 6: A second-order Markov chain {#tut2-6}
+
+The order of a Markov chain is the number of previous states the current state may depend on. Write the factorization of $p(x_{1:T})$ for a first-order chain and for a second-order chain. Which edges does the second-order DAG add?
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+This expands the Markov-chain bullet of [Week 2, DGMs in the wild](week02.qmd#sec-wilddgm). Week 5 develops Markov chains in full.
+
+First order, each state depends on the one before:
+$$p(x_{1:T})=p(x_1)\prod_{t=2}^Tp(x_t\mid x_{t-1}).$$
+Second order, each state depends on the two before:
+$$p(x_{1:T})=p(x_1,x_2)\prod_{t=3}^Tp(x_t\mid x_{t-1},x_{t-2}).$$
+The first two states have no two predecessors, so they share the opening factor $p(x_1,x_2)$.
+
+**Answer.** The second-order DAG keeps the edges $x_{t-1}\to x_t$ and adds a skip edge $x_{t-2}\to x_t$ into every node from $x_3$ on.
+:::
+
+### Tutorial question 7: Hidden Markov models {#tut2-7}
+
+In a hidden Markov model, hidden states $Z_t$ (each taking one of $K$ values) form a first-order Markov chain, and each $Z_t$ emits an observation $X_t$. Write the factorization of $p(X_{1:T},Z_{1:T})$.
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+This is the HMM bullet of [Week 2, DGMs in the wild](week02.qmd#sec-wilddgm). Write the joint as $p(Z_{1:T})\,p(X_{1:T}\mid Z_{1:T})$. The first factor is a first-order chain. In the second, each $X_t$ has the single parent $Z_t$.
+
+**Answer.**
+$$p(X_{1:T},Z_{1:T})=p(Z_1)\prod_{t=2}^Tp(Z_t\mid Z_{t-1})\prod_{t=1}^Tp(X_t\mid Z_t).$$
+:::
+
+### Tutorial question 8: The noisy-OR model {#tut2-8}
+
+The Quick Medical Reference network has binary hidden disease nodes $h=\{h_s\}$ and binary visible symptom nodes $v=\{v_t\}$, with edges only from diseases to symptoms. Its symptom model is a noisy-OR:
+$$p(v_t=0\mid h)=\prod_{s\in\mathrm{pa}(t)}\theta_{st}^{\mathbb{1}(h_s=1)}, \qquad \theta_{st}=p(v_t=0\mid h_s=1,\ \text{all other parents }0).$$
+
+1. Write the joint $p(v,h)$ and give $p(v_t=1\mid h)$.
+2. Without any extra node, what is $p(v_t=1\mid h)$ for a patient with none of the listed diseases? Why does the model add a dummy disease $h_0$ that is always 1?
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+This expands the medical-diagnosis bullet of [Week 2, DGMs in the wild](week02.qmd#sec-wilddgm).
+
+1. Diseases have no parents and each symptom's parents are diseases, so
+$$p(v,h)=\prod_sp(h_s)\prod_tp\big(v_t\mid h_{\mathrm{pa}(t)}\big), \qquad p(v_t=1\mid h)=1-\prod_{s\in\mathrm{pa}(t)}\theta_{st}^{\mathbb{1}(h_s=1)}.$$
+The tutorial's reading: flip one coin per active parent disease, with heads probability $\theta_{st}$. The symptom is absent only if every coin comes up heads.
+
+2. With no active disease every exponent is 0, the product is 1, and $p(v_t=1\mid h)=0$: such a patient could never show any symptom, so observing a symptom with no listed cause would get probability zero. The dummy node $h_0=1$ stands for all unknown diseases. It is always active, so it contributes a factor $\theta_{0t}$ to every product.
+
+**Answer.** (1) $p(v_t=1\mid h)=1-\prod_{s}\theta_{st}^{\mathbb{1}(h_s=1)}$. (2) Zero without the dummy node; with it, $1-\theta_{0t}>0$.
 :::

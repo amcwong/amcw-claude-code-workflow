@@ -9,7 +9,7 @@ title: "Week 1 practice: Introduction and probabilistic models"
 </div>
 ```
 
-**Overview.** These problems drill [Week 1](week01.qmd). Try each stem before opening the worked solution. The numbers and sequences here are invented for practice; they are not homework answers and they are not the diagnostic-test numbers from the lecture. Notation matches the week chapter.
+**Overview.** These problems drill [Week 1](week01.qmd). Try each stem before opening the worked solution. The numbers and sequences here are invented for practice; they are not homework answers and they are not the diagnostic-test numbers from the lecture. Notation matches the week chapter. The exception is the final section, @sec-tut1, which restates the Week 1 tutorial's own examples with the tutorial's numbers.
 
 ## Problem 1: Which model do we need? {#prb-1}
 
@@ -341,4 +341,243 @@ $$\eta=\begin{bmatrix}\mu/\sigma^2\\ 1/\sigma^2\end{bmatrix}, \qquad T(x)=\begin
 Dividing the two coordinates: $\eta_1/\eta_2=\mu$ and $1/\eta_2=\sigma^2$. The ordinary $(\mu,\sigma^2)$ parameterization is recoverable from the natural one, but they are not the same coordinates (the disambiguation table in the week chapter). $T$ is two-dimensional because both mean and variance are unknown; a $N(\theta,1)$ family would need only $T(x)=x$.
 
 **Answer.** $\eta=(\mu/\sigma^2,\,1/\sigma^2)$, $T(x)=(x,\,-x^2/2)$, with $\mu=\eta_1/\eta_2$ and $\sigma^2=1/\eta_2$.
+:::
+
+## Bayes' rule and marginalization basics {#sec-w1-bayes-marg}
+
+These problems drill the three moves that every later week relies on: summing a joint to get a marginal, dividing a joint by a marginal to get a conditional, and recognizing the denominator of Bayes' rule as a marginal. All numbers are invented.
+
+### Problem 15: Marginals from a joint table {#prb-15}
+
+A survey records the weather $W$ and how a person commuted $M$ on the same day. The joint distribution is:
+
+| | bike | bus | car |
+|---|---|---|---|
+| sun | 0.30 | 0.15 | 0.15 |
+| rain | 0.05 | 0.20 | 0.15 |
+
+Find the marginal distributions $p(W)$ and $p(M)$, and check that each sums to 1.
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+This uses the sum rule from [Week 1, Joint, marginal, and conditional distributions](week01.qmd#sec-joint): to get the marginal of one variable, sum the joint over every value of the other.
+
+For $W$, sum across each row: $p(\text{sun})=0.30+0.15+0.15=0.60$ and $p(\text{rain})=0.05+0.20+0.15=0.40$.
+
+For $M$, sum down each column: $p(\text{bike})=0.30+0.05=0.35$, $p(\text{bus})=0.15+0.20=0.35$, $p(\text{car})=0.15+0.15=0.30$.
+
+Both sum to 1, as they must, because both are sums of all six joint entries grouped differently.
+
+**Answer.** $p(W)=(0.60,\ 0.40)$ and $p(M)=(0.35,\ 0.35,\ 0.30)$.
+:::
+
+### Problem 16: Conditioning goes both ways {#prb-16}
+
+Using the table in Problem 15, compute $p(M=\text{bus}\mid W=\text{rain})$ and $p(W=\text{rain}\mid M=\text{bus})$. Are they equal?
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+This uses the definition of a conditional from [Week 1, Joint, marginal, and conditional distributions](week01.qmd#sec-joint): divide the joint entry by the marginal of whatever we condition on.
+
+Both use the same joint entry, $p(\text{bus},\text{rain})=0.20$, but divide by different marginals:
+$$p(\text{bus}\mid\text{rain})=\frac{p(\text{bus},\text{rain})}{p(\text{rain})}=\frac{0.20}{0.40}=0.5,$$
+$$p(\text{rain}\mid\text{bus})=\frac{p(\text{bus},\text{rain})}{p(\text{bus})}=\frac{0.20}{0.35}=\frac47\approx0.571.$$
+
+The first asks "of the rainy days, how many were bus days?"; the second asks "of the bus days, how many were rainy?". They share a numerator and differ in what they are a fraction of. Bayes' rule is the bridge between them: $p(\text{rain}\mid\text{bus})=p(\text{bus}\mid\text{rain})\,p(\text{rain})/p(\text{bus})$.
+
+**Answer.** $0.5$ and $4/7\approx0.571$: not equal in general.
+:::
+
+### Problem 17: The denominator is a marginal {#prb-17}
+
+A factory buys a part from three suppliers. Supplier 1 provides 50% of the parts, supplier 2 provides 30%, and supplier 3 provides 20%. Their defect rates are 1%, 2%, and 5% respectively. A randomly chosen part turns out to be defective ($D$).
+
+1. Compute $p(D)$.
+2. Compute $p(\text{supplier }3\mid D)$.
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+This extends [Week 1, Worked example: a diagnostic test](week01.qmd#sec-bayes) from two hypotheses to three.
+
+1. The probability of a defect is not given directly; it is a marginal. Sum the joint $p(D,s)=p(D\mid s)\,p(s)$ over the supplier $s$:
+$$p(D)=\sum_sp(D\mid s)\,p(s)=0.01\times0.5+0.02\times0.3+0.05\times0.2=0.005+0.006+0.010=0.021.$$
+2. Bayes' rule divides one term of that sum by the whole sum:
+$$p(\text{supplier }3\mid D)=\frac{p(D\mid 3)\,p(3)}{\sum_sp(D\mid s)\,p(s)}=\frac{0.010}{0.021}\approx0.476.$$
+
+Supplier 3 makes only 20% of the parts but nearly half the defective ones, because its defect rate is five times supplier 1's.
+
+**Answer.** $p(D)=0.021$ and $p(\text{supplier }3\mid D)\approx0.476$.
+:::
+
+### Problem 18: Posterior odds skip the normalizer {#prb-18}
+
+With the numbers of Problem 17, compute the ratio $p(\text{supplier }3\mid D)\,/\,p(\text{supplier }1\mid D)$ **without** computing $p(D)$. Why is that possible?
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+This reteaches the structure of Bayes' rule in [Week 1, Worked example: a diagnostic test](week01.qmd#sec-bayes).
+
+Each posterior is (likelihood $\times$ prior) divided by the same $p(D)$. In a ratio of two posteriors, $p(D)$ cancels:
+$$\frac{p(3\mid D)}{p(1\mid D)}=\frac{p(D\mid 3)\,p(3)/p(D)}{p(D\mid 1)\,p(1)/p(D)}=\frac{0.05\times0.2}{0.01\times0.5}=\frac{0.010}{0.005}=2.$$
+In words: posterior odds equal prior odds times the likelihood ratio. This is why we can compare hypotheses, or pick the most probable one, without ever computing the denominator. The same cancellation lets later weeks work with $\tilde p$ and never compute the normalizer $Z$.
+
+**Answer.** The ratio is 2: supplier 3 is twice as likely as supplier 1 to be the source, and $p(D)$ cancels because it is shared.
+:::
+
+### Problem 19: Two pieces of evidence {#prb-19}
+
+A building has a fire ($F=1$) on a given day with probability 0.01. Each of two smoke alarms goes off with probability 0.95 if there is a fire and 0.10 if there is not, and the two alarms behave independently of each other once we know whether there is a fire.
+
+1. Alarm 1 goes off. What is $p(F=1\mid A_1=1)$?
+2. Both alarms go off. What is $p(F=1\mid A_1=1,A_2=1)$?
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+This applies [Week 1, Worked example: a diagnostic test](week01.qmd#sec-bayes) twice.
+
+1. The two joint terms are $p(A_1{=}1,F{=}1)=0.95\times0.01=0.0095$ and $p(A_1{=}1,F{=}0)=0.10\times0.99=0.099$. Dividing by their sum,
+$$p(F=1\mid A_1=1)=\frac{0.0095}{0.0095+0.099}=\frac{0.0095}{0.1085}\approx0.088.$$
+2. Because the alarms are independent given $F$, the likelihood of both going off is a product: $p(A_1{=}1,A_2{=}1\mid F)=p(A_1{=}1\mid F)\,p(A_2{=}1\mid F)$. So the joint terms are $0.95^2\times0.01=0.009025$ and $0.10^2\times0.99=0.0099$, and
+$$p(F=1\mid A_1=1,A_2=1)=\frac{0.009025}{0.009025+0.0099}=\frac{0.009025}{0.018925}\approx0.477.$$
+
+A single alarm is mostly a false alarm, because fires are rare. A second, independent alarm multiplies the likelihood ratio by another $0.95/0.10=9.5$, which raises the posterior about fivefold. The independence assumption is doing real work here; Week 2 makes it precise as conditional independence.
+
+**Answer.** About $0.088$ after one alarm and $0.477$ after both.
+:::
+
+### Problem 20: Marginalizing a three-variable table {#prb-20}
+
+Three binary variables $(X,Y,Z)$ have the joint distribution
+
+| $(x,y,z)$ | 000 | 001 | 010 | 011 | 100 | 101 | 110 | 111 |
+|---|---|---|---|---|---|---|---|---|
+| $p$ | 0.10 | 0.05 | 0.15 | 0.10 | 0.05 | 0.20 | 0.10 | 0.25 |
+
+Compute $p(X=1,Z=1)$, $p(Z=1)$, $p(X=1\mid Z=1)$, and $p(Y=1\mid X=1,Z=1)$.
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+This is the sum rule and the conditional of [Week 1, Joint, marginal, and conditional distributions](week01.qmd#sec-joint) with three variables instead of two. The rule does not change: sum over every variable you do not want, then divide by the marginal of what you condition on.
+
+- $p(X{=}1,Z{=}1)$: sum out $Y$, so add the entries with $x=1,z=1$: $p(1,0,1)+p(1,1,1)=0.20+0.25=0.45$.
+- $p(Z{=}1)$: sum out both $X$ and $Y$, so add every entry with $z=1$: $0.05+0.10+0.20+0.25=0.60$.
+- $p(X{=}1\mid Z{=}1)=\dfrac{p(X{=}1,Z{=}1)}{p(Z{=}1)}=\dfrac{0.45}{0.60}=0.75$.
+- $p(Y{=}1\mid X{=}1,Z{=}1)=\dfrac{p(1,1,1)}{p(X{=}1,Z{=}1)}=\dfrac{0.25}{0.45}=\dfrac59$.
+
+The last line conditions on two variables at once, so its denominator is the two-variable marginal from the first line.
+
+**Answer.** $0.45$, $0.60$, $0.75$, and $5/9\approx0.556$.
+:::
+
+## Tutorial questions {#sec-tut1}
+
+The questions below are the Week 1 tutorial's worked examples, restated as questions. They use the tutorial's own numbers and setups, so most of them are also worked in the week chapter; each solution says where.
+
+### Tutorial question 1: Testing positive, testing negative {#tut1-1}
+
+You may have contracted COVID-19 and take a PCR test. Let $H=1$ if you are infected and $H=0$ if not, and $Y=1$ if the test is positive and $Y=0$ if negative. Assume sensitivity $p(Y=1\mid H=1)=0.875$, specificity $p(Y=0\mid H=0)=0.975$, and prevalence $p(H=1)=0.1$.
+
+1. Write down the joint distribution of $(Y,H)$ as a $2\times2$ table, together with both marginal distributions.
+2. Compute $p(H=1\mid Y=1)$ and $p(H=1\mid Y=0)$.
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+This is the example worked in [Week 1, Worked example: a diagnostic test](week01.qmd#sec-bayes).
+
+1. Each joint entry is a conditional times the prior, $p(Y=y,H=h)=p(Y=y\mid H=h)\,p(H=h)$:
+
+| | $H=0$ | $H=1$ | $p(Y)$ |
+|---|---|---|---|
+| $Y=0$ | $0.975\times0.9=0.8775$ | $0.125\times0.1=0.0125$ | $0.89$ |
+| $Y=1$ | $0.025\times0.9=0.0225$ | $0.875\times0.1=0.0875$ | $0.11$ |
+| $p(H)$ | $0.9$ | $0.1$ | |
+
+The four joint entries are nonnegative and sum to 1. Each marginal is a row or column sum.
+
+2. Conditioning divides a joint entry by the matching marginal:
+$$p(H=1\mid Y=1)=\frac{0.0875}{0.11}\approx0.795, \qquad p(H=1\mid Y=0)=\frac{0.0125}{0.89}\approx0.014.$$
+
+**Answer.** A positive test gives about a 79.5% chance of infection; a negative test about 1.4%.
+:::
+
+### Tutorial question 2: A lower prevalence {#tut1-2}
+
+Repeat Tutorial question 1 with the same test but a prevalence of $p(H=1)=0.01$. Why is the answer for a positive test so much lower?
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+Same steps as [Week 1, Worked example: a diagnostic test](week01.qmd#sec-bayes), with the prior changed.
+
+For a positive test, the two joint entries in the $Y=1$ row are $0.875\times0.01=0.00875$ (infected) and $0.025\times0.99=0.02475$ (not infected), so $p(Y=1)=0.0335$ and
+$$p(H=1\mid Y=1)=\frac{0.00875}{0.0335}\approx0.26.$$
+For a negative test, the $Y=0$ row is $0.125\times0.01=0.00125$ and $0.975\times0.99=0.96525$, so
+$$p(H=1\mid Y=0)=\frac{0.00125}{0.9665}\approx0.0013.$$
+
+The tutorial's explanation: when the disease is rare, the few true positives are outnumbered by false positives from the much larger healthy group ($0.02475$ against $0.00875$), so a single positive test is more likely to be a false positive than a real infection. The prevalence, sensitivity, and specificity are the three parameters of this model, and the posterior depends on all three.
+
+**Answer.** About 26% after a positive test and 0.13% after a negative one.
+:::
+
+### Tutorial question 3: The Multinomial likelihood as an exponential family {#tut1-3}
+
+Let $X\sim\mathrm{Multinomial}(q)$ take one of $K$ states, $p(X=i)=q_i$ with $q_i\ge0$ and $\sum_iq_i=1$, and observe $N$ i.i.d. draws $\mathcal{D}=\{x^{(1)},\dots,x^{(N)}\}$.
+
+1. Write $p(\mathcal{D};q)$ in the form $\exp\{\eta^\top T(x)\}$ with $\eta_i=\log q_i$. What are the sufficient statistics?
+2. In this form $h=1$ and $A(\eta)=0$. Applying the Week 1 rule "$\nabla A(\eta)$ is the mean of the sufficient statistic" would then say every count has mean zero. What goes wrong?
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+This reteaches the first step of [Week 1, Multinomial as an exponential family](week01.qmd#sec-multinomial) and the mean rule of [Week 1, Mean of sufficient statistics](week01.qmd#sec-mean).
+
+1. One draw has probability $\prod_i q_i^{\mathbb{1}[x^{(n)}=i]}$, since exactly one indicator is 1. Multiply over draws, take the log, and swap the two sums:
+$$p(\mathcal{D};q)=\exp\Big\{\sum_{n=1}^N\sum_{i=1}^K\mathbb{1}[x^{(n)}=i]\log q_i\Big\}=\exp\Big\{\sum_{i=1}^K N_i\log q_i\Big\},$$
+with $N_i=\sum_n\mathbb{1}[x^{(n)}=i]$. So $T=(N_1,\dots,N_K)$, the counts, and $\eta_i=\log q_i$.
+
+2. The rule $\nabla A(\eta)=\mathbb{E}[T]$ assumes each $\eta_i$ can be varied on its own. Here they cannot: $\sum_iq_i=1$ forces $\sum_ie^{\eta_i}=1$, so changing one coordinate forces the others to change. The true means $\mathbb{E}[N_i]=Nq_i$ are not zero; the formula simply does not apply to a constrained parameterization. Tutorial question 4 fixes this.
+
+**Answer.** (1) The counts $N_1,\dots,N_K$. (2) The natural parameters are not separately variable, so the gradient rule does not apply.
+:::
+
+### Tutorial question 4: Building the constraint into the parameters {#tut1-4}
+
+Continuing Tutorial question 3, substitute $q_K=1-\sum_{i=1}^{K-1}q_i$ to write $p(\mathcal{D};q)$ as an exponential family in $K-1$ free natural parameters. Give $T$, $\eta$, $h$, and $A(\eta)$, with $A$ written in terms of $\eta$.
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+This is Steps 1 and 2 of [Week 1, Multinomial as an exponential family](week01.qmd#sec-multinomial).
+
+Peel the $i=K$ term out of the sum and use $N_K=N-\sum_{i<K}N_i$:
+$$\sum_{i=1}^K N_i\log q_i=\sum_{i=1}^{K-1}N_i\log\frac{q_i}{q_K}+N\log q_K.$$
+For $i=1,\dots,K-1$ this reads off $T(x)_i=N_i$, $\eta_i=\log(q_i/q_K)$, $h(x)=1$, and $A=-N\log q_K$.
+
+To write $A$ in terms of $\eta$: $e^{\eta_i}=q_i/q_K$, and summing over all $K$ states (with $e^{\eta_K}=1$) gives $1/q_K=1+\sum_{i=1}^{K-1}e^{\eta_i}$. So
+$$A(\eta)=N\log\Big(1+\sum_{i=1}^{K-1}e^{\eta_i}\Big).$$
+
+**Answer.** $T_i=N_i$, $\eta_i=\log(q_i/q_K)$, $h=1$, $A(\eta)=N\log(1+\sum_{i<K}e^{\eta_i})$, for $i=1,\dots,K-1$.
+:::
+
+### Tutorial question 5: The Multinomial MLE {#tut1-5}
+
+Maximize the log-likelihood $\ell(q;\mathcal{D})=\sum_iN_i\log q_i$ subject to $\sum_iq_i=1$.
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+This is Step 3 of [Week 1, Multinomial as an exponential family](week01.qmd#sec-multinomial).
+
+We cannot just set the derivative to zero, because that ignores the constraint. Write the Lagrangian
+$$L(q,\lambda)=\sum_iN_i\log q_i+\lambda\Big(1-\sum_iq_i\Big).$$
+Then $\partial L/\partial q_i=N_i/q_i-\lambda=0$ gives $q_i=N_i/\lambda$. Summing over $i$ and using the constraint, $\sum_iN_i/\lambda=1$, so $\lambda=\sum_iN_i=N$.
+
+**Answer.** $\hat q_i=N_i/N$: each class probability is estimated by its relative frequency.
+:::
+
+### Tutorial question 6: The univariate Gaussian, natural form and MLE {#tut1-6}
+
+Let $x^{(1)},\dots,x^{(N)}$ be i.i.d. from $\mathcal{N}(x\mid\mu,\sigma^2)$.
+
+1. Write one density in the form $h(x)\exp\{\eta^\top T(x)-A(\eta)\}$ and give $h$ and $A(\eta)$ in terms of $\eta$.
+2. Find the MLE of $(\mu,\sigma^2)$ by differentiating the log-likelihood in the $(\mu,\sigma^2)$ parameterization.
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+This extends [Week 1, Univariate Gaussian as an exponential family](week01.qmd#sec-gaussian). Problem 14 above found $\eta=(\mu/\sigma^2,\,1/\sigma^2)$ and $T(x)=(x,\,-x^2/2)$.
+
+1. What is left of the density after the $\eta^\top T(x)$ term is $\frac{1}{\sqrt{2\pi}\,\sigma}\exp\{-\mu^2/2\sigma^2\}$. Take $h(x)=(2\pi)^{-1/2}$ and put the rest in $A$: since $1/\sigma=\sqrt{\eta_2}$ and $\mu^2/\sigma^2=\eta_1^2/\eta_2$,
+$$A(\eta)=-\tfrac12\log\eta_2+\frac{\eta_1^2}{2\eta_2}.$$
+
+2. The log-likelihood is
+$$\ell(\mu,\sigma^2)=-\frac N2\log(2\pi\sigma^2)-\frac{1}{2\sigma^2}\sum_n\big(x^{(n)}-\mu\big)^2.$$
+Setting $\partial\ell/\partial\mu=\frac{1}{\sigma^2}\sum_n(x^{(n)}-\mu)=0$ gives $\hat\mu=\frac1N\sum_nx^{(n)}$. Setting
+$$\frac{\partial\ell}{\partial\sigma^2}=-\frac{N}{2\sigma^2}+\frac{1}{2\sigma^4}\sum_n\big(x^{(n)}-\mu\big)^2=0$$
+gives $\hat\sigma^2=\frac1N\sum_n(x^{(n)}-\hat\mu)^2$. The tutorial writes the same quantity as $\frac1N\sum_n\big((x^{(n)})^2-\hat\mu^2\big)$; expanding the square shows the two agree.
+
+**Answer.** $h=(2\pi)^{-1/2}$, $A(\eta)=-\frac12\log\eta_2+\eta_1^2/(2\eta_2)$; the MLEs are the sample mean and the (divide-by-$N$) sample variance.
 :::

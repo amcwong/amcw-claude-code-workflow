@@ -1,0 +1,1352 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.10.18">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+
+<title>Week 3 practice: Markov random fields and exact inference – CSC412/2506: Probabilistic Machine Learning notes</title>
+<style>
+/* Default styles provided by pandoc.
+** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
+*/
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: 1.5em;}
+div.column{flex: auto;}
+@media screen {
+div.columns{gap: min(4vw, 1.5em);}
+div.column{overflow-x: auto;}
+}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+/* CSS for syntax highlighting */
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+</style>
+
+
+<script src="../site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="../site_libs/quarto-nav/headroom.min.js"></script>
+<script src="../site_libs/clipboard/clipboard.min.js"></script>
+<script src="../site_libs/quarto-search/autocomplete.umd.js"></script>
+<script src="../site_libs/quarto-search/fuse.min.js"></script>
+<script src="../site_libs/quarto-search/quarto-search.js"></script>
+<meta name="quarto:offset" content="../">
+<link href="../lectures/week04.html" rel="next">
+<link href="../lectures/week03.html" rel="prev">
+<script src="../site_libs/quarto-html/quarto.js" type="module"></script>
+<script src="../site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
+<script src="../site_libs/quarto-html/popper.min.js"></script>
+<script src="../site_libs/quarto-html/tippy.umd.min.js"></script>
+<script src="../site_libs/quarto-html/anchor.min.js"></script>
+<link href="../site_libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="../site_libs/quarto-html/quarto-syntax-highlighting-bb62276ab45c84d9efd712f51ff97b5a.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<script src="../site_libs/bootstrap/bootstrap.min.js"></script>
+<link href="../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="../site_libs/bootstrap/bootstrap-ce0958bf53307a1b0bb60f85d87db72f.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
+<script id="quarto-search-options" type="application/json">{
+  "location": "sidebar",
+  "copy-button": false,
+  "collapse-after": 3,
+  "panel-placement": "start",
+  "type": "textbox",
+  "limit": 50,
+  "keyboard-shortcut": [
+    "f",
+    "/",
+    "s"
+  ],
+  "show-item-context": false,
+  "language": {
+    "search-no-results-text": "No results",
+    "search-matching-documents-text": "matching documents",
+    "search-copy-link-title": "Copy link to search",
+    "search-hide-matches-text": "Hide additional matches",
+    "search-more-match-text": "more match in this document",
+    "search-more-matches-text": "more matches in this document",
+    "search-clear-button-title": "Clear",
+    "search-text-placeholder": "",
+    "search-detached-cancel-button-title": "Cancel",
+    "search-submit-button-title": "Submit",
+    "search-label": "Search"
+  }
+}</script>
+<style>html{ scroll-behavior: smooth; }</style>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+<link href="https://fonts.googleapis.com/css2?family=Source+Code+Pro:wght@400;600&amp;family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&amp;display=swap" rel="stylesheet">
+
+  <script>window.backupDefine = window.define; window.define = undefined;</script><script src="https://cdn.jsdelivr.net/npm/katex@latest/dist/katex.min.js"></script>
+  <script>document.addEventListener("DOMContentLoaded", function () {
+ var mathElements = document.getElementsByClassName("math");
+ var macros = [];
+ for (var i = 0; i < mathElements.length; i++) {
+  var texText = mathElements[i].firstChild;
+  if (mathElements[i].tagName == "SPAN") {
+   katex.render(texText.data, mathElements[i], {
+    displayMode: mathElements[i].classList.contains('display'),
+    throwOnError: false,
+    macros: macros,
+    fleqn: false
+   });
+}}});
+  </script>
+  <script>window.define = window.backupDefine; window.backupDefine = undefined;</script><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@latest/dist/katex.min.css">
+
+<script type="text/javascript">
+const typesetMath = (el) => {
+  if (window.MathJax) {
+    // MathJax Typeset
+    window.MathJax.typeset([el]);
+  } else if (window.katex) {
+    // KaTeX Render
+    var mathElements = el.getElementsByClassName("math");
+    var macros = [];
+    for (var i = 0; i < mathElements.length; i++) {
+      var texText = mathElements[i].firstChild;
+      if (mathElements[i].tagName == "SPAN" && texText && texText.data) {
+        window.katex.render(texText.data, mathElements[i], {
+          displayMode: mathElements[i].classList.contains('display'),
+          throwOnError: false,
+          macros: macros,
+          fleqn: false
+        });
+      }
+    }
+  }
+}
+window.Quarto = {
+  typesetMath
+};
+</script>
+
+<link rel="stylesheet" href="../styles/custom.css">
+</head>
+
+<body class="nav-sidebar floating quarto-light">
+
+<div id="quarto-search-results"></div>
+  <header id="quarto-header" class="headroom fixed-top">
+  <nav class="quarto-secondary-nav">
+    <div class="container-fluid d-flex">
+      <button type="button" class="quarto-btn-toggle btn" data-bs-toggle="collapse" role="button" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+        <i class="bi bi-layout-text-sidebar-reverse"></i>
+      </button>
+        <nav class="quarto-page-breadcrumbs" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../lectures/week03-practice.html"><span class="chapter-title">Week 3 practice: Markov random fields and exact inference</span></a></li></ol></nav>
+        <a class="flex-grow-1" role="navigation" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">      
+        </a>
+      <button type="button" class="btn quarto-search-button" aria-label="Search" onclick="window.quartoOpenSearch();">
+        <i class="bi bi-search"></i>
+      </button>
+    </div>
+  </nav>
+</header>
+<!-- content -->
+<div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-article">
+<!-- sidebar -->
+  <nav id="quarto-sidebar" class="sidebar collapse collapse-horizontal quarto-sidebar-collapse-item sidebar-navigation floating overflow-auto">
+    <div class="pt-lg-2 mt-2 text-left sidebar-header">
+    <div class="sidebar-title mb-0 py-0">
+      <a href="../">CSC412/2506: Probabilistic Machine Learning notes</a> 
+    </div>
+      </div>
+        <div class="mt-2 flex-shrink-0 align-items-center">
+        <div class="sidebar-search">
+        <div id="quarto-search" class="" title="Search"></div>
+        </div>
+        </div>
+    <div class="sidebar-menu-container"> 
+    <ul class="list-unstyled mt-1">
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../index.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">CSC412/2506 Probabilistic Machine Learning</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../lectures/week01.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Week 1: Introduction and Probabilistic Models</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../lectures/week01-practice.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Week 1 practice: Introduction and probabilistic models</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../lectures/week02.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Week 2: Decision Theory and Graphical Models</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../lectures/week02-practice.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Week 2 practice: Decision theory and graphical models</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../lectures/week03.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Week 3: Markov Random Fields and Exact Inference</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../lectures/week03-practice.html" class="sidebar-item-text sidebar-link active"><span class="chapter-title">Week 3 practice: Markov random fields and exact inference</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../lectures/week04.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Week 4: Message Passing and Monte Carlo</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../lectures/week05.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Week 5: Sampling with MCMC</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../glossary.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Glossary</span></a>
+  </div>
+</li>
+    </ul>
+    </div>
+</nav>
+<div id="quarto-sidebar-glass" class="quarto-sidebar-collapse-item" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item"></div>
+<!-- margin-sidebar -->
+    <div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
+        <nav id="TOC" role="doc-toc" class="toc-active">
+    <h2 id="toc-title">On this page</h2>
+   
+  <ul>
+  <li><a href="#prb-1" id="toc-prb-1" class="nav-link active" data-scroll-target="#prb-1">Problem 1: Cliques in a house-shaped graph</a></li>
+  <li><a href="#prb-2" id="toc-prb-2" class="nav-link" data-scroll-target="#prb-2">Problem 2: Reading independence off the house graph</a></li>
+  <li><a href="#prb-3" id="toc-prb-3" class="nav-link" data-scroll-target="#prb-3">Problem 3: Directed, undirected, both, or neither?</a></li>
+  <li><a href="#prb-4" id="toc-prb-4" class="nav-link" data-scroll-target="#prb-4">Problem 4: A two-spin Ising model</a></li>
+  <li><a href="#prb-5" id="toc-prb-5" class="nav-link" data-scroll-target="#prb-5">Problem 5: A star-shaped precision matrix</a></li>
+  <li><a href="#prb-6" id="toc-prb-6" class="nav-link" data-scroll-target="#prb-6">Problem 6: Elimination order on a star</a></li>
+  <li><a href="#prb-7" id="toc-prb-7" class="nav-link" data-scroll-target="#prb-7">Problem 7: Elimination with evidence on a three-node chain</a></li>
+  <li><a href="#prb-8" id="toc-prb-8" class="nav-link" data-scroll-target="#prb-8">Problem 8: What an RBM can compute without Z</a></li>
+  <li><a href="#sec-w3-marg-drills" id="toc-sec-w3-marg-drills" class="nav-link" data-scroll-target="#sec-w3-marg-drills">Marginalization in factorized models</a>
+  <ul class="collapse">
+  <li><a href="#prb-9" id="toc-prb-9" class="nav-link" data-scroll-target="#prb-9">Problem 9: Summing out a shared variable</a></li>
+  <li><a href="#prb-10" id="toc-prb-10" class="nav-link" data-scroll-target="#prb-10">Problem 10: Push the sum inward</a></li>
+  <li><a href="#prb-11" id="toc-prb-11" class="nav-link" data-scroll-target="#prb-11">Problem 11: The partition function and marginals of a three-node MRF</a></li>
+  <li><a href="#prb-12" id="toc-prb-12" class="nav-link" data-scroll-target="#prb-12">Problem 12: Evidence: normalize last</a></li>
+  <li><a href="#prb-13" id="toc-prb-13" class="nav-link" data-scroll-target="#prb-13">Problem 13: Which axis gets summed?</a></li>
+  <li><a href="#prb-14" id="toc-prb-14" class="nav-link" data-scroll-target="#prb-14">Problem 14: Summing out creates new dependencies</a></li>
+  </ul></li>
+  <li><a href="#sec-tut3" id="toc-sec-tut3" class="nav-link" data-scroll-target="#sec-tut3">Tutorial questions</a>
+  <ul class="collapse">
+  <li><a href="#tut3-1" id="toc-tut3-1" class="nav-link" data-scroll-target="#tut3-1">Tutorial question 1: Hammersley-Clifford on a chain</a></li>
+  <li><a href="#tut3-2" id="toc-tut3-2" class="nav-link" data-scroll-target="#tut3-2">Tutorial question 2: The Gaussian log-likelihood in the precision matrix</a></li>
+  <li><a href="#tut3-3" id="toc-tut3-3" class="nav-link" data-scroll-target="#tut3-3">Tutorial question 3: A binary chain MRF as an exponential family</a></li>
+  <li><a href="#tut3-4" id="toc-tut3-4" class="nav-link" data-scroll-target="#tut3-4">Tutorial question 4: Variable elimination with evidence</a></li>
+  <li><a href="#tut3-5" id="toc-tut3-5" class="nav-link" data-scroll-target="#tut3-5">Tutorial question 5: Conditionals of a restricted Boltzmann machine</a></li>
+  </ul></li>
+  </ul>
+</nav>
+    </div>
+<!-- main -->
+<main class="content" id="quarto-document-content">
+
+<header id="title-block-header" class="quarto-title-block default">
+<div class="quarto-title">
+<h1 class="title"><span class="chapter-title">Week 3 practice: Markov random fields and exact inference</span></h1>
+</div>
+
+
+
+<div class="quarto-title-meta">
+
+    
+  
+    
+  </div>
+  
+
+
+</header>
+
+
+<style>#title-block-header { display: none; }</style>
+<div class="lecture-header">
+  <h1>Week 3 practice: Markov random fields and exact inference</h1>
+</div>
+<p><strong>Overview.</strong> These problems drill <a href="../lectures/week03.html">Week 3</a>. Try each stem before opening the worked solution. The graphs, potentials, and probability tables here are invented for practice; they are not the seven-node clique example, the student network, the six-node evidence example, or the diamond graph from the lecture. Notation matches the week chapter. The exception is the final section, <a href="#sec-tut3" class="quarto-xref"><span>Tutorial questions</span></a>, which restates the Week 3 tutorial’s own examples.</p>
+<section id="prb-1" class="level2">
+<h2 class="anchored" data-anchor-id="prb-1">Problem 1: Cliques in a house-shaped graph</h2>
+<p>A <a href="https://en.wikipedia.org/wiki/Markov_random_field">Markov random field</a> has five variables arranged like the outline of a house: a square <span class="math inline">1\text{-}2\text{-}3\text{-}4\text{-}1</span> (the walls) with a roof node 5 joined to both 1 and 2. The edges are <span class="math inline">1\text{-}2</span>, <span class="math inline">2\text{-}3</span>, <span class="math inline">3\text{-}4</span>, <span class="math inline">4\text{-}1</span>, <span class="math inline">1\text{-}5</span>, <span class="math inline">2\text{-}5</span>.</p>
+<div style="overflow-x:auto; margin:1.5rem 0;">
+<svg viewbox="0 0 320 320" width="100%" style="max-width:320px;display:block;margin:auto;font-family:Helvetica,'Helvetica Neue',Arial,sans-serif;" role="img" aria-label="A house-shaped graph: square 1-2-3-4 with a roof node 5 connected to nodes 1 and 2">
+  <text x="160" y="28" text-anchor="middle" font-size="24" font-weight="600" fill="#333">A house-shaped MRF</text>
+  <line x1="100" y1="150" x2="220" y2="150" stroke="#555" stroke-width="1.5"></line>
+  <line x1="220" y1="150" x2="220" y2="270" stroke="#555" stroke-width="1.5"></line>
+  <line x1="220" y1="270" x2="100" y2="270" stroke="#555" stroke-width="1.5"></line>
+  <line x1="100" y1="270" x2="100" y2="150" stroke="#555" stroke-width="1.5"></line>
+  <line x1="100" y1="150" x2="160" y2="75" stroke="#555" stroke-width="1.5"></line>
+  <line x1="220" y1="150" x2="160" y2="75" stroke="#555" stroke-width="1.5"></line>
+  <circle cx="160" cy="75" r="22" fill="#F7D9C4" stroke="#C78557" stroke-width="1.5"></circle>
+  <text x="160" y="81" text-anchor="middle" font-size="16" fill="#794520">5</text>
+  <circle cx="100" cy="150" r="22" fill="#C6DEF1" stroke="#5795C7" stroke-width="1.5"></circle>
+  <text x="100" y="156" text-anchor="middle" font-size="16" fill="#205279">1</text>
+  <circle cx="220" cy="150" r="22" fill="#C9E4DE" stroke="#57C7AE" stroke-width="1.5"></circle>
+  <text x="220" y="156" text-anchor="middle" font-size="16" fill="#207965">2</text>
+  <circle cx="220" cy="270" r="22" fill="#F2C6DE" stroke="#C75794" stroke-width="1.5"></circle>
+  <text x="220" y="276" text-anchor="middle" font-size="16" fill="#792051">3</text>
+  <circle cx="100" cy="270" r="22" fill="#FAEDCB" stroke="#C7A857" stroke-width="1.5"></circle>
+  <text x="100" y="276" text-anchor="middle" font-size="16" fill="#796020">4</text>
+</svg>
+</div>
+<p><strong>Figure 1.</strong> The house graph used in Problems 1 and 2.</p>
+<p>List every maximal clique of this graph, then write the general form of a distribution that factorizes with respect to it.</p>
+<div class="practice-answer callout callout-style-default callout-tip callout-titled" title="Worked solution">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-1-contents" aria-controls="callout-1" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Worked solution
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-1" class="callout-1-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>This uses <a href="../lectures/week03.html#sec-mrf">Week 3, Markov random fields, cliques, and the factorization theorem</a> and the clique-hunting method of <a href="../lectures/week03.html#sec-mrf-example">the worked example</a>.</p>
+<p>A <a href="https://en.wikipedia.org/wiki/Clique_(graph_theory)">clique</a> needs every pair inside it connected. Start with the largest candidates. The roof gives a triangle: <span class="math inline">1\text{-}2</span>, <span class="math inline">1\text{-}5</span>, <span class="math inline">2\text{-}5</span> are all edges, so <span class="math inline">\{1,2,5\}</span> is a clique. Can it grow? Adding 3 fails (<span class="math inline">1\text{-}3</span> is not an edge), and adding 4 fails (<span class="math inline">2\text{-}4</span> is not an edge), so it is maximal.</p>
+<p>The square has no diagonals, so no three of <span class="math inline">1,2,3,4</span> are pairwise connected. The remaining edges <span class="math inline">2\text{-}3</span>, <span class="math inline">3\text{-}4</span>, <span class="math inline">4\text{-}1</span> are each cliques of size two. None extends: for example <span class="math inline">\{2,3\}</span> would need a third node adjacent to both 2 and 3, and no such node exists. The edge <span class="math inline">1\text{-}2</span> is not maximal on its own, because it sits inside <span class="math inline">\{1,2,5\}</span>.</p>
+<p><strong>Answer.</strong> Four maximal cliques: <span class="math inline">\{1,2,5\}</span>, <span class="math inline">\{2,3\}</span>, <span class="math inline">\{3,4\}</span>, <span class="math inline">\{1,4\}</span>. Any distribution that factorizes with respect to the house graph has the form <span class="math display">p(\boldsymbol{x}) = \frac{1}{Z}\,\psi_{1,2,5}(x_1,x_2,x_5)\,\psi_{2,3}(x_2,x_3)\,\psi_{3,4}(x_3,x_4)\,\psi_{1,4}(x_1,x_4)</span> for nonnegative potentials, with <span class="math inline">Z</span> the partition function.</p>
+</div>
+</div>
+</div>
+</section>
+<section id="prb-2" class="level2">
+<h2 class="anchored" data-anchor-id="prb-2">Problem 2: Reading independence off the house graph</h2>
+<p>Using the house graph of Problem 1, answer each question by graph separation.</p>
+<ol type="1">
+<li>Is <span class="math inline">X_5\perp X_3\mid X_2</span>?</li>
+<li>Is <span class="math inline">X_5\perp X_3\mid\{X_1,X_2\}</span>?</li>
+<li>Is <span class="math inline">X_1\perp X_3\mid\{X_2,X_4\}</span>?</li>
+<li>What is the Markov blanket of <span class="math inline">X_5</span>?</li>
+</ol>
+<div class="practice-answer callout callout-style-default callout-tip callout-titled" title="Worked solution">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-2-contents" aria-controls="callout-2" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Worked solution
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-2" class="callout-2-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>This uses the global Markov property from <a href="../lectures/week03.html#sec-hc">Week 3, The Hammersley-Clifford theorem</a>: <span class="math inline">X_A\perp X_B\mid X_S</span> whenever every path from <span class="math inline">A</span> to <span class="math inline">B</span> passes through <span class="math inline">S</span>.</p>
+<ol type="1">
+<li>Paths from 5 to 3: <span class="math inline">5\text{-}2\text{-}3</span> passes through 2 and is blocked. But <span class="math inline">5\text{-}1\text{-}4\text{-}3</span> never touches 2, so it stays open. One open path is enough to break separation: <strong>no</strong>, <span class="math inline">X_5\not\perp X_3\mid X_2</span> in general.</li>
+<li>Node 5’s only neighbours are 1 and 2, so every path out of 5 starts by entering 1 or 2. Conditioning on both blocks them all: <strong>yes</strong>.</li>
+<li>Node 1’s neighbours are 2, 4, and 5. Paths through 2 or 4 are blocked directly. A path through 5 must continue <span class="math inline">5\text{-}2</span>, since 2 is the only other neighbour of 5, so it is blocked at 2 as well: <strong>yes</strong>.</li>
+<li>In an MRF the Markov blanket of a node is just its graph neighbours, with no co-parent correction (the contrast with DAGs drawn in <a href="../lectures/week03.html#sec-hc">§hc</a>).</li>
+</ol>
+<p><strong>Answer.</strong> (1) No.&nbsp;(2) Yes. (3) Yes. (4) <span class="math inline">\{X_1, X_2\}</span>, which is exactly why question 2 came out yes.</p>
+</div>
+</div>
+</div>
+</section>
+<section id="prb-3" class="level2">
+<h2 class="anchored" data-anchor-id="prb-3">Problem 3: Directed, undirected, both, or neither?</h2>
+<p>For each independence pattern below, say whether it can be represented exactly by a DAG, by an MRF, by both, or by neither. Give a one-line reason.</p>
+<ol type="a">
+<li><p>Three variables with <span class="math inline">X\perp Y</span> marginally, but <span class="math inline">X\not\perp Y\mid Z</span>.</p></li>
+<li><p>Three variables with <span class="math inline">X\perp Z\mid Y</span> and no other independencies.</p></li>
+<li><p>Three variables with no independencies at all, marginal or conditional.</p></li>
+<li><p>Five variables on a ring <span class="math inline">1\text{-}2\text{-}3\text{-}4\text{-}5\text{-}1</span>, where each variable is conditionally independent of the two non-neighbouring variables given all the others, and no other independencies hold.</p></li>
+</ol>
+<div class="practice-answer callout callout-style-default callout-tip callout-titled" title="Worked solution">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-3-contents" aria-controls="callout-3" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Worked solution
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-3" class="callout-3-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>This uses <a href="../lectures/week03.html#sec-mrf-vs-dag">Week 3, What MRFs can express that DAGs cannot, and vice versa</a>, together with the three canonical structures from <a href="../lectures/week02.html#sec-cistructures">Week 2</a>.</p>
+<ol type="a">
+<li><p>This is explaining away: <span class="math inline">X\to Z\leftarrow Y</span> produces it. An MRF cannot, because in an undirected graph conditioning on more variables can only block paths, never open them, so a marginal independence can never be destroyed by conditioning.</p></li>
+<li><p>The chain <span class="math inline">X\to Y\to Z</span> (or the common cause <span class="math inline">X\leftarrow Y\to Z</span>) gives it as a DAG, and the undirected chain <span class="math inline">X - Y - Z</span> gives it as an MRF, since <span class="math inline">Y</span> separates <span class="math inline">X</span> from <span class="math inline">Z</span>.</p></li>
+<li><p>A fully connected graph encodes no independencies. As an MRF, that is the triangle; as a DAG, any ordering with all three arrows, such as <span class="math inline">X\to Y</span>, <span class="math inline">X\to Z</span>, <span class="math inline">Y\to Z</span>.</p></li>
+<li><p>The undirected 5-cycle represents it exactly: non-neighbours are separated by the rest of the ring. For a DAG, orient the five edges any way that creates no directed cycle. Some node must then have both of its ring edges pointing into it (follow arrows forward and you must stop somewhere, and that stopping node has two incoming arrows). Say that node is 3, with parents 2 and 4. The pattern requires <span class="math inline">X_2\perp X_4</span> given all the others, including <span class="math inline">X_3</span>; but conditioning on the collider 3 opens the path <span class="math inline">2\to3\leftarrow4</span>, so the DAG makes them dependent. The same argument works for every orientation. This is the 4-cycle argument of the lecture, extended to a longer ring.</p></li>
+</ol>
+<p><strong>Answer.</strong> (a) DAG only. (b) Both. (c) Both. (d) MRF only.</p>
+</div>
+</div>
+</div>
+</section>
+<section id="prb-4" class="level2">
+<h2 class="anchored" data-anchor-id="prb-4">Problem 4: A two-spin Ising model</h2>
+<p>Two spins <span class="math inline">x_1,x_2\in\{-1,+1\}</span> form an <a href="https://en.wikipedia.org/wiki/Ising_model">Ising model</a> with a single edge potential <span class="math inline">\psi_{12}(x_1,x_2)=e^{Jx_1x_2}</span>, where <span class="math inline">e^{J}=2</span>. Spin 1 also has an external-field potential <span class="math inline">\psi_1(x_1)=e^{b x_1}</span> with <span class="math inline">e^{b}=2</span>. Spin 2 has no field.</p>
+<ol type="1">
+<li>Compute the unnormalized weight of each of the four configurations, and the partition function <span class="math inline">Z</span>.</li>
+<li>Compute <span class="math inline">P(x_1=x_2)</span>, <span class="math inline">P(x_1=+1)</span>, and <span class="math inline">P(x_2=+1)</span>.</li>
+<li>Without the field on spin 1, what is <span class="math inline">P(x_1=x_2)</span>? Explain why the field did or did not change it.</li>
+</ol>
+<div class="practice-answer callout callout-style-default callout-tip callout-titled" title="Worked solution">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-4-contents" aria-controls="callout-4" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Worked solution
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-4" class="callout-4-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>This uses <a href="../lectures/week03.html#sec-ising">Week 3, The Ising model</a>.</p>
+<p>The edge potential is <span class="math inline">e^{J}=2</span> when the spins agree and <span class="math inline">e^{-J}=\tfrac12</span> when they disagree. The field gives spin 1 a factor <span class="math inline">e^{b}=2</span> when it is <span class="math inline">+1</span> and <span class="math inline">e^{-b}=\tfrac12</span> when it is <span class="math inline">-1</span>. Multiply the two for each configuration:</p>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th><span class="math inline">(x_1,x_2)</span></th>
+<th>field</th>
+<th>edge</th>
+<th>weight</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><span class="math inline">(+1,+1)</span></td>
+<td>2</td>
+<td>2</td>
+<td>4</td>
+</tr>
+<tr class="even">
+<td><span class="math inline">(+1,-1)</span></td>
+<td>2</td>
+<td><span class="math inline">\tfrac12</span></td>
+<td>1</td>
+</tr>
+<tr class="odd">
+<td><span class="math inline">(-1,+1)</span></td>
+<td><span class="math inline">\tfrac12</span></td>
+<td><span class="math inline">\tfrac12</span></td>
+<td><span class="math inline">\tfrac14</span></td>
+</tr>
+<tr class="even">
+<td><span class="math inline">(-1,-1)</span></td>
+<td><span class="math inline">\tfrac12</span></td>
+<td>2</td>
+<td>1</td>
+</tr>
+</tbody>
+</table>
+<p>So <span class="math inline">Z = 4 + 1 + \tfrac14 + 1 = 6.25</span>.</p>
+<p><span class="math inline">P(x_1=x_2) = (4+1)/6.25 = 0.8</span>. <span class="math inline">P(x_1=+1) = (4+1)/6.25 = 0.8</span>. <span class="math inline">P(x_2=+1) = (4+\tfrac14)/6.25 = 0.68</span>. The field acts only on spin 1, yet spin 2 also leans toward <span class="math inline">+1</span>, because the coupling passes the preference along the edge.</p>
+<p>For part 3, drop the field: weights become <span class="math inline">2, \tfrac12, \tfrac12, 2</span>, so <span class="math inline">Z=5</span> and <span class="math inline">P(x_1=x_2)=4/5=0.8</span>, unchanged. The reason: for either fixed value of <span class="math inline">x_1</span>, the field multiplies the agreeing and disagreeing configurations by the same factor, so the conditional chance of agreement given <span class="math inline">x_1</span> is always <span class="math inline">2/(2+\tfrac12)=0.8</span>. The field moves where the spins point; only the coupling <span class="math inline">J</span> controls how often they agree.</p>
+<p><strong>Answer.</strong> Weights <span class="math inline">4, 1, \tfrac14, 1</span> and <span class="math inline">Z=6.25</span>. <span class="math inline">P(x_1=x_2)=0.8</span>, <span class="math inline">P(x_1=+1)=0.8</span>, <span class="math inline">P(x_2=+1)=0.68</span>. Without the field, <span class="math inline">P(x_1=x_2)</span> is still <span class="math inline">0.8</span>.</p>
+</div>
+</div>
+</div>
+</section>
+<section id="prb-5" class="level2">
+<h2 class="anchored" data-anchor-id="prb-5">Problem 5: A star-shaped precision matrix</h2>
+<p>A zero-mean Gaussian over <span class="math inline">(X_1,X_2,X_3,X_4)</span> has <a href="https://en.wikipedia.org/wiki/Precision_(statistics)">precision matrix</a> <span class="math display">K=\Sigma^{-1}=\begin{bmatrix}4&amp;-1&amp;-1&amp;-1\\-1&amp;2&amp;0&amp;0\\-1&amp;0&amp;2&amp;0\\-1&amp;0&amp;0&amp;2\end{bmatrix}.</span></p>
+<ol type="1">
+<li>Draw the Gaussian graphical model.</li>
+<li>Is <span class="math inline">X_2\perp X_3\mid\{X_1,X_4\}</span>?</li>
+<li>Is <span class="math inline">X_2\perp X_3\mid X_1</span> (conditioning on <span class="math inline">X_1</span> alone)?</li>
+<li>Is <span class="math inline">X_2\perp X_3\mid X_4</span>?</li>
+<li>Is <span class="math inline">X_2\perp X_3</span> marginally?</li>
+</ol>
+<div class="practice-answer callout callout-style-default callout-tip callout-titled" title="Worked solution">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-5-contents" aria-controls="callout-5" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Worked solution
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-5" class="callout-5-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>This uses <a href="../lectures/week03.html#sec-ggm">Week 3, Gaussian graphical models</a> and the separation rule of <a href="../lectures/week03.html#sec-hc">§hc</a>.</p>
+<ol type="1">
+<li>Edges sit where off-diagonal entries of <span class="math inline">K</span> are nonzero: <span class="math inline">K_{12}, K_{13}, K_{14}</span>. The graph is a star with centre 1 and leaves 2, 3, 4.</li>
+<li><span class="math inline">K_{23}=0</span>, which is exactly the statement <span class="math inline">X_2\perp X_3\mid X_{\text{rest}}</span>: <strong>yes</strong>.</li>
+<li>The precision-matrix rule speaks only about conditioning on <em>everything else</em>, so switch to graph separation. In a star, every path between two leaves passes through the centre, so <span class="math inline">\{1\}</span> separates 2 from 3: <strong>yes</strong>.</li>
+<li>Conditioning on 4 leaves the path <span class="math inline">2\text{-}1\text{-}3</span> open: <strong>no</strong>.</li>
+<li>Marginal independence is read from <span class="math inline">\Sigma</span>, not <span class="math inline">K</span>. With nothing conditioned on, the path <span class="math inline">2\text{-}1\text{-}3</span> is open, so we should expect dependence. Inverting <span class="math inline">K</span> confirms it: <span class="math inline">\Sigma_{23}=0.1\neq 0</span>. A zero in <span class="math inline">K</span> does not produce a zero in <span class="math inline">\Sigma</span>.</li>
+</ol>
+<p><strong>Answer.</strong> (1) Star centred at 1. (2) Yes. (3) Yes. (4) No.&nbsp;(5) No: <span class="math inline">\Sigma_{23}=0.1</span>.</p>
+</div>
+</div>
+</div>
+</section>
+<section id="prb-6" class="level2">
+<h2 class="anchored" data-anchor-id="prb-6">Problem 6: Elimination order on a star</h2>
+<p>An MRF has a centre variable <span class="math inline">C</span> joined to four leaves <span class="math inline">L_1,L_2,L_3,L_4</span>, with one pairwise potential per edge: <span class="math inline">\psi(C,L_1),\dots,\psi(C,L_4)</span>, so <span class="math inline">m=4</span> factors. Every variable has <span class="math inline">k</span> states. We want <span class="math inline">p(L_1)</span>.</p>
+<p>Compare two <a href="https://en.wikipedia.org/wiki/Variable_elimination">variable elimination</a> orders:</p>
+<ul>
+<li><strong>Order A:</strong> <span class="math inline">C</span>, then <span class="math inline">L_2, L_3, L_4</span>.</li>
+<li><strong>Order B:</strong> <span class="math inline">L_2, L_3, L_4</span>, then <span class="math inline">C</span>.</li>
+</ul>
+<p>For each order, give the variables involved in each sum, <span class="math inline">N_{\max}</span>, and the complexity <span class="math inline">O(m\,k^{N_{\max}})</span>.</p>
+<div class="practice-answer callout callout-style-default callout-tip callout-titled" title="Worked solution">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-6-contents" aria-controls="callout-6" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Worked solution
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-6" class="callout-6-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>This uses <a href="../lectures/week03.html#sec-ve">Week 3, Variable elimination</a> and the complexity bookkeeping of <a href="../lectures/week03.html#sec-ve-student">the Bayes-net worked example</a>.</p>
+<p><strong>Order A.</strong> <span class="math inline">C</span> appears in all four potentials, so summing it out first touches every variable at once: <span class="math display">\sum_C \psi(C,L_1)\,\psi(C,L_2)\,\psi(C,L_3)\,\psi(C,L_4) = \tau(L_1,L_2,L_3,L_4).</span> That sum involves 5 variables. Eliminating <span class="math inline">L_2</span> then sums <span class="math inline">\tau</span> over <span class="math inline">L_2</span> with 4 variables inside, <span class="math inline">L_3</span> with 3, and <span class="math inline">L_4</span> with 2. So <span class="math inline">N_{\max}=5</span> and the cost is <span class="math inline">O(4k^5)</span>.</p>
+<p><strong>Order B.</strong> Each leaf appears in one potential only: <span class="math display">\sum_{L_2}\psi(C,L_2) = \tau_2(C),</span> with 2 variables inside, and the same for <span class="math inline">L_3</span> and <span class="math inline">L_4</span>. Finally <span class="math display">\sum_C \psi(C,L_1)\,\tau_2(C)\,\tau_3(C)\,\tau_4(C) = \tau(L_1),</span> again with only 2 variables inside. So <span class="math inline">N_{\max}=2</span> and the cost is <span class="math inline">O(4k^2)</span>.</p>
+<p>Eliminating the hub first glued all its neighbours into one large intermediate factor; eliminating the leaves first never created a factor over more than one variable. The star is a tree, and this leaves-inward pattern is the starting point of Week 4.</p>
+<p><strong>Answer.</strong> Order A: <span class="math inline">N_{\max}=5</span>, <span class="math inline">O(4k^5)</span>. Order B: <span class="math inline">N_{\max}=2</span>, <span class="math inline">O(4k^2)</span>. Both give the same <span class="math inline">p(L_1)</span>, since summation order does not change the answer.</p>
+</div>
+</div>
+</div>
+</section>
+<section id="prb-7" class="level2">
+<h2 class="anchored" data-anchor-id="prb-7">Problem 7: Elimination with evidence on a three-node chain</h2>
+<p>A <a href="https://en.wikipedia.org/wiki/Bayesian_network">Bayesian network</a> <span class="math inline">A\to B\to C</span> has binary variables with</p>
+<ul>
+<li><span class="math inline">p(A=1)=0.3</span>,</li>
+<li><span class="math inline">p(B=1\mid A=1)=0.8</span> and <span class="math inline">p(B=1\mid A=0)=0.1</span>,</li>
+<li><span class="math inline">p(C=1\mid B=1)=0.9</span> and <span class="math inline">p(C=1\mid B=0)=0.2</span>.</li>
+</ul>
+<p>We observe <span class="math inline">C=1</span>. Use variable elimination to compute <span class="math inline">p(A=1\mid C=1)</span>.</p>
+<div class="practice-answer callout callout-style-default callout-tip callout-titled" title="Worked solution">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-7-contents" aria-controls="callout-7" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Worked solution
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-7" class="callout-7-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>This uses <a href="../lectures/week03.html#sec-ve-evidence">Week 3, Variable elimination with evidence</a> and the definition of inference in <a href="../lectures/week03.html#sec-inference">§inference</a>.</p>
+<p>Here <span class="math inline">x_F=\{A\}</span>, <span class="math inline">x_E=\{C\}</span>, <span class="math inline">x_R=\{B\}</span>. The evidence value is plugged in, not summed over: <span class="math display">p(a, C=1) = p(a)\sum_b p(b\mid a)\,p(C=1\mid b).</span></p>
+<p>Eliminate <span class="math inline">B</span> first. The inner sum is a new factor depending only on <span class="math inline">a</span>: <span class="math display">\tau(a) = \sum_b p(b\mid a)\,p(C=1\mid b) = p(C=1\mid a).</span> For <span class="math inline">a=1</span>: <span class="math inline">0.8\cdot0.9 + 0.2\cdot0.2 = 0.72+0.04 = 0.76</span>. For <span class="math inline">a=0</span>: <span class="math inline">0.1\cdot0.9 + 0.9\cdot0.2 = 0.09+0.18 = 0.27</span>.</p>
+<p>Multiply by the prior on <span class="math inline">A</span>: <span class="math inline">p(A=1, C=1) = 0.3\cdot0.76 = 0.228</span> and <span class="math inline">p(A=0, C=1) = 0.7\cdot0.27 = 0.189</span>.</p>
+<p>Normalize over <span class="math inline">A</span>: <span class="math display">p(A=1\mid C=1) = \frac{0.228}{0.228+0.189} = \frac{0.228}{0.417}\approx 0.547.</span></p>
+<p>As in the lecture’s evidence example, eliminating the middle variable collapses the computation to Bayes’ rule on the two-node relationship <span class="math inline">A\to C</span>, with the derived likelihood <span class="math inline">p(C=1\mid a)</span>.</p>
+<p><strong>Answer.</strong> <span class="math inline">p(A=1\mid C=1)\approx 0.547</span>, up from the prior <span class="math inline">0.3</span>.</p>
+</div>
+</div>
+</div>
+</section>
+<section id="prb-8" class="level2">
+<h2 class="anchored" data-anchor-id="prb-8">Problem 8: What an RBM can compute without Z</h2>
+<p>A <a href="https://en.wikipedia.org/wiki/Restricted_Boltzmann_machine">restricted Boltzmann machine</a> has three visible units <span class="math inline">X_1,X_2,X_3</span> and two hidden units <span class="math inline">H_1,H_2</span>, all in <span class="math inline">\{-1,+1\}</span>, with every hidden unit joined to every visible unit and no other edges.</p>
+<ol type="1">
+<li>Why is <span class="math inline">p(h_1,h_2\mid x) = p(h_1\mid x)\,p(h_2\mid x)</span>?</li>
+<li>Is the marginal <span class="math inline">p(h_1,h_2)</span> also a product <span class="math inline">p(h_1)\,p(h_2)</span> in general? Why or why not?</li>
+<li>Which of <span class="math inline">p(h_1\mid x)</span>, <span class="math inline">p(x,h)</span>, and <span class="math inline">p(h)</span> can be computed without knowing the partition function <span class="math inline">Z</span>?</li>
+</ol>
+<div class="practice-answer callout callout-style-default callout-tip callout-titled" title="Worked solution">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-8-contents" aria-controls="callout-8" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Worked solution
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-8" class="callout-8-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>This uses <a href="../lectures/week03.html#sec-rbm">Week 3, Restricted Boltzmann machines</a> and the separation rule of <a href="../lectures/week03.html#sec-hc">§hc</a>.</p>
+<ol type="1">
+<li>There is no <span class="math inline">H_1\text{-}H_2</span> edge, and every path between them runs through some visible unit. Observing all of <span class="math inline">X</span> blocks every such path, so <span class="math inline">H_1\perp H_2\mid X</span> by the global Markov property, and the conditional factors.</li>
+<li>Not in general. With <span class="math inline">X</span> unobserved, paths like <span class="math inline">H_1\text{-}X_1\text{-}H_2</span> are open, so summing out the visible units typically couples the hidden units. Separation needs the separating set to be observed.</li>
+<li><span class="math inline">p(h_1\mid x)</span> is a ratio in which <span class="math inline">Z</span> cancels: the week chapter’s formula gives <span class="math inline">\sigma(\beta_1+\sum_i J_{i1}x_i)</span> with Week 3’s <span class="math inline">\sigma(y)=1/(1+e^{-2y})</span>. In contrast, <span class="math inline">p(x,h)</span> is the product of potentials divided by <span class="math inline">Z</span>, and <span class="math inline">p(h)</span> is a sum of those joint probabilities, so both need <span class="math inline">Z</span>.</li>
+</ol>
+<p><strong>Answer.</strong> (1) <span class="math inline">X</span> separates the hidden units. (2) No: summing out <span class="math inline">X</span> couples them. (3) Only <span class="math inline">p(h_1\mid x)</span> avoids <span class="math inline">Z</span>.</p>
+</div>
+</div>
+</div>
+</section>
+<section id="sec-w3-marg-drills" class="level2">
+<h2 class="anchored" data-anchor-id="sec-w3-marg-drills">Marginalization in factorized models</h2>
+<p>These problems drill summing a variable out of a <strong>product of factors</strong>, which is the core step of variable elimination and of every message-passing algorithm later in the course. All numbers are invented.</p>
+<section id="prb-9" class="level3">
+<h3 class="anchored" data-anchor-id="prb-9">Problem 9: Summing out a shared variable</h3>
+<p>Two factors over binary variables are given as tables, rows indexed by the first argument and columns by the second (value 0 first): <span class="math display">f(a,b)=\begin{pmatrix}1&amp;2\\3&amp;1\end{pmatrix}, \qquad g(b,c)=\begin{pmatrix}2&amp;1\\1&amp;4\end{pmatrix}.</span> Compute the new factor <span class="math inline">\tau(a,c)=\sum_bf(a,b)\,g(b,c)</span> as a <span class="math inline">2\times2</span> table.</p>
+<div class="practice-answer callout callout-style-default callout-tip callout-titled" title="Worked solution">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-9-contents" aria-controls="callout-9" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Worked solution
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-9" class="callout-9-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>This is the elementary step of <a href="../lectures/week03.html#sec-ve">Week 3, Variable elimination</a>: multiply the factors that mention <span class="math inline">b</span>, then sum <span class="math inline">b</span> out. The result depends only on the variables left over, <span class="math inline">a</span> and <span class="math inline">c</span>.</p>
+<p>For each of the four <span class="math inline">(a,c)</span> pairs, add the two terms <span class="math inline">b=0</span> and <span class="math inline">b=1</span>:</p>
+<ul>
+<li><span class="math inline">\tau(0,0)=f(0,0)g(0,0)+f(0,1)g(1,0)=1\cdot2+2\cdot1=4</span></li>
+<li><span class="math inline">\tau(0,1)=f(0,0)g(0,1)+f(0,1)g(1,1)=1\cdot1+2\cdot4=9</span></li>
+<li><span class="math inline">\tau(1,0)=f(1,0)g(0,0)+f(1,1)g(1,0)=3\cdot2+1\cdot1=7</span></li>
+<li><span class="math inline">\tau(1,1)=f(1,0)g(0,1)+f(1,1)g(1,1)=3\cdot1+1\cdot4=7</span></li>
+</ul>
+<p>Row <span class="math inline">a</span> of <span class="math inline">f</span> meets column <span class="math inline">c</span> of <span class="math inline">g</span>, and the shared index <span class="math inline">b</span> is summed: this is exactly the matrix product <span class="math inline">FG</span>. Summing out a variable shared by two pairwise factors is always a matrix multiplication.</p>
+<p><strong>Answer.</strong> <span class="math inline">\tau=\begin{pmatrix}4&amp;9\\7&amp;7\end{pmatrix}</span>.</p>
+</div>
+</div>
+</div>
+</section>
+<section id="prb-10" class="level3">
+<h3 class="anchored" data-anchor-id="prb-10">Problem 10: Push the sum inward</h3>
+<p>Let every variable have <span class="math inline">k</span> states, and consider <span class="math inline">h(a)=\sum_b\sum_cf(a,b)\,g(b,c)</span>.</p>
+<ol type="1">
+<li>Computed naively (for each <span class="math inline">a</span>, sum the product over all <span class="math inline">(b,c)</span> pairs), how many multiplications does <span class="math inline">h</span> take?</li>
+<li>Rewrite <span class="math inline">h(a)</span> by pushing <span class="math inline">\sum_c</span> inside past <span class="math inline">f</span>. How many multiplications now?</li>
+<li>Evaluate <span class="math inline">h</span> with the tables of Problem 9.</li>
+</ol>
+<div class="practice-answer callout callout-style-default callout-tip callout-titled" title="Worked solution">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-10-contents" aria-controls="callout-10" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Worked solution
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-10" class="callout-10-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>This is the “push the sum inward” move of <a href="../lectures/week03.html#sec-ve">Week 3, Variable elimination</a>.</p>
+<ol type="1">
+<li>There are <span class="math inline">k</span> values of <span class="math inline">a</span> and <span class="math inline">k^2</span> pairs <span class="math inline">(b,c)</span>, with one multiplication per term: <span class="math inline">k^3</span> in total.</li>
+<li><span class="math inline">f(a,b)</span> does not mention <span class="math inline">c</span>, so it moves outside the inner sum: <span class="math display">h(a)=\sum_bf(a,b)\Big[\sum_cg(b,c)\Big]=\sum_bf(a,b)\,s(b).</span> Computing <span class="math inline">s(b)</span> takes only additions. The outer sum takes one multiplication per <span class="math inline">(a,b)</span> pair: <span class="math inline">k^2</span> in total, a factor of <span class="math inline">k</span> saved.</li>
+<li><span class="math inline">s(0)=2+1=3</span> and <span class="math inline">s(1)=1+4=5</span>. Then <span class="math inline">h(0)=1\cdot3+2\cdot5=13</span> and <span class="math inline">h(1)=3\cdot3+1\cdot5=14</span>. As a check, these are the row sums of <span class="math inline">\tau</span> from Problem 9.</li>
+</ol>
+<p><strong>Answer.</strong> <span class="math inline">k^3</span> naively, <span class="math inline">k^2</span> after pushing the sum in; <span class="math inline">h=(13,\ 14)</span>.</p>
+</div>
+</div>
+</div>
+</section>
+<section id="prb-11" class="level3">
+<h3 class="anchored" data-anchor-id="prb-11">Problem 11: The partition function and marginals of a three-node MRF</h3>
+<p>An MRF on the chain <span class="math inline">x_1-x_2-x_3</span>, with every <span class="math inline">x_i\in\{0,1\}</span>, has potentials <span class="math display">\psi_{12}(x_1,x_2)=\begin{pmatrix}3&amp;1\\1&amp;3\end{pmatrix}, \qquad \psi_{23}(x_2,x_3)=\begin{pmatrix}1&amp;2\\2&amp;1\end{pmatrix},</span> so the first edge favours agreement and the second favours disagreement. Compute the partition function <span class="math inline">Z</span>, the marginal <span class="math inline">p(x_2)</span>, and the pairwise marginal <span class="math inline">p(x_1,x_3)</span>.</p>
+<div class="practice-answer callout callout-style-default callout-tip callout-titled" title="Worked solution">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-11-contents" aria-controls="callout-11" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Worked solution
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-11" class="callout-11-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>This uses <a href="../lectures/week03.html#sec-ve">Week 3, Variable elimination</a> on an MRF, as in <a href="../lectures/week03.html#sec-sum-product">Week 3, Sum-product inference</a>.</p>
+<p><strong><span class="math inline">Z</span> by eliminating the ends.</strong> For each <span class="math inline">x_2</span>, sum out <span class="math inline">x_1</span> and <span class="math inline">x_3</span> separately, since no factor contains both: <span class="math display">Z=\sum_{x_2}\Big[\sum_{x_1}\psi_{12}(x_1,x_2)\Big]\Big[\sum_{x_3}\psi_{23}(x_2,x_3)\Big].</span> Each column of <span class="math inline">\psi_{12}</span> sums to 4 and each row of <span class="math inline">\psi_{23}</span> sums to 3, so both values of <span class="math inline">x_2</span> contribute <span class="math inline">4\times3=12</span>, and <span class="math inline">Z=24</span>.</p>
+<p><strong><span class="math inline">p(x_2)</span>.</strong> The same bracketed product, before summing over <span class="math inline">x_2</span>, is the unnormalized marginal: <span class="math inline">(12,12)/24</span>, so <span class="math inline">p(x_2)</span> is uniform.</p>
+<p><strong><span class="math inline">p(x_1,x_3)</span>.</strong> Now <span class="math inline">x_2</span> is the variable summed out, which is Problem 9’s matrix product: <span class="math display">\sum_{x_2}\psi_{12}(x_1,x_2)\,\psi_{23}(x_2,x_3)=\begin{pmatrix}3&amp;1\\1&amp;3\end{pmatrix}\begin{pmatrix}1&amp;2\\2&amp;1\end{pmatrix}=\begin{pmatrix}5&amp;7\\7&amp;5\end{pmatrix}.</span> Dividing by <span class="math inline">Z=24</span> gives <span class="math inline">p(x_1,x_3)</span>. The entries sum to 24, as they must.</p>
+<p><span class="math inline">x_1</span> and <span class="math inline">x_3</span> share no edge, yet they are dependent: they disagree with probability <span class="math inline">14/24</span> rather than <span class="math inline">1/2</span>. Agreement along the first edge and disagreement along the second combine into disagreement between the ends.</p>
+<p><strong>Answer.</strong> <span class="math inline">Z=24</span>; <span class="math inline">p(x_2)=(\tfrac12,\tfrac12)</span>; <span class="math inline">p(x_1,x_3)=\tfrac{1}{24}\begin{pmatrix}5&amp;7\\7&amp;5\end{pmatrix}</span>.</p>
+</div>
+</div>
+</div>
+</section>
+<section id="prb-12" class="level3">
+<h3 class="anchored" data-anchor-id="prb-12">Problem 12: Evidence: normalize last</h3>
+<p>In the MRF of Problem 11, we observe <span class="math inline">x_3=1</span>. Compute <span class="math inline">p(x_1\mid x_3=1)</span> without using <span class="math inline">Z</span>.</p>
+<div class="practice-answer callout callout-style-default callout-tip callout-titled" title="Worked solution">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-12-contents" aria-controls="callout-12" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Worked solution
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-12" class="callout-12-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>This follows <a href="../lectures/week03.html#sec-ve-evidence">Week 3, Variable elimination with evidence</a>: fix the observed variable instead of summing it, eliminate the rest, and normalize at the very end.</p>
+<p>With <span class="math inline">x_3=1</span> fixed, summing out <span class="math inline">x_2</span> gives the <span class="math inline">x_3=1</span> column of the table from Problem 11: <span class="math inline">\tau(x_1)=(7,\ 5)</span> for <span class="math inline">x_1=0,1</span>. These are proportional to <span class="math inline">p(x_1,x_3{=}1)</span>, and the constant <span class="math inline">\tfrac1Z</span> cancels when we normalize over <span class="math inline">x_1</span>: <span class="math display">p(x_1=0\mid x_3=1)=\frac{7}{7+5}=\frac{7}{12}, \qquad p(x_1=1\mid x_3=1)=\frac{5}{12}.</span></p>
+<p><strong>Answer.</strong> <span class="math inline">p(x_1\mid x_3=1)=(\tfrac{7}{12},\ \tfrac{5}{12})</span>.</p>
+</div>
+</div>
+</div>
+</section>
+<section id="prb-13" class="level3">
+<h3 class="anchored" data-anchor-id="prb-13">Problem 13: Which axis gets summed?</h3>
+<p>With the arrays of Problem 9 stored as <code>f = np.array([[1, 2], [3, 1]])</code> and <code>g = np.array([[2, 1], [1, 4]])</code>, what does this line produce, and which variable has been eliminated?</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>tau <span class="op">=</span> (f[:, :, <span class="va">None</span>] <span class="op">*</span> g[<span class="va">None</span>, :, :]).<span class="bu">sum</span>(axis<span class="op">=</span><span class="dv">1</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="practice-answer callout callout-style-default callout-tip callout-titled" title="Worked solution">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-13-contents" aria-controls="callout-13" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Worked solution
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-13" class="callout-13-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>This is Problem 9 written with array broadcasting.</p>
+<ul>
+<li><code>f[:, :, None]</code> has shape <code>(2, 2, 1)</code> and axes <span class="math inline">(a,b,\cdot)</span>.</li>
+<li><code>g[None, :, :]</code> has shape <code>(1, 2, 2)</code> and axes <span class="math inline">(\cdot,b,c)</span>.</li>
+<li>Their product broadcasts to shape <code>(2, 2, 2)</code> with axes <span class="math inline">(a,b,c)</span>, and entry <code>[a, b, c]</code> equals <span class="math inline">f(a,b)\,g(b,c)</span>.</li>
+<li><code>.sum(axis=1)</code> sums over the middle axis, which is <span class="math inline">b</span>.</li>
+</ul>
+<p>So <code>tau[a, c]</code> <span class="math inline">=\sum_bf(a,b)g(b,c)</span>, a <code>(2, 2)</code> array equal to <code>f @ g</code>. Lining up each factor’s variables on its own axis, multiplying, and summing the axis of the eliminated variable is how variable elimination is usually implemented.</p>
+<p><strong>Answer.</strong> <code>array([[4, 9], [7, 7]])</code>; <span class="math inline">b</span> was eliminated.</p>
+</div>
+</div>
+</div>
+</section>
+<section id="prb-14" class="level3">
+<h3 class="anchored" data-anchor-id="prb-14">Problem 14: Summing out creates new dependencies</h3>
+<p>A star-shaped MRF has a centre <span class="math inline">x_2</span> joined to three leaves <span class="math inline">x_1,x_3,x_4</span>, with one pairwise potential per edge. Sum out <span class="math inline">x_2</span>. What does the graph of the resulting marginal over <span class="math inline">(x_1,x_3,x_4)</span> look like, and why?</p>
+<div class="practice-answer callout callout-style-default callout-tip callout-titled" title="Worked solution">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-14-contents" aria-controls="callout-14" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Worked solution
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-14" class="callout-14-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>This uses <a href="../lectures/week03.html#sec-ve">Week 3, Variable elimination</a> together with <a href="../lectures/week03.html#sec-hc">Week 3, The Hammersley-Clifford theorem</a>.</p>
+<p>All three potentials mention <span class="math inline">x_2</span>, so eliminating it multiplies all three and sums: <span class="math display">\tau(x_1,x_3,x_4)=\sum_{x_2}\psi_{21}(x_2,x_1)\,\psi_{23}(x_2,x_3)\,\psi_{24}(x_2,x_4).</span> This new factor involves all three leaves at once, and in general it does not split into a product of pairwise pieces. The marginal is <span class="math inline">p(x_1,x_3,x_4)\propto\tau(x_1,x_3,x_4)</span>, a single factor over all three, so its graph needs <span class="math inline">\{x_1,x_3,x_4\}</span> as a clique: every pair of leaves is now joined.</p>
+<p>Before elimination, the leaves were independent given <span class="math inline">x_2</span>, because <span class="math inline">x_2</span> separated them. Summing <span class="math inline">x_2</span> out removes the separator, and the leaves become dependent through it. In variable elimination, these new edges are what make an intermediate factor larger than any original one.</p>
+<p><strong>Answer.</strong> A triangle: every pair of leaves becomes adjacent, because the factor created by eliminating <span class="math inline">x_2</span> involves all three leaves.</p>
+</div>
+</div>
+</div>
+</section>
+</section>
+<section id="sec-tut3" class="level2">
+<h2 class="anchored" data-anchor-id="sec-tut3">Tutorial questions</h2>
+<p>The questions below are the Week 3 tutorial’s examples, restated as questions. They use the tutorial’s own graphs and models, and each is also worked in the week chapter; each solution says where.</p>
+<section id="tut3-1" class="level3">
+<h3 class="anchored" data-anchor-id="tut3-1">Tutorial question 1: Hammersley-Clifford on a chain</h3>
+<p>Take the chain <span class="math inline">X-Y-Z</span>. Its graphical model consists of all distributions that factorize as <span class="math inline">f(x,y,z)=\alpha(x,y)\,\beta(y,z)</span>. Show that, when <span class="math inline">\alpha&gt;0</span> and <span class="math inline">\beta&gt;0</span> everywhere, this is equivalent to <span class="math inline">X\perp Z\mid Y</span>. Use the characterization: <span class="math inline">X\perp Z\mid Y</span> if and only if <span class="math inline">f(x\mid y,z)</span> does not depend on <span class="math inline">z</span>.</p>
+<div class="practice-answer callout callout-style-default callout-tip callout-titled" title="Worked solution">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-15-contents" aria-controls="callout-15" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Worked solution
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-15" class="callout-15-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>This is the chain example of <a href="../lectures/week03.html#sec-hc">Week 3, The Hammersley-Clifford theorem</a>.</p>
+<p><strong>Independence implies the factorization.</strong> If <span class="math inline">X\perp Z\mid Y</span>, then <span class="math inline">f(x\mid y,z)=f(x\mid y)</span>, so <span class="math display">f(x,y,z)=f(y,z)\,f(x\mid y,z)=f(x\mid y)\,f(y,z).</span> This has the required form with <span class="math inline">\alpha(x,y)=f(x\mid y)</span> and <span class="math inline">\beta(y,z)=f(y,z)</span>.</p>
+<p><strong>The factorization implies independence.</strong> If <span class="math inline">f=\alpha\beta</span>, summing out <span class="math inline">x</span> gives <span class="math inline">f(y,z)=\big(\sum_x\alpha(x,y)\big)\beta(y,z)</span>. Dividing, <span class="math display">f(x\mid y,z)=\frac{\alpha(x,y)\,\beta(y,z)}{\big(\sum_{x'}\alpha(x',y)\big)\beta(y,z)}=\frac{\alpha(x,y)}{\sum_{x'}\alpha(x',y)}.</span> The <span class="math inline">\beta</span> factor cancels (positivity makes the division safe), and what remains does not depend on <span class="math inline">z</span>.</p>
+<p><strong>Answer.</strong> Both directions hold, so for positive factors “factorizes over the cliques <span class="math inline">\{X,Y\},\{Y,Z\}</span>” and “<span class="math inline">X\perp Z\mid Y</span>” describe the same distributions.</p>
+</div>
+</div>
+</div>
+</section>
+<section id="tut3-2" class="level3">
+<h3 class="anchored" data-anchor-id="tut3-2">Tutorial question 2: The Gaussian log-likelihood in the precision matrix</h3>
+<p>Observe <span class="math inline">x_1,\dots,x_n</span> i.i.d. from an <span class="math inline">m</span>-variate Gaussian with mean 0 (centre the data first) and precision matrix <span class="math inline">K=\Sigma^{-1}</span>. The log-density is <span class="math inline">\log f(x;K)=-\frac m2\log(2\pi)+\frac12\log\det K-\frac12x^\top Kx</span>.</p>
+<ol type="1">
+<li>Show that, up to constants, <span class="math inline">\ell_n(K)=\frac n2\big(\log\det K-\mathrm{tr}(KS_n)\big)</span>, where <span class="math inline">S_n=\frac1n\sum_ix_ix_i^\top</span>.</li>
+<li>Using <span class="math inline">\nabla\log\det K=K^{-1}</span> and <span class="math inline">\nabla\,\mathrm{tr}(KS_n)=S_n</span>, find the maximizer.</li>
+</ol>
+<div class="practice-answer callout callout-style-default callout-tip callout-titled" title="Worked solution">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-16-contents" aria-controls="callout-16" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Worked solution
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-16" class="callout-16-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>This is the derivation in <a href="../lectures/week03.html#sec-ggm">Week 3, Gaussian graphical models</a>.</p>
+<ol type="1">
+<li><p>Summing the log-density over the data and dropping <span class="math inline">-\frac{nm}{2}\log(2\pi)</span>, <span class="math display">\ell_n(K)=\frac n2\log\det K-\frac12\sum_{i=1}^nx_i^\top Kx_i.</span> A scalar equals its own trace, and the trace is unchanged by cycling a product, so <span class="math inline">x_i^\top Kx_i=\mathrm{tr}(Kx_ix_i^\top)</span>. By linearity, <span class="math inline">\sum_i\mathrm{tr}(Kx_ix_i^\top)=\mathrm{tr}\big(K\sum_ix_ix_i^\top\big)=n\,\mathrm{tr}(KS_n)</span>.</p></li>
+<li><p>The gradient is <span class="math inline">\frac n2\big(K^{-1}-S_n\big)</span>. Setting it to zero gives <span class="math inline">K^{-1}=S_n</span>. Since <span class="math inline">\log\det K</span> is strictly concave and <span class="math inline">\mathrm{tr}(KS_n)</span> is linear, this stationary point is the unique maximizer (when <span class="math inline">S_n</span> is invertible).</p></li>
+</ol>
+<p><strong>Answer.</strong> <span class="math inline">\hat K=S_n^{-1}</span>, equivalently <span class="math inline">\hat\Sigma=S_n</span>.</p>
+</div>
+</div>
+</div>
+</section>
+<section id="tut3-3" class="level3">
+<h3 class="anchored" data-anchor-id="tut3-3">Tutorial question 3: A binary chain MRF as an exponential family</h3>
+<p>Take binary variables on the chain <span class="math inline">X_1-X_2-X_3</span> with <span class="math display">p(x_1,x_2,x_3\mid\theta)=\frac{1}{Z(\theta)}\,\psi_{1,2}(x_1,x_2\mid\theta_{1,2})\,\psi_{2,3}(x_2,x_3\mid\theta_{2,3}).</span></p>
+<ol type="1">
+<li>Let <span class="math inline">\theta_{1,2}\in\mathbb{R}^4</span> list <span class="math inline">\log\psi_{1,2}</span> at <span class="math inline">(0,0),(0,1),(1,0),(1,1)</span>. Find <span class="math inline">\phi_{1,2}(x_1,x_2)</span> with <span class="math inline">\log\psi_{1,2}=\theta_{1,2}^\top\phi_{1,2}</span>, and write <span class="math inline">p</span> as an exponential family. What is <span class="math inline">Z(\theta)</span> in this parameterization?</li>
+<li>Why is this representation not minimal, and how do we make it minimal?</li>
+</ol>
+<div class="practice-answer callout callout-style-default callout-tip callout-titled" title="Worked solution">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-17-contents" aria-controls="callout-17" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Worked solution
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-17" class="callout-17-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>This is the worked example in <a href="../lectures/week03.html#sec-mrf-expfam">Week 3, MRFs as exponential families</a>.</p>
+<ol type="1">
+<li><p>Let <span class="math inline">\phi_{1,2}</span> be the indicator vector of which of the four configurations occurred: <span class="math display">\phi_{1,2}(x_1,x_2)=\big((1-x_1)(1-x_2),\ (1-x_1)x_2,\ x_1(1-x_2),\ x_1x_2\big)^\top.</span> Exactly one entry is 1, so <span class="math inline">\theta_{1,2}^\top\phi_{1,2}</span> picks out the right log-potential. Defining <span class="math inline">\phi_{2,3}</span> and <span class="math inline">\theta_{2,3}</span> the same way, <span class="math display">p(x_1,x_2,x_3\mid\theta)=\exp\big\{\theta_{1,2}^\top\phi_{1,2}(x_1,x_2)+\theta_{2,3}^\top\phi_{2,3}(x_2,x_3)-\log Z(\theta)\big\},</span> an exponential family with sufficient statistics <span class="math inline">(\phi_{1,2},\phi_{2,3})</span>. Following the tutorial, the potentials in this parameterization are taken to be normalized already, so <span class="math inline">Z(\theta)=1</span> and <span class="math inline">A(\theta)=0</span>.</p></li>
+<li><p>The four entries of <span class="math inline">\phi_{1,2}</span> always sum to 1, so the statistics lie in a hyperplane. With <span class="math inline">\theta</span> restricted so that <span class="math inline">Z(\theta)=1</span>, <span class="math inline">A\equiv0</span> on that set, so <span class="math inline">\nabla A=0</span> there cannot equal <span class="math inline">\mathbb{E}_\theta T(X)</span>. For the unrestricted <span class="math inline">A=\log Z</span> the identity holds; what non-minimality really costs is identifiability, since different <span class="math inline">\theta</span> give the same distribution. The fix is to drop the first coordinate and measure the others relative to it: <span class="math display">\bar\theta_{1,2}=\big(\theta^{(1)},\,\theta^{(2)},\,\theta^{(3)}\big), \qquad \theta^{(1)}=\log\psi_{1,2}(0,1)-\log\psi_{1,2}(0,0),</span> <span class="math display">\theta^{(2)}=\log\psi_{1,2}(1,0)-\log\psi_{1,2}(0,0), \qquad \theta^{(3)}=\log\psi_{1,2}(1,1)-\log\psi_{1,2}(0,0),</span> <span class="math display">\bar\phi_{1,2}=\begin{pmatrix}(1-x_1)x_2\\ x_1(1-x_2)\\ x_1x_2\end{pmatrix},</span> and similarly for the <span class="math inline">(2,3)</span> edge. Since <span class="math inline">\log\psi_{1,2}(x_1,x_2)=\log\psi_{1,2}(0,0)+\bar\theta_{1,2}^\top\bar\phi_{1,2}(x_1,x_2)</span> for every configuration, <span class="math display">p(x_1,x_2,x_3)=\exp\big\{\bar\theta_{1,2}^\top\bar\phi_{1,2}+\bar\theta_{2,3}^\top\bar\phi_{2,3}+\log\psi_{1,2}(0,0)\,\psi_{2,3}(0,0)\big\},</span> so <span class="math inline">A(\bar\theta)=-\log\psi_{1,2}(0,0)\,\psi_{2,3}(0,0)</span>. The tutorial writes this without the minus sign. The minus sign is needed: <span class="math inline">A(\bar\theta)=\log\sum_xe^{\bar\theta^\top\bar\phi(x)}</span> is at least <span class="math inline">0</span> because the all-zeros configuration contributes <span class="math inline">e^0=1</span>, while <span class="math inline">\psi_{1,2}(0,0)\,\psi_{2,3}(0,0)=p(0,0,0)\le1</span> has a nonpositive log.</p></li>
+</ol>
+<p><strong>Answer.</strong> (1) Indicator features with <span class="math inline">Z=1</span>. (2) The indicators sum to 1; dropping one coordinate per edge gives a minimal family with <span class="math inline">A(\bar\theta)=-\log\big(\psi_{1,2}(0,0)\,\psi_{2,3}(0,0)\big)</span>, which must then be written in terms of <span class="math inline">\bar\theta_{1,2}</span> and <span class="math inline">\bar\theta_{2,3}</span>.</p>
+</div>
+</div>
+</div>
+</section>
+<section id="tut3-4" class="level3">
+<h3 class="anchored" data-anchor-id="tut3-4">Tutorial question 4: Variable elimination with evidence</h3>
+<p>The DAG with edges <span class="math inline">x_1\to x_2</span>, <span class="math inline">x_1\to x_3</span>, <span class="math inline">x_2\to x_4</span>, <span class="math inline">x_3\to x_5</span>, <span class="math inline">x_2\to x_6</span>, <span class="math inline">x_5\to x_6</span> factorizes as <span class="math display">p(x_1,\dots,x_6)=p(x_1)\,p(x_2\mid x_1)\,p(x_3\mid x_1)\,p(x_4\mid x_2)\,p(x_5\mid x_3)\,p(x_6\mid x_2,x_5).</span> We observe <span class="math inline">X_6=\bar x_6</span>. Compute <span class="math inline">p(x_1\mid\bar x_6)</span> by variable elimination, eliminating <span class="math inline">x_5</span>, then <span class="math inline">x_4</span>, <span class="math inline">x_3</span>, <span class="math inline">x_2</span>.</p>
+<div class="practice-answer callout callout-style-default callout-tip callout-titled" title="Worked solution">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-18-contents" aria-controls="callout-18" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Worked solution
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-18" class="callout-18-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>This is the worked example of <a href="../lectures/week03.html#sec-ve-evidence">Week 3, Variable elimination with evidence</a>.</p>
+<p>Here <span class="math inline">x_F=\{x_1\}</span>, <span class="math inline">x_E=\{x_6\}</span>, <span class="math inline">x_R=\{x_2,x_3,x_4,x_5\}</span>, and <span class="math inline">p(x_1\mid\bar x_6)=p(x_1,\bar x_6)\big/\sum_{x_1}p(x_1,\bar x_6)</span>. Push each sum inward past the factors that do not mention its variable: <span class="math display">p(x_1,\bar x_6)=p(x_1)\sum_{x_2}p(x_2\mid x_1)\sum_{x_3}p(x_3\mid x_1)\sum_{x_4}p(x_4\mid x_2)\sum_{x_5}p(x_5\mid x_3)\,p(\bar x_6\mid x_2,x_5).</span></p>
+<ul>
+<li>Eliminate <span class="math inline">x_5</span>: <span class="math inline">\sum_{x_5}p(x_5\mid x_3)\,p(\bar x_6\mid x_2,x_5)=p(\bar x_6\mid x_2,x_3)</span>. This result does not involve <span class="math inline">x_4</span>, so it moves outside the <span class="math inline">x_4</span> sum.</li>
+<li>Eliminate <span class="math inline">x_4</span>: <span class="math inline">\sum_{x_4}p(x_4\mid x_2)=1</span>. A leaf that is neither queried nor observed drops out.</li>
+<li>Eliminate <span class="math inline">x_3</span>: <span class="math inline">\sum_{x_3}p(x_3\mid x_1)\,p(\bar x_6\mid x_2,x_3)=p(\bar x_6\mid x_1,x_2)</span>.</li>
+<li>Eliminate <span class="math inline">x_2</span>: <span class="math inline">\sum_{x_2}p(x_2\mid x_1)\,p(\bar x_6\mid x_1,x_2)=p(\bar x_6\mid x_1)</span>.</li>
+</ul>
+<p><strong>Answer.</strong> <span class="math display">p(x_1\mid\bar x_6)=\frac{p(x_1)\,p(\bar x_6\mid x_1)}{\sum_{x_1}p(x_1)\,p(\bar x_6\mid x_1)},</span> Bayes’ rule on the two-node relationship <span class="math inline">x_1\to x_6</span>, after everything in between has been summed out.</p>
+</div>
+</div>
+</div>
+</section>
+<section id="tut3-5" class="level3">
+<h3 class="anchored" data-anchor-id="tut3-5">Tutorial question 5: Conditionals of a restricted Boltzmann machine</h3>
+<p>A restricted Boltzmann machine has visible units <span class="math inline">X_1,\dots,X_k</span> and hidden units <span class="math inline">H_1,\dots,H_l</span>, all in <span class="math inline">\{-1,1\}</span>, on the complete bipartite graph between them: <span class="math display">p(x,h)\propto\exp\Big\{\sum_i\alpha_ix_i+\sum_j\beta_jh_j+\sum_{i=1}^k\sum_{j=1}^lJ_{ij}x_ih_j\Big\}.</span></p>
+<ol type="1">
+<li>Write <span class="math inline">p(x,h)</span> as <span class="math inline">\frac1Z\prod_{i,j}\psi_{X_i,H_j}(x_i,h_j)</span>.</li>
+<li>Show that <span class="math inline">p(h_j=1\mid x)=\sigma\big(\beta_j+\sum_iJ_{ij}x_i\big)</span> with <span class="math inline">\sigma(y)=1/(1+e^{-2y})</span>, and that the <span class="math inline">H_j</span> are independent given <span class="math inline">X</span>.</li>
+</ol>
+<div class="practice-answer callout callout-style-default callout-tip callout-titled" title="Worked solution">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-19-contents" aria-controls="callout-19" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Worked solution
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-19" class="callout-19-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>This is <a href="../lectures/week03.html#sec-rbm">Week 3, Restricted Boltzmann machines</a>.</p>
+<ol type="1">
+<li><p>Share each single-node term evenly across the edges that touch it. <span class="math inline">x_i</span> has <span class="math inline">l</span> edges and <span class="math inline">h_j</span> has <span class="math inline">k</span>: <span class="math display">\psi_{X_i,H_j}(x_i,h_j)=\exp\Big\{\tfrac1l\alpha_ix_i+\tfrac1k\beta_jh_j+J_{ij}x_ih_j\Big\}.</span> Multiplying over all <span class="math inline">k\times l</span> pairs recovers each <span class="math inline">\alpha_ix_i</span> once (<span class="math inline">l</span> copies of <span class="math inline">\frac1l</span>), each <span class="math inline">\beta_jh_j</span> once, and every coupling term.</p></li>
+<li><p>With <span class="math inline">x</span> fixed, <span class="math inline">p(h\mid x)\propto\prod_j\big[\prod_i\psi_{X_i,H_j}(x_i,h_j)\big]</span> is a product of separate functions of each <span class="math inline">h_j</span>. That makes the <span class="math inline">H_j</span> independent given <span class="math inline">X</span>, as Hammersley-Clifford predicts: <span class="math inline">X</span> separates the hidden units. Normalizing one factor over <span class="math inline">h_j\in\{-1,1\}</span>, the <span class="math inline">\alpha</span> terms cancel and, with <span class="math inline">a_j=\beta_j+\sum_iJ_{ij}x_i</span>, <span class="math display">p(h_j=1\mid x)=\frac{e^{a_j}}{e^{-a_j}+e^{a_j}}=\frac{1}{1+e^{-2a_j}}=\sigma(a_j).</span> <span class="math inline">Z</span> never appears, because it cancels in the ratio. The same argument gives <span class="math inline">p(x\mid h)</span>.</p></li>
+</ol>
+<p><strong>Answer.</strong> <span class="math inline">p(h_j=1\mid x)=\sigma(\beta_j+\sum_iJ_{ij}x_i)</span>, and <span class="math inline">p(h\mid x)=\prod_jp(h_j\mid x)</span>.</p>
+</div>
+</div>
+</div>
+
+
+</section>
+</section>
+
+</main> <!-- /main -->
+<script id="quarto-html-after-body" type="application/javascript">
+  window.document.addEventListener("DOMContentLoaded", function (event) {
+    const icon = "";
+    const anchorJS = new window.AnchorJS();
+    anchorJS.options = {
+      placement: 'right',
+      icon: icon
+    };
+    anchorJS.add('.anchored');
+    const isCodeAnnotation = (el) => {
+      for (const clz of el.classList) {
+        if (clz.startsWith('code-annotation-')) {                     
+          return true;
+        }
+      }
+      return false;
+    }
+    const onCopySuccess = function(e) {
+      // button target
+      const button = e.trigger;
+      // don't keep focus
+      button.blur();
+      // flash "checked"
+      button.classList.add('code-copy-button-checked');
+      var currentTitle = button.getAttribute("title");
+      button.setAttribute("title", "Copied!");
+      let tooltip;
+      if (window.bootstrap) {
+        button.setAttribute("data-bs-toggle", "tooltip");
+        button.setAttribute("data-bs-placement", "left");
+        button.setAttribute("data-bs-title", "Copied!");
+        tooltip = new bootstrap.Tooltip(button, 
+          { trigger: "manual", 
+            customClass: "code-copy-button-tooltip",
+            offset: [0, -8]});
+        tooltip.show();    
+      }
+      setTimeout(function() {
+        if (tooltip) {
+          tooltip.hide();
+          button.removeAttribute("data-bs-title");
+          button.removeAttribute("data-bs-toggle");
+          button.removeAttribute("data-bs-placement");
+        }
+        button.setAttribute("title", currentTitle);
+        button.classList.remove('code-copy-button-checked');
+      }, 1000);
+      // clear code selection
+      e.clearSelection();
+    }
+    const getTextToCopy = function(trigger) {
+      const outerScaffold = trigger.parentElement.cloneNode(true);
+      const codeEl = outerScaffold.querySelector('code');
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+    }
+    const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
+      text: getTextToCopy
+    });
+    clipboard.on('success', onCopySuccess);
+    if (window.document.getElementById('quarto-embedded-source-code-modal')) {
+      const clipboardModal = new window.ClipboardJS('.code-copy-button[data-in-quarto-modal]', {
+        text: getTextToCopy,
+        container: window.document.getElementById('quarto-embedded-source-code-modal')
+      });
+      clipboardModal.on('success', onCopySuccess);
+    }
+      var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+      var mailtoRegex = new RegExp(/^mailto:/);
+        var filterRegex = new RegExp('/' + window.location.host + '/');
+      var isInternal = (href) => {
+          return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+      }
+      // Inspect non-navigation links and adorn them if external
+     var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+      for (var i=0; i<links.length; i++) {
+        const link = links[i];
+        if (!isInternal(link.href)) {
+          // undo the damage that might have been done by quarto-nav.js in the case of
+          // links that we want to consider external
+          if (link.dataset.originalHref !== undefined) {
+            link.href = link.dataset.originalHref;
+          }
+            // target, if specified
+            link.setAttribute("target", "_blank");
+            if (link.getAttribute("rel") === null) {
+              link.setAttribute("rel", "noopener");
+            }
+        }
+      }
+    function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+      const config = {
+        allowHTML: true,
+        maxWidth: 500,
+        delay: 100,
+        arrow: false,
+        appendTo: function(el) {
+            return el.parentElement;
+        },
+        interactive: true,
+        interactiveBorder: 10,
+        theme: 'quarto',
+        placement: 'bottom-start',
+      };
+      if (contentFn) {
+        config.content = contentFn;
+      }
+      if (onTriggerFn) {
+        config.onTrigger = onTriggerFn;
+      }
+      if (onUntriggerFn) {
+        config.onUntrigger = onUntriggerFn;
+      }
+      window.tippy(el, config); 
+    }
+    const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+    for (var i=0; i<noterefs.length; i++) {
+      const ref = noterefs[i];
+      tippyHover(ref, function() {
+        // use id or data attribute instead here
+        let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+        try { href = new URL(href).hash; } catch {}
+        const id = href.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note) {
+          return note.innerHTML;
+        } else {
+          return "";
+        }
+      });
+    }
+    const xrefs = window.document.querySelectorAll('a.quarto-xref');
+    const processXRef = (id, note) => {
+      // Strip column container classes
+      const stripColumnClz = (el) => {
+        el.classList.remove("page-full", "page-columns");
+        if (el.children) {
+          for (const child of el.children) {
+            stripColumnClz(child);
+          }
+        }
+      }
+      stripColumnClz(note)
+      if (id === null || id.startsWith('sec-')) {
+        // Special case sections, only their first couple elements
+        const container = document.createElement("div");
+        if (note.children && note.children.length > 2) {
+          container.appendChild(note.children[0].cloneNode(true));
+          for (let i = 1; i < note.children.length; i++) {
+            const child = note.children[i];
+            if (child.tagName === "P" && child.innerText === "") {
+              continue;
+            } else {
+              container.appendChild(child.cloneNode(true));
+              break;
+            }
+          }
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(container);
+          }
+          return container.innerHTML
+        } else {
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(note);
+          }
+          return note.innerHTML;
+        }
+      } else {
+        // Remove any anchor links if they are present
+        const anchorLink = note.querySelector('a.anchorjs-link');
+        if (anchorLink) {
+          anchorLink.remove();
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        if (note.classList.contains("callout")) {
+          return note.outerHTML;
+        } else {
+          return note.innerHTML;
+        }
+      }
+    }
+    for (var i=0; i<xrefs.length; i++) {
+      const xref = xrefs[i];
+      tippyHover(xref, undefined, function(instance) {
+        instance.disable();
+        let url = xref.getAttribute('href');
+        let hash = undefined; 
+        if (url.startsWith('#')) {
+          hash = url;
+        } else {
+          try { hash = new URL(url).hash; } catch {}
+        }
+        if (hash) {
+          const id = hash.replace(/^#\/?/, "");
+          const note = window.document.getElementById(id);
+          if (note !== null) {
+            try {
+              const html = processXRef(id, note.cloneNode(true));
+              instance.setContent(html);
+            } finally {
+              instance.enable();
+              instance.show();
+            }
+          } else {
+            // See if we can fetch this
+            fetch(url.split('#')[0])
+            .then(res => res.text())
+            .then(html => {
+              const parser = new DOMParser();
+              const htmlDoc = parser.parseFromString(html, "text/html");
+              const note = htmlDoc.getElementById(id);
+              if (note !== null) {
+                const html = processXRef(id, note);
+                instance.setContent(html);
+              } 
+            }).finally(() => {
+              instance.enable();
+              instance.show();
+            });
+          }
+        } else {
+          // See if we can fetch a full url (with no hash to target)
+          // This is a special case and we should probably do some content thinning / targeting
+          fetch(url)
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.querySelector('main.content');
+            if (note !== null) {
+              // This should only happen for chapter cross references
+              // (since there is no id in the URL)
+              // remove the first header
+              if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+                note.children[0].remove();
+              }
+              const html = processXRef(null, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      }, function(instance) {
+      });
+    }
+        let selectedAnnoteEl;
+        const selectorForAnnotation = ( cell, annotation) => {
+          let cellAttr = 'data-code-cell="' + cell + '"';
+          let lineAttr = 'data-code-annotation="' +  annotation + '"';
+          const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+          return selector;
+        }
+        const selectCodeLines = (annoteEl) => {
+          const doc = window.document;
+          const targetCell = annoteEl.getAttribute("data-target-cell");
+          const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+          const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+          const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+          const lineIds = lines.map((line) => {
+            return targetCell + "-" + line;
+          })
+          let top = null;
+          let height = null;
+          let parent = null;
+          if (lineIds.length > 0) {
+              //compute the position of the single el (top and bottom and make a div)
+              const el = window.document.getElementById(lineIds[0]);
+              top = el.offsetTop;
+              height = el.offsetHeight;
+              parent = el.parentElement.parentElement;
+            if (lineIds.length > 1) {
+              const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+              const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+              height = bottom - top;
+            }
+            if (top !== null && height !== null && parent !== null) {
+              // cook up a div (if necessary) and position it 
+              let div = window.document.getElementById("code-annotation-line-highlight");
+              if (div === null) {
+                div = window.document.createElement("div");
+                div.setAttribute("id", "code-annotation-line-highlight");
+                div.style.position = 'absolute';
+                parent.appendChild(div);
+              }
+              div.style.top = top - 2 + "px";
+              div.style.height = height + 4 + "px";
+              div.style.left = 0;
+              let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+              if (gutterDiv === null) {
+                gutterDiv = window.document.createElement("div");
+                gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+                gutterDiv.style.position = 'absolute';
+                const codeCell = window.document.getElementById(targetCell);
+                const gutter = codeCell.querySelector('.code-annotation-gutter');
+                gutter.appendChild(gutterDiv);
+              }
+              gutterDiv.style.top = top - 2 + "px";
+              gutterDiv.style.height = height + 4 + "px";
+            }
+            selectedAnnoteEl = annoteEl;
+          }
+        };
+        const unselectCodeLines = () => {
+          const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+          elementsIds.forEach((elId) => {
+            const div = window.document.getElementById(elId);
+            if (div) {
+              div.remove();
+            }
+          });
+          selectedAnnoteEl = undefined;
+        };
+          // Handle positioning of the toggle
+      window.addEventListener(
+        "resize",
+        throttle(() => {
+          elRect = undefined;
+          if (selectedAnnoteEl) {
+            selectCodeLines(selectedAnnoteEl);
+          }
+        }, 10)
+      );
+      function throttle(fn, ms) {
+      let throttle = false;
+      let timer;
+        return (...args) => {
+          if(!throttle) { // first call gets through
+              fn.apply(this, args);
+              throttle = true;
+          } else { // all the others get throttled
+              if(timer) clearTimeout(timer); // cancel #2
+              timer = setTimeout(() => {
+                fn.apply(this, args);
+                timer = throttle = false;
+              }, ms);
+          }
+        };
+      }
+        // Attach click handler to the DT
+        const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+        for (const annoteDlNode of annoteDls) {
+          annoteDlNode.addEventListener('click', (event) => {
+            const clickedEl = event.target;
+            if (clickedEl !== selectedAnnoteEl) {
+              unselectCodeLines();
+              const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+              if (activeEl) {
+                activeEl.classList.remove('code-annotation-active');
+              }
+              selectCodeLines(clickedEl);
+              clickedEl.classList.add('code-annotation-active');
+            } else {
+              // Unselect the line
+              unselectCodeLines();
+              clickedEl.classList.remove('code-annotation-active');
+            }
+          });
+        }
+    const findCites = (el) => {
+      const parentEl = el.parentElement;
+      if (parentEl) {
+        const cites = parentEl.dataset.cites;
+        if (cites) {
+          return {
+            el,
+            cites: cites.split(' ')
+          };
+        } else {
+          return findCites(el.parentElement)
+        }
+      } else {
+        return undefined;
+      }
+    };
+    var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+    for (var i=0; i<bibliorefs.length; i++) {
+      const ref = bibliorefs[i];
+      const citeInfo = findCites(ref);
+      if (citeInfo) {
+        tippyHover(citeInfo.el, function() {
+          var popup = window.document.createElement('div');
+          citeInfo.cites.forEach(function(cite) {
+            var citeDiv = window.document.createElement('div');
+            citeDiv.classList.add('hanging-indent');
+            citeDiv.classList.add('csl-entry');
+            var biblioDiv = window.document.getElementById('ref-' + cite);
+            if (biblioDiv) {
+              citeDiv.innerHTML = biblioDiv.innerHTML;
+            }
+            popup.appendChild(citeDiv);
+          });
+          return popup.innerHTML;
+        });
+      }
+    }
+  });
+  </script>
+<nav class="page-navigation">
+  <div class="nav-page nav-page-previous">
+      <a href="../lectures/week03.html" class="pagination-link" aria-label="Week 3: Markov Random Fields and Exact Inference">
+        <i class="bi bi-arrow-left-short"></i> <span class="nav-page-text"><span class="chapter-title">Week 3: Markov Random Fields and Exact Inference</span></span>
+      </a>          
+  </div>
+  <div class="nav-page nav-page-next">
+      <a href="../lectures/week04.html" class="pagination-link" aria-label="Week 4: Message Passing and Monte Carlo">
+        <span class="nav-page-text"><span class="chapter-title">Week 4: Message Passing and Monte Carlo</span></span> <i class="bi bi-arrow-right-short"></i>
+      </a>
+  </div>
+</nav>
+</div> <!-- /content -->
+
+
+
+
+<script src="../site_libs/quarto-html/zenscroll-min.js"></script>
+</body></html>

@@ -15,39 +15,109 @@ Skipped: the title slide and the assignment/office-hours announcements on slide 
 
 ## From DAGs to undirected graphs {#sec-motivate}
 
+Week 2 represented a joint distribution with a DAG, where every edge has a direction. Some problems have no natural direction: neighbouring pixels in an image, for example, influence each other symmetrically. To see what directed edges cost us in such a problem, we look at how much of the graph a single variable depends on, which is measured by its Markov blanket.
+
 Recall the **Markov blanket** of a variable $X_i$: the smallest set of other variables that makes $X_i$ conditionally independent of everything else. In a DAG, the Markov blanket of $X_i$ is its parents, its children, and its children's other parents (the co-parents), because of the explaining-away effect from Week 2 (@sec-cistructures in Week 2): observing a child can create dependence between that child's parents.
 
-This has an awkward consequence. Take a grid of variables $X_1,\dots,X_{20}$ arranged in rows, where intuitively each variable should depend only on its four grid neighbors (up, down, left, right). If we try to encode this as a DAG by choosing some ordering of the variables (say, left to right, top to bottom) and drawing arrows accordingly, the Markov blanket of an interior node like $X_8$ can end up including nodes that have nothing to do with $X_8$'s grid neighbors. For example, $X_8$'s co-parents in one such DAG turn out to include $X_4$ and $X_{12}$, even though those are not grid-adjacent to $X_8$ at all, only because they happen to share a child with $X_8$ under the chosen edge orientation. The DAG is not wrong: it does encode a valid factorization. But its dependency structure does not match the "each cell depends on its neighbors" structure we actually wanted to express, and no choice of edge directions fixes this in general.
+This has an awkward consequence. Take a grid of variables $X_1,\dots,X_{20}$ arranged in rows, where intuitively each variable should depend only on its four grid neighbors (up, down, left, right). If we try to encode this as a DAG by choosing some ordering of the variables (say, left to right, top to bottom) and drawing arrows accordingly, the Markov blanket of an interior node like $X_8$ can end up including nodes that have nothing to do with $X_8$'s grid neighbors. Figure 1 shows the lecture's version: every horizontal edge points right and every vertical edge points down.
+
+Reading $X_8$'s Markov blanket off Figure 1 with the parents, children, co-parents rule:
+
+- **Parents:** $X_3$ (above) and $X_7$ (left).
+- **Children:** $X_9$ (right) and $X_{13}$ (below).
+- **Co-parents:** the other parents of those children. $X_9$ has parents $X_4$ and $X_8$, so $X_4$ is a co-parent. $X_{13}$ has parents $X_8$ and $X_{12}$, so $X_{12}$ is a co-parent.
+
+The first two groups are exactly $X_8$'s four grid neighbors, as we would expect. $X_4$ and $X_{12}$ are the surprise: they sit diagonally from $X_8$ and share no edge with it. They are in the blanket because of the **co-parent rule**, which comes from the **collider** case of Week 2's d-separation rule (@sec-bayesball in Week 2). The path $X_8\to X_9\leftarrow X_4$ meets head-to-head at $X_9$, so $X_9$ is a collider on it. A Markov blanket must contain $X_8$'s children, so $X_9$ is conditioned on. A collider blocks a path only when neither it nor any of its descendants is observed, so an observed collider leaves the path active. This is explaining away: given $X_9$, learning $X_4$ changes what we believe about $X_8$, its other cause. The only way to cut that path is to condition on $X_4$ too. The same argument through $X_{13}$ puts $X_{12}$ in the blanket.
+
+The asymmetry gives the orientation away. The other two diagonal cells, $X_2$ and $X_{14}$, are not in the blanket: $X_2$'s children are $X_3$ and $X_7$, which are parents of $X_8$ rather than children, and $X_{14}$ is a child of $X_9$ and $X_{13}$, not a parent of either. Which diagonals join the blanket depends only on which way the arrows were drawn. The DAG is not wrong: it does encode a valid factorization. But its dependency structure does not match the "each cell depends on its neighbors" structure we actually wanted to express, and no choice of edge directions fixes this in general.
 
 ```{=html}
 <div style="overflow-x:auto; margin:1.5rem 0;">
-<svg viewBox="0 0 480 320" width="100%" style="max-width:480px;display:block;margin:auto;font-family:Helvetica,'Helvetica Neue',Arial,sans-serif;" role="img" aria-label="A local neighborhood of a grid graph around X8, showing its four undirected grid neighbors, with X4 and X12 placed nearby but not adjacent">
-  <text x="240" y="28" text-anchor="middle" font-size="24" font-weight="600" fill="#333">X8's neighbors in the grid</text>
-  <line x1="240" y1="100" x2="240" y2="140" stroke="#555" stroke-width="1.5"/>
-  <line x1="160" y1="160" x2="220" y2="160" stroke="#555" stroke-width="1.5"/>
-  <line x1="260" y1="160" x2="320" y2="160" stroke="#555" stroke-width="1.5"/>
-  <line x1="240" y1="180" x2="240" y2="220" stroke="#555" stroke-width="1.5"/>
-  <circle cx="240" cy="80" r="22" fill="#C6DEF1" stroke="#5795C7" stroke-width="1.5"/>
-  <text x="240" y="85" text-anchor="middle" font-size="15" fill="#205279">X3</text>
-  <circle cx="140" cy="160" r="22" fill="#C6DEF1" stroke="#5795C7" stroke-width="1.5"/>
-  <text x="140" y="165" text-anchor="middle" font-size="15" fill="#205279">X7</text>
-  <circle cx="240" cy="160" r="24" fill="#F2C6DE" stroke="#C75794" stroke-width="2"/>
-  <text x="240" y="165" text-anchor="middle" font-size="15" fill="#792051">X8</text>
-  <circle cx="340" cy="160" r="22" fill="#C6DEF1" stroke="#5795C7" stroke-width="1.5"/>
-  <text x="340" y="165" text-anchor="middle" font-size="15" fill="#205279">X9</text>
-  <circle cx="240" cy="240" r="22" fill="#C6DEF1" stroke="#5795C7" stroke-width="1.5"/>
-  <text x="240" y="245" text-anchor="middle" font-size="15" fill="#205279">X13</text>
-  <circle cx="380" cy="80" r="22" fill="#FAEDCB" stroke="#C7A857" stroke-width="1.5" stroke-dasharray="4,3"/>
-  <text x="380" y="85" text-anchor="middle" font-size="15" fill="#796020">X4</text>
-  <circle cx="140" cy="240" r="22" fill="#FAEDCB" stroke="#C7A857" stroke-width="1.5" stroke-dasharray="4,3"/>
-  <text x="140" y="245" text-anchor="middle" font-size="15" fill="#796020">X12</text>
+<svg viewBox="0 0 520 410" width="100%" style="max-width:520px;display:block;margin:auto;font-family:Helvetica,'Helvetica Neue',Arial,sans-serif;" role="img" aria-label="A 4 by 5 grid of variables X1 to X20 with every edge pointing right or down. X8 is highlighted; its parents X3 and X7, its children X9 and X13, and its co-parents X4 and X12 are coloured. The edges X4 to X9 and X12 to X13 are highlighted.">
+  <defs>
+    <marker id="arrW3g" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+      <path d="M0,0 L0,8 L8,4 z" fill="#555"/>
+    </marker>
+    <marker id="arrW3h" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+      <path d="M0,0 L0,8 L8,4 z" fill="#C78557"/>
+    </marker>
+  </defs>
+  <text x="260" y="30" text-anchor="middle" font-size="24" font-weight="600" fill="#333">X8's Markov blanket in a directed grid</text>
+  <line x1="85" y1="95" x2="133" y2="95" stroke="#555" stroke-width="1.5" marker-end="url(#arrW3g)"/>
+  <line x1="60" y1="120" x2="60" y2="148" stroke="#555" stroke-width="1.5" marker-end="url(#arrW3g)"/>
+  <line x1="185" y1="95" x2="233" y2="95" stroke="#555" stroke-width="1.5" marker-end="url(#arrW3g)"/>
+  <line x1="160" y1="120" x2="160" y2="148" stroke="#555" stroke-width="1.5" marker-end="url(#arrW3g)"/>
+  <line x1="285" y1="95" x2="333" y2="95" stroke="#555" stroke-width="1.5" marker-end="url(#arrW3g)"/>
+  <line x1="260" y1="120" x2="260" y2="148" stroke="#555" stroke-width="1.5" marker-end="url(#arrW3g)"/>
+  <line x1="385" y1="95" x2="433" y2="95" stroke="#555" stroke-width="1.5" marker-end="url(#arrW3g)"/>
+  <line x1="360" y1="120" x2="360" y2="148" stroke="#C78557" stroke-width="2.5" marker-end="url(#arrW3h)"/>
+  <line x1="460" y1="120" x2="460" y2="148" stroke="#555" stroke-width="1.5" marker-end="url(#arrW3g)"/>
+  <line x1="85" y1="175" x2="133" y2="175" stroke="#555" stroke-width="1.5" marker-end="url(#arrW3g)"/>
+  <line x1="60" y1="200" x2="60" y2="228" stroke="#555" stroke-width="1.5" marker-end="url(#arrW3g)"/>
+  <line x1="185" y1="175" x2="233" y2="175" stroke="#555" stroke-width="1.5" marker-end="url(#arrW3g)"/>
+  <line x1="160" y1="200" x2="160" y2="228" stroke="#555" stroke-width="1.5" marker-end="url(#arrW3g)"/>
+  <line x1="285" y1="175" x2="333" y2="175" stroke="#555" stroke-width="1.5" marker-end="url(#arrW3g)"/>
+  <line x1="260" y1="200" x2="260" y2="228" stroke="#555" stroke-width="1.5" marker-end="url(#arrW3g)"/>
+  <line x1="385" y1="175" x2="433" y2="175" stroke="#555" stroke-width="1.5" marker-end="url(#arrW3g)"/>
+  <line x1="360" y1="200" x2="360" y2="228" stroke="#555" stroke-width="1.5" marker-end="url(#arrW3g)"/>
+  <line x1="460" y1="200" x2="460" y2="228" stroke="#555" stroke-width="1.5" marker-end="url(#arrW3g)"/>
+  <line x1="85" y1="255" x2="133" y2="255" stroke="#555" stroke-width="1.5" marker-end="url(#arrW3g)"/>
+  <line x1="60" y1="280" x2="60" y2="308" stroke="#555" stroke-width="1.5" marker-end="url(#arrW3g)"/>
+  <line x1="185" y1="255" x2="233" y2="255" stroke="#C78557" stroke-width="2.5" marker-end="url(#arrW3h)"/>
+  <line x1="160" y1="280" x2="160" y2="308" stroke="#555" stroke-width="1.5" marker-end="url(#arrW3g)"/>
+  <line x1="285" y1="255" x2="333" y2="255" stroke="#555" stroke-width="1.5" marker-end="url(#arrW3g)"/>
+  <line x1="260" y1="280" x2="260" y2="308" stroke="#555" stroke-width="1.5" marker-end="url(#arrW3g)"/>
+  <line x1="385" y1="255" x2="433" y2="255" stroke="#555" stroke-width="1.5" marker-end="url(#arrW3g)"/>
+  <line x1="360" y1="280" x2="360" y2="308" stroke="#555" stroke-width="1.5" marker-end="url(#arrW3g)"/>
+  <line x1="460" y1="280" x2="460" y2="308" stroke="#555" stroke-width="1.5" marker-end="url(#arrW3g)"/>
+  <line x1="85" y1="335" x2="133" y2="335" stroke="#555" stroke-width="1.5" marker-end="url(#arrW3g)"/>
+  <line x1="185" y1="335" x2="233" y2="335" stroke="#555" stroke-width="1.5" marker-end="url(#arrW3g)"/>
+  <line x1="285" y1="335" x2="333" y2="335" stroke="#555" stroke-width="1.5" marker-end="url(#arrW3g)"/>
+  <line x1="385" y1="335" x2="433" y2="335" stroke="#555" stroke-width="1.5" marker-end="url(#arrW3g)"/>
+  <text x="60" y="100" text-anchor="middle" font-size="15" fill="#333">X1</text>
+  <text x="160" y="100" text-anchor="middle" font-size="15" fill="#333">X2</text>
+  <circle cx="260" cy="95" r="23" fill="#C6DEF1" stroke="#5795C7" stroke-width="2"/>
+  <text x="260" y="100" text-anchor="middle" font-size="15" fill="#205279">X3</text>
+  <circle cx="360" cy="95" r="23" fill="#F7D9C4" stroke="#C78557" stroke-width="2"/>
+  <text x="360" y="100" text-anchor="middle" font-size="15" fill="#794520">X4</text>
+  <text x="460" y="100" text-anchor="middle" font-size="15" fill="#333">X5</text>
+  <text x="60" y="180" text-anchor="middle" font-size="15" fill="#333">X6</text>
+  <circle cx="160" cy="175" r="23" fill="#C6DEF1" stroke="#5795C7" stroke-width="2"/>
+  <text x="160" y="180" text-anchor="middle" font-size="15" fill="#205279">X7</text>
+  <circle cx="260" cy="175" r="23" fill="#FFFFFF" stroke="#e53935" stroke-width="2" stroke-dasharray="4,3"/>
+  <text x="260" y="180" text-anchor="middle" font-size="15" fill="#e53935">X8</text>
+  <circle cx="360" cy="175" r="23" fill="#C9E4DE" stroke="#57C7AE" stroke-width="2"/>
+  <text x="360" y="180" text-anchor="middle" font-size="15" fill="#207965">X9</text>
+  <text x="460" y="180" text-anchor="middle" font-size="15" fill="#333">X10</text>
+  <text x="60" y="260" text-anchor="middle" font-size="15" fill="#333">X11</text>
+  <circle cx="160" cy="255" r="23" fill="#F7D9C4" stroke="#C78557" stroke-width="2"/>
+  <text x="160" y="260" text-anchor="middle" font-size="15" fill="#794520">X12</text>
+  <circle cx="260" cy="255" r="23" fill="#C9E4DE" stroke="#57C7AE" stroke-width="2"/>
+  <text x="260" y="260" text-anchor="middle" font-size="15" fill="#207965">X13</text>
+  <text x="360" y="260" text-anchor="middle" font-size="15" fill="#333">X14</text>
+  <text x="460" y="260" text-anchor="middle" font-size="15" fill="#333">X15</text>
+  <text x="60" y="340" text-anchor="middle" font-size="15" fill="#333">X16</text>
+  <text x="160" y="340" text-anchor="middle" font-size="15" fill="#333">X17</text>
+  <text x="260" y="340" text-anchor="middle" font-size="15" fill="#333">X18</text>
+  <text x="360" y="340" text-anchor="middle" font-size="15" fill="#333">X19</text>
+  <text x="460" y="340" text-anchor="middle" font-size="15" fill="#333">X20</text>
+  <circle cx="40" cy="390" r="7" fill="#C6DEF1" stroke="#5795C7" stroke-width="2"/>
+  <text x="52" y="395" font-size="14" fill="#333">parents</text>
+  <circle cx="150" cy="390" r="7" fill="#C9E4DE" stroke="#57C7AE" stroke-width="2"/>
+  <text x="162" y="395" font-size="14" fill="#333">children</text>
+  <circle cx="265" cy="390" r="7" fill="#F7D9C4" stroke="#C78557" stroke-width="2"/>
+  <text x="277" y="395" font-size="14" fill="#333">co-parents</text>
+  <circle cx="390" cy="390" r="7" fill="#FFFFFF" stroke="#e53935" stroke-width="2" stroke-dasharray="3,2"/>
+  <text x="402" y="395" font-size="14" fill="#333">X8</text>
 </svg>
 </div>
 ```
 
-**Figure 1.** In the grid, $X_8$'s only neighbors are $X_3, X_7, X_9, X_{13}$ (solid edges). $X_4$ and $X_{12}$ (dashed outlines, no edge to $X_8$) are not grid-adjacent to $X_8$, yet a particular DAG encoding of this grid places them in $X_8$'s Markov blanket anyway.
+**Figure 1.** The lecture's grid as a DAG, with every edge pointing right or down. $X_8$'s Markov blanket is its parents $X_3, X_7$ (blue), its children $X_9, X_{13}$ (green), and its co-parents $X_4, X_{12}$ (orange). The highlighted edges $X_4\to X_9$ and $X_{12}\to X_{13}$ are what make $X_4$ and $X_{12}$ co-parents, even though neither is a grid neighbor of $X_8$.
 
 ## Markov random fields, cliques, and the factorization theorem {#sec-mrf}
+
+The grid shows the problem with arrows: they force us to choose directions the problem does not have, and that choice drags non-neighbours like $X_4$ and $X_{12}$ into $X_8$'s blanket through colliders. The fix is to drop the arrows. In an undirected graph an edge only says "these two variables interact", there are no colliders, and (as @sec-hc will show) a node's Markov blanket is just its neighbours. An undirected graph then needs its own rule for which distributions it represents, which is what this section sets up.
 
 ::: {.definition-block}
 **Definition.** An **undirected graphical model**, or **Markov random field (MRF)**, represents a set of random variables as nodes of an undirected graph $G$, where an edge between two nodes means those variables interact directly, rather than one causing the other.
@@ -65,11 +135,49 @@ $$p(\boldsymbol{x}) \propto \prod_{C \in \mathcal{C}} \psi_C(x_C)$$
 for some nonnegative **potential functions** $\psi_C$, where $x_C = (x_i)_{i \in C}$. The MRF on $G$ represents exactly the distributions that factorize with respect to $G$.
 :::
 
+::: {.callout-tip collapse="true" .clarification title="Question: What does the C in psi_C mean, and are we free to define these functions however we like?"}
+**What $C$ stands for.** $C$ is a clique: a set of node indices, such as $C=\{1,2,3\}$. The product $\prod_{C\in\mathcal{C}}$ runs over every maximal clique of the graph, and $x_C$ is the list of values of just the variables in that clique. So $\psi_C(x_C)$ is "the potential attached to clique $C$, evaluated at that clique's variables." In practice we write the clique's members as the subscript: for $C=\{1,2,3\}$, $\psi_C(x_C)$ is written $\psi_{1,2,3}(x_1,x_2,x_3)$. The letter $\psi$ (psi) has no meaning of its own; it is the usual name for a potential.
+
+**What we may choose.** Almost anything, within three rules:
+
+- **Nonnegative.** $\psi_C(x_C)\ge 0$ for every setting. Hammersley-Clifford (@sec-hc) needs the resulting $p$ to be strictly positive, which is why potentials are often written as $\psi_C = e^{(\text{something})}$, which can never be zero.
+- **Only the clique's own variables.** $\psi_{1,2,3}$ may look at $x_1,x_2,x_3$ and nothing else. This rule is the entire content of the graph: it is what stops a factor from linking two variables that share no edge.
+- **No normalization.** A potential need not sum to 1 and is not a probability. Multiplying one potential by a constant changes nothing once we divide by $Z$.
+
+Within those rules, choosing the potentials is the modelling step. They are usually given a parametric form and learned from data, such as the Ising model's $\psi_{st}=e^{J_{st}x_sx_t}$ (@sec-ising) or the log-linear form of @sec-mrf-expfam.
+
+**Potentials on smaller cliques.** We may also attach potentials to single nodes or to edges inside a larger clique, as the Ising model does with its per-node field. This does not enlarge the family of distributions: any such factor can be multiplied into the potential of a maximal clique that contains it, which recovers the one-potential-per-maximal-clique form above.
+:::
+
+::: {.callout-tip collapse="true" .clarification title="Question: What does it mean for a distribution to factorize with respect to a graph, concretely?"}
+**What "factorizes" means.** A function of many variables *factorizes* if it can be written as a product of smaller functions, each of which looks at only some of the variables. Week 2 already did this for DAGs: $p(x_1,\dots,x_N)=\prod_ip(x_i\mid\text{parents}(x_i))$, where each factor involves one node and its parents (@sec-dag in Week 2). Here the factors are potentials instead of conditional probabilities, and the graph decides which groups of variables are allowed to share a factor: one factor per maximal clique. "With respect to $G$" means exactly that restriction. Any distribution can be written as a single factor over all its variables, but that only factorizes with respect to the complete graph.
+
+**A concrete example.** Take the chain $X_1-X_2-X_3$ with each $X_i\in\{0,1\}$. Its maximal cliques are the edges $\{1,2\}$ and $\{2,3\}$, so a distribution factorizes with respect to this graph if
+$$p(x_1,x_2,x_3)=\frac1Z\,\psi_{1,2}(x_1,x_2)\,\psi_{2,3}(x_2,x_3).$$
+Choose both potentials to reward agreement, as in the Ising model of @sec-ising: $\psi(a,b)=2$ if $a=b$ and $1$ if $a\neq b$. Multiplying the two potentials for each of the 8 settings gives the unnormalized table:
+
+| $(x_1,x_2,x_3)$ | 000 | 001 | 010 | 011 | 100 | 101 | 110 | 111 |
+|---|---|---|---|---|---|---|---|---|
+| $\psi_{1,2}\,\psi_{2,3}$ | 4 | 2 | 1 | 2 | 2 | 1 | 2 | 4 |
+
+The entries sum to $Z=18$, so for example $p(0,0,0)=4/18=2/9$ and $p(0,1,0)=1/18$. Eight probabilities were specified by two $2\times2$ tables: that saving is the point of factorizing.
+
+**What the factorization buys.** Because no factor contains both $x_1$ and $x_3$, they can only influence each other through $x_2$. Check it with the definition of conditional probability (Bayes' rule), dividing the joint by the marginal of what we condition on:
+$$p(x_3\mid x_1,x_2)=\frac{p(x_1,x_2,x_3)}{p(x_1,x_2)}=\frac{p(x_1,x_2,x_3)}{\sum_{x_3'}p(x_1,x_2,x_3')}.$$
+The $\frac1Z$ in every joint probability cancels between numerator and denominator, so the table entries can be used directly. With $x_2=0$ and $x_1=0$:
+$$p(x_3=0\mid x_1=0,x_2=0)=\frac{p(0,0,0)}{p(0,0,0)+p(0,0,1)}=\frac{4/18}{4/18+2/18}=\frac{4}{4+2}=\frac23.$$
+With $x_2=0$ and $x_1=1$:
+$$p(x_3=0\mid x_1=1,x_2=0)=\frac{p(1,0,0)}{p(1,0,0)+p(1,0,1)}=\frac{2/18}{2/18+1/18}=\frac{2}{2+1}=\frac23.$$
+Changing $x_1$ does not change the answer once $x_2$ is known, so $X_1\perp X_3\mid X_2$. This is the independence that @sec-hc reads directly off the graph.
+
+**A distribution that does not factorize.** Let $X_2$ be a fair coin, independent of everything, and let $X_1=X_3$ be a second fair coin, so $p(x_1,x_2,x_3)=\frac14$ when $x_1=x_3$ and $0$ otherwise. Given $x_2$, knowing $x_1$ still tells us $x_3$ exactly, so $X_1\not\perp X_3\mid X_2$. Every distribution of the form $\frac1Z\psi_{1,2}\psi_{2,3}$ has $X_1\perp X_3\mid X_2$ (the general proof is the chain argument in @sec-hc; the check above is one instance), so no choice of potentials can produce this one. It factorizes only with respect to a graph with an edge between $X_1$ and $X_3$.
+:::
+
 Unlike a DAG's conditional probability tables, a potential $\psi_C$ need not sum or integrate to 1, and need not have any probabilistic interpretation on its own; it is simply a nonnegative score attached to each joint setting of the clique's variables. The product of all the potentials is only proportional to $p(\boldsymbol{x})$, so an explicit normalizing constant $Z = \sum_{\boldsymbol{x}} \prod_{C} \psi_C(x_C)$ (the **partition function**) is needed to turn it into an actual probability. This factored structure is what makes sums and integrals over $p(\boldsymbol{x})$ tractable: instead of manipulating one giant table over all variables jointly, we manipulate several small tables, one per clique, exactly the same motivation that drove the chain-rule factorization of Week 2 (@sec-factoring in Week 2).
 
 As a small concrete instance, a 4-cycle of binary variables $x_1,x_2,x_3,x_4$ (edges $1\text{-}2$, $2\text{-}3$, $3\text{-}4$, $4\text{-}1$) has four maximal cliques, one per edge, so
 
-$$p(x_1,x_2,x_3,x_4) = \frac{1}{Z}\,\psi_{1,2}(x_1,x_2)\,\psi_{2,3}(x_2,x_3)\,\psi_{3,4}(x_3,x4)\,\psi_{1,4}(x_1,x_4).$$
+$$p(x_1,x_2,x_3,x_4) = \frac{1}{Z}\,\psi_{1,2}(x_1,x_2)\,\psi_{2,3}(x_2,x_3)\,\psi_{3,4}(x_3,x_4)\,\psi_{1,4}(x_1,x_4).$$
 
 ```{=html}
 <div style="overflow-x:auto; margin:1.5rem 0;">
@@ -95,7 +203,7 @@ $$p(x_1,x_2,x_3,x_4) = \frac{1}{Z}\,\psi_{1,2}(x_1,x_2)\,\psi_{2,3}(x_2,x_3)\,\p
 
 ## The Hammersley-Clifford theorem {#sec-hc}
 
-The factorization theorem above starts from a factored form and asks what independencies it implies. The Hammersley-Clifford theorem says the two directions coincide.
+We now have two ways to read an undirected graph. @sec-mrf reads it as a **factorization**: a product of clique potentials. The motivation in @sec-motivate reads it as a set of **independence statements**: a variable should depend only on its neighbours. Nothing so far says these two readings describe the same distributions. The Hammersley-Clifford theorem says they do, for distributions that are strictly positive.
 
 ::: {.theorem-block}
 **Hammersley-Clifford theorem.** If $p(\boldsymbol{x}) > 0$ for all $\boldsymbol{x}$, the following are equivalent:
@@ -110,15 +218,17 @@ Two special cases of the global Markov property are worth naming directly, since
 $$f(x,y,z) = \alpha(x,y)\,\beta(y,z)$$
 for positive functions $\alpha,\beta$. The claim is that this is equivalent to $X \perp Z \mid Y$.
 
-*Factorized $\Rightarrow$ independent.* Using the product rule, $f(x,y,z) = f(y,z)\,f(x\mid y,z)$, and separately $f(x,y,z) = f(x\mid y)\,f(y,z)$ whenever $X\perp Z\mid Y$ already holds, so a factorization of the stated form is available with $\alpha(x,y) = f(x\mid y)$ and $\beta(y,z) = f(y,z)$. This direction just restates the definition of conditional independence as a factorization.
+*Independent $\Rightarrow$ factorized.* Using the product rule, $f(x,y,z) = f(y,z)\,f(x\mid y,z)$, and separately $f(x,y,z) = f(x\mid y)\,f(y,z)$ whenever $X\perp Z\mid Y$ already holds, so a factorization of the stated form is available with $\alpha(x,y) = f(x\mid y)$ and $\beta(y,z) = f(y,z)$. This direction just restates the definition of conditional independence as a factorization.
 
 *Factorized $\Rightarrow$ independent, without assuming it first.* Start only from $f(x,y,z)=\alpha(x,y)\beta(y,z)$ and derive the independence. Summing out $x$,
 $$f(y,z) = \Big(\sum_x \alpha(x,y)\Big)\beta(y,z).$$
 Dividing the joint by this marginal gives the conditional:
 $$f(x\mid y,z) = \frac{\alpha(x,y)\,\beta(y,z)}{\left(\sum_x \alpha(x,y)\right)\beta(y,z)} = \frac{\alpha(x,y)}{\sum_x \alpha(x,y)}.$$
-The right-hand side has no $z$ in it at all, so $f(x\mid y,z)$ does not depend on $z$, which is exactly $X\perp Z\mid Y$. The mechanism is the same cancellation that made Week 2's regression decomposition work (@sec-regression in Week 2): a shared factor in numerator and denominator drops out, leaving no trace of the conditioned-out variable.
+The right-hand side has no $z$ in it at all, so $f(x\mid y,z)$ does not depend on $z$, which is exactly $X\perp Z\mid Y$. The mechanism is the same cancellation as Week 2's causal-chain check (@sec-cistructures in Week 2): a shared factor in numerator and denominator drops out, leaving no trace of the conditioned-out variable.
 
 ## Worked example: cliques, factorization, and independence {#sec-mrf-example}
+
+With both readings in hand, we apply them to one graph: find its maximal cliques, write the factorization they give, then read independencies off the graph by separation, which Hammersley-Clifford guarantees will agree with the factorization.
 
 ```{=html}
 <div style="overflow-x:auto; margin:1.5rem 0;">
@@ -136,6 +246,7 @@ The right-hand side has no $z$ in it at all, so $f(x\mid y,z)$ does not depend o
   <line x1="380" y1="100" x2="380" y2="260" stroke="#555" stroke-width="1.5"/>
   <line x1="380" y1="100" x2="520" y2="180" stroke="#555" stroke-width="1.5"/>
   <line x1="380" y1="260" x2="520" y2="180" stroke="#555" stroke-width="1.5"/>
+  <line x1="300" y1="180" x2="520" y2="180" stroke="#555" stroke-width="1.5"/>
   <circle cx="60" cy="180" r="22" fill="#C6DEF1" stroke="#5795C7" stroke-width="1.5"/>
   <text x="60" y="185" text-anchor="middle" font-size="15" fill="#205279">1</text>
   <circle cx="200" cy="100" r="22" fill="#C9E4DE" stroke="#57C7AE" stroke-width="1.5"/>
@@ -162,19 +273,19 @@ The right-hand side has no $z$ in it at all, so $f(x\mid y,z)$ does not depend o
 $$p(\boldsymbol{x}) \propto \psi_{1,2,3}(x_1,x_2,x_3)\,\psi_{2,3,5}(x_2,x_3,x_5)\,\psi_{2,4,5}(x_2,x_4,x_5)$$
 $${}\times \psi_{3,5,6}(x_3,x_5,x_6)\,\psi_{4,5,6,7}(x_4,x_5,x_6,x_7).$$
 
-**What independencies does the graph imply?** Reading the global Markov property off the picture: the set $\{4,5,6,7\}$ separates $\{1,2\}$ from nothing directly, but removing $\{3,4,5\}$ disconnects $\{1,2\}$ from $\{6,7\}$ entirely (every path from $1$ or $2$ to $6$ or $7$ passes through $3$, $4$, or $5$), so $(X_1,X_2) \perp (X_6,X_7) \mid (X_3,X_4,X_5)$. Similarly, node 5 is the only path connecting $1$ to $5$'s other neighbors that does not already pass through $2$ or $3$; more simply, every path from $1$ to $5$ passes through $2$ or $3$, so $X_1 \perp X_5 \mid (X_2,X_3)$.
+**What independencies does the graph imply?** Reading the global Markov property off the picture: removing $\{3,4,5\}$ disconnects $\{1,2\}$ from $\{6,7\}$ entirely (every path from $1$ or $2$ to $6$ or $7$ passes through $3$, $4$, or $5$), so $(X_1,X_2) \perp (X_6,X_7) \mid (X_3,X_4,X_5)$. Similarly, every path from $1$ to $5$ passes through $2$ or $3$, so $X_1 \perp X_5 \mid (X_2,X_3)$.
 
 ::: {.callout-note}
 **Practice question.** In Figure 3, is $X_1 \perp X_4 \mid X_2$? Check by finding every path from node 1 to node 4 and seeing whether $\{2\}$ blocks all of them.
 
-**Solution.** Node 1's only edges go to nodes 2 and 3, so every path out of node 1 starts by visiting 2 or 3. A path starting $1\to 2 \to 4$ is blocked once we condition on $\{2\}$, since 2 is on that path and is now fixed. But a path starting $1\to 3 \to 5 \to 4$ never touches node 2 at all, so conditioning on $\{2\}$ does nothing to it: it stays open. Since at least one path from 1 to 4 survives, $\{2\}$ does not separate them, so $X_1 \not\perp X_4 \mid X_2$. Separating 1 from 4 would require conditioning on a set that intersects every route out of node 1's second neighbor, node 3, as well, for example $\{2,3\}$ or $\{3,5\}$.
+**Solution.** Node 1's only edges go to nodes 2 and 3, so every path out of node 1 starts by visiting 2 or 3. A path starting $1\to 2 \to 4$ is blocked once we condition on $\{2\}$, since 2 is on that path and is now fixed. But a path starting $1\to 3 \to 5 \to 4$ never touches node 2 at all, so conditioning on $\{2\}$ does nothing to it: it stays open. Since at least one path from 1 to 4 survives, $\{2\}$ does not separate them, so $X_1 \not\perp X_4 \mid X_2$. Separating 1 from 4 would require conditioning on a set that intersects every route out of node 1's second neighbor, node 3, as well, for example $\{2,3\}$ or $\{2,5,6\}$.
 :::
 
 ## What MRFs can express that DAGs cannot, and vice versa {#sec-mrf-vs-dag}
 
-The two representations are not nested: each can express independence patterns the other cannot.
+The grid made MRFs look like a strict improvement on DAGs. They are not: the two representations are not nested, and each can express independence patterns the other cannot.
 
-**An MRF with no equivalent DAG.** Take the 4-cycle $A-D-B-C-A$ shown below (edges $A\text{-}D$, $A\text{-}B$, $D\text{-}C$, $B\text{-}C$, and *no* diagonal). Its two maximal cliques give two independence statements simultaneously: $A \perp C \mid \{D,B\}$ and $B \perp D \mid \{A,C\}$. Any attempt to encode this as a DAG by orienting the four edges necessarily creates a v-structure (a collider) at one of the four nodes, and by the explaining-away logic of Week 2, that collider blocks one of the two independencies while leaving the other intact, or introduces an independence (such as making $B$ and $D$ marginally independent) that was never true in the undirected model. No orientation of the diamond's edges reproduces both independencies at once.
+**An MRF with no equivalent DAG.** Take the 4-cycle $A-D-C-B-A$ shown below (edges $A\text{-}D$, $A\text{-}B$, $D\text{-}C$, $B\text{-}C$, and *no* diagonal). Its two non-adjacent pairs give two independence statements simultaneously: $A \perp C \mid \{D,B\}$ and $B \perp D \mid \{A,C\}$. Any attempt to encode this as a DAG by orienting the four edges necessarily creates a v-structure (a collider) at one of the four nodes, and by the explaining-away logic of Week 2, that collider blocks one of the two independencies while leaving the other intact, or introduces an independence (such as making $B$ and $D$ marginally independent) that was never true in the undirected model. No orientation of the diamond's edges reproduces both independencies at once.
 
 ```{=html}
 <div style="overflow-x:auto; margin:1.5rem 0;">
@@ -225,6 +336,8 @@ The two representations are not nested: each can express independence patterns t
 
 ## MRFs as exponential families {#sec-mrf-expfam}
 
+So far a potential has been any nonnegative table, and the graph has told us only which variables share a potential. To learn potentials from data we need a parameterized family. Week 1 already gave us one with a complete MLE theory, the exponential family, and this section shows that MRFs fit into it.
+
 ::: {.callout-note}
 **Homework-relevant.** This section's log-linear form and sufficient statistics are the same exponential-family machinery from Week 1 (@sec-mle in Week 1), applied to potentials instead of a single density. If a current or upcoming assignment asks you to write an MRF or a Gaussian graphical model in exponential-family form, this derivation pattern is the one to reuse.
 :::
@@ -240,17 +353,19 @@ $$p(\boldsymbol{x}\mid\theta) = \exp\Big\{\sum_{C\in\mathcal{C}} \theta_C^\top \
 
 **Worked example: minimal vs. non-minimal.** Take the chain $X_1 - X_2 - X_3$ with binary variables, so $p(x_1,x_2,x_3\mid\theta) = \frac{1}{Z(\theta)}\psi_{1,2}(x_1,x_2\mid\theta_{1,2})\,\psi_{2,3}(x_2,x_3\mid\theta_{2,3})$. Following the finite-discrete construction, index $\theta_{1,2}$ by the four settings of $(x_1,x_2)$:
 $$\theta_{1,2} := \begin{bmatrix}\log\psi_{1,2}(0,0)\\ \log\psi_{1,2}(0,1)\\ \log\psi_{1,2}(1,0)\\ \log\psi_{1,2}(1,1)\end{bmatrix} \in \mathbb{R}^4,$$
-with $\phi_{1,2}(x_1,x_2)$ the corresponding indicator vector, e.g. $\phi_{1,2}(0,1) = (0,1,0,0)^\top$. This reproduces $\log\psi_{1,2}(x_1,x_2\mid\theta_{1,2}) = \theta_{1,2}^\top \phi_{1,2}(x_1,x_2)$ exactly, and the resulting family has $Z(\theta) = 1$ by construction.
+with $\phi_{1,2}(x_1,x_2)$ the corresponding indicator vector, e.g. $\phi_{1,2}(0,1) = (0,1,0,0)^\top$. This reproduces $\log\psi_{1,2}(x_1,x_2\mid\theta_{1,2}) = \theta_{1,2}^\top \phi_{1,2}(x_1,x_2)$ exactly. If the potentials are taken to be normalized already (as the tutorial does), $Z(\theta)=1$; in general $Z(\theta)=\sum_{\boldsymbol x}\exp\{\theta^\top\phi(\boldsymbol x)\}$.
 
-But this representation is **not minimal**: every setting of $\phi_{1,2}(x_1,x_2)$ has entries summing to exactly 1 (only one indicator is ever "on"), so all four possible values of $\phi_{1,2}$ lie on the hyperplane $\{v : v^\top(1,1,1,1)^\top = 1\}$ rather than spanning $\mathbb{R}^4$. A non-minimal exponential family fails the usual gradient identity ($\nabla A(\theta) = \mathbb{E}_\theta[\phi(X)]$ does not hold as stated here, since $A(\theta)=0$ identically in this parameterization). The fix is to drop the redundant first coordinate and re-express the other three relative to it:
+But this representation is **not minimal**: every setting of $\phi_{1,2}(x_1,x_2)$ has entries summing to exactly 1 (only one indicator is ever "on"), so all four possible values of $\phi_{1,2}$ lie on the hyperplane $\{v : v^\top(1,1,1,1)^\top = 1\}$ rather than spanning $\mathbb{R}^4$. The tutorial says a non-minimal family fails the gradient identity $\nabla A(\theta) = \mathbb{E}_\theta[\phi(X)]$. More precisely, the identity still holds for the true log-partition function $A(\theta)=\log Z(\theta)$; what fails is identifiability (different $\theta$ give the same distribution, and $A$ is not strictly convex). The identity only appears to fail if $\theta$ is restricted to the set where $Z(\theta)=1$, because then $A=0$ there and the coordinates of $\theta$ cannot vary independently. The fix is to drop the redundant first coordinate and re-express the other three relative to it:
 $$\bar\theta_{1,2} = \big(\theta^{(1)},\,\theta^{(2)},\,\theta^{(3)}\big), \quad \text{where}$$
 $$\theta^{(1)} = \log\psi_{1,2}(0,1)-\log\psi_{1,2}(0,0),$$
 $$\theta^{(2)} = \log\psi_{1,2}(1,0)-\log\psi_{1,2}(0,0),$$
 $$\theta^{(3)} = \log\psi_{1,2}(1,1)-\log\psi_{1,2}(0,0),$$
 $$\bar\phi_{1,2}(x_1,x_2) = \begin{bmatrix}(1-x_1)x_2\\ x_1(1-x_2)\\ x_1 x_2\end{bmatrix},$$
-and analogously for $\bar\theta_{2,3}, \bar\phi_{2,3}$. This three-dimensional-per-edge parameterization is minimal, and its log-partition function, $A(\bar\theta) = \log\psi_{1,2}(0,0)\,\psi_{2,3}(0,0)$, is no longer identically zero. The general lesson: writing every table entry as its own parameter is always possible but wastes one degree of freedom per clique to the normalization constraint; a minimal representation fixes a reference setting (here, $(0,0)$) and parameterizes only the *contrast* with it.
+and analogously for $\bar\theta_{2,3}, \bar\phi_{2,3}$. This three-dimensional-per-edge parameterization is minimal, and its log-partition function, $A(\bar\theta) = \log Z - \log\big(\psi_{1,2}(0,0)\,\psi_{2,3}(0,0)\big)$, which is $-\log\big(\psi_{1,2}(0,0)\,\psi_{2,3}(0,0)\big)$ under the $Z=1$ convention, is no longer identically zero. The general lesson: writing every table entry as its own parameter is always possible but wastes one degree of freedom per clique to the normalization constraint; a minimal representation fixes a reference setting (here, $(0,0)$) and parameterizes only the *contrast* with it.
 
 ## The Ising model {#sec-ising}
+
+The log-linear form of @sec-mrf-expfam is general. Its simplest concrete instance is the Ising model: binary variables with one parameter per edge. On a grid it is the standard MRF for the kind of problem @sec-motivate opened with, where each variable interacts symmetrically with its neighbours.
 
 ::: {.definition-block}
 **Definition.** The **Ising model** is an MRF over spin variables $x_s \in \{-1,+1\}$, originally used to model magnets, with pairwise clique potentials
@@ -270,7 +385,7 @@ where $s\sim t$ ranges over edges. This is exactly the log-linear exponential fa
 
 ## Gaussian graphical models {#sec-ggm}
 
-MRFs are not limited to discrete variables. For continuous variables, the multivariate Gaussian gives a graphical model whose edges correspond directly to nonzero entries of a matrix.
+The Ising model is the standard pairwise MRF for discrete variables. MRFs are not limited to discrete variables, though. For continuous variables, the multivariate Gaussian gives a pairwise MRF whose edges correspond directly to nonzero entries of a matrix, and it is again an exponential family.
 
 Recall the multivariate normal: for $X=(X_1,\dots,X_m)$, mean vector $\mu\in\mathbb{R}^m$, and a symmetric positive definite covariance matrix $\Sigma$ (meaning $u^\top \Sigma u > 0$ for every nonzero $u$), we write $X\sim N_m(\mu,\Sigma)$ if
 $$f(\boldsymbol{x};\mu,\Sigma) = \frac{1}{(2\pi)^{m/2}(\det\Sigma)^{1/2}}$$
@@ -348,11 +463,11 @@ $$\sum_{i=1}^n \boldsymbol{x}_i^\top K \boldsymbol{x}_i = \sum_{i=1}^n \mathrm{t
 $$S_n = \frac{1}{n}\sum_{i=1}^n \boldsymbol{x}_i \boldsymbol{x}_i^\top,$$
 where $S_n$ is the **sample covariance matrix**, playing the same role here that the sample mean played in Week 1's Bernoulli MLE: it is the sufficient statistic that summarizes all $n$ data points for the purpose of estimating $K$. Substituting back,
 $$\ell_n(K;\boldsymbol{x}_{1:n}) = \frac{n}{2}\big(\log\det(K) - \mathrm{tr}(KS_n)\big).$$
-Two facts about this objective, useful for actually solving the maximization: $\log\det(K)$ is a strictly concave function of $K$, so the objective has a unique maximizer, and $\mathrm{tr}(KS_n)$ is linear in $K$. Their gradients are $\nabla \log\det(K) = K^{-1}$ and $\nabla\, \mathrm{tr}(KS_n) = S_n$, so setting the gradient of $\ell_n$ to zero gives $K^{-1} = S_n$, i.e. the maximum likelihood estimate of the covariance matrix is simply the sample covariance matrix, and $\hat K_{\text{MLE}} = S_n^{-1}$: the same "set the derivative to zero, read off an empirical average" pattern as every MLE derivation so far this course, just with a matrix-valued statistic in place of a scalar one.
+Two facts about this objective, useful for actually solving the maximization: $\log\det(K)$ is a strictly concave function of $K$, so the objective has at most one maximizer, and exactly one when $S_n$ is invertible, and $\mathrm{tr}(KS_n)$ is linear in $K$. Their gradients are $\nabla \log\det(K) = K^{-1}$ and $\nabla\, \mathrm{tr}(KS_n) = S_n$, so setting the gradient of $\ell_n$ to zero gives $K^{-1} = S_n$, i.e. the maximum likelihood estimate of the covariance matrix is simply the sample covariance matrix, and $\hat K_{\text{MLE}} = S_n^{-1}$: the same "set the derivative to zero, read off an empirical average" pattern as every MLE derivation so far this course, just with a matrix-valued statistic in place of a scalar one.
 
 ## Exact inference as a conditional distribution {#sec-inference}
 
-Having built up two families of graphical models (DAGs in Week 2, MRFs in this lecture), we now ask a computational question common to both: given the model, how do we compute an actual number?
+Everything up to here has been about **representation**: which distributions a graph describes, and how to parameterize them. Having built up two families of graphical models (DAGs in Week 2, MRFs in this lecture), we now turn to **computation**, with a question common to both: given the model, how do we compute an actual number?
 
 ::: {.definition-block}
 **Definition.** In a graphical model over $\boldsymbol{x}$, split the variables into $x_E$ (the **observed evidence**), $x_F$ (the **unobserved variable(s) we want to infer**), and $x_R = \boldsymbol{x} - \{x_F,x_E\}$ (**remaining variables**, summed out). **Inference** is computing the conditional distribution
@@ -364,6 +479,8 @@ $$p(x_F,x_E) = \sum_{x_R} p(x_F,x_E,x_R).$$
 Both the numerator and the normalizing sum over $x_F$ require summing over $x_R$ (and, for the denominator, over $x_F$ too), so the real computational question is how to perform these sums efficiently, which is exactly what variable elimination addresses.
 
 ## Variable elimination {#sec-ve}
+
+The definition above reduces inference to sums over $x_R$. Done naively, a sum over $n$ variables with $k$ states each enumerates all $k^n$ joint settings. The factorizations of Weeks 2 and 3 are what let us do better.
 
 The **order** in which we marginalize out variables changes the computational cost dramatically, even though the final answer is the same regardless of order (summation commutes). **Variable elimination** is a simple, general exact-inference algorithm that applies to any graphical model, DAG or MRF, whose computational complexity depends on the graph structure and the chosen elimination order; it is a form of dynamic programming that avoids enumerating every joint assignment.
 
@@ -411,6 +528,8 @@ Every intermediate sum here touches at most two variables at once ($k^2$ terms),
 
 ## Sum-product inference: unifying DAGMs and MRFs {#sec-sum-product}
 
+The chain example eliminated variables from a DAG's conditional probabilities. Since the point of this lecture is MRFs, we need to check that the same algorithm works when the factors are clique potentials that need not sum to 1.
+
 Variable elimination on a DAG is really the same algorithm as on an MRF, once we notice that a DAG's conditional probability tables are themselves just a special kind of nonnegative potential. Introduce a nonnegative **factor** $\phi$ for each conditional probability table (or each MRF potential): for a DAG on $X,A,B,C$ with $p(A,B,C) = \sum_X p(X)p(A\mid X)p(B\mid A)p(C\mid B,X)$, write $\phi_1(X)=p(X)$, $\phi_2(A,X)=p(A\mid X)$, $\phi_3(A,B)=p(B\mid A)$, $\phi_4(X,B,C)=p(C\mid B,X)$, so
 $$p(A,B,C) = \sum_X \phi_1(X)\phi_2(A,X)\phi_3(A,B)\phi_4(X,B,C).$$
 The factor $\phi_3(A,B)$ does not involve $X$, so it can be pulled outside the sum over $X$:
@@ -418,12 +537,16 @@ $$p(A,B,C) = \phi_3(A,B) \sum_X \phi_1(X)\phi_2(A,X)\phi_4(X,B,C) = \phi_3(A,B)\
 Marginalizing out $X$ produces a brand new factor $\tau(A,B,C)$, an **intermediate factor** that generally is not any original conditional probability table; it is simply whatever function of the remaining variables the sum happened to produce. This is the mechanical step that repeats at every stage of variable elimination.
 
 Abstractly, both DAG and MRF inference reduce to the same **sum-product** computation:
+
 ::: {.boxed-eq}
 $$p(x_F\mid x_E) \propto \tau(x_F,x_E) = \sum_{x_R} \prod_{C\in\mathcal{F}} \psi_C(x_C),$$
 :::
+
 where $\mathcal{F}$ is the set of factors: for a DAG, $\mathcal{F}$ consists of the sets $\{i\}\cup\text{parents}(i)$ for every node $i$ (one factor per conditional probability table); for an MRF, $\mathcal{F}$ is the set of maximal cliques.
 
 ## Worked example: variable elimination on a Bayes net {#sec-ve-student}
+
+On the chain of @sec-ve, every intermediate sum involved at most two variables. On a graph with more branching, an intermediate factor can involve several variables, and the elimination order decides how many. The lecture's student network shows this, using the sum-product form just stated.
 
 ```{=html}
 <div style="overflow-x:auto; margin:1.5rem 0;">
@@ -439,7 +562,7 @@ where $\mathcal{F}$ is the set of factors: for a DAG, $\mathcal{F}$ consists of 
   <line x1="320" y1="160" x2="230" y2="200" stroke="#555" stroke-width="1.5" marker-end="url(#arrW3c)"/>
   <line x1="335" y1="170" x2="345" y2="200" stroke="#555" stroke-width="1.5" marker-end="url(#arrW3c)"/>
   <line x1="200" y1="225" x2="180" y2="265" stroke="#555" stroke-width="1.5" marker-end="url(#arrW3c)"/>
-  <line x1="220" y1="225" x2="340" y2="365" stroke="#555" stroke-width="1.5" marker-end="url(#arrW3c)"/>
+  <line x1="215" y1="235" x2="215" y2="363" stroke="#555" stroke-width="1.5" marker-end="url(#arrW3c)"/>
   <line x1="160" y1="285" x2="300" y2="370" stroke="#555" stroke-width="1.5" marker-end="url(#arrW3c)"/>
   <line x1="350" y1="225" x2="320" y2="365" stroke="#555" stroke-width="1.5" marker-end="url(#arrW3c)"/>
   <line x1="320" y1="375" x2="230" y2="370" stroke="#555" stroke-width="1.5" marker-end="url(#arrW3c)"/>
@@ -491,11 +614,11 @@ where $m$ is the number of initial factors and $k$ is the (assumed common) numbe
 
 ## Variable elimination with evidence {#sec-ve-evidence}
 
-The student-network example above had no observed evidence. Reintroducing evidence changes only which variable is fixed rather than summed.
+Inference as defined in @sec-inference usually conditions on observed evidence $x_E$, but the student-network example computed a marginal with nothing observed. Reintroducing evidence changes only which variable is fixed rather than summed.
 
 **Worked example.** Take the DAG $X_1 \to X_2 \to X_4$, $X_1 \to X_3 \to X_5 \to X_6$, $X_2 \to X_6$ (so $X_6$ has two parents, $X_2$ and $X_5$), giving $p(x_1,\dots,x_6) = p(x_1)p(x_2\mid x_1)p(x_3\mid x_1)p(x_4\mid x_2)p(x_5\mid x_3)p(x_6\mid x_2,x_5)$. Suppose $X_6=\bar x_6$ is observed and we want $p(X_1\mid \bar x_6)$, so $x_F=\{x_1\}$, $x_E=\{x_6\}$, $x_R=\{x_2,x_3,x_4,x_5\}$. By the definition in @sec-inference,
 $$p(x_1\mid \bar x_6) = \frac{p(x_1,\bar x_6)}{\sum_{x_1} p(x_1,\bar x_6)}.$$
-Computing the numerator by variable elimination in the order $2,3,4,5$ (the observed value $\bar x_6$ is simply substituted into $p(x_6\mid x_2,x_5)$ wherever it appears, rather than summed over):
+Computing the numerator by variable elimination in the order $5,4,3,2$ (the nested sums below run from $x_2$ outermost to $x_5$ innermost) (the observed value $\bar x_6$ is simply substituted into $p(x_6\mid x_2,x_5)$ wherever it appears, rather than summed over):
 $$p(x_1,\bar x_6) = p(x_1)\sum_{x_2} p(x_2\mid x_1)\sum_{x_3} p(x_3\mid x_1)\sum_{x_4} p(x_4\mid x_2)\sum_{x_5} p(x_5\mid x_3)\,p(\bar x_6\mid x_2,x_5).$$
 The innermost sum over $x_5$ produces a new factor depending on $x_2,x_3$:
 $$\sum_{x_5} p(x_5\mid x_3)\,p(\bar x_6\mid x_2,x_5) = p(\bar x_6\mid x_2,x_3).$$
@@ -511,7 +634,7 @@ This is Bayes' rule from Week 1 (@sec-bayes in Week 1), rederived as a special c
 
 ## Restricted Boltzmann machines {#sec-rbm}
 
-As a modern application tying together the Ising model, exponential families, and Hammersley-Clifford, consider a **restricted Boltzmann machine (RBM)**: a special Ising model over visible variables $X_1,\dots,X_k$ and hidden variables $H_1,\dots,H_l$, all in $\{-1,+1\}$, whose graph is **bipartite**: every $H_i$ connects to every $X_j$, but no $H_i$-$H_{i'}$ or $X_j$-$X_{j'}$ edges exist at all.
+Variable elimination is exact but can be expensive, and every MRF query seems to need the partition function $Z$, itself a sum over all variables. The lecture closes with a model whose graph structure makes some queries cheap without ever computing $Z$. As a modern application tying together the Ising model, exponential families, and Hammersley-Clifford, consider a **restricted Boltzmann machine (RBM)**: a special Ising model over visible variables $X_1,\dots,X_k$ and hidden variables $H_1,\dots,H_l$, all in $\{-1,+1\}$, whose graph is **bipartite**: every $H_i$ connects to every $X_j$, but no $H_i$-$H_{i'}$ or $X_j$-$X_{j'}$ edges exist at all.
 
 ```{=html}
 <div style="overflow-x:auto; margin:1.5rem 0;">
@@ -544,7 +667,7 @@ $$p(x_1,\dots,x_k,h_1,\dots,h_l) = \frac{1}{Z}\prod_{i=1}^k\prod_{j=1}^l \psi_{X
 Computing $Z$ exactly can be expensive (it is a sum over all $2^{k+l}$ joint settings), but the bipartite structure lets us compute the two conditional distributions $p(x\mid h)$ and $p(h\mid x)$ efficiently, without ever needing $Z$. This is exactly what the Hammersley-Clifford theorem predicts: since there are no edges between different $H_i$'s, they are all mutually independent given $X$ (every $H_i$-$H_{i'}$ pair is separated by the fully-observed $X$, the same non-adjacent-pair rule from @sec-hc), so the joint conditional factors into a per-node product, and each factor can be computed on its own:
 $$p(h_j\mid x) = \frac{\prod_{i=1}^k \psi_{ij}(x_i,h_j)}{\prod_{i=1}^k\psi_{ij}(x_i,-1) + \prod_{i=1}^k\psi_{ij}(x_i,1)}$$
 $$= \sigma\Big(\beta_j + \sum_i J_{ij}x_i\Big),$$
-where $\sigma(y) = \frac{e^y}{e^{-y}+e^y} = \frac{1}{1+e^{-2y}}$ is the **sigmoid function**. This is the origin of the sigmoid activation function used throughout neural networks: it is exactly the conditional-probability formula that falls out of treating a layer of binary units as conditionally independent given the layer below, under an Ising-style pairwise potential.
+where $\sigma(y) = \frac{e^y}{e^{-y}+e^y} = \frac{1}{1+e^{-2y}}$ is the **sigmoid function**. This gives a probabilistic reading of the sigmoid activation used in neural networks: it is exactly the conditional-probability formula that falls out of treating a layer of binary units as conditionally independent given the layer below, under an Ising-style pairwise potential.
 
 ## Summary {#sec-summary3}
 

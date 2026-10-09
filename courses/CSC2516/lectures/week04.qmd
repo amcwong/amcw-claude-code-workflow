@@ -28,12 +28,154 @@ $$\mathcal{L}(\theta + e) = \sum_{k=0}^{\infty} \frac{e^k}{k!}\,\frac{d^k\mathca
 Here $e$ is an offset (not Euler's number), $k!$ is the [factorial](https://en.wikipedia.org/wiki/Factorial) $1 \cdot 2 \cdots k$, and the $k = 0$ term is $\mathcal{L}(\theta)$ itself. See [Taylor series](https://en.wikipedia.org/wiki/Taylor_series).
 :::
 
+::: {.callout-tip collapse="true" .clarification title="Question: What is a Taylor series, and why write the loss as a function of an offset from theta?"}
+**Why an offset at all.** In gradient descent the parameter has a current value, and we are deciding where to move it. At the current value we know things: the loss, and (from backpropagation) its derivative. What we do not know is the loss at the places we might move to. So the question we keep asking is
+
+> *If I move from where I am now by some amount, what will the loss be?*
+
+The Taylor series answers exactly that question. It is not a new way of defining $\mathcal{L}$. It is a way of predicting $\mathcal{L}$ at a nearby point using only numbers we already have at the current point. Writing the input as $\theta + e$ splits it into those two parts: "where I am" and "how far I move".
+
+**What each symbol means.** The key is that $\theta$ and $e$ play different roles.
+
+| Symbol | Meaning | Fixed or varying? |
+|---|---|---|
+| $\theta$ | the current parameter value, where we are standing | **fixed** (a known number) |
+| $e$ | the step we are considering, positive or negative | **varies** (the input we are asking about) |
+| $\theta + e$ | the point we would land on after the step | varies with $e$ |
+| $\mathcal{L}(\theta + e)$ | the loss after taking that step | varies with $e$; this is what we want to predict |
+| $\mathcal{L}(\theta),\ \mathcal{L}'(\theta),\ \mathcal{L}''(\theta), \ldots$ | the loss and its derivatives at the current point | **fixed numbers**, computed once |
+
+So in $\mathcal{L}(\theta + e)$, think of $\theta$ as a constant like $1$ or $2.7$, and of $e$ as the variable. Later in the chapter we will plug in the gradient descent step, $e = -\eta\,\mathcal{L}'(\theta)$, and the series tells us what loss that step leads to.
+
+**Step 1: a concrete example by plain algebra.** (Our example.) Let $\mathcal{L}(\theta) = \theta^3$ and suppose we are standing at $\theta = 1$. The loss after a step $e$ is $\mathcal{L}(1 + e) = (1 + e)^3$. Multiplying out the brackets:
+
+$$(1 + e)^3 = 1 + 3e + 3e^2 + e^3$$
+
+This is a polynomial in the step $e$. The constant term $1$ is the current loss, and the other terms say how the loss changes with the step. Now compute the derivatives of $\mathcal{L}(\theta) = \theta^3$ at the current point $\theta = 1$:
+
+| | Formula | Value at $\theta = 1$ |
+|---|---|---|
+| $\mathcal{L}(\theta)$ | $\theta^3$ | $1$ |
+| $\mathcal{L}'(\theta)$ | $3\theta^2$ | $3$ |
+| $\mathcal{L}''(\theta)$ | $6\theta$ | $6$ |
+| $\mathcal{L}'''(\theta)$ | $6$ | $6$ |
+
+Compare the coefficients of $1 + 3e + 3e^2 + e^3$ with this table:
+
+- the coefficient of $e^0$ is $1 = \mathcal{L}(1)$
+- the coefficient of $e^1$ is $3 = \mathcal{L}'(1)$
+- the coefficient of $e^2$ is $3 = 6/2 = \mathcal{L}''(1)/2$
+- the coefficient of $e^3$ is $1 = 6/6 = \mathcal{L}'''(1)/6$
+
+Each coefficient is a derivative at the current point divided by a number ($1, 1, 2, 6$). Those numbers are $0!, 1!, 2!, 3!$. The rest of this box explains why that pattern always holds.
+
+**Step 2: a new function of the step alone.** For a general $\mathcal{L}$ we cannot multiply out brackets, so we use derivatives instead. Hold $\theta$ fixed and define a function of the step only:
+
+$$g(e) = \mathcal{L}(\theta + e)$$
+
+$g$ answers "what is the loss if I step by $e$?". Two facts about $g$ connect it to the derivatives we know:
+
+- At $e = 0$ we have not moved, so $g(0) = \mathcal{L}(\theta)$.
+- By the chain rule, the derivative of $g$ is the derivative of $\mathcal{L}$ at the point we land on, times the derivative of $\theta + e$ with respect to $e$. Since $\theta$ is fixed, that inner derivative is $1$, so $g'(e) = \mathcal{L}'(\theta + e)$. Doing this again for each higher derivative gives $g''(e) = \mathcal{L}''(\theta + e)$, and so on. Setting $e = 0$:
+
+$$g(0) = \mathcal{L}(\theta), \qquad g'(0) = \mathcal{L}'(\theta), \qquad g''(0) = \mathcal{L}''(\theta), \qquad \ldots$$
+
+So the derivatives of $g$ at "no step" are exactly the derivatives of $\mathcal{L}$ at the current point, the fixed numbers in the table above.
+
+**Step 3: approximate $g$ by a polynomial in $e$.** Step 1 showed that for $\theta^3$ the loss after a step is a polynomial in $e$. For a general loss we look for a polynomial that behaves the same way near $e = 0$:
+
+$$p(e) = c_0 + c_1 e + c_2 e^2 + c_3 e^3 + \cdots$$
+
+The coefficients $c_0, c_1, c_2, \ldots$ are unknown numbers to be chosen. We choose them so that $p$ and $g$ have the same value at $e = 0$, the same first derivative there, the same second derivative, and so on.
+
+**Step 4: find each coefficient.** To find $c_k$, differentiate $p$ $k$ times and set $e = 0$. Every term with a power of $e$ left over becomes $0$ at $e = 0$, so only one term survives each time.
+
+| Differentiate $p$ | Result | At $e = 0$ | Must equal | So |
+|---|---|---|---|---|
+| 0 times | $c_0 + c_1 e + c_2 e^2 + c_3 e^3 + \cdots$ | $c_0$ | $g(0) = \mathcal{L}(\theta)$ | $c_0 = \mathcal{L}(\theta)$ |
+| 1 time | $c_1 + 2c_2 e + 3c_3 e^2 + \cdots$ | $c_1$ | $g'(0) = \mathcal{L}'(\theta)$ | $c_1 = \mathcal{L}'(\theta)$ |
+| 2 times | $2c_2 + 6c_3 e + \cdots$ | $2c_2$ | $g''(0) = \mathcal{L}''(\theta)$ | $c_2 = \mathcal{L}''(\theta)/2$ |
+| 3 times | $6c_3 + \cdots$ | $6c_3$ | $g'''(0) = \mathcal{L}'''(\theta)$ | $c_3 = \mathcal{L}'''(\theta)/6$ |
+
+The multipliers $1, 1, 2, 6$ come from the power rule: differentiating $e^k$ brings down $k$, then $k-1$, and so on down to $1$, so differentiating $e^k$ exactly $k$ times leaves $k(k-1)\cdots 1 = k!$. In general:
+
+$$k!\, c_k = \frac{d^k\mathcal{L}}{d\theta^k}(\theta) \quad\Longrightarrow\quad c_k = \frac{1}{k!}\,\frac{d^k\mathcal{L}}{d\theta^k}(\theta)$$
+
+**Step 5: put the pieces together.** Substituting every $c_k$ into $p(e)$, and remembering that $p(e)$ stands in for $g(e) = \mathcal{L}(\theta + e)$:
+
+$$\mathcal{L}(\theta + e) = \mathcal{L}(\theta) + e\,\mathcal{L}'(\theta) + \frac{e^2}{2}\,\mathcal{L}''(\theta) + \frac{e^3}{6}\,\mathcal{L}'''(\theta) + \cdots$$
+
+Written with a summation sign, this is the formula in the definition above. Reading it with the symbol table: the left side is the loss after a step $e$; on the right, every derivative is a fixed number at the current point, and the only thing that changes with the step is the powers $e, e^2, e^3, \ldots$. For $\theta^3$ at $\theta = 1$ this gives back $1 + 3e + 3e^2 + e^3$ from Step 1.
+
+**Why the first two terms are enough for small steps.** With $e = 0.1$ in the example, the four terms are $1$, $0.3$, $0.03$, and $0.001$, adding to $1.331 = 1.1^3$. Each extra power of a small $e$ makes the term much smaller, and the growing $k!$ shrinks it further. Keeping only $\mathcal{L}(\theta) + e\,\mathcal{L}'(\theta)$ already gives $1.3$. That two-term version is the tangent line in Figure 1 below, and it is the approximation the gradient descent argument uses.
+
+**One caveat.** For a polynomial like $\theta^3$ the series stops after finitely many terms and is exact. For other functions it is an infinite sum. For the smooth functions in this course it adds up to the function near $\theta$, but being infinitely differentiable does not guarantee that by itself. Functions for which it does hold are called *analytic*, and the slides assume this. The gradient descent argument only needs the first two terms plus a bound on everything else, which is what the big-O notation below provides.
+:::
+
+::: {.callout-tip collapse="true" .clarification title="Question: Can any differentiable function be written as a Taylor series in the offset?"}
+No. Being differentiable is not enough for the full infinite series to equal the function. There are three levels, and each needs more from the function than the one before.
+
+**1. Differentiable once: two terms and a leftover.** If $\mathcal{L}$ has a derivative at $\theta$, all we can say is
+
+$$\mathcal{L}(\theta + e) = \mathcal{L}(\theta) + e\,\mathcal{L}'(\theta) + r(e)$$
+
+where the leftover $r(e)$ shrinks faster than $e$ itself as $e \to 0$. This is the tangent-line approximation and nothing more. Higher derivatives might not exist, so there is no $e^2$ term or beyond to write down, and the leftover is not guaranteed to be as small as $O(e^2)$.
+
+**2. Differentiable $k$ times: a finite polynomial and a leftover we can bound.** [Taylor's theorem](https://en.wikipedia.org/wiki/Taylor%27s_theorem) says that if $\mathcal{L}$ has two derivatives, then
+
+$$\mathcal{L}(\theta + e) = \mathcal{L}(\theta) + e\,\mathcal{L}'(\theta) + \frac{e^2}{2}\,\mathcal{L}''(\xi)$$
+
+for some point $\xi$ between $\theta$ and $\theta + e$. If $|\mathcal{L}''|$ is at most some number $M$ near $\theta$, the leftover is at most $\tfrac{M}{2}e^2$, which is the $O(\epsilon^2)$ in the lecture. **This finite version is all the gradient descent argument uses**: the first two terms plus a bound on the rest. It does not need the infinite series.
+
+**3. Infinitely differentiable: the series can be written down, but it may not equal the function.** Every coefficient $\frac{1}{k!}\mathcal{L}^{(k)}(\theta)$ exists, so the infinite sum makes sense to write. It can still fail in two ways.
+
+- *It adds up to the wrong function.* The standard example is $f(x) = \exp(-1/x^2)$ for $x \neq 0$, with $f(0) = 0$. Every derivative of $f$ at $0$ equals $0$, so its Taylor series around $0$ is $0 + 0 + 0 + \cdots = 0$. But $f(x) > 0$ for every $x \neq 0$, so the series equals the function only at the single point $0$. See [non-analytic smooth function](https://en.wikipedia.org/wiki/Non-analytic_smooth_function).
+- *It adds up correctly only for small steps.* $f(\theta) = 1/(1 + \theta^2)$ is smooth at every real $\theta$. Its series around $\theta = 0$ is $1 - e^2 + e^4 - e^6 + \cdots$, which equals the function only when $|e| < 1$. For $|e| \ge 1$ the terms do not shrink and the sum does not settle on any value.
+
+Functions whose series does equal them for all small enough steps around every point are called [analytic](https://en.wikipedia.org/wiki/Analytic_function). Polynomials, $\exp$, $\log$, the sigmoid, tanh, softmax, and cross-entropy are all analytic, which is why the lecture can treat the infinite series as safe. Even then it holds only within some distance of $\theta$, so "for small $e$" is part of the claim.
+
+**What this means for neural networks.** ReLU, $\max(0, a)$, is not differentiable at $a = 0$, so the loss of a ReLU network has creases where not even level 1 holds. Away from the creases the loss is built from smooth pieces, and level 2 holds within each piece. That is where the gradient descent argument is applied in practice.
+
+In short: a twice-differentiable function with a bounded second derivative supports the two-term approximation with an $O(e^2)$ leftover, which is everything gradient descent needs. Only analytic functions can be written as the full infinite series in the offset $e$, and only for small enough $e$.
+:::
+
 The handwritten slide uses $n$ for the summation index. These notes use $k$, because $n$ will soon stand for the training set size.
 
 Why is this useful? The factorial in the denominator grows very quickly with $k$. As long as the derivatives of $\mathcal{L}$ do not grow comparably fast (a smooth function), the terms of the sum shrink rapidly, and for a small offset the first two terms carry almost all of the value.
 
 ::: {.definition-block}
-**Definition.** For a small quantity $\epsilon$, writing $f(\epsilon) = O(\epsilon^2)$ means that $|f(\epsilon)|$ is at most a constant times $\epsilon^2$ when $\epsilon$ is small. In words: whatever is hidden inside the $O(\cdot)$ shrinks at least as fast as $\epsilon^2$. See [big O notation](https://en.wikipedia.org/wiki/Big_O_notation).
+**Definition.** For a small quantity $\epsilon$, $O(\epsilon^2)$ is the **set** of all functions $f$ for which $|f(\epsilon)|$ is at most a constant times $\epsilon^2$ when $\epsilon$ is small. A function in that set is written $f(\epsilon) \in O(\epsilon^2)$. In words: whatever is hidden inside the $O(\cdot)$ shrinks at least as fast as $\epsilon^2$. See [big O notation](https://en.wikipedia.org/wiki/Big_O_notation).
+
+When $O(\epsilon^2)$ appears as a term inside a formula, as in $\mathcal{L}(\theta) + \epsilon\,\mathcal{L}'(\theta) + O(\epsilon^2)$ below, it is shorthand for "plus some function that belongs to $O(\epsilon^2)$". Many texts also write $f(\epsilon) = O(\epsilon^2)$ for membership; the $=$ there means "belongs to", not equality.
+:::
+
+::: {.callout-tip collapse="true" .clarification title="Question: What does the notation with vertical bars mean, and what does this definition look like on an example?"}
+**The vertical bars.** $|f(\epsilon)|$ is the [absolute value](https://en.wikipedia.org/wiki/Absolute_value) of $f(\epsilon)$: its size with the sign dropped. For example $|0.03| = 0.03$ and $|-0.03| = 0.03$. The definition is about how *big* the leftover is, and a leftover can be negative (it can push the loss down as well as up), so we compare its size, not its signed value.
+
+**An example from the Taylor box above.** (Our example.) With $\mathcal{L}(\theta) = \theta^3$ at $\theta = 1$ and a step $\epsilon$, the loss after the step is $(1 + \epsilon)^3 = 1 + 3\epsilon + 3\epsilon^2 + \epsilon^3$. Keep the first two terms, $1 + 3\epsilon$ (the tangent line), and call everything else the leftover:
+
+$$f(\epsilon) = 3\epsilon^2 + \epsilon^3$$
+
+The claim is $f(\epsilon) \in O(\epsilon^2)$. To check it against the definition we need one constant $C$ such that $|f(\epsilon)| \le C\epsilon^2$ for all small $\epsilon$. Take "small" to mean $|\epsilon| \le 1$. Then $|\epsilon^3| = |\epsilon| \cdot \epsilon^2 \le \epsilon^2$, so
+
+$$|f(\epsilon)| \le 3\epsilon^2 + |\epsilon^3| \le 3\epsilon^2 + \epsilon^2 = 4\epsilon^2$$
+
+(The first $\le$ holds because the size of a sum is at most the sum of the sizes.) So $C = 4$ works. Any larger constant would also work; the definition only asks that *some* constant exists.
+
+On actual numbers:
+
+| Step $\epsilon$ | Leftover $f(\epsilon) = 3\epsilon^2 + \epsilon^3$ | $\lvert f(\epsilon)\rvert$ | Bound $4\epsilon^2$ | $\lvert f(\epsilon)\rvert / \epsilon^2$ |
+|---|---|---|---|---|
+| $0.1$ | $0.031$ | $0.031$ | $0.04$ | $3.1$ |
+| $0.05$ | $0.007625$ | $0.007625$ | $0.01$ | $3.05$ |
+| $0.01$ | $0.000301$ | $0.000301$ | $0.0004$ | $3.01$ |
+| $-0.1$ | $0.029$ | $0.029$ | $0.04$ | $2.9$ |
+
+Two things to read off. Every $|f(\epsilon)|$ is below $4\epsilon^2$. And halving the step from $0.1$ to $0.05$ divides the leftover by about $4$, and shrinking it tenfold from $0.1$ to $0.01$ divides it by about $100$. That is what "shrinks at least as fast as $\epsilon^2$" means: the last column stays bounded (here it settles near $3$) instead of blowing up as $\epsilon$ gets small.
+
+**Why the bars are needed.** Without them, any *negative* leftover would pass the test, however large. Take $h(\epsilon) = -\epsilon$ with $\epsilon > 0$. The signed statement $h(\epsilon) \le C\epsilon^2$ is true for every $C \ge 0$, because the left side is negative. But at $\epsilon = 0.01$ the leftover has size $|h(0.01)| = 0.01$, while $\epsilon^2 = 0.0001$ is a hundred times smaller. This leftover shrinks only like $\epsilon$, not like $\epsilon^2$. With the bars the test correctly fails: $0.01 \le C \cdot 0.0001$ would need $C \ge 100$, and at $\epsilon = 0.001$ it would need $C \ge 1000$, so no single constant works.
+
+**Where this is used.** In the scalar case below, the gradient descent argument keeps the first two Taylor terms and writes the rest as $O(\epsilon^2)$. The bound says that for a small enough step the rest is tiny compared with the term $-\eta\,(d\mathcal{L}/d\theta)^2$ that lowers the loss.
 :::
 
 ### The scalar case
@@ -99,11 +241,19 @@ Gradient descent moves the parameter a short distance down the tangent line, and
 ::: {.callout-note}
 **Worked example.** Take the loss $\mathcal{L}(\theta) = \theta^2$ (our own choice, a simple bowl) and start at $\theta = 1$. Then $\mathcal{L}(1) = 1$ and $d\mathcal{L}/d\theta = 2\theta = 2$.
 
-For this loss the Taylor series stops after three terms, because the third derivative is $0$, so the big-O term can be written out exactly. With $\epsilon = -\eta \cdot 2$:
+For this loss the Taylor series stops after three terms, because the third derivative is $0$, so the big-O term can be written out exactly.
+
+To match this to $\mathcal{L}(\theta + \epsilon)$: the current point is $\theta = 1$, its derivative there is $d\mathcal{L}/d\theta = 2$, and the gradient descent offset is $\epsilon = -\eta\,\frac{d\mathcal{L}}{d\theta} = -2\eta$. So the new point is $\theta + \epsilon = 1 - 2\eta$, and
 
 $$\mathcal{L}(1 - 2\eta) = (1 - 2\eta)^2 = 1 - 4\eta + 4\eta^2$$
 
-The three terms are $\mathcal{L}(\theta) = 1$, the gain $\eta\,(d\mathcal{L}/d\theta)^2 = 4\eta$, and the leftover term $4\eta^2$ that the big-O was hiding.
+Each term on the right is one term of the Taylor series, with $\mathcal{L}''(\theta) = 2$:
+
+| Term | Taylor term it comes from | Plugging in $\theta = 1$, $\epsilon = -2\eta$ | Role |
+|---|---|---|---|
+| $1$ | $\mathcal{L}(\theta)$ | $1^2 = 1$ | the current loss |
+| $-4\eta$ | $\epsilon\,\mathcal{L}'(\theta) = -\eta\left(\frac{d\mathcal{L}}{d\theta}\right)^2$ | $(-2\eta)(2) = -4\eta$ | the gain from the step |
+| $4\eta^2$ | $\frac{\epsilon^2}{2}\,\mathcal{L}''(\theta)$ | $\frac{4\eta^2}{2}\cdot 2 = 4\eta^2$ | the leftover the big-O was hiding |
 
 | Learning rate | New $\theta$ | First two terms predict | Exact new loss | Did the loss drop? |
 |---|---|---|---|---|
@@ -203,6 +353,17 @@ $$\mathcal{L}\!\left(\bm{\theta} - \eta\nabla_{\bm{\theta}}\mathcal{L}(\bm{\thet
 If the multivariate steps feel fast, the scalar case carries the whole idea. Each piece has a direct counterpart: derivative becomes gradient, product becomes dot product, $\epsilon^2$ becomes $\lVert\bm{\epsilon}\rVert^2$.
 
 ## Stochastic Gradient Descent {#sec-sgd}
+
+::: {.callout-note}
+**The difference in one sentence.** Gradient descent, in its original *full-batch* form, updates the parameters using the **entire training set at once**: every step averages the gradients of all $n$ examples. Stochastic gradient descent (SGD) updates the parameters using **a single randomly chosen training example at a time**: every step uses the gradient of just that one example.
+
+| | Examples used per update | Cost per update | Direction of each step |
+|---|---|---|---|
+| Full-batch gradient descent | all $n$ | high (grows with $n$) | the exact gradient of the training loss |
+| Stochastic gradient descent | $1$, chosen at random | low (one example) | a noisy estimate that is right on average |
+
+The rest of this section makes both precise. The [mini-batch](#sec-minibatch) version in between, which uses $B$ random examples per update, comes after.
+:::
 
 So far $\mathcal{L}$ has been "the loss". In machine learning it is really built from many smaller functions, one per training example. For example $i$, with input $\bm{x}^{(i)}$ and target $y^{(i)}$, write the loss on that example as
 
@@ -471,6 +632,95 @@ which climbs toward $1/(1 - 0.9) = 10$. The step $\eta v_t$ becomes up to ten ti
 *Alternating gradient.* Suppose $g_t$ alternates $+1, -1, +1, \ldots$. Then $v_1 = 1$, $v_2 = 0.9 - 1 = -0.1$, $v_3 = -0.09 + 1 = 0.91$, $v_4 = 0.819 - 1 = -0.181$. The accumulated value and the new gradient keep cancelling, and $|v_t|$ settles near $1/(1 + 0.9) \approx 0.53$, about half a plain step.
 :::
 
+::: {.callout-tip collapse="true" .clarification title="Question: How does the update rule turn into a geometric series?"}
+**Unroll the rule one step at a time.** Start from $v_0 = 0$ and apply $v_t \leftarrow \beta\,v_{t-1} + g_t$, substituting each line into the next. Keep the gradients general for now:
+
+$$\begin{aligned}
+v_1 &= \beta \cdot 0 + g_1 = g_1 \\
+v_2 &= \beta\,v_1 + g_2 = \beta\,g_1 + g_2 \\
+v_3 &= \beta\,v_2 + g_3 = \beta^2 g_1 + \beta\,g_2 + g_3
+\end{aligned}$$
+
+Each update multiplies everything already in the accumulator by $\beta$ and adds the new gradient with weight $1$. So a gradient that arrived $k$ steps ago has been multiplied by $\beta$ exactly $k$ times. In general:
+
+$$v_t = \beta^{t-1} g_1 + \beta^{t-2} g_2 + \cdots + \beta\,g_{t-1} + g_t = \sum_{k=1}^{t} \beta^{\,t-k}\, g_k$$
+
+Starting from $v_0 = 0$ is what makes this clean: the $\beta \cdot 0$ in the first line contributes nothing, so $v_t$ is made of gradients only. (A nonzero start would add an extra term $\beta^t v_0$.)
+
+**Now set every gradient to $1$.** Each $g_k$ becomes $1$, and only the powers of $\beta$ are left:
+
+$$v_t = \beta^{t-1} + \beta^{t-2} + \cdots + \beta + 1 = 1 + \beta + \beta^2 + \cdots + \beta^{t-1}$$
+
+This is a geometric series: each term is the one before it times the same ratio $\beta$, and there are $t$ terms.
+
+**Add it up.** Call the sum $S$. Multiply it by $\beta$ and line the two up:
+
+$$\begin{aligned}
+S &= 1 + \beta + \beta^2 + \cdots + \beta^{t-1} \\
+\beta S &= \phantom{1 + {}} \beta + \beta^2 + \cdots + \beta^{t-1} + \beta^t
+\end{aligned}$$
+
+Subtracting, every term except the first of $S$ and the last of $\beta S$ cancels:
+
+$$S - \beta S = 1 - \beta^t \quad\Longrightarrow\quad S = \frac{1 - \beta^t}{1 - \beta}$$
+
+**Check against the numbers above.** With $\beta = 0.9$ and $t = 3$: $(1 - 0.729)/0.1 = 2.71$, matching $v_3$.
+
+**Why it climbs toward $10$.** Since $0 < \beta < 1$, $\beta^t$ shrinks toward $0$ as $t$ grows ($0.9^{10} \approx 0.35$, $0.9^{50} \approx 0.005$). The numerator approaches $1$, so $v_t$ approaches $1/(1 - \beta) = 10$ but never quite reaches it. Each new step adds $\beta^{t-1}$, a smaller amount every time, which is why the growth slows down.
+
+**The alternating case uses the same sum.** With $g_k = +1, -1, +1, \ldots$, the general formula gives terms that alternate in sign, a geometric series with ratio $-\beta$ instead of $\beta$. The same subtraction gives $\big(1 - (-\beta)^t\big)/(1 + \beta)$ in size, which settles near $1/(1 + 0.9) \approx 0.53$.
+:::
+
+::: {.callout-tip collapse="true" .clarification title="Question: What does training look like before and after adding momentum, and what makes it adaptive?"}
+**The setup.** (Our numbers.) Use the long, narrow valley from Figure 4, with two parameters:
+
+$$\mathcal{L}(\bm{\theta}) = \tfrac{1}{2}\left(\theta_1^2 + 20\,\theta_2^2\right), \qquad \nabla_{\bm{\theta}}\mathcal{L} = (\theta_1,\; 20\,\theta_2)$$
+
+$\theta_1$ runs along the valley floor (low curvature, small gradients) and $\theta_2$ runs across the steep walls (high curvature, gradients $20$ times larger for the same distance). The minimum is $(0, 0)$, where the loss is $0$. Both runs start at $\bm{\theta} = (-4,\ 0.5)$, with loss $10.5$, and use the same learning rate $\eta = 0.04$.
+
+**Before: plain gradient descent.** Every parameter's step is $-\eta$ times its own current gradient, with the same $\eta = 0.04$ for both. Step 1: the gradient is $(-4,\ 10)$, so the step is $-0.04 \cdot (-4,\ 10) = (0.16,\ -0.4)$, giving $\bm{\theta} = (-3.84,\ 0.1)$.
+
+Each step multiplies $\theta_2$ by $1 - 0.04 \cdot 20 = 0.2$, so the steep parameter settles almost immediately. But each step multiplies $\theta_1$ by $1 - 0.04 \cdot 1 = 0.96$, so the gradual parameter only crawls. The learning rate cannot be raised much to help $\theta_1$: above $\eta = 0.1$, the factor for $\theta_2$, $1 - 20\eta$, would drop below $-1$, and $\theta_2$ would diverge. This is the mismatch of [Descending in a valley](#sec-one-eta) on actual numbers.
+
+**After: momentum with $\beta = 0.9$.** Now each parameter keeps a running sum $v_j$ of its own past gradients, and the step is $-\eta\,v_j$. Step 1 is identical to plain gradient descent, because $\bm{v}_0 = \bm{0}$ gives $\bm{v}_1 = \bm{g}_1 = (-4,\ 10)$. The difference starts at step 2. The gradient at $(-3.84,\ 0.1)$ is $(-3.84,\ 2)$, and
+
+$$\bm{v}_2 = 0.9\,(-4,\ 10) + (-3.84,\ 2) = (-7.44,\ 11)$$
+
+$$\bm{\theta}_2 = (-3.84,\ 0.1) - 0.04\,(-7.44,\ 11) = (-3.542,\ -0.34)$$
+
+Plain gradient descent would have stepped $\theta_1$ by only $0.154$; momentum steps it by $0.298$, because the earlier gradient for $\theta_1$ pointed the same way and is still in $v_1$.
+
+**Ten steps of each.**
+
+| Step | Plain GD $\bm{\theta}$ | Plain GD loss | Momentum $\bm{\theta}$ | Momentum loss |
+|---|---|---|---|---|
+| 0 | $(-4.000,\ 0.500)$ | $10.500$ | $(-4.000,\ 0.500)$ | $10.500$ |
+| 1 | $(-3.840,\ 0.100)$ | $7.473$ | $(-3.840,\ 0.100)$ | $7.473$ |
+| 2 | $(-3.686,\ 0.020)$ | $6.799$ | $(-3.542,\ -0.340)$ | $7.430$ |
+| 3 | $(-3.539,\ 0.004)$ | $6.262$ | $(-3.133,\ -0.464)$ | $7.060$ |
+| 4 | $(-3.397,\ 0.001)$ | $5.771$ | $(-2.639,\ -0.204)$ | $3.900$ |
+| 5 | $(-3.261,\ 0.000)$ | $5.319$ | $(-2.089,\ 0.193)$ | $2.553$ |
+| 6 | $(-3.131,\ 0.000)$ | $4.902$ | $(-1.510,\ 0.396)$ | $2.709$ |
+| 7 | $(-3.006,\ 0.000)$ | $4.517$ | $(-0.929,\ 0.262)$ | $1.119$ |
+| 8 | $(-2.886,\ 0.000)$ | $4.163$ | $(-0.369,\ -0.068)$ | $0.114$ |
+| 9 | $(-2.770,\ 0.000)$ | $3.837$ | $(0.150,\ -0.311)$ | $0.977$ |
+| 10 | $(-2.659,\ 0.000)$ | $3.536$ | $(0.611,\ -0.281)$ | $0.974$ |
+
+After ten steps, plain gradient descent has moved $\theta_1$ only from $-4$ to $-2.659$. Momentum has carried it all the way to the minimum and slightly past it.
+
+**Where "adaptive" comes in.** Define a parameter's *effective learning rate* at a step as the size of its step divided by the size of its current gradient. For plain gradient descent this is $\eta = 0.04$ for every parameter at every step, by construction. With momentum, for $\theta_1$:
+
+| Step | 1 | 2 | 3 | 4 | 5 | 6 |
+|---|---|---|---|---|---|---|
+| Effective learning rate for $\theta_1$ | $0.040$ | $0.077$ | $0.116$ | $0.158$ | $0.208$ | $0.277$ |
+
+Nobody tuned these numbers. They grew on their own because every gradient $\theta_1$ has seen so far has pointed the same way (consistent gradients, bigger steps). For $\theta_2$ the accumulated value changes sign repeatedly ($v_2$ goes $10,\ 11,\ 3.1,\ -6.5,\ -9.9,\ -5.1,\ 3.3, \ldots$) because the steep gradient keeps reversing, so old and new gradients partly cancel and $\theta_2$ never builds up a runaway step (inconsistent gradients, smaller steps). Each parameter's step is set by **its own gradient history**. That is the sense in which momentum is the simplest adaptive gradient method: one global $\eta$, but a different effective learning rate per parameter, adjusted automatically.
+
+**What it costs.** The table also shows momentum's downside. $\theta_2$ bounces between about $-0.46$ and $0.40$, where plain gradient descent had settled it by step 4. And the loss under momentum is not always decreasing: it rises from $0.114$ to $0.977$ at step 9, because the momentum built up in $\theta_1$ carries it past the minimum. That is the overshoot in Figure 5. Even so, after ten steps momentum's loss is $0.974$, against $3.536$ for plain gradient descent.
+
+[Adam](#sec-adam) goes one step further: it also divides each parameter's step by the typical size of that parameter's gradient, which tames the steep direction directly instead of relying on cancellation.
+:::
+
 ```{=html}
 <figure style="margin:1.5rem 0;">
 <svg viewBox="0 0 900 370" width="100%" style="max-width:900px; display:block; margin:auto; font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;" role="img" aria-label="Left: a momentum trajectory on a bowl that speeds up and overshoots. Right: the momentum vector for a constant gradient grows toward 10, while for an alternating gradient it stays small">
@@ -591,6 +841,53 @@ Typically $\beta_1$ and $\beta_2$ are close to $1$, so these factors start near 
 | 5,000 | $1.00$ | $0.99$ |
 
 Early in training, $\bm{v}_t$ and $\bm{s}_t$ are therefore too close to zero compared with the true average gradient and average squared gradient. They are **biased toward zero**. Here "bias" means a systematic error in an estimate (see [bias of an estimator](https://en.wikipedia.org/wiki/Bias_of_an_estimator)), not the bias parameter $b$ of a layer.
+
+::: {.callout-tip collapse="true" .clarification title="Question: What does it look like for the moving averages to be too close to zero early in training?"}
+**What the averages are supposed to be.** $\bm{v}_t$ is meant to estimate the typical recent gradient, and $\bm{s}_t$ the typical recent squared gradient. Take the simplest case, one parameter whose gradient is the same value $g = 2$ at every step. Then the "true average gradient" is just $2$ and the "true average squared gradient" is $4$. Those are the values we want $v_t$ and $s_t$ to report.
+
+**What they actually report.** Both start at $0$. Each update moves the average only a fraction $1 - \beta$ of the way toward the new value, so with $\beta$ close to $1$ they fill up slowly. With $\beta_1 = 0.9$ and $\beta_2 = 0.999$:
+
+| Step $t$ | $v_t$ | should be | $s_t$ | should be |
+|---|---|---|---|---|
+| $1$ | $0.1 \cdot 2 = 0.2$ | $2$ | $0.001 \cdot 4 = 0.004$ | $4$ |
+| $2$ | $0.9 \cdot 0.2 + 0.2 = 0.38$ | $2$ | $0.999 \cdot 0.004 + 0.004 \approx 0.008$ | $4$ |
+| $10$ | $\approx 1.30$ | $2$ | $\approx 0.040$ | $4$ |
+
+Each entry equals the true value times the factor $1 - \beta^t$ from the table above: $v_{10} = 0.65 \cdot 2$ and $s_{10} = 0.010 \cdot 4$. Neither number is noisy or random; the gradient never changed. The averages are simply too small, and too small in a predictable way. That systematic shortfall is the "bias toward zero". It shrinks as $t$ grows ($v_t$ is close to $2$ by about step $50$), but $s_t$ is still well short of $4$ after a thousand steps, because $\beta_2$ is so close to $1$.
+:::
+
+::: {.callout-tip collapse="true" .clarification title="Question: Where does the factor 1 minus beta to the t come from, and why is a bias toward zero a problem for Adam?"}
+**Nobody multiplies by $1 - \beta^t$ on purpose.** It is not a step of the algorithm. It is a description of what the moving average already contains, and it appears because the average starts at $0$. Unroll the update $v_t = \beta\,v_{t-1} + (1 - \beta)\,g_t$ from $v_0$, the same way as for momentum:
+
+$$\begin{aligned}
+v_t &= (1 - \beta)\,g_t + (1 - \beta)\,\beta\,g_{t-1} + \cdots + (1 - \beta)\,\beta^{t-1} g_1 \\
+&\quad + \beta^t\,v_0
+\end{aligned}$$
+
+Read this as a weighted average. The real gradients get weights $(1 - \beta), (1 - \beta)\beta, \ldots$, which add up to $1 - \beta^t$ (the geometric series computed above). The remaining weight, $\beta^t$, sits on the starting value $v_0$. All the weights together add to $1$.
+
+So $v_t$ is an average of the real gradients **and** one made-up value, the starting value $0$, and that made-up value gets weight $\beta^t$:
+
+| | Weight on real gradients, $1 - \beta^t$ | Weight on the starting $0$, $\beta^t$ |
+|---|---|---|
+| $v_1$, with $\beta_1 = 0.9$ | $0.1$ | $0.9$ |
+| $s_1$, with $\beta_2 = 0.999$ | $0.001$ | $0.999$ |
+| $v_{50}$, with $\beta_1 = 0.9$ | $0.995$ | $0.005$ |
+
+Early on, most of the average is the fake $0$, which drags it toward $0$. That is the whole content of "biased toward zero". So the answer to "is the idea just that $1 - \beta^t$ starts too close to $0$?" is: $1 - \beta^t$ near $0$ **is** the bias, measured. It says how little of the average comes from real gradients so far. In the language of estimator bias: if the gradients have mean $\mu$, then $\mathbb{E}[v_t] = (1 - \beta^t)\,\mu$ rather than $\mu$, a systematic error that does not average out.
+
+**What the correction does.** Dividing by $1 - \beta^t$ throws away the weight on the fake starting value and rescales the real gradients' weights so they add to $1$:
+
+$$\hat{v}_t = \frac{v_t}{1 - \beta^t} = \frac{(1 - \beta)\,g_t + (1 - \beta)\,\beta\,g_{t-1} + \cdots}{(1 - \beta) + (1 - \beta)\,\beta + \cdots}$$
+
+That is an honest weighted average of the gradients seen so far, with recent ones weighted more. In the example above, $\hat{v}_1 = 0.2/0.1 = 2$ and $\hat{s}_1 = 0.004/0.001 = 4$, exactly the true values.
+
+**Why it matters for Adam.** If both averages were shrunk by the same factor, the factors would cancel in $\bm{v}_t/\sqrt{\bm{s}_t}$ and the bias would do no harm. They are not. The step is shrunk by $1 - \beta_1^t$ on top and by $\sqrt{1 - \beta_2^t}$ underneath, so without correction it is off by the ratio
+
+$$\frac{1 - \beta_1^t}{\sqrt{1 - \beta_2^t}}$$
+
+With the defaults this is $0.1/\sqrt{0.001} \approx 3.2$ at $t = 1$ and about $0.65/\sqrt{0.010} \approx 6.5$ at $t = 10$. The second moment is biased much more strongly, so a too-small denominator makes the uncorrected steps several times larger than $\eta$. That happens at the start of training, when the parameters are freshly initialized and the gradients may be large, which is exactly when an oversized step is most likely to throw training off. With the correction, the step has size about $\eta$ from the first iteration on, which is what the default $\eta$ is chosen for.
+:::
 
 The correction is to divide the scaling back out:
 

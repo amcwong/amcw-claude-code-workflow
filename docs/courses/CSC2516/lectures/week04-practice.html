@@ -1,0 +1,1823 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.10.18">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+
+<title>Week 4 practice: Gradient Descent, SGD, Momentum, and Adam – Neural Networks and Deep Learning</title>
+<style>
+/* Default styles provided by pandoc.
+** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
+*/
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: 1.5em;}
+div.column{flex: auto;}
+@media screen {
+div.columns{gap: min(4vw, 1.5em);}
+div.column{overflow-x: auto;}
+}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+</style>
+
+
+<script src="../site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="../site_libs/quarto-nav/headroom.min.js"></script>
+<script src="../site_libs/clipboard/clipboard.min.js"></script>
+<script src="../site_libs/quarto-search/autocomplete.umd.js"></script>
+<script src="../site_libs/quarto-search/fuse.min.js"></script>
+<script src="../site_libs/quarto-search/quarto-search.js"></script>
+<meta name="quarto:offset" content="../">
+<link href="../glossary.html" rel="next">
+<link href="../lectures/week04.html" rel="prev">
+<script src="../site_libs/quarto-html/quarto.js" type="module"></script>
+<script src="../site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
+<script src="../site_libs/quarto-html/popper.min.js"></script>
+<script src="../site_libs/quarto-html/tippy.umd.min.js"></script>
+<script src="../site_libs/quarto-html/anchor.min.js"></script>
+<link href="../site_libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="../site_libs/quarto-html/quarto-syntax-highlighting-bb62276ab45c84d9efd712f51ff97b5a.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<script src="../site_libs/bootstrap/bootstrap.min.js"></script>
+<link href="../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="../site_libs/bootstrap/bootstrap-ce0958bf53307a1b0bb60f85d87db72f.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
+<script id="quarto-search-options" type="application/json">{
+  "location": "sidebar",
+  "copy-button": false,
+  "collapse-after": 3,
+  "panel-placement": "start",
+  "type": "textbox",
+  "limit": 50,
+  "keyboard-shortcut": [
+    "f",
+    "/",
+    "s"
+  ],
+  "show-item-context": false,
+  "language": {
+    "search-no-results-text": "No results",
+    "search-matching-documents-text": "matching documents",
+    "search-copy-link-title": "Copy link to search",
+    "search-hide-matches-text": "Hide additional matches",
+    "search-more-match-text": "more match in this document",
+    "search-more-matches-text": "more matches in this document",
+    "search-clear-button-title": "Clear",
+    "search-text-placeholder": "",
+    "search-detached-cancel-button-title": "Cancel",
+    "search-submit-button-title": "Submit",
+    "search-label": "Search"
+  }
+}</script>
+<style>html{ scroll-behavior: smooth; }</style>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+<link href="https://fonts.googleapis.com/css2?family=Source+Code+Pro:wght@400;600&amp;family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&amp;display=swap" rel="stylesheet">
+
+  <script>window.backupDefine = window.define; window.define = undefined;</script><script src="https://cdn.jsdelivr.net/npm/katex@latest/dist/katex.min.js"></script>
+  <script>document.addEventListener("DOMContentLoaded", function () {
+ var mathElements = document.getElementsByClassName("math");
+ var macros = [];
+ for (var i = 0; i < mathElements.length; i++) {
+  var texText = mathElements[i].firstChild;
+  if (mathElements[i].tagName == "SPAN") {
+   katex.render(texText.data, mathElements[i], {
+    displayMode: mathElements[i].classList.contains('display'),
+    throwOnError: false,
+    macros: macros,
+    fleqn: false
+   });
+}}});
+  </script>
+  <script>window.define = window.backupDefine; window.backupDefine = undefined;</script><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@latest/dist/katex.min.css">
+
+<script type="text/javascript">
+const typesetMath = (el) => {
+  if (window.MathJax) {
+    // MathJax Typeset
+    window.MathJax.typeset([el]);
+  } else if (window.katex) {
+    // KaTeX Render
+    var mathElements = el.getElementsByClassName("math");
+    var macros = [];
+    for (var i = 0; i < mathElements.length; i++) {
+      var texText = mathElements[i].firstChild;
+      if (mathElements[i].tagName == "SPAN" && texText && texText.data) {
+        window.katex.render(texText.data, mathElements[i], {
+          displayMode: mathElements[i].classList.contains('display'),
+          throwOnError: false,
+          macros: macros,
+          fleqn: false
+        });
+      }
+    }
+  }
+}
+window.Quarto = {
+  typesetMath
+};
+</script>
+
+<link rel="stylesheet" href="../styles/custom.css">
+</head>
+
+<body class="nav-sidebar floating quarto-light">
+
+<div id="quarto-search-results"></div>
+  <header id="quarto-header" class="headroom fixed-top">
+  <nav class="quarto-secondary-nav">
+    <div class="container-fluid d-flex">
+      <button type="button" class="quarto-btn-toggle btn" data-bs-toggle="collapse" role="button" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+        <i class="bi bi-layout-text-sidebar-reverse"></i>
+      </button>
+        <nav class="quarto-page-breadcrumbs" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../lectures/week04-practice.html"><span class="chapter-title">Week 4 practice: Gradient Descent, SGD, Momentum, and Adam</span></a></li></ol></nav>
+        <a class="flex-grow-1" role="navigation" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">      
+        </a>
+      <button type="button" class="btn quarto-search-button" aria-label="Search" onclick="window.quartoOpenSearch();">
+        <i class="bi bi-search"></i>
+      </button>
+    </div>
+  </nav>
+</header>
+<!-- content -->
+<div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-article">
+<!-- sidebar -->
+  <nav id="quarto-sidebar" class="sidebar collapse collapse-horizontal quarto-sidebar-collapse-item sidebar-navigation floating overflow-auto">
+    <div class="pt-lg-2 mt-2 text-left sidebar-header">
+    <div class="sidebar-title mb-0 py-0">
+      <a href="../">Neural Networks and Deep Learning</a> 
+    </div>
+      </div>
+        <div class="mt-2 flex-shrink-0 align-items-center">
+        <div class="sidebar-search">
+        <div id="quarto-search" class="" title="Search"></div>
+        </div>
+        </div>
+    <div class="sidebar-menu-container"> 
+    <ul class="list-unstyled mt-1">
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../index.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">CSC413/2516 Neural Networks and Deep Learning</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../lectures/week01.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Week 1: Introduction, Linear &amp; Logistic Regression</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../lectures/week02.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Week 2: Multi-Layer Perceptrons &amp; Backpropagation</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../lectures/week03.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Week 3: Initialization, Autodiff, Overfitting &amp; Regularization</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../lectures/week03-practice.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Week 3 practice: Variance, Autodiff, and Regularization</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../lectures/week04.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Week 4: Gradient Descent and Adaptive Methods</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../lectures/week04-practice.html" class="sidebar-item-text sidebar-link active"><span class="chapter-title">Week 4 practice: Gradient Descent, SGD, Momentum, and Adam</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../glossary.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Glossary</span></a>
+  </div>
+</li>
+    </ul>
+    </div>
+</nav>
+<div id="quarto-sidebar-glass" class="quarto-sidebar-collapse-item" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item"></div>
+<!-- margin-sidebar -->
+    <div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
+        <nav id="TOC" role="doc-toc" class="toc-active">
+    <h2 id="toc-title">On this page</h2>
+   
+  <ul>
+  <li><a href="#sec-w4p-equations" id="toc-sec-w4p-equations" class="nav-link active" data-scroll-target="#sec-w4p-equations">Equations to know for the quiz</a>
+  <ul class="collapse">
+  <li><a href="#gradient-descent-and-the-learning-rate" id="toc-gradient-descent-and-the-learning-rate" class="nav-link" data-scroll-target="#gradient-descent-and-the-learning-rate">Gradient descent and the learning rate</a></li>
+  <li><a href="#sgd-mini-batches-and-schedules" id="toc-sgd-mini-batches-and-schedules" class="nav-link" data-scroll-target="#sgd-mini-batches-and-schedules">SGD, mini-batches, and schedules</a></li>
+  <li><a href="#the-linear-models-gradient" id="toc-the-linear-models-gradient" class="nav-link" data-scroll-target="#the-linear-models-gradient">The linear model’s gradient</a></li>
+  <li><a href="#momentum" id="toc-momentum" class="nav-link" data-scroll-target="#momentum">Momentum</a></li>
+  <li><a href="#adam" id="toc-adam" class="nav-link" data-scroll-target="#adam">Adam</a></li>
+  <li><a href="#from-week-3-used-by-the-quiz" id="toc-from-week-3-used-by-the-quiz" class="nav-link" data-scroll-target="#from-week-3-used-by-the-quiz">From Week 3, used by the quiz</a></li>
+  </ul></li>
+  <li><a href="#sec-w4p-gd" id="toc-sec-w4p-gd" class="nav-link" data-scroll-target="#sec-w4p-gd">Part 1: Gradient descent and the learning rate</a>
+  <ul class="collapse">
+  <li><a href="#prb-1" id="toc-prb-1" class="nav-link" data-scroll-target="#prb-1">Problem 1: How big is the leftover term?</a></li>
+  <li><a href="#prb-2" id="toc-prb-2" class="nav-link" data-scroll-target="#prb-2">Problem 2: A learning rate that lands on the minimum</a></li>
+  <li><a href="#prb-3" id="toc-prb-3" class="nav-link" data-scroll-target="#prb-3">Problem 3: The predicted decrease with two parameters</a></li>
+  </ul></li>
+  <li><a href="#sec-w4p-sgd" id="toc-sec-w4p-sgd" class="nav-link" data-scroll-target="#sec-w4p-sgd">Part 2: SGD, mini-batches, and schedules</a>
+  <ul class="collapse">
+  <li><a href="#prb-4" id="toc-prb-4" class="nav-link" data-scroll-target="#prb-4">Problem 4: A single example can point the wrong way</a></li>
+  <li><a href="#prb-5" id="toc-prb-5" class="nav-link" data-scroll-target="#prb-5">Problem 5: How large a mini-batch?</a></li>
+  <li><a href="#prb-6" id="toc-prb-6" class="nav-link" data-scroll-target="#prb-6">Problem 6: Reading an exponential decay schedule</a></li>
+  </ul></li>
+  <li><a href="#sec-w4p-adaptive" id="toc-sec-w4p-adaptive" class="nav-link" data-scroll-target="#sec-w4p-adaptive">Part 3: Momentum and Adam</a>
+  <ul class="collapse">
+  <li><a href="#prb-7" id="toc-prb-7" class="nav-link" data-scroll-target="#prb-7">Problem 7: Distance covered with momentum</a></li>
+  <li><a href="#prb-8" id="toc-prb-8" class="nav-link" data-scroll-target="#prb-8">Problem 8: A bias-corrected average is not a plain average</a></li>
+  <li><a href="#prb-9" id="toc-prb-9" class="nav-link" data-scroll-target="#prb-9">Problem 9: When epsilon is not negligible</a></li>
+  </ul></li>
+  <li><a href="#sec-w4p-homework" id="toc-sec-w4p-homework" class="nav-link" data-scroll-target="#sec-w4p-homework">Part 4: Testing Homework 4</a>
+  <ul class="collapse">
+  <li><a href="#sec-w4p-hw-context" id="toc-sec-w4p-hw-context" class="nav-link" data-scroll-target="#sec-w4p-hw-context">Context for these questions</a></li>
+  <li><a href="#prb-10" id="toc-prb-10" class="nav-link" data-scroll-target="#prb-10">Problem 10: Where plain gradient descent starts to diverge</a></li>
+  <li><a href="#prb-11" id="toc-prb-11" class="nav-link" data-scroll-target="#prb-11">Problem 11: Weight decay before or after Adam’s normalization</a></li>
+  <li><a href="#prb-12" id="toc-prb-12" class="nav-link" data-scroll-target="#prb-12">Problem 12: The Glorot uniform limit</a></li>
+  <li><a href="#prb-13" id="toc-prb-13" class="nav-link" data-scroll-target="#prb-13">Problem 13: How much state does Adam keep?</a></li>
+  <li><a href="#prb-14" id="toc-prb-14" class="nav-link" data-scroll-target="#prb-14">Problem 14: Why identical weights stay identical</a></li>
+  </ul></li>
+  <li><a href="#sec-w4p-official-quiz" id="toc-sec-w4p-official-quiz" class="nav-link" data-scroll-target="#sec-w4p-official-quiz">Part 5: Official Week 5 quiz practice</a>
+  <ul class="collapse">
+  <li><a href="#quiz-1" id="toc-quiz-1" class="nav-link" data-scroll-target="#quiz-1">Quiz question 1: Updates scale with the feature (easy)</a></li>
+  <li><a href="#quiz-2" id="toc-quiz-2" class="nav-link" data-scroll-target="#quiz-2">Quiz question 2: Momentum when the gradient reverses (medium)</a></li>
+  <li><a href="#quiz-3" id="toc-quiz-3" class="nav-link" data-scroll-target="#quiz-3">Quiz question 3: Adam without bias correction (medium-hard)</a></li>
+  <li><a href="#quiz-4" id="toc-quiz-4" class="nav-link" data-scroll-target="#quiz-4">Quiz question 4: SGD noise at the minimum (hard)</a></li>
+  </ul></li>
+  <li><a href="#sec-w4p-conceptual" id="toc-sec-w4p-conceptual" class="nav-link" data-scroll-target="#sec-w4p-conceptual">Part 6: Conceptual questions</a>
+  <ul class="collapse">
+  <li><a href="#con-1" id="toc-con-1" class="nav-link" data-scroll-target="#con-1">Conceptual 1: Why SGD stalls, and what a schedule fixes</a></li>
+  <li><a href="#con-2" id="toc-con-2" class="nav-link" data-scroll-target="#con-2">Conceptual 2: Adam with no memory</a></li>
+  </ul></li>
+  </ul>
+</nav>
+    </div>
+<!-- main -->
+<main class="content" id="quarto-document-content">
+
+<header id="title-block-header" class="quarto-title-block default">
+<div class="quarto-title">
+<h1 class="title"><span class="chapter-title">Week 4 practice: Gradient Descent, SGD, Momentum, and Adam</span></h1>
+</div>
+
+
+
+<div class="quarto-title-meta">
+
+    
+  
+    
+  </div>
+  
+
+
+</header>
+
+
+<style>#title-block-header { display: none; }</style>
+<div class="lecture-header">
+  <h1>Week 4 practice: Gradient Descent, SGD, Momentum, and Adam</h1>
+</div>
+<p><strong>Overview.</strong> These problems drill <a href="../lectures/week04.html">Week 4</a>. Try each stem before opening the worked solution. Every numeric problem has a single number as its answer, the same shape as the course’s quiz questions. An equation sheet comes first, then six parts:</p>
+<ol type="1">
+<li><strong>Gradient descent and the learning rate.</strong> Three problems on the Taylor argument and on choosing <span class="math inline">\eta</span>.</li>
+<li><strong>SGD, mini-batches, and schedules.</strong> Three problems on the noise in stochastic gradient descent and its remedies.</li>
+<li><strong>Momentum and Adam.</strong> Three problems that work the update rules by hand.</li>
+<li><strong>Testing Homework 4.</strong> A context section on the pieces Homework 4 adds beyond the lecture (optimizer state, AdamW, Glorot uniform initialization), then five problems on the same ideas.</li>
+<li><strong>Official Week 5 quiz practice.</strong> Four questions provided by the course for this offering, reproduced with their answers.</li>
+<li><strong>Conceptual questions.</strong> Two short-answer questions with no numeric answer.</li>
+</ol>
+<p>In every part except Part 5, the numbers and setups are invented for practice. They are not homework answers: the learning rates, hyperparameter settings, and initialization runs that Homework 4 asks for are left to the assignment. Notation matches the week chapter: <span class="math inline">\bm{g}_t</span> is the gradient at iteration <span class="math inline">t</span>, momentum keeps <span class="math inline">\bm{v}_t</span>, and Adam keeps <span class="math inline">\bm{v}_t</span> (first moment) and <span class="math inline">\bm{s}_t</span> (second moment).</p>
+<section id="sec-w4p-equations" class="level2">
+<h2 class="anchored" data-anchor-id="sec-w4p-equations">Equations to know for the quiz</h2>
+<p>Every problem in this chapter, and every official quiz question in Part 5, can be solved with the equations below. They are collected from the <a href="../lectures/week04.html">Week 4</a> chapter, plus a few results from Week 3 that the quiz leans on. Each table says where the equation is explained. This is our own summary of the lecture, not a list published by the course. Results marked <em>(ours)</em> are short consequences that the week chapter derives or states as its own, not lines copied from the slides.</p>
+<section id="gradient-descent-and-the-learning-rate" class="level3">
+<h3 class="anchored" data-anchor-id="gradient-descent-and-the-learning-rate">Gradient descent and the learning rate</h3>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th>Equation</th>
+<th>What it says</th>
+<th>Where</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><span class="math inline">\mathcal{L}(\theta + \epsilon) = \mathcal{L}(\theta) + \epsilon\,\mathcal{L}'(\theta) + O(\epsilon^2)</span></td>
+<td>first-order Taylor approximation: near <span class="math inline">\theta</span>, the loss follows its tangent line</td>
+<td><a href="../lectures/week04.html#sec-why-gd">Why GD works</a></td>
+</tr>
+<tr class="even">
+<td><span class="math inline">\tfrac{\epsilon^2}{2}\,\mathcal{L}''(\theta)</span></td>
+<td>the next Taylor term, the leftover the <span class="math inline">O(\epsilon^2)</span> hides (exact for a quadratic)</td>
+<td><a href="../lectures/week04.html#sec-taylor">Taylor series</a></td>
+</tr>
+<tr class="odd">
+<td><span class="math inline">\theta \leftarrow \theta - \eta\,\dfrac{d\mathcal{L}}{d\theta}</span></td>
+<td>the gradient descent update</td>
+<td><a href="../lectures/week04.html#sec-why-gd">Why GD works</a></td>
+</tr>
+<tr class="even">
+<td><span class="math inline">\bm{\theta} \leftarrow \bm{\theta} - \eta\,\nabla_{\bm{\theta}}\mathcal{L}</span></td>
+<td>the same update with many parameters</td>
+<td><a href="../lectures/week04.html#sec-multivariate">Multivariate</a></td>
+</tr>
+<tr class="odd">
+<td>predicted decrease <span class="math inline">= \eta\,\lVert\nabla_{\bm{\theta}}\mathcal{L}\rVert^2</span></td>
+<td>how much the first-order approximation says one step lowers the loss</td>
+<td><a href="../lectures/week04.html#sec-multivariate">Multivariate</a></td>
+</tr>
+<tr class="even">
+<td><span class="math inline">\theta \leftarrow (1 - \eta h)\,\theta</span> for <span class="math inline">\mathcal{L} = \tfrac{h}{2}\theta^2</span></td>
+<td>on a quadratic, each step multiplies <span class="math inline">\theta</span> by a fixed factor <em>(ours)</em></td>
+<td><a href="../lectures/week04.html#sec-one-eta">Valley</a></td>
+</tr>
+<tr class="odd">
+<td>converges iff <span class="math inline">0 &lt; \eta &lt; 2/h</span>; one step to the minimum at <span class="math inline">\eta = 1/h</span></td>
+<td>the factor’s size must be below <span class="math inline">1</span>; it is <span class="math inline">0</span> at <span class="math inline">\eta = 1/h</span> <em>(ours)</em></td>
+<td><a href="../lectures/week04.html#sec-one-eta">Valley</a>, Problem 2</td>
+</tr>
+</tbody>
+</table>
+<p>With several parameters on a quadratic, each direction has its own <span class="math inline">h</span>, and the steepest direction (largest <span class="math inline">h</span>) sets the limit <span class="math inline">2/h_\text{max}</span>.</p>
+</section>
+<section id="sgd-mini-batches-and-schedules" class="level3">
+<h3 class="anchored" data-anchor-id="sgd-mini-batches-and-schedules">SGD, mini-batches, and schedules</h3>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th>Equation</th>
+<th>What it says</th>
+<th>Where</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><span class="math inline">\mathcal{L}(\bm{\theta}) = \dfrac{1}{n}\sum_{i=1}^{n}\mathcal{L}_i(\bm{\theta})</span></td>
+<td>the training loss is an average of per-example losses</td>
+<td><a href="../lectures/week04.html#sec-sgd">SGD</a></td>
+</tr>
+<tr class="even">
+<td><span class="math inline">\bm{\theta} \leftarrow \bm{\theta} - \eta\,\nabla_{\bm{\theta}}\mathcal{L}_i(\bm{\theta})</span>, <span class="math inline">i</span> uniform</td>
+<td>one SGD step, on one random example</td>
+<td><a href="../lectures/week04.html#sec-sgd">SGD</a></td>
+</tr>
+<tr class="odd">
+<td><span class="math inline">\mathbb{E}\big[\nabla_{\bm{\theta}}\mathcal{L}_i\big] = \nabla_{\bm{\theta}}\mathcal{L}</span></td>
+<td>one example’s gradient is right on average</td>
+<td><a href="../lectures/week04.html#sec-sgd">SGD</a></td>
+</tr>
+<tr class="even">
+<td><span class="math inline">\bm{\theta} \leftarrow \bm{\theta} - \eta\,\dfrac{1}{B}\sum_{i=1}^{B}\nabla_{\bm{\theta}}\mathcal{L}_i</span></td>
+<td>the mini-batch update</td>
+<td><a href="../lectures/week04.html#sec-minibatch">Mini-batches</a></td>
+</tr>
+<tr class="odd">
+<td><span class="math inline">\operatorname{Var}[\bar{g}] = \dfrac{\operatorname{Var}[g]}{B}</span>, so std <span class="math inline">= \dfrac{\text{std}[g]}{\sqrt{B}}</span></td>
+<td>averaging <span class="math inline">B</span> independent draws cuts the noise <em>(ours, from the Week 3 variance rules)</em></td>
+<td>Problem 5</td>
+</tr>
+<tr class="even">
+<td><span class="math inline">\eta(t) = \eta_0\,e^{-\lambda t}</span></td>
+<td>exponential decay schedule; piecewise constant uses <span class="math inline">\eta_j</span> on <span class="math inline">t_j \le t &lt; t_{j+1}</span></td>
+<td><a href="../lectures/week04.html#sec-schedules">Schedules</a></td>
+</tr>
+</tbody>
+</table>
+<p>For a per-example loss <span class="math inline">\tfrac{1}{2}(\theta - a_i)^2</span>, the gradient is <span class="math inline">\theta - a_i</span> and the average loss is minimized at the mean of the <span class="math inline">a_i</span> (Problem 4, Quiz question 4).</p>
+</section>
+<section id="the-linear-models-gradient" class="level3">
+<h3 class="anchored" data-anchor-id="the-linear-models-gradient">The linear model’s gradient</h3>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th>Equation</th>
+<th>What it says</th>
+<th>Where</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><span class="math inline">\mathcal{L} = \tfrac{1}{2}(y - \hat{y})^2</span>, <span class="math inline">\hat{y} = \bm{w}^\top\bm{x}</span></td>
+<td>squared error on a linear model</td>
+<td><a href="../lectures/week04.html#sec-one-eta">One learning rate?</a></td>
+</tr>
+<tr class="even">
+<td><span class="math inline">\dfrac{\partial\mathcal{L}}{\partial w_i} = (\hat{y} - y)\,x_i</span></td>
+<td>each weight’s gradient is the shared error times its own feature</td>
+<td><a href="../lectures/week04.html#sec-one-eta">One learning rate?</a></td>
+</tr>
+</tbody>
+</table>
+<p>So with one learning rate, the ratio of two weights’ updates is the ratio of their features (Quiz question 1).</p>
+</section>
+<section id="momentum" class="level3">
+<h3 class="anchored" data-anchor-id="momentum">Momentum</h3>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th>Equation</th>
+<th>What it says</th>
+<th>Where</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><span class="math inline">\bm{v}_t \leftarrow \beta\,\bm{v}_{t-1} + \bm{g}_t</span>, <span class="math inline">\quad \bm{\theta}_t \leftarrow \bm{\theta}_{t-1} - \eta\,\bm{v}_t</span></td>
+<td>the momentum update, with <span class="math inline">\bm{v}_0 = \bm{0}</span></td>
+<td><a href="../lectures/week04.html#sec-momentum">Momentum</a></td>
+</tr>
+<tr class="even">
+<td><span class="math inline">v_t = \sum_{k=1}^{t}\beta^{\,t-k}\,g_k</span></td>
+<td>unrolled: the gradient from step <span class="math inline">k</span> is weighted by <span class="math inline">\beta^{\,t-k}</span>, so older gradients count less</td>
+<td><a href="../lectures/week04.html#sec-momentum">Momentum</a></td>
+</tr>
+<tr class="odd">
+<td><span class="math inline">v_t = \dfrac{1 - \beta^t}{1 - \beta} \to \dfrac{1}{1 - \beta}</span> for <span class="math inline">g_t = 1</span></td>
+<td>constant gradient: a geometric series that climbs toward <span class="math inline">1/(1-\beta)</span></td>
+<td><a href="../lectures/week04.html#sec-momentum">Momentum</a></td>
+</tr>
+<tr class="even">
+<td><span class="math inline">\lvert v_t\rvert \to \dfrac{1}{1 + \beta}</span> for <span class="math inline">g_t = \pm 1</span> alternating</td>
+<td>alternating gradient: the accumulator stays small</td>
+<td><a href="../lectures/week04.html#sec-momentum">Momentum</a></td>
+</tr>
+</tbody>
+</table>
+<p>Once the accumulator has stopped changing, it satisfies <span class="math inline">v = \beta v + g</span>, so <span class="math inline">v = g/(1 - \beta)</span> (Quiz question 2).</p>
+</section>
+<section id="adam" class="level3">
+<h3 class="anchored" data-anchor-id="adam">Adam</h3>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th>Equation</th>
+<th>What it says</th>
+<th>Where</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><span class="math inline">v_t \leftarrow \beta\,v_{t-1} + (1 - \beta)\,g_t</span></td>
+<td>exponential moving average: weights <span class="math inline">\beta</span> and <span class="math inline">1 - \beta</span> add to <span class="math inline">1</span></td>
+<td><a href="../lectures/week04.html#sec-adam">Moving averages</a></td>
+</tr>
+<tr class="even">
+<td><span class="math inline">\bm{v}_t \leftarrow \beta_1\bm{v}_{t-1} + (1 - \beta_1)\bm{g}_t</span></td>
+<td>first moment: moving average of the gradient</td>
+<td><a href="../lectures/week04.html#sec-adam">Moving averages</a></td>
+</tr>
+<tr class="odd">
+<td><span class="math inline">\bm{s}_t \leftarrow \beta_2\bm{s}_{t-1} + (1 - \beta_2)\bm{g}_t^2</span></td>
+<td>second moment: moving average of the squared gradient</td>
+<td><a href="../lectures/week04.html#sec-adam">Moving averages</a></td>
+</tr>
+<tr class="even">
+<td>total scaling of the gradients in <span class="math inline">\bm{v}_t</span> <span class="math inline">= 1 - \beta_1^t</span></td>
+<td>why the averages start biased toward zero (<span class="math inline">1 - \beta_2^t</span> for <span class="math inline">\bm{s}_t</span>)</td>
+<td><a href="../lectures/week04.html#sec-bias-correction">Bias toward zero</a></td>
+</tr>
+<tr class="odd">
+<td><span class="math inline">\hat{\bm{v}}_t = \dfrac{\bm{v}_t}{1 - \beta_1^t}</span>, <span class="math inline">\quad \hat{\bm{s}}_t = \dfrac{\bm{s}_t}{1 - \beta_2^t}</span></td>
+<td>bias correction</td>
+<td><a href="../lectures/week04.html#sec-bias-correction">Bias toward zero</a></td>
+</tr>
+<tr class="even">
+<td><span class="math inline">\bm{\theta}_t \leftarrow \bm{\theta}_{t-1} - \dfrac{\eta\,\hat{\bm{v}}_t}{\sqrt{\hat{\bm{s}}_t} + \epsilon}</span></td>
+<td>the Adam update (entry by entry)</td>
+<td><a href="../lectures/week04.html#sec-adam-algorithm">Full algorithm</a></td>
+</tr>
+<tr class="odd">
+<td>first step <span class="math inline">= \dfrac{\eta\,g_1}{\lvert g_1\rvert + \epsilon} \approx \pm\eta</span></td>
+<td>after bias correction, the first step has size about <span class="math inline">\eta</span> whatever <span class="math inline">g_1</span> is</td>
+<td><a href="../lectures/week04.html#sec-bias-correction">Bias toward zero</a></td>
+</tr>
+<tr class="even">
+<td>uncorrected first step <span class="math inline">\div</span> corrected <span class="math inline">= \dfrac{1 - \beta_1}{\sqrt{1 - \beta_2}}</span></td>
+<td>how much too large the first step is without bias correction <em>(ours, with <span class="math inline">\epsilon = 0</span>)</em></td>
+<td>Quiz question 3</td>
+</tr>
+<tr class="odd">
+<td><span class="math inline">\beta_1 = 0.9</span>, <span class="math inline">\beta_2 = 0.999</span>, <span class="math inline">\eta = 0.001</span>, <span class="math inline">\epsilon = 10^{-8}</span></td>
+<td>default hyperparameters</td>
+<td><a href="../lectures/week04.html#sec-adam-defaults">Defaults</a></td>
+</tr>
+</tbody>
+</table>
+<p>Memory: plain SGD stores only the <span class="math inline">d</span> parameters between steps, momentum adds <span class="math inline">d</span> more, and Adam adds <span class="math inline">2d</span> more (<a href="../lectures/week04.html#sec-adam">The memory cost</a>).</p>
+</section>
+<section id="from-week-3-used-by-the-quiz" class="level3">
+<h3 class="anchored" data-anchor-id="from-week-3-used-by-the-quiz">From Week 3, used by the quiz</h3>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th>Equation</th>
+<th>What it says</th>
+<th>Where</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><span class="math inline">\operatorname{Var}[cX] = c^2\operatorname{Var}[X]</span></td>
+<td>a constant factor comes out squared</td>
+<td><a href="../lectures/week03-practice.html#sec-var-rules">Variance rules</a></td>
+</tr>
+<tr class="even">
+<td><span class="math inline">\operatorname{Var}[X + Y] = \operatorname{Var}[X] + \operatorname{Var}[Y]</span> (independent)</td>
+<td>variances of independent terms add</td>
+<td><a href="../lectures/week03-practice.html#sec-var-rules">Variance rules</a></td>
+</tr>
+<tr class="odd">
+<td><span class="math inline">\mathbb{E}[X^2] = \operatorname{Var}[X] + (\mathbb{E}[X])^2</span></td>
+<td>so <span class="math inline">\mathbb{E}[X^2] = \operatorname{Var}[X]</span> when the mean is <span class="math inline">0</span></td>
+<td><a href="../lectures/week03-practice.html#sec-var-rules">Variance rules</a></td>
+</tr>
+<tr class="even">
+<td><span class="math inline">\sigma = \sqrt{2/(n_\text{in} + n_\text{out})}</span></td>
+<td>Glorot initialization; He is <span class="math inline">\sqrt{2/n_\text{in}}</span></td>
+<td><a href="../lectures/week03.html#sec-init">Week 3, Initialization</a></td>
+</tr>
+</tbody>
+</table>
+<p>The Homework 4 extras are not lecture material: AdamW and Glorot uniform initialization are in the <a href="#sec-w4p-hw-context">Part 4 context section</a>, and the chance-level cross-entropy <span class="math inline">\ln K</span> is in <a href="#prb-14">Problem 14</a>.</p>
+</section>
+</section>
+<section id="sec-w4p-gd" class="level2">
+<h2 class="anchored" data-anchor-id="sec-w4p-gd">Part 1: Gradient descent and the learning rate</h2>
+<section id="prb-1" class="level3">
+<h3 class="anchored" data-anchor-id="prb-1">Problem 1: How big is the leftover term?</h3>
+<p>Take the loss <span class="math inline">\mathcal{L}(\theta) = 2\theta^2</span>, start at <span class="math inline">\theta = 1</span>, and take one gradient descent step with <span class="math inline">\eta = 0.2</span>. The first two terms of the <a href="https://en.wikipedia.org/wiki/Taylor_series">Taylor series</a> predict a new loss. By how much is the exact new loss <strong>above</strong> that prediction?</p>
+<div class="practice-answer callout callout-style-default callout-tip callout-titled" title="Worked solution">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-1-contents" aria-controls="callout-1" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Worked solution
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-1" class="callout-1-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>This uses <a href="../lectures/week04.html#sec-why-gd">Week 4, Why Gradient Descent Works</a> and its worked example.</p>
+<p><strong>The step.</strong> The derivative is <span class="math inline">\mathcal{L}'(\theta) = 4\theta = 4</span> at <span class="math inline">\theta = 1</span>, so the offset is <span class="math inline">\epsilon = -\eta\,\mathcal{L}'(\theta) = -0.8</span> and the new point is <span class="math inline">\theta = 0.2</span>.</p>
+<p><strong>The two-term prediction.</strong></p>
+<p><span class="math display">\mathcal{L}(\theta) + \epsilon\,\mathcal{L}'(\theta) = 2 + (-0.8)(4) = -1.2</span></p>
+<p>A negative loss is impossible for <span class="math inline">2\theta^2</span>, which already says the step is too long for the tangent line to be trusted.</p>
+<p><strong>The exact new loss.</strong> <span class="math inline">\mathcal{L}(0.2) = 2 \cdot 0.04 = 0.08</span>.</p>
+<p><strong>The gap.</strong> For a quadratic the series stops after the third term, so the gap is exactly the term the big-O was hiding, <span class="math inline">\tfrac{\epsilon^2}{2}\mathcal{L}''(\theta)</span> with <span class="math inline">\mathcal{L}'' = 4</span>:</p>
+<p><span class="math display">\frac{(-0.8)^2}{2}\cdot 4 = 0.32 \cdot 4 = 1.28</span></p>
+<p>and indeed <span class="math inline">0.08 - (-1.2) = 1.28</span>. The loss still dropped (from <span class="math inline">2</span> to <span class="math inline">0.08</span>), but by less than the tangent line promised.</p>
+<p><strong>Answer:</strong> <span class="math inline">1.28</span>.</p>
+</div>
+</div>
+</div>
+</section>
+<section id="prb-2" class="level3">
+<h3 class="anchored" data-anchor-id="prb-2">Problem 2: A learning rate that lands on the minimum</h3>
+<p>For the loss <span class="math inline">\mathcal{L}(\theta) = 4\theta^2</span>, there is one learning rate for which a single gradient descent step from <strong>any</strong> starting <span class="math inline">\theta</span> lands exactly on the minimum. What is it?</p>
+<div class="practice-answer callout callout-style-default callout-tip callout-titled" title="Worked solution">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-2-contents" aria-controls="callout-2" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Worked solution
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-2" class="callout-2-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>This uses <a href="../lectures/week04.html#sec-learning-rate">Week 4, Choosing the Learning Rate</a> and the divergence limit in <a href="../lectures/week04.html#sec-one-eta">Descending in a valley</a>.</p>
+<p>The derivative is <span class="math inline">8\theta</span>, so one step gives</p>
+<p><span class="math display">\theta - \eta \cdot 8\theta = (1 - 8\eta)\,\theta</span></p>
+<p>Every step multiplies <span class="math inline">\theta</span> by the same factor <span class="math inline">1 - 8\eta</span>. The minimum is at <span class="math inline">\theta = 0</span>, and we land on it from any start exactly when the factor is <span class="math inline">0</span>, that is, <span class="math inline">\eta = 1/8</span>.</p>
+<p>The same factor sorts every other learning rate into the lecture’s regimes. With a second derivative of <span class="math inline">h = 8</span>:</p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 33%">
+<col style="width: 33%">
+<col style="width: 33%">
+</colgroup>
+<thead>
+<tr class="header">
+<th><span class="math inline">\eta</span></th>
+<th>Factor <span class="math inline">1 - 8\eta</span></th>
+<th>Behaviour</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><span class="math inline">0.05</span></td>
+<td><span class="math inline">0.6</span></td>
+<td>shrinks steadily toward <span class="math inline">0</span> (small <span class="math inline">\eta</span>)</td>
+</tr>
+<tr class="even">
+<td><span class="math inline">0.125</span></td>
+<td><span class="math inline">0</span></td>
+<td>lands on the minimum in one step</td>
+</tr>
+<tr class="odd">
+<td><span class="math inline">0.2</span></td>
+<td><span class="math inline">-0.6</span></td>
+<td>jumps across the minimum but still shrinks</td>
+</tr>
+<tr class="even">
+<td><span class="math inline">0.3</span></td>
+<td><span class="math inline">-1.4</span></td>
+<td>jumps across and grows: divergence, since <span class="math inline">\eta &gt; 2/h = 0.25</span></td>
+</tr>
+</tbody>
+</table>
+<p>For a quadratic the one-step learning rate is <span class="math inline">1/h</span>, half of the divergence limit <span class="math inline">2/h</span>.</p>
+<p><strong>Answer:</strong> <span class="math inline">0.125</span>.</p>
+</div>
+</div>
+</div>
+</section>
+<section id="prb-3" class="level3">
+<h3 class="anchored" data-anchor-id="prb-3">Problem 3: The predicted decrease with two parameters</h3>
+<p>Take <span class="math inline">\mathcal{L}(\bm{\theta}) = \theta_1^2 + 4\theta_2^2</span>, start at <span class="math inline">\bm{\theta} = (1,\ 1)</span>, and take one gradient descent step with <span class="math inline">\eta = 0.05</span>. According to the first-order Taylor approximation, by how much does the loss decrease?</p>
+<div class="practice-answer callout callout-style-default callout-tip callout-titled" title="Worked solution">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-3-contents" aria-controls="callout-3" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Worked solution
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-3" class="callout-3-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>This uses <a href="../lectures/week04.html#sec-multivariate">Week 4, The Multivariate Case</a>.</p>
+<p><strong>The gradient.</strong> <span class="math inline">\nabla_{\bm{\theta}}\mathcal{L} = (2\theta_1,\ 8\theta_2) = (2,\ 8)</span>.</p>
+<p><strong>The predicted decrease.</strong> Substituting <span class="math inline">\bm{\epsilon} = -\eta\nabla\mathcal{L}</span> into the first-order approximation gives a decrease of <span class="math inline">\eta</span> times the dot product of the gradient with itself:</p>
+<p><span class="math display">\eta\,\lVert\nabla\mathcal{L}\rVert^2 = 0.05\,(2^2 + 8^2) = 0.05 \cdot 68</span></p>
+<p><strong>Compare with the exact step.</strong> The new point is <span class="math inline">(1 - 0.1,\ 1 - 0.4) = (0.9,\ 0.6)</span>, with loss <span class="math inline">0.81 + 4 \cdot 0.36 = 2.25</span>. The loss started at <span class="math inline">5</span>, so it actually fell by <span class="math inline">2.75</span>. The prediction is optimistic by <span class="math inline">0.65</span>, the leftover term. Most of that leftover comes from <span class="math inline">\theta_2</span>, the steeper direction, whose large gradient makes the step there long.</p>
+<p><strong>Answer:</strong> <span class="math inline">3.4</span>.</p>
+</div>
+</div>
+</div>
+</section>
+</section>
+<section id="sec-w4p-sgd" class="level2">
+<h2 class="anchored" data-anchor-id="sec-w4p-sgd">Part 2: SGD, mini-batches, and schedules</h2>
+<section id="prb-4" class="level3">
+<h3 class="anchored" data-anchor-id="prb-4">Problem 4: A single example can point the wrong way</h3>
+<p>A training set has three examples with per-example losses <span class="math inline">\mathcal{L}_i(\theta) = \tfrac{1}{2}(\theta - a_i)^2</span>, where <span class="math inline">(a_1, a_2, a_3) = (2,\ 5,\ 11)</span>, and the training loss is their average. At <span class="math inline">\theta = 4</span>, one step of <a href="https://en.wikipedia.org/wiki/Stochastic_gradient_descent">stochastic gradient descent</a> picks one example uniformly at random. What is the probability that this step moves <span class="math inline">\theta</span> in the <strong>opposite</strong> direction from a full-batch gradient descent step?</p>
+<div class="practice-answer callout callout-style-default callout-tip callout-titled" title="Worked solution">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-4-contents" aria-controls="callout-4" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Worked solution
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-4" class="callout-4-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>This uses <a href="../lectures/week04.html#sec-sgd">Week 4, Stochastic Gradient Descent</a>.</p>
+<p><strong>Per-example gradients.</strong> The derivative of <span class="math inline">\tfrac{1}{2}(\theta - a_i)^2</span> is <span class="math inline">\theta - a_i</span>, so at <span class="math inline">\theta = 4</span> the three gradients are</p>
+<p><span class="math display">(4 - 2,\ 4 - 5,\ 4 - 11) = (2,\ -1,\ -7)</span></p>
+<p><strong>Full-batch gradient.</strong> Their average is <span class="math inline">(2 - 1 - 7)/3 = -2</span>. A full-batch step <span class="math inline">\theta \leftarrow \theta - \eta(-2)</span> increases <span class="math inline">\theta</span>, toward the minimum of the training loss at the mean of the <span class="math inline">a_i</span>, which is <span class="math inline">6</span>.</p>
+<p><strong>SGD.</strong> Each example is picked with probability <span class="math inline">1/3</span>, and its step is <span class="math inline">-\eta(\theta - a_i)</span>:</p>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th>Example</th>
+<th>Gradient</th>
+<th>Step direction</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><span class="math inline">1</span></td>
+<td><span class="math inline">+2</span></td>
+<td>decreases <span class="math inline">\theta</span> (opposite)</td>
+</tr>
+<tr class="even">
+<td><span class="math inline">2</span></td>
+<td><span class="math inline">-1</span></td>
+<td>increases <span class="math inline">\theta</span> (same)</td>
+</tr>
+<tr class="odd">
+<td><span class="math inline">3</span></td>
+<td><span class="math inline">-7</span></td>
+<td>increases <span class="math inline">\theta</span> (same)</td>
+</tr>
+</tbody>
+</table>
+<p>The expected SGD gradient is still <span class="math inline">\tfrac{1}{3}(2 - 1 - 7) = -2</span>, exactly the full-batch gradient. “Right on average” does not mean every step is right: example 1 has its own minimum at <span class="math inline">\theta = 2</span>, and stepping toward it moves away from <span class="math inline">6</span>.</p>
+<p><strong>Answer:</strong> <span class="math inline">1/3</span>.</p>
+</div>
+</div>
+</div>
+</section>
+<section id="prb-5" class="level3">
+<h3 class="anchored" data-anchor-id="prb-5">Problem 5: How large a mini-batch?</h3>
+<p>Suppose the gradient of a single randomly chosen example has standard deviation <span class="math inline">0.8</span> around the full-batch gradient. A mini-batch averages <span class="math inline">B</span> examples, each drawn independently and uniformly at random. What is the smallest <span class="math inline">B</span> for which the mini-batch gradient’s standard deviation is at most <span class="math inline">0.1</span>?</p>
+<div class="practice-answer callout callout-style-default callout-tip callout-titled" title="Worked solution">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-5-contents" aria-controls="callout-5" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Worked solution
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-5" class="callout-5-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>This uses <a href="../lectures/week04.html#sec-minibatch">Week 4, Mini-batches</a> and the variance rules from the <a href="../lectures/week03-practice.html#sec-var-rules">Week 3 practice chapter</a>.</p>
+<p>The mini-batch gradient is <span class="math inline">\tfrac{1}{B}\sum_{i=1}^{B} g_i</span> with independent draws. By rule 3 the sum has variance <span class="math inline">B \cdot 0.8^2</span>, and by rule 2 the factor <span class="math inline">1/B</span> comes out squared:</p>
+<p><span class="math display">\operatorname{Var}\left[\frac{1}{B}\sum_{i=1}^{B} g_i\right] = \frac{B \cdot 0.8^2}{B^2} = \frac{0.8^2}{B}</span></p>
+<p>So the standard deviation is <span class="math inline">0.8/\sqrt{B}</span>. Requiring <span class="math inline">0.8/\sqrt{B} \le 0.1</span> gives <span class="math inline">\sqrt{B} \ge 8</span>, so <span class="math inline">B \ge 64</span>.</p>
+<p>The square root is the lesson: cutting the noise by a factor of <span class="math inline">8</span> costs <span class="math inline">64</span> times as many gradients per step. That is why mini-batches reduce SGD’s noise but are not a cheap way to remove it.</p>
+<p><strong>Answer:</strong> <span class="math inline">64</span>.</p>
+</div>
+</div>
+</div>
+</section>
+<section id="prb-6" class="level3">
+<h3 class="anchored" data-anchor-id="prb-6">Problem 6: Reading an exponential decay schedule</h3>
+<p>A run uses the exponential decay schedule <span class="math inline">\eta(t) = \eta_0\,e^{-\lambda t}</span> with <span class="math inline">\eta_0 = 0.4</span>, and its decay speed <span class="math inline">\lambda</span> is chosen so that the learning rate halves every <span class="math inline">100</span> iterations. What is <span class="math inline">\eta(300)</span>?</p>
+<div class="practice-answer callout callout-style-default callout-tip callout-titled" title="Worked solution">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-6-contents" aria-controls="callout-6" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Worked solution
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-6" class="callout-6-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>This uses <a href="../lectures/week04.html#sec-schedules">Week 4, Learning rate schedules</a>.</p>
+<p>“Halves every <span class="math inline">100</span> iterations” means <span class="math inline">e^{-100\lambda} = 1/2</span>, so <span class="math inline">\lambda = \ln 2 / 100 \approx 0.0069</span>. We do not need <span class="math inline">\lambda</span> itself: <span class="math inline">300</span> iterations is three halving periods, so</p>
+<p><span class="math display">\eta(300) = 0.4\,\left(e^{-100\lambda}\right)^3 = 0.4 \cdot \left(\tfrac{1}{2}\right)^3</span></p>
+<p>Exponential decay shrinks the learning rate by the same factor over every stretch of the same length, which is what lets the parameters settle when SGD starts to jitter near the minimum.</p>
+<p><strong>Answer:</strong> <span class="math inline">0.05</span>.</p>
+</div>
+</div>
+</div>
+</section>
+</section>
+<section id="sec-w4p-adaptive" class="level2">
+<h2 class="anchored" data-anchor-id="sec-w4p-adaptive">Part 3: Momentum and Adam</h2>
+<section id="prb-7" class="level3">
+<h3 class="anchored" data-anchor-id="prb-7">Problem 7: Distance covered with momentum</h3>
+<p>A single parameter is trained with momentum, <span class="math inline">v_t \leftarrow \beta v_{t-1} + g_t</span> and <span class="math inline">\theta_t \leftarrow \theta_{t-1} - \eta v_t</span>, using <span class="math inline">\beta = 0.5</span>, <span class="math inline">\eta = 0.1</span>, and <span class="math inline">v_0 = 0</span>. The gradient is <span class="math inline">g_t = 2</span> at every step. How far does <span class="math inline">\theta</span> move in total over the first three steps?</p>
+<div class="practice-answer callout callout-style-default callout-tip callout-titled" title="Worked solution">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-7-contents" aria-controls="callout-7" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Worked solution
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-7" class="callout-7-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>This uses <a href="../lectures/week04.html#sec-momentum">Week 4, Momentum</a>.</p>
+<p><strong>The accumulator.</strong></p>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th>Step</th>
+<th><span class="math inline">v_t = 0.5\,v_{t-1} + 2</span></th>
+<th>Move <span class="math inline">\eta v_t</span></th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><span class="math inline">1</span></td>
+<td><span class="math inline">2</span></td>
+<td><span class="math inline">0.2</span></td>
+</tr>
+<tr class="even">
+<td><span class="math inline">2</span></td>
+<td><span class="math inline">1 + 2 = 3</span></td>
+<td><span class="math inline">0.3</span></td>
+</tr>
+<tr class="odd">
+<td><span class="math inline">3</span></td>
+<td><span class="math inline">1.5 + 2 = 3.5</span></td>
+<td><span class="math inline">0.35</span></td>
+</tr>
+</tbody>
+</table>
+<p>All three moves are in the same direction, so they add: <span class="math inline">0.2 + 0.3 + 0.35 = 0.85</span>.</p>
+<p><strong>Compare.</strong> Plain gradient descent would move <span class="math inline">0.2</span> per step, <span class="math inline">0.6</span> in total. The gradient is consistent, so momentum’s steps grow, toward the limit <span class="math inline">v = 2/(1 - 0.5) = 4</span>, twice the plain step. With <span class="math inline">\beta = 0.9</span> the limit would be ten times the plain step, as in the week chapter.</p>
+<p><strong>Answer:</strong> <span class="math inline">0.85</span>.</p>
+</div>
+</div>
+</div>
+</section>
+<section id="prb-8" class="level3">
+<h3 class="anchored" data-anchor-id="prb-8">Problem 8: A bias-corrected average is not a plain average</h3>
+<p>Adam’s first-moment accumulator uses <span class="math inline">\beta_1 = 0.5</span> and starts at <span class="math inline">v_0 = 0</span>. The first two gradients are <span class="math inline">g_1 = 4</span> and <span class="math inline">g_2 = 10</span>. What is the bias-corrected value <span class="math inline">\hat{v}_2</span>?</p>
+<div class="practice-answer callout callout-style-default callout-tip callout-titled" title="Worked solution">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-8-contents" aria-controls="callout-8" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Worked solution
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-8" class="callout-8-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>This uses <a href="../lectures/week04.html#sec-bias-correction">Week 4, The bias toward zero</a>.</p>
+<p><strong>The moving average.</strong></p>
+<p><span class="math display">v_1 = 0.5 \cdot 0 + 0.5 \cdot 4 = 2, \qquad v_2 = 0.5 \cdot 2 + 0.5 \cdot 10 = 6</span></p>
+<p><strong>The correction.</strong> The total scaling of the gradients in <span class="math inline">v_2</span> is <span class="math inline">1 - \beta_1^2 = 0.75</span>, so</p>
+<p><span class="math display">\hat{v}_2 = \frac{6}{0.75} = 8</span></p>
+<p><strong>Why not <span class="math inline">7</span>?</strong> The plain average of <span class="math inline">4</span> and <span class="math inline">10</span> is <span class="math inline">7</span>. Written out, <span class="math inline">v_2 = 0.25\,g_1 + 0.5\,g_2</span>, and dividing by <span class="math inline">0.75</span> gives weights <span class="math inline">1/3</span> on <span class="math inline">g_1</span> and <span class="math inline">2/3</span> on <span class="math inline">g_2</span>. Bias correction makes the weights add to <span class="math inline">1</span>, so <span class="math inline">\hat{v}_2</span> is a true average, but it keeps the exponential moving average’s preference for recent gradients: <span class="math inline">\tfrac{1}{3}\cdot 4 + \tfrac{2}{3}\cdot 10 = 8</span>.</p>
+<p><strong>Answer:</strong> <span class="math inline">8</span>.</p>
+</div>
+</div>
+</div>
+</section>
+<section id="prb-9" class="level3">
+<h3 class="anchored" data-anchor-id="prb-9">Problem 9: When epsilon is not negligible</h3>
+<p>A parameter is trained with <a href="https://en.wikipedia.org/wiki/Stochastic_gradient_descent#Adam">Adam</a> using the default <span class="math inline">\beta_1 = 0.9</span>, <span class="math inline">\beta_2 = 0.999</span>, and <span class="math inline">\epsilon = 10^{-8}</span>. Its gradient on the first step is tiny: <span class="math inline">g_1 = 10^{-8}</span>. The size of the first step is what fraction of <span class="math inline">\eta</span>?</p>
+<div class="practice-answer callout callout-style-default callout-tip callout-titled" title="Worked solution">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-9-contents" aria-controls="callout-9" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Worked solution
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-9" class="callout-9-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>This uses <a href="../lectures/week04.html#sec-adam-algorithm">Week 4, The full algorithm</a> and its first-step worked example in <a href="../lectures/week04.html#sec-bias-correction">The bias toward zero</a>.</p>
+<p>On the first step bias correction is exact: <span class="math inline">\hat{v}_1 = g_1</span> and <span class="math inline">\hat{s}_1 = g_1^2</span>, so <span class="math inline">\sqrt{\hat{s}_1} = |g_1|</span>. The step is</p>
+<p><span class="math display">\frac{\eta\,\hat{v}_1}{\sqrt{\hat{s}_1} + \epsilon} = \frac{\eta \cdot 10^{-8}}{10^{-8} + 10^{-8}} = \frac{\eta}{2}</span></p>
+<p>In the week chapter’s example the gradient was much larger than <span class="math inline">\epsilon</span>, so <span class="math inline">\epsilon</span> could be dropped and the first step was about <span class="math inline">\eta</span> for any gradient. Here the gradient is the same size as <span class="math inline">\epsilon</span>, which is no longer negligible, and the step is halved. For a gradient much smaller than <span class="math inline">\epsilon</span> the step shrinks toward <span class="math inline">0</span>. That is the job <span class="math inline">\epsilon</span> was introduced for: it stops a near-zero gradient from being blown up into a full-size step.</p>
+<p><strong>Answer:</strong> <span class="math inline">0.5</span>.</p>
+</div>
+</div>
+</div>
+</section>
+</section>
+<section id="sec-w4p-homework" class="level2">
+<h2 class="anchored" data-anchor-id="sec-w4p-homework">Part 4: Testing Homework 4</h2>
+<section id="sec-w4p-hw-context" class="level3">
+<h3 class="anchored" data-anchor-id="sec-w4p-hw-context">Context for these questions</h3>
+<p>Homework 4 implements the week’s optimizers as code and adds three pieces that the lecture does not cover in detail. The problems below test each idea on invented setups. None of them reproduce the homework’s function, networks, or hyperparameter searches.</p>
+<p><strong>An optimizer with state.</strong> An optimizer is an object with a <code>step</code> method that takes the current parameters and their gradients and returns updated parameters. Momentum and Adam must remember their accumulators between calls, so they keep a dictionary <code>self.state</code>. When a network’s parameters arrive as a list of arrays, such as <code>[W0, W1, b0, b1]</code>, the optimizer keeps one state entry per array, matched by position in the list, and each entry has the same shape as its array. Plain SGD needs no state.</p>
+<p><strong>Notation.</strong> The homework writes Adam’s two moments as <span class="math inline">m</span> (first) and <span class="math inline">v</span> (second). This chapter keeps the week chapter’s names: <span class="math inline">v</span> for the first moment and <span class="math inline">s</span> for the second. Only the letters differ.</p>
+<p><strong>AdamW.</strong> <a href="https://en.wikipedia.org/wiki/Weight_decay">Weight decay</a> from <a href="../lectures/week03.html#sec-regularization">Week 3</a> shrinks the weights a little at every step. AdamW applies it <em>after</em> Adam’s normalization, as a separate term in the update. Written in this chapter’s notation:</p>
+<p><span class="math display">\bm{\theta}_t \leftarrow \bm{\theta}_{t-1} - \eta\left(\frac{\hat{\bm{v}}_t}{\sqrt{\hat{\bm{s}}_t} + \epsilon} + \lambda\,\bm{\theta}_{t-1}\right)</span></p>
+<p>where <span class="math inline">\lambda</span> is the weight decay coefficient. The alternative is to add the decay term <span class="math inline">\lambda\bm{\theta}</span> to the gradient <em>before</em> it enters Adam’s moving averages. Problem 11 shows why the two are different.</p>
+<p><strong>Glorot uniform initialization.</strong> Week 3 drew weights from a normal distribution with variance <span class="math inline">2/(n_\text{in} + n_\text{out})</span>. The homework instead draws them from a <a href="https://en.wikipedia.org/wiki/Continuous_uniform_distribution">continuous uniform distribution</a> on <span class="math inline">[-a,\ a]</span>, with</p>
+<p><span class="math display">a = \sqrt{\frac{6}{n_\text{in} + n_\text{out}}}</span></p>
+<p>A uniform variable on <span class="math inline">[-a,\ a]</span> has mean <span class="math inline">0</span> and variance <span class="math inline">a^2/3</span>. Problem 12 checks that this choice of <span class="math inline">a</span> gives the same variance as Week 3’s Glorot rule.</p>
+</section>
+<section id="prb-10" class="level3">
+<h3 class="anchored" data-anchor-id="prb-10">Problem 10: Where plain gradient descent starts to diverge</h3>
+<p>Plain gradient descent minimizes <span class="math inline">f(x, y) = 3x^2 + 15y^2</span> from a start where both <span class="math inline">x</span> and <span class="math inline">y</span> are nonzero. It converges to <span class="math inline">(0, 0)</span> for every learning rate below some threshold and fails to converge at or above it. What is the threshold?</p>
+<div class="practice-answer callout callout-style-default callout-tip callout-titled" title="Worked solution">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-10-contents" aria-controls="callout-10" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Worked solution
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-10" class="callout-10-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>This uses <a href="../lectures/week04.html#sec-one-eta">Week 4, Descending in a valley</a> and Problem 2 above.</p>
+<p><strong>The coordinates update separately.</strong> The gradient is <span class="math inline">(6x,\ 30y)</span>, so one step is</p>
+<p><span class="math display">x \leftarrow (1 - 6\eta)\,x, \qquad y \leftarrow (1 - 30\eta)\,y</span></p>
+<p>Each coordinate is multiplied by its own factor on every step. It shrinks toward <span class="math inline">0</span> when the factor’s size is below <span class="math inline">1</span>.</p>
+<p><strong>Each direction’s limit.</strong> For <span class="math inline">x</span> we need <span class="math inline">|1 - 6\eta| &lt; 1</span>, so <span class="math inline">\eta &lt; 2/6 = 1/3</span>. For <span class="math inline">y</span> we need <span class="math inline">|1 - 30\eta| &lt; 1</span>, so <span class="math inline">\eta &lt; 2/30 = 1/15</span>. Both must hold, and the steep direction sets the stricter limit. At exactly <span class="math inline">\eta = 1/15</span> the factor for <span class="math inline">y</span> is <span class="math inline">-1</span>, so <span class="math inline">y</span> flips sign forever without shrinking.</p>
+<p><strong>The cost.</strong> Just below the threshold the factor for <span class="math inline">x</span> is about <span class="math inline">1 - 6/15 = 0.6</span>, so <span class="math inline">x</span> converges, but no larger <span class="math inline">\eta</span> is available to speed it up. The gentle direction is held back by the steep one: the valley problem from the lecture, and the reason the homework moves on to momentum and Adam.</p>
+<p><strong>Answer:</strong> <span class="math inline">1/15 \approx 0.067</span>.</p>
+</div>
+</div>
+</div>
+</section>
+<section id="prb-11" class="level3">
+<h3 class="anchored" data-anchor-id="prb-11">Problem 11: Weight decay before or after Adam’s normalization</h3>
+<p>A parameter starts at <span class="math inline">\theta_0 = 3</span> with fresh Adam state (<span class="math inline">t = 1</span>). Its loss gradient on this step is <span class="math inline">g_1 = 0.4</span>. Use <span class="math inline">\eta = 0.1</span>, a decay coefficient <span class="math inline">\lambda = 0.5</span>, and <span class="math inline">\epsilon = 0</span>. Compare two versions:</p>
+<ul>
+<li><strong>(A)</strong> Add <span class="math inline">\lambda\theta_0</span> to the gradient, then take an ordinary Adam step on the result.</li>
+<li><strong>(B)</strong> AdamW: take the Adam step on <span class="math inline">g_1</span> alone and add <span class="math inline">\lambda\theta_0</span> after the normalization, as in the context section.</li>
+</ul>
+<p>How many times larger is the move in version (B) than in version (A)?</p>
+<div class="practice-answer callout callout-style-default callout-tip callout-titled" title="Worked solution">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-11-contents" aria-controls="callout-11" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Worked solution
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-11" class="callout-11-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>This uses <a href="../lectures/week04.html#sec-adam-algorithm">Week 4, The full algorithm</a> and the AdamW update in the context section.</p>
+<p><strong>A fact about Adam’s first step.</strong> With <span class="math inline">\epsilon = 0</span>, bias correction gives <span class="math inline">\hat{v}_1 = g</span> and <span class="math inline">\sqrt{\hat{s}_1} = |g|</span> for whatever gradient <span class="math inline">g</span> goes in, so the normalized term is <span class="math inline">g/|g| = \pm 1</span>. The first step has size <span class="math inline">\eta</span> whatever the size of <span class="math inline">g</span>.</p>
+<p><strong>(A) Decay inside the gradient.</strong> The gradient fed to Adam is <span class="math inline">0.4 + 0.5 \cdot 3 = 1.9</span>. Adam normalizes it to <span class="math inline">+1</span>, so the move is <span class="math inline">\eta \cdot 1 = 0.1</span> and <span class="math inline">\theta_1 = 2.9</span>. The decay term made the gradient almost five times larger, and the normalization erased that.</p>
+<p><strong>(B) AdamW.</strong> The normalized term is <span class="math inline">0.4/0.4 = 1</span>, and the decay term is added afterwards:</p>
+<p><span class="math display">\theta_1 = 3 - 0.1\,(1 + 0.5 \cdot 3) = 3 - 0.25 = 2.75</span></p>
+<p>The move is <span class="math inline">0.25</span>.</p>
+<p><strong>The ratio</strong> is <span class="math inline">0.25/0.1 = 2.5</span>. In version (A), Adam’s division by the typical gradient size also divides away the weight decay, so large weights are not shrunk any harder than small ones. AdamW keeps the decay outside the normalization, so a weight is pulled toward <span class="math inline">0</span> in proportion to its size, as in Week 3’s weight decay.</p>
+<p><strong>Answer:</strong> <span class="math inline">2.5</span>.</p>
+</div>
+</div>
+</div>
+</section>
+<section id="prb-12" class="level3">
+<h3 class="anchored" data-anchor-id="prb-12">Problem 12: The Glorot uniform limit</h3>
+<p>A dense layer maps <span class="math inline">n_\text{in} = 100</span> inputs to <span class="math inline">n_\text{out} = 50</span> outputs and uses Glorot uniform initialization, <span class="math inline">W_{ij} \sim \text{Uniform}[-a,\ a]</span> with <span class="math inline">a = \sqrt{6/(n_\text{in} + n_\text{out})}</span>. What is <span class="math inline">a</span>?</p>
+<div class="practice-answer callout callout-style-default callout-tip callout-titled" title="Worked solution">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-12-contents" aria-controls="callout-12" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Worked solution
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-12" class="callout-12-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>This uses <a href="../lectures/week03.html#sec-init">Week 3, Parameter Initialization</a> and the context section above.</p>
+<p><strong>The limit.</strong></p>
+<p><span class="math display">a = \sqrt{\frac{6}{100 + 50}} = \sqrt{0.04} = 0.2</span></p>
+<p><strong>Why a <span class="math inline">6</span> and not a <span class="math inline">2</span>.</strong> The rule’s goal is a weight variance of <span class="math inline">2/(n_\text{in} + n_\text{out})</span>, the same as Week 3’s normal version. A uniform variable on <span class="math inline">[-a,\ a]</span> has variance <span class="math inline">a^2/3</span>, so here</p>
+<p><span class="math display">\frac{a^2}{3} = \frac{0.04}{3} = \frac{2}{150} = \frac{2}{n_\text{in} + n_\text{out}}</span></p>
+<p>Matching <span class="math inline">a^2/3</span> to <span class="math inline">2/(n_\text{in} + n_\text{out})</span> forces <span class="math inline">a^2 = 6/(n_\text{in} + n_\text{out})</span>. The <span class="math inline">6</span> is the <span class="math inline">2</span> of Glorot’s variance times the <span class="math inline">3</span> from the uniform distribution. The two versions differ in the shape of the distribution, not in its spread.</p>
+<p><strong>Answer:</strong> <span class="math inline">0.2</span>.</p>
+</div>
+</div>
+</div>
+</section>
+<section id="prb-13" class="level3">
+<h3 class="anchored" data-anchor-id="prb-13">Problem 13: How much state does Adam keep?</h3>
+<p>An MLP has layer widths <code>[3, 8, 4]</code>: two dense layers, each with a weight matrix and a bias vector. Its parameters are passed to the optimizer as a list of arrays, <code>[W0, W1, b0, b1]</code>. After the first call to <code>step</code>, how many numbers in total are stored in an Adam optimizer’s <code>self.state</code>?</p>
+<div class="practice-answer callout callout-style-default callout-tip callout-titled" title="Worked solution">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-13-contents" aria-controls="callout-13" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Worked solution
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-13" class="callout-13-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>This uses <a href="../lectures/week04.html#sec-adam">Week 4, The memory cost</a> and the optimizer-state paragraph in the context section.</p>
+<p><strong>Count the parameters.</strong> A dense layer from <span class="math inline">n_\text{in}</span> to <span class="math inline">n_\text{out}</span> has <span class="math inline">n_\text{in} n_\text{out}</span> weights and <span class="math inline">n_\text{out}</span> biases.</p>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th>Array</th>
+<th>Shape</th>
+<th>Numbers</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>W0</code></td>
+<td><span class="math inline">8 \times 3</span></td>
+<td><span class="math inline">24</span></td>
+</tr>
+<tr class="even">
+<td><code>W1</code></td>
+<td><span class="math inline">4 \times 8</span></td>
+<td><span class="math inline">32</span></td>
+</tr>
+<tr class="odd">
+<td><code>b0</code></td>
+<td><span class="math inline">8</span></td>
+<td><span class="math inline">8</span></td>
+</tr>
+<tr class="even">
+<td><code>b1</code></td>
+<td><span class="math inline">4</span></td>
+<td><span class="math inline">4</span></td>
+</tr>
+<tr class="odd">
+<td><strong>Total</strong></td>
+<td></td>
+<td><span class="math inline">68</span></td>
+</tr>
+</tbody>
+</table>
+<p><strong>Count the state.</strong> <code>self.state</code> has one entry per array in the list, four in all, keyed by position. Each Adam entry holds two arrays of the same shape as its parameter, the first moment and the second moment. So Adam stores <span class="math inline">2 \cdot 68 = 136</span> numbers.</p>
+<p>For comparison, momentum keeps one accumulator per parameter (<span class="math inline">68</span> numbers) and plain SGD keeps none (<span class="math inline">0</span>). This is the week chapter’s memory point on a small network: momentum doubles the stored state and Adam triples it.</p>
+<p><strong>Answer:</strong> <span class="math inline">136</span>.</p>
+</div>
+</div>
+</div>
+</section>
+<section id="prb-14" class="level3">
+<h3 class="anchored" data-anchor-id="prb-14">Problem 14: Why identical weights stay identical</h3>
+<p>A classmate initializes every weight of a two-class MLP to the same value <span class="math inline">1</span> and every bias to <span class="math inline">0</span>. They hope a strong optimizer like Adam will sort things out. Their loss curve is smooth and flat at about <span class="math inline">0.693</span>. Explain what went wrong, and what the value <span class="math inline">0.693</span> tells us.</p>
+<div class="practice-answer callout callout-style-default callout-tip callout-titled" title="Worked solution">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-14-contents" aria-controls="callout-14" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Worked solution
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-14" class="callout-14-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>This uses <a href="../lectures/week03.html#sec-init">Week 3, Parameter Initialization</a> and <a href="../lectures/week04.html#sec-adam-algorithm">Week 4, The full algorithm</a>.</p>
+<p><strong>Identical units.</strong> In a hidden layer, every unit has the same incoming weights and the same bias, so every unit computes the same pre-activation and the same activation on every example. The units differ only in their names.</p>
+<p><strong>Identical gradients.</strong> Each hidden unit also has the same outgoing weights, so backpropagation sends it the same error signal. Its incoming weights therefore get the same gradients as every other unit’s. After the update they are still equal to each other, and the argument repeats on the next step.</p>
+<p><strong>The optimizer cannot help.</strong> Momentum and Adam work entry by entry. Two weights with identical gradient histories have identical accumulators and take identical steps. A per-parameter learning rate gives the same value to parameters that look the same. The hidden layer behaves like a single unit for the whole run, however wide it is. Random initialization exists to break this symmetry before training starts.</p>
+<p><strong>What <span class="math inline">0.693</span> means.</strong> With all weights equal, both output logits are equal too, so the softmax gives probability <span class="math inline">1/2</span> to each class on every example. The <a href="https://en.wikipedia.org/wiki/Cross-entropy">cross-entropy</a> of predicting <span class="math inline">1/2</span> for the correct class is <span class="math inline">-\ln(1/2) = \ln 2 \approx 0.693</span>. More generally, guessing uniformly among <span class="math inline">K</span> classes gives <span class="math inline">\ln K</span>. A loss curve sitting at that value is smooth because nothing is being learned. A low-variance loss curve is not evidence of training: compare it with the chance-level value first.</p>
+</div>
+</div>
+</div>
+</section>
+</section>
+<section id="sec-w4p-official-quiz" class="level2">
+<h2 class="anchored" data-anchor-id="sec-w4p-official-quiz">Part 5: Official Week 5 quiz practice</h2>
+<p>The four questions below were provided by the course as Week 5 quiz practice, and they test Week 4 material. They are reproduced with the course’s own numbers and answers, in increasing order of difficulty.</p>
+<section id="quiz-1" class="level3">
+<h3 class="anchored" data-anchor-id="quiz-1">Quiz question 1: Updates scale with the feature (easy)</h3>
+<p>A linear model <span class="math inline">\hat{y} = w_1x_1 + w_2x_2</span> is trained with the squared error loss <span class="math inline">\mathcal{L} = \tfrac{1}{2}(y - \hat{y})^2</span> using vanilla gradient descent with a single learning rate. For the example <span class="math inline">\bm{x} = (12,\ 3)</span>, <span class="math inline">y = 2</span>, and initial weights <span class="math inline">w_1 = w_2 = 0</span>, how many times larger is the magnitude of the update to <span class="math inline">w_1</span> than the magnitude of the update to <span class="math inline">w_2</span> after one step?</p>
+<div class="practice-answer callout callout-style-default callout-tip callout-titled" title="Worked solution">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-15-contents" aria-controls="callout-15" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Worked solution
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-15" class="callout-15-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>This uses <a href="../lectures/week04.html#sec-one-eta">Week 4, A linear model with features on different scales</a>.</p>
+<ol type="1">
+<li>With <span class="math inline">w_1 = w_2 = 0</span>, the prediction is <span class="math inline">\hat{y} = 0</span>.</li>
+<li>The gradient for each weight is <span class="math inline">\dfrac{\partial\mathcal{L}}{\partial w_i} = (\hat{y} - y)\,x_i = -2x_i</span>.</li>
+<li>So <span class="math inline">\partial\mathcal{L}/\partial w_1 = -24</span> and <span class="math inline">\partial\mathcal{L}/\partial w_2 = -6</span>.</li>
+<li>The update is <span class="math inline">\Delta w_i = -\eta\,\partial\mathcal{L}/\partial w_i</span>, so <span class="math inline">|\Delta w_1| = 24\eta</span> and <span class="math inline">|\Delta w_2| = 6\eta</span>.</li>
+<li>The ratio is <span class="math inline">24\eta / 6\eta = 12/3</span>.</li>
+</ol>
+<p>Both weights share the error factor, so the ratio of the updates is just the ratio of the features.</p>
+<p><strong>Answer:</strong> <span class="math inline">4</span>.</p>
+</div>
+</div>
+</div>
+</section>
+<section id="quiz-2" class="level3">
+<h3 class="anchored" data-anchor-id="quiz-2">Quiz question 2: Momentum when the gradient reverses (medium)</h3>
+<p>A parameter is trained with the momentum optimizer (<span class="math inline">v_t \leftarrow \beta v_{t-1} + g_t</span>, <span class="math inline">x_t \leftarrow x_{t-1} - \eta v_t</span>) with <span class="math inline">\beta = 0.9</span> and <span class="math inline">\eta = \tfrac{1}{2}</span>. The gradient has been equal to <span class="math inline">+1</span> for so long that the accumulator has stopped changing. On the next step the gradient suddenly becomes <span class="math inline">-1</span>. By what magnitude does <span class="math inline">x</span> move on that step?</p>
+<div class="practice-answer callout callout-style-default callout-tip callout-titled" title="Worked solution">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-16-contents" aria-controls="callout-16" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Worked solution
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-16" class="callout-16-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>This uses <a href="../lectures/week04.html#sec-momentum">Week 4, Momentum</a>, in particular the consistent-gradient worked example there.</p>
+<p><strong>The equations from class.</strong> Momentum’s two update rules, with the accumulator starting at <span class="math inline">v_0 = 0</span>:</p>
+<p><span class="math display">v_t \leftarrow \beta\,v_{t-1} + g_t, \qquad x_t \leftarrow x_{t-1} - \eta\,v_t</span></p>
+<p><strong>Step 1: what the accumulator is while the gradient is <span class="math inline">+1</span>.</strong> The week chapter’s worked example runs exactly this case with <span class="math inline">\beta = 0.9</span> and <span class="math inline">g_t = 1</span> at every step:</p>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th>Step <span class="math inline">t</span></th>
+<th><span class="math inline">v_t = 0.9\,v_{t-1} + 1</span></th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><span class="math inline">1</span></td>
+<td><span class="math inline">1</span></td>
+</tr>
+<tr class="even">
+<td><span class="math inline">2</span></td>
+<td><span class="math inline">0.9 \cdot 1 + 1 = 1.9</span></td>
+</tr>
+<tr class="odd">
+<td><span class="math inline">3</span></td>
+<td><span class="math inline">0.9 \cdot 1.9 + 1 = 2.71</span></td>
+</tr>
+<tr class="even">
+<td><span class="math inline">4</span></td>
+<td><span class="math inline">0.9 \cdot 2.71 + 1 = 3.439</span></td>
+</tr>
+</tbody>
+</table>
+<p>Unrolling the rule turns this into a <a href="https://en.wikipedia.org/wiki/Geometric_series">geometric series</a>:</p>
+<p><span class="math display">v_t = 1 + \beta + \beta^2 + \cdots + \beta^{t-1} = \frac{1 - \beta^t}{1 - \beta}</span></p>
+<p><strong>Step 2: what “stopped changing” means.</strong> As <span class="math inline">t</span> grows, <span class="math inline">\beta^t = 0.9^t</span> shrinks toward <span class="math inline">0</span>, so <span class="math inline">v_t</span> climbs toward</p>
+<p><span class="math display">\frac{1 - 0}{1 - \beta} = \frac{1}{0.1} = 10</span></p>
+<p>and each new step changes it by less. “The gradient has been <span class="math inline">+1</span> for so long that the accumulator has stopped changing” says we are at this limit: <span class="math inline">v_{t-1} = 10</span>. (The quiz’s own solution calls this value <span class="math inline">v_\text{ss}</span>, for <em>steady state</em>. The lecture does not use that name; it is just the value the geometric series approaches.)</p>
+<p>A second way to find the same number: if the accumulator has stopped changing, then one more update with <span class="math inline">g = 1</span> leaves it where it was, so <span class="math inline">v_{t-1}</span> must satisfy</p>
+<p><span class="math display">v_{t-1} = \beta\,v_{t-1} + 1 \quad\Longrightarrow\quad (1 - \beta)\,v_{t-1} = 1 \quad\Longrightarrow\quad v_{t-1} = \frac{1}{0.1} = 10</span></p>
+<p><strong>Step 3: the accumulator on the step where the gradient flips.</strong> Now <span class="math inline">g_t = -1</span>:</p>
+<p><span class="math display">v_t = \beta\,v_{t-1} + g_t = 0.9 \cdot 10 + (-1) = 9 - 1 = 8</span></p>
+<p>The old value is shrunk by <span class="math inline">\beta</span> and the new gradient is added, but one gradient of size <span class="math inline">1</span> cannot cancel an accumulated <span class="math inline">9</span>.</p>
+<p><strong>Step 4: the move.</strong> The change in <span class="math inline">x</span> on this step is</p>
+<p><span class="math display">x_t - x_{t-1} = -\eta\,v_t = -\tfrac{1}{2} \cdot 8 = -4</span></p>
+<p><strong>What “magnitude” asks for.</strong> The question asks for the size of the move, <span class="math inline">|x_t - x_{t-1}| = |-\eta\,v_t|</span>, not the signed change <span class="math inline">-\eta\,v_t</span>. Since <span class="math inline">\eta &gt; 0</span>, this is <span class="math inline">\eta\,|v_t| = \tfrac{1}{2} \cdot 8 = 4</span>. The sign is still worth reading: <span class="math inline">x</span> decreases by <span class="math inline">4</span>, the same direction it was moving while the gradient was <span class="math inline">+1</span>. The new gradient of <span class="math inline">-1</span> on its own would say to <em>increase</em> <span class="math inline">x</span>, but the accumulated momentum outweighs that one reversed gradient, so <span class="math inline">x</span> keeps going the old way, only a little more slowly than the <span class="math inline">\eta \cdot 10 = 5</span> per step it was moving before.</p>
+<p><strong>Answer:</strong> <span class="math inline">4</span>.</p>
+</div>
+</div>
+</div>
+</section>
+<section id="quiz-3" class="level3">
+<h3 class="anchored" data-anchor-id="quiz-3">Quiz question 3: Adam without bias correction (medium-hard)</h3>
+<p>A single parameter is trained with Adam using <span class="math inline">\beta_1 = 0.8</span>, <span class="math inline">\beta_2 = 0.99</span>, <span class="math inline">\epsilon = 0</span>, and <span class="math inline">v_0 = s_0 = 0</span>. On the first step the gradient is <span class="math inline">g_1 = 5</span>. A student implements Adam but forgets the bias-correction step (that is, uses <span class="math inline">v_t</span> and <span class="math inline">s_t</span> directly instead of <span class="math inline">\hat{v}_t</span> and <span class="math inline">\hat{s}_t</span>). How many times larger is the first update than the first update of standard Adam?</p>
+<div class="practice-answer callout callout-style-default callout-tip callout-titled" title="Worked solution">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-17-contents" aria-controls="callout-17" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Worked solution
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-17" class="callout-17-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>This uses <a href="../lectures/week04.html#sec-bias-correction">Week 4, The bias toward zero</a>.</p>
+<ol type="1">
+<li>The accumulators after one step:
+<ul>
+<li><span class="math inline">v_1 = (1 - \beta_1)\,g_1 = 0.2 \cdot 5 = 1</span></li>
+<li><span class="math inline">s_1 = (1 - \beta_2)\,g_1^2 = 0.01 \cdot 25 = 0.25</span></li>
+</ul></li>
+<li><strong>Standard Adam:</strong> <span class="math inline">\hat{v}_1 = 1/0.2 = 5</span> and <span class="math inline">\hat{s}_1 = 0.25/0.01 = 25</span>, so the update is <span class="math inline">\eta \cdot 5/5 = \eta</span>.</li>
+<li><strong>No bias correction:</strong> the update is <span class="math inline">\eta \cdot 1/\sqrt{0.25} = 2\eta</span>.</li>
+<li>The ratio is <span class="math inline">2\eta/\eta = 2</span>.</li>
+</ol>
+<p>In general the ratio is <span class="math inline">(1 - \beta_1)/\sqrt{1 - \beta_2} = 0.2/0.1 = 2</span>, whatever the gradient. The second moment is biased more strongly than the first, so the uncorrected first step comes out too large, as in the week chapter’s worked example.</p>
+<p><strong>Answer:</strong> <span class="math inline">2</span>.</p>
+</div>
+</div>
+</div>
+</section>
+<section id="quiz-4" class="level3">
+<h3 class="anchored" data-anchor-id="quiz-4">Quiz question 4: SGD noise at the minimum (hard)</h3>
+<p>A training set has four examples with per-example losses <span class="math inline">\mathcal{L}_i(\theta) = \tfrac{1}{2}(\theta - a_i)^2</span>, where <span class="math inline">(a_1, a_2, a_3, a_4) = (1,\ 3,\ 5,\ 7)</span>, and the full training loss is their average. Mini-batch SGD with learning rate <span class="math inline">\eta = 2</span> and mini-batch size <span class="math inline">B = 5</span> (examples sampled independently and uniformly with replacement) is started exactly at the minimizer <span class="math inline">\theta^*</span> of the full training loss. After one step, what is the expected value of <span class="math inline">(\theta_1 - \theta^*)^2</span>?</p>
+<div class="practice-answer callout callout-style-default callout-tip callout-titled" title="Worked solution">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-18-contents" aria-controls="callout-18" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Worked solution
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-18" class="callout-18-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>This combines three Week 4 equations with the expectation and variance rules from the Week 3 practice chapter. The plan: find <span class="math inline">\theta^*</span>, write the one step as <span class="math inline">\theta^*</span> minus <span class="math inline">\eta</span> times a random mini-batch gradient, then find the average of that gradient’s square.</p>
+<p><strong>The equations used.</strong></p>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th>#</th>
+<th>Equation</th>
+<th>Source</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>E1</td>
+<td><span class="math inline">\mathcal{L}(\theta) = \dfrac{1}{n}\sum_{i=1}^{n}\mathcal{L}_i(\theta)</span> (training loss is the average)</td>
+<td><a href="../lectures/week04.html#sec-sgd">Week 4, SGD</a></td>
+</tr>
+<tr class="even">
+<td>E2</td>
+<td><span class="math inline">\theta \leftarrow \theta - \eta\,\dfrac{1}{B}\sum_{b=1}^{B}\nabla_\theta\mathcal{L}_{i_b}(\theta)</span> (mini-batch update)</td>
+<td><a href="../lectures/week04.html#sec-minibatch">Week 4, Mini-batches</a></td>
+</tr>
+<tr class="odd">
+<td>E3</td>
+<td><span class="math inline">\mathbb{E}\big[\nabla_\theta\mathcal{L}_i(\theta)\big] = \nabla_\theta\mathcal{L}(\theta)</span> for <span class="math inline">i</span> uniform (unbiased gradient)</td>
+<td><a href="../lectures/week04.html#sec-sgd">Week 4, SGD</a></td>
+</tr>
+<tr class="even">
+<td>R1</td>
+<td><span class="math inline">\operatorname{Var}[X] = \mathbb{E}[X^2] - (\mathbb{E}[X])^2</span>, so <span class="math inline">\mathbb{E}[X^2] = \operatorname{Var}[X] + (\mathbb{E}[X])^2</span></td>
+<td><a href="../lectures/week03-practice.html#sec-var-rules">Week 3 practice, rule 1</a></td>
+</tr>
+<tr class="odd">
+<td>R2</td>
+<td><span class="math inline">\operatorname{Var}[cX] = c^2\operatorname{Var}[X]</span> and <span class="math inline">\mathbb{E}[cX] = c\,\mathbb{E}[X]</span></td>
+<td><a href="../lectures/week03-practice.html#sec-var-rules">Week 3 practice, rule 2</a> and <a href="../lectures/week03-practice.html#sec-e-var">expectation rules</a></td>
+</tr>
+<tr class="even">
+<td>R3</td>
+<td><span class="math inline">\operatorname{Var}[X + Y] = \operatorname{Var}[X] + \operatorname{Var}[Y]</span> for independent <span class="math inline">X</span>, <span class="math inline">Y</span></td>
+<td><a href="../lectures/week03-practice.html#sec-var-rules">Week 3 practice, rule 3</a></td>
+</tr>
+</tbody>
+</table>
+<p>Here <span class="math inline">i_b</span> is the index of the <span class="math inline">b</span>-th example drawn into the mini-batch. The loss is a function of one number <span class="math inline">\theta</span>, so every gradient is an ordinary derivative.</p>
+<p>E1 is not specific to SGD. It defines the training loss, the function every optimizer this week is trying to minimize: full-batch gradient descent, SGD, mini-batch SGD, momentum, and Adam all share it. They differ only in how they estimate its gradient (all <span class="math inline">n</span> examples, one, or <span class="math inline">B</span>) and in what they do with that estimate (step directly, accumulate it, or normalize it). Some texts use the sum instead of the average; that multiplies every gradient by <span class="math inline">n</span>, which a learning rate <span class="math inline">n</span> times smaller would cancel.</p>
+<p><strong>Step 1: the per-example gradient.</strong> By the chain rule (the same calculation as the squared error in <a href="../lectures/week01.html">Week 1</a>), the derivative of <span class="math inline">\tfrac{1}{2}(\theta - a_i)^2</span> is</p>
+<p><span class="math display">\frac{d\mathcal{L}_i}{d\theta} = \tfrac{1}{2}\cdot 2(\theta - a_i)\cdot 1 = \theta - a_i</span></p>
+<p><strong>Step 2: the minimizer <span class="math inline">\theta^*</span>.</strong> By E1 the training loss is the average of the four per-example losses, so its derivative is the average of the four derivatives:</p>
+<p><span class="math display">\frac{d\mathcal{L}}{d\theta} = \frac{1}{4}\sum_{i=1}^{4}(\theta - a_i) = \theta - \frac{a_1 + a_2 + a_3 + a_4}{4}</span></p>
+<p>The minimum is where this is <span class="math inline">0</span>, so <span class="math inline">\theta^*</span> is the mean of the <span class="math inline">a_i</span>:</p>
+<p><span class="math display">\theta^* = \frac{1 + 3 + 5 + 7}{4} = 4</span></p>
+<p>(The loss is a bowl with second derivative <span class="math inline">1 &gt; 0</span>, so this point is a minimum.)</p>
+<p><strong>Step 3: the per-example gradients at <span class="math inline">\theta^*</span>.</strong> Using Step 1 with <span class="math inline">\theta = 4</span>:</p>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th>Example <span class="math inline">i</span></th>
+<th><span class="math inline">a_i</span></th>
+<th>Gradient <span class="math inline">\theta^* - a_i</span></th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><span class="math inline">1</span></td>
+<td><span class="math inline">1</span></td>
+<td><span class="math inline">3</span></td>
+</tr>
+<tr class="even">
+<td><span class="math inline">2</span></td>
+<td><span class="math inline">3</span></td>
+<td><span class="math inline">1</span></td>
+</tr>
+<tr class="odd">
+<td><span class="math inline">3</span></td>
+<td><span class="math inline">5</span></td>
+<td><span class="math inline">-1</span></td>
+</tr>
+<tr class="even">
+<td><span class="math inline">4</span></td>
+<td><span class="math inline">7</span></td>
+<td><span class="math inline">-3</span></td>
+</tr>
+</tbody>
+</table>
+<p>They add to <span class="math inline">0</span>, as they must: their average is the full gradient, and the full gradient is <span class="math inline">0</span> at the minimizer. But no single one is <span class="math inline">0</span>. That is the whole source of the answer.</p>
+<p><strong>Step 4: write the step as a random quantity.</strong> One draw picks an example uniformly at random, so its gradient <span class="math inline">g</span> is a random variable taking the values <span class="math inline">3, 1, -1, -3</span>, each with probability <span class="math inline">1/4</span>. The mini-batch draws <span class="math inline">B = 5</span> of them, <span class="math inline">g_1, \ldots, g_5</span>. “With replacement” means each draw is made from all four examples regardless of earlier draws, so the five draws are independent and each has the same distribution as <span class="math inline">g</span>. Their average is the mini-batch gradient</p>
+<p><span class="math display">\bar{g} = \frac{1}{5}\sum_{b=1}^{5} g_b</span></p>
+<p>By E2, starting at <span class="math inline">\theta_0 = \theta^*</span>, one step gives <span class="math inline">\theta_1 = \theta^* - \eta\,\bar{g}</span>. So the quantity the question asks about is</p>
+<p><span class="math display">(\theta_1 - \theta^*)^2 = (-\eta\,\bar{g})^2 = \eta^2\,\bar{g}^2</span></p>
+<p>The randomness is only in which examples were drawn, and the question asks for the average of this over all possible mini-batches.</p>
+<p><strong>Step 5: mean and variance of one draw.</strong> From Step 3, one draw gives <span class="math inline">g</span> one of the four values <span class="math inline">3,\ 1,\ -1,\ -3</span>, and each example is picked with the same probability <span class="math inline">1/4</span>. The expected value of a quantity picked uniformly from a list is just the average of the list:</p>
+<p><span class="math display">\mathbb{E}[g] = \frac{3 + 1 + (-1) + (-3)}{4} = 0</span></p>
+<p><span class="math inline">\mathbb{E}[g^2]</span> works the same way. Squaring <span class="math inline">g</span> squares whichever value was picked, so <span class="math inline">g^2</span> takes the values <span class="math inline">9,\ 1,\ 1,\ 9</span>, again each with probability <span class="math inline">1/4</span>, and its expected value is their average:</p>
+<p><span class="math display">\mathbb{E}[g^2] = \frac{9 + 1 + 1 + 9}{4} = 5</span></p>
+<p>By R1, <span class="math inline">\operatorname{Var}[g] = \mathbb{E}[g^2] - (\mathbb{E}[g])^2 = 5 - 0 = 5</span>.</p>
+<p><strong>Step 6: mean and variance of the mini-batch average.</strong> Write the mini-batch gradient as the sum of the five draws divided by <span class="math inline">5</span>. Call the sum <span class="math inline">S</span>:</p>
+<p><span class="math display">S = g_1 + g_2 + g_3 + g_4 + g_5, \qquad \bar{g} = \tfrac{1}{5}\,S</span></p>
+<p>Each draw <span class="math inline">g_b</span> is a copy of the single draw from Step 5, so every one has <span class="math inline">\mathbb{E}[g_b] = 0</span> and <span class="math inline">\operatorname{Var}[g_b] = 5</span>.</p>
+<p><em>6a. The mean.</em> The expectation rules from the <a href="../lectures/week03-practice.html#sec-e-var">Week 3 practice chapter</a> say that constants come out and sums split, always (no independence needed):</p>
+<p><span class="math display">\mathbb{E}[aX + bY] = a\,\mathbb{E}[X] + b\,\mathbb{E}[Y]</span></p>
+<p>Applied to <span class="math inline">\bar{g}</span>, with <span class="math inline">a = 1/5</span>:</p>
+<p><span class="math display">\begin{aligned}
+\mathbb{E}[\bar{g}] &amp;= \tfrac{1}{5}\big(\mathbb{E}[g_1] + \mathbb{E}[g_2] + \mathbb{E}[g_3] + \mathbb{E}[g_4] + \mathbb{E}[g_5]\big) \\
+&amp;= \tfrac{1}{5}(0 + 0 + 0 + 0 + 0) = 0
+\end{aligned}</span></p>
+<p><em>6b. The variance of the sum.</em> R3 says that for independent <span class="math inline">X</span> and <span class="math inline">Y</span>,</p>
+<p><span class="math display">\operatorname{Var}[X + Y] = \operatorname{Var}[X] + \operatorname{Var}[Y]</span></p>
+<p>Applying it one term at a time extends it to five independent terms. The draws are independent because they are made with replacement (Step 4), so</p>
+<p><span class="math display">\begin{aligned}
+\operatorname{Var}[S] &amp;= \operatorname{Var}[g_1] + \operatorname{Var}[g_2] + \operatorname{Var}[g_3] + \operatorname{Var}[g_4] + \operatorname{Var}[g_5] \\
+&amp;= 5 + 5 + 5 + 5 + 5 = 25
+\end{aligned}</span></p>
+<p>Adding draws makes the sum more spread out, not less: the noise of five draws piles up.</p>
+<p><em>6c. Dividing by <span class="math inline">5</span>.</em> R2 says a constant factor comes out of a variance squared:</p>
+<p><span class="math display">\operatorname{Var}[cX] = c^2\operatorname{Var}[X]</span></p>
+<p>Here <span class="math inline">c = 1/5</span> and <span class="math inline">X = S</span>:</p>
+<p><span class="math display">\operatorname{Var}[\bar{g}] = \operatorname{Var}\big[\tfrac{1}{5}S\big] = \left(\tfrac{1}{5}\right)^2 \operatorname{Var}[S] = \frac{1}{25}\cdot 25 = 1</span></p>
+<p>The sum’s variance grew by a factor of <span class="math inline">5</span>, but dividing by <span class="math inline">5</span> shrinks the variance by a factor of <span class="math inline">5^2 = 25</span>, so the average ends up <span class="math inline">5</span> times less noisy than a single draw.</p>
+<p><em>6d. The general rule.</em> The same three lines with <span class="math inline">B</span> draws, each of variance <span class="math inline">\operatorname{Var}[g]</span>, give</p>
+<p><span class="math display">\operatorname{Var}[\bar{g}] = \left(\tfrac{1}{B}\right)^2 \cdot B\operatorname{Var}[g] = \frac{\operatorname{Var}[g]}{B}</span></p>
+<p>which is the rule on the equation sheet: here <span class="math inline">5/5 = 1</span>.</p>
+<p><strong>Step 7: put it together.</strong> <span class="math inline">\eta^2 = 4</span> is a constant, so it comes outside the expectation (R2). Then R1, applied to <span class="math inline">\bar{g}</span>, turns <span class="math inline">\mathbb{E}[\bar{g}^2]</span> into the variance plus the squared mean:</p>
+<p><span class="math display">\begin{aligned}
+\mathbb{E}\big[(\theta_1 - \theta^*)^2\big] &amp;= \eta^2\,\mathbb{E}[\bar{g}^2] \\
+&amp;= \eta^2\left(\operatorname{Var}[\bar{g}] + (\mathbb{E}[\bar{g}])^2\right) \\
+&amp;= 4\,(1 + 0^2)
+\end{aligned}</span></p>
+<p><strong>Answer:</strong> <span class="math inline">4</span>.</p>
+<p><strong>Key takeaways: what this question tests.</strong></p>
+<ul>
+<li><strong>SGD’s gradient is unbiased but noisy.</strong> On average a mini-batch gradient equals the full gradient (Steps 5 and 6a). That does not make any single mini-batch gradient correct: at the minimum the full gradient is <span class="math inline">0</span>, but each per-example gradient is not (Step 3).</li>
+<li><strong>So SGD cannot sit still at the minimum.</strong> Full-batch gradient descent started at <span class="math inline">\theta^*</span> would not move at all. Mini-batch SGD moves anyway, here landing a squared distance of <span class="math inline">4</span> from the minimum on average, a typical distance of about <span class="math inline">2</span>. This is the stalling and jittering from <a href="../lectures/week04.html#sec-sgd-noise">The Noise in SGD</a>, measured as a number.</li>
+<li><strong>The two knobs, and how strongly each one acts.</strong> The expected squared distance is <span class="math inline">\eta^2\operatorname{Var}[g]/B</span>. Doubling <span class="math inline">B</span> halves it; halving <span class="math inline">\eta</span> quarters it. This is why mini-batches reduce the noise but do not remove it, and why learning rate schedules lower <span class="math inline">\eta</span> late in training.</li>
+<li><strong>The probability skills behind it.</strong> The expected value of a uniformly picked value is the average of the list; <span class="math inline">\mathbb{E}[X^2] = \operatorname{Var}[X] + (\mathbb{E}[X])^2</span>; and the variance of an average of <span class="math inline">B</span> independent draws is the single-draw variance divided by <span class="math inline">B</span>. “With replacement” is the detail in the question that makes the draws independent, so that last rule applies.</li>
+</ul>
+</div>
+</div>
+</div>
+</section>
+</section>
+<section id="sec-w4p-conceptual" class="level2">
+<h2 class="anchored" data-anchor-id="sec-w4p-conceptual">Part 6: Conceptual questions</h2>
+<p>These have no numeric answer. Try answering in two or three sentences before opening the solution.</p>
+<section id="con-1" class="level3">
+<h3 class="anchored" data-anchor-id="con-1">Conceptual 1: Why SGD stalls, and what a schedule fixes</h3>
+<p>A training curve under SGD with a constant learning rate falls quickly, then flattens out and jitters well above the lowest loss the model could reach. Explain why, and explain what lowering the learning rate late in training does and does not fix.</p>
+<div class="practice-answer callout callout-style-default callout-tip callout-titled" title="Worked solution">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-19-contents" aria-controls="callout-19" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Worked solution
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-19" class="callout-19-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>This uses <a href="../lectures/week04.html#sec-sgd-noise">Week 4, The Noise in SGD</a> and <a href="../lectures/week04.html#sec-schedules">Learning rate schedules</a>.</p>
+<p>Each SGD step follows one example’s (or one mini-batch’s) gradient, and each example’s loss has its own minimum. Far from the minimum of the average, the per-example gradients mostly agree on which way is downhill, so progress is fast. Near it they disagree: at the minimum of the average their mean is <span class="math inline">0</span>, but each one is not (Quiz question 4). So every step still moves the parameters by about <span class="math inline">\eta</span> times a nonzero gradient, and they bounce around the minimum instead of settling. The jitter is proportional to <span class="math inline">\eta</span>.</p>
+<p>Lowering <span class="math inline">\eta</span> late in training shrinks those bounces, so the parameters settle closer to the minimum. It does not remove the noise itself: the per-example gradients still disagree. And lowering <span class="math inline">\eta</span> too early slows the fast first phase of training. A larger mini-batch is the other remedy. It cuts the noise’s standard deviation by <span class="math inline">\sqrt{B}</span> (Problem 5), and only removes it entirely when the mini-batch is the whole training set.</p>
+</div>
+</div>
+</div>
+</section>
+<section id="con-2" class="level3">
+<h3 class="anchored" data-anchor-id="con-2">Conceptual 2: Adam with no memory</h3>
+<p>Suppose we run Adam with <span class="math inline">\beta_1 = \beta_2 = 0</span>, so it keeps no memory of past gradients. What does each update reduce to, and what does that reveal about the role of the denominator <span class="math inline">\sqrt{\hat{\bm{s}}_t}</span>?</p>
+<div class="practice-answer callout callout-style-default callout-tip callout-titled" title="Worked solution">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-20-contents" aria-controls="callout-20" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Worked solution
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-20" class="callout-20-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>This uses <a href="../lectures/week04.html#sec-adam-algorithm">Week 4, The full algorithm</a>.</p>
+<p>With <span class="math inline">\beta_1 = \beta_2 = 0</span>, the accumulators are just the current gradient and its square: <span class="math inline">\bm{v}_t = \bm{g}_t</span> and <span class="math inline">\bm{s}_t = \bm{g}_t^2</span>. The bias corrections divide by <span class="math inline">1 - 0^t = 1</span>, so they do nothing. Ignoring the small <span class="math inline">\epsilon</span>, each entry’s update is</p>
+<p><span class="math display">\frac{\eta\,g_t}{\sqrt{g_t^2}} = \frac{\eta\,g_t}{|g_t|} = \pm\eta</span></p>
+<p>Every parameter moves by exactly <span class="math inline">\eta</span> per step, in the downhill direction, whatever the size of its gradient. Only the sign of the gradient is used.</p>
+<p>This isolates the denominator’s job. Dividing by the typical gradient size throws away the gradient’s scale, which is how one global <span class="math inline">\eta</span> can suit parameters whose gradients differ by orders of magnitude. It also shows why the moving averages matter. With no memory, the step stays <span class="math inline">\eta</span> even as the gradient shrinks toward <span class="math inline">0</span> near a minimum, so the parameters keep bouncing by <span class="math inline">\pm\eta</span>. With <span class="math inline">\beta_1</span> and <span class="math inline">\beta_2</span> close to <span class="math inline">1</span>, <span class="math inline">\hat{\bm{v}}_t</span> averages out gradients that keep flipping sign, while <span class="math inline">\hat{\bm{s}}_t</span> still remembers their size, so the step shrinks when the gradient keeps reversing.</p>
+</div>
+</div>
+</div>
+
+
+</section>
+</section>
+
+</main> <!-- /main -->
+<script id="quarto-html-after-body" type="application/javascript">
+  window.document.addEventListener("DOMContentLoaded", function (event) {
+    const icon = "";
+    const anchorJS = new window.AnchorJS();
+    anchorJS.options = {
+      placement: 'right',
+      icon: icon
+    };
+    anchorJS.add('.anchored');
+    const isCodeAnnotation = (el) => {
+      for (const clz of el.classList) {
+        if (clz.startsWith('code-annotation-')) {                     
+          return true;
+        }
+      }
+      return false;
+    }
+    const onCopySuccess = function(e) {
+      // button target
+      const button = e.trigger;
+      // don't keep focus
+      button.blur();
+      // flash "checked"
+      button.classList.add('code-copy-button-checked');
+      var currentTitle = button.getAttribute("title");
+      button.setAttribute("title", "Copied!");
+      let tooltip;
+      if (window.bootstrap) {
+        button.setAttribute("data-bs-toggle", "tooltip");
+        button.setAttribute("data-bs-placement", "left");
+        button.setAttribute("data-bs-title", "Copied!");
+        tooltip = new bootstrap.Tooltip(button, 
+          { trigger: "manual", 
+            customClass: "code-copy-button-tooltip",
+            offset: [0, -8]});
+        tooltip.show();    
+      }
+      setTimeout(function() {
+        if (tooltip) {
+          tooltip.hide();
+          button.removeAttribute("data-bs-title");
+          button.removeAttribute("data-bs-toggle");
+          button.removeAttribute("data-bs-placement");
+        }
+        button.setAttribute("title", currentTitle);
+        button.classList.remove('code-copy-button-checked');
+      }, 1000);
+      // clear code selection
+      e.clearSelection();
+    }
+    const getTextToCopy = function(trigger) {
+      const outerScaffold = trigger.parentElement.cloneNode(true);
+      const codeEl = outerScaffold.querySelector('code');
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+    }
+    const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
+      text: getTextToCopy
+    });
+    clipboard.on('success', onCopySuccess);
+    if (window.document.getElementById('quarto-embedded-source-code-modal')) {
+      const clipboardModal = new window.ClipboardJS('.code-copy-button[data-in-quarto-modal]', {
+        text: getTextToCopy,
+        container: window.document.getElementById('quarto-embedded-source-code-modal')
+      });
+      clipboardModal.on('success', onCopySuccess);
+    }
+      var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+      var mailtoRegex = new RegExp(/^mailto:/);
+        var filterRegex = new RegExp('/' + window.location.host + '/');
+      var isInternal = (href) => {
+          return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+      }
+      // Inspect non-navigation links and adorn them if external
+     var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+      for (var i=0; i<links.length; i++) {
+        const link = links[i];
+        if (!isInternal(link.href)) {
+          // undo the damage that might have been done by quarto-nav.js in the case of
+          // links that we want to consider external
+          if (link.dataset.originalHref !== undefined) {
+            link.href = link.dataset.originalHref;
+          }
+            // target, if specified
+            link.setAttribute("target", "_blank");
+            if (link.getAttribute("rel") === null) {
+              link.setAttribute("rel", "noopener");
+            }
+        }
+      }
+    function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+      const config = {
+        allowHTML: true,
+        maxWidth: 500,
+        delay: 100,
+        arrow: false,
+        appendTo: function(el) {
+            return el.parentElement;
+        },
+        interactive: true,
+        interactiveBorder: 10,
+        theme: 'quarto',
+        placement: 'bottom-start',
+      };
+      if (contentFn) {
+        config.content = contentFn;
+      }
+      if (onTriggerFn) {
+        config.onTrigger = onTriggerFn;
+      }
+      if (onUntriggerFn) {
+        config.onUntrigger = onUntriggerFn;
+      }
+      window.tippy(el, config); 
+    }
+    const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+    for (var i=0; i<noterefs.length; i++) {
+      const ref = noterefs[i];
+      tippyHover(ref, function() {
+        // use id or data attribute instead here
+        let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+        try { href = new URL(href).hash; } catch {}
+        const id = href.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note) {
+          return note.innerHTML;
+        } else {
+          return "";
+        }
+      });
+    }
+    const xrefs = window.document.querySelectorAll('a.quarto-xref');
+    const processXRef = (id, note) => {
+      // Strip column container classes
+      const stripColumnClz = (el) => {
+        el.classList.remove("page-full", "page-columns");
+        if (el.children) {
+          for (const child of el.children) {
+            stripColumnClz(child);
+          }
+        }
+      }
+      stripColumnClz(note)
+      if (id === null || id.startsWith('sec-')) {
+        // Special case sections, only their first couple elements
+        const container = document.createElement("div");
+        if (note.children && note.children.length > 2) {
+          container.appendChild(note.children[0].cloneNode(true));
+          for (let i = 1; i < note.children.length; i++) {
+            const child = note.children[i];
+            if (child.tagName === "P" && child.innerText === "") {
+              continue;
+            } else {
+              container.appendChild(child.cloneNode(true));
+              break;
+            }
+          }
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(container);
+          }
+          return container.innerHTML
+        } else {
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(note);
+          }
+          return note.innerHTML;
+        }
+      } else {
+        // Remove any anchor links if they are present
+        const anchorLink = note.querySelector('a.anchorjs-link');
+        if (anchorLink) {
+          anchorLink.remove();
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        if (note.classList.contains("callout")) {
+          return note.outerHTML;
+        } else {
+          return note.innerHTML;
+        }
+      }
+    }
+    for (var i=0; i<xrefs.length; i++) {
+      const xref = xrefs[i];
+      tippyHover(xref, undefined, function(instance) {
+        instance.disable();
+        let url = xref.getAttribute('href');
+        let hash = undefined; 
+        if (url.startsWith('#')) {
+          hash = url;
+        } else {
+          try { hash = new URL(url).hash; } catch {}
+        }
+        if (hash) {
+          const id = hash.replace(/^#\/?/, "");
+          const note = window.document.getElementById(id);
+          if (note !== null) {
+            try {
+              const html = processXRef(id, note.cloneNode(true));
+              instance.setContent(html);
+            } finally {
+              instance.enable();
+              instance.show();
+            }
+          } else {
+            // See if we can fetch this
+            fetch(url.split('#')[0])
+            .then(res => res.text())
+            .then(html => {
+              const parser = new DOMParser();
+              const htmlDoc = parser.parseFromString(html, "text/html");
+              const note = htmlDoc.getElementById(id);
+              if (note !== null) {
+                const html = processXRef(id, note);
+                instance.setContent(html);
+              } 
+            }).finally(() => {
+              instance.enable();
+              instance.show();
+            });
+          }
+        } else {
+          // See if we can fetch a full url (with no hash to target)
+          // This is a special case and we should probably do some content thinning / targeting
+          fetch(url)
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.querySelector('main.content');
+            if (note !== null) {
+              // This should only happen for chapter cross references
+              // (since there is no id in the URL)
+              // remove the first header
+              if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+                note.children[0].remove();
+              }
+              const html = processXRef(null, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      }, function(instance) {
+      });
+    }
+        let selectedAnnoteEl;
+        const selectorForAnnotation = ( cell, annotation) => {
+          let cellAttr = 'data-code-cell="' + cell + '"';
+          let lineAttr = 'data-code-annotation="' +  annotation + '"';
+          const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+          return selector;
+        }
+        const selectCodeLines = (annoteEl) => {
+          const doc = window.document;
+          const targetCell = annoteEl.getAttribute("data-target-cell");
+          const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+          const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+          const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+          const lineIds = lines.map((line) => {
+            return targetCell + "-" + line;
+          })
+          let top = null;
+          let height = null;
+          let parent = null;
+          if (lineIds.length > 0) {
+              //compute the position of the single el (top and bottom and make a div)
+              const el = window.document.getElementById(lineIds[0]);
+              top = el.offsetTop;
+              height = el.offsetHeight;
+              parent = el.parentElement.parentElement;
+            if (lineIds.length > 1) {
+              const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+              const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+              height = bottom - top;
+            }
+            if (top !== null && height !== null && parent !== null) {
+              // cook up a div (if necessary) and position it 
+              let div = window.document.getElementById("code-annotation-line-highlight");
+              if (div === null) {
+                div = window.document.createElement("div");
+                div.setAttribute("id", "code-annotation-line-highlight");
+                div.style.position = 'absolute';
+                parent.appendChild(div);
+              }
+              div.style.top = top - 2 + "px";
+              div.style.height = height + 4 + "px";
+              div.style.left = 0;
+              let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+              if (gutterDiv === null) {
+                gutterDiv = window.document.createElement("div");
+                gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+                gutterDiv.style.position = 'absolute';
+                const codeCell = window.document.getElementById(targetCell);
+                const gutter = codeCell.querySelector('.code-annotation-gutter');
+                gutter.appendChild(gutterDiv);
+              }
+              gutterDiv.style.top = top - 2 + "px";
+              gutterDiv.style.height = height + 4 + "px";
+            }
+            selectedAnnoteEl = annoteEl;
+          }
+        };
+        const unselectCodeLines = () => {
+          const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+          elementsIds.forEach((elId) => {
+            const div = window.document.getElementById(elId);
+            if (div) {
+              div.remove();
+            }
+          });
+          selectedAnnoteEl = undefined;
+        };
+          // Handle positioning of the toggle
+      window.addEventListener(
+        "resize",
+        throttle(() => {
+          elRect = undefined;
+          if (selectedAnnoteEl) {
+            selectCodeLines(selectedAnnoteEl);
+          }
+        }, 10)
+      );
+      function throttle(fn, ms) {
+      let throttle = false;
+      let timer;
+        return (...args) => {
+          if(!throttle) { // first call gets through
+              fn.apply(this, args);
+              throttle = true;
+          } else { // all the others get throttled
+              if(timer) clearTimeout(timer); // cancel #2
+              timer = setTimeout(() => {
+                fn.apply(this, args);
+                timer = throttle = false;
+              }, ms);
+          }
+        };
+      }
+        // Attach click handler to the DT
+        const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+        for (const annoteDlNode of annoteDls) {
+          annoteDlNode.addEventListener('click', (event) => {
+            const clickedEl = event.target;
+            if (clickedEl !== selectedAnnoteEl) {
+              unselectCodeLines();
+              const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+              if (activeEl) {
+                activeEl.classList.remove('code-annotation-active');
+              }
+              selectCodeLines(clickedEl);
+              clickedEl.classList.add('code-annotation-active');
+            } else {
+              // Unselect the line
+              unselectCodeLines();
+              clickedEl.classList.remove('code-annotation-active');
+            }
+          });
+        }
+    const findCites = (el) => {
+      const parentEl = el.parentElement;
+      if (parentEl) {
+        const cites = parentEl.dataset.cites;
+        if (cites) {
+          return {
+            el,
+            cites: cites.split(' ')
+          };
+        } else {
+          return findCites(el.parentElement)
+        }
+      } else {
+        return undefined;
+      }
+    };
+    var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+    for (var i=0; i<bibliorefs.length; i++) {
+      const ref = bibliorefs[i];
+      const citeInfo = findCites(ref);
+      if (citeInfo) {
+        tippyHover(citeInfo.el, function() {
+          var popup = window.document.createElement('div');
+          citeInfo.cites.forEach(function(cite) {
+            var citeDiv = window.document.createElement('div');
+            citeDiv.classList.add('hanging-indent');
+            citeDiv.classList.add('csl-entry');
+            var biblioDiv = window.document.getElementById('ref-' + cite);
+            if (biblioDiv) {
+              citeDiv.innerHTML = biblioDiv.innerHTML;
+            }
+            popup.appendChild(citeDiv);
+          });
+          return popup.innerHTML;
+        });
+      }
+    }
+  });
+  </script>
+<nav class="page-navigation">
+  <div class="nav-page nav-page-previous">
+      <a href="../lectures/week04.html" class="pagination-link" aria-label="Week 4: Gradient Descent and Adaptive Methods">
+        <i class="bi bi-arrow-left-short"></i> <span class="nav-page-text"><span class="chapter-title">Week 4: Gradient Descent and Adaptive Methods</span></span>
+      </a>          
+  </div>
+  <div class="nav-page nav-page-next">
+      <a href="../glossary.html" class="pagination-link" aria-label="Glossary">
+        <span class="nav-page-text"><span class="chapter-title">Glossary</span></span> <i class="bi bi-arrow-right-short"></i>
+      </a>
+  </div>
+</nav>
+</div> <!-- /content -->
+
+
+
+
+<script src="../site_libs/quarto-html/zenscroll-min.js"></script>
+</body></html>

@@ -37,7 +37,7 @@ ul.task-list li input[type="checkbox"] {
 <script src="../site_libs/quarto-search/fuse.min.js"></script>
 <script src="../site_libs/quarto-search/quarto-search.js"></script>
 <meta name="quarto:offset" content="../">
-<link href="../glossary.html" rel="next">
+<link href="../lectures/week04-practice.html" rel="next">
 <link href="../lectures/week03-practice.html" rel="prev">
 <script src="../site_libs/quarto-html/quarto.js" type="module"></script>
 <script src="../site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
@@ -194,6 +194,11 @@ window.Quarto = {
 </li>
         <li class="sidebar-item">
   <div class="sidebar-item-container"> 
+  <a href="../lectures/week04-practice.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Week 4 practice: Gradient Descent, SGD, Momentum, and Adam</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
   <a href="../glossary.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Glossary</span></a>
   </div>
 </li>
@@ -285,10 +290,287 @@ window.Quarto = {
 <div class="definition-block">
 <p><strong>Definition.</strong> The <strong>Taylor series</strong> of an infinitely differentiable function <span class="math inline">\mathcal{L}</span> around <span class="math inline">\theta</span> writes its value at a nearby point <span class="math inline">\theta + e</span> as a sum of its derivatives at <span class="math inline">\theta</span>: <span class="math display">\mathcal{L}(\theta + e) = \sum_{k=0}^{\infty} \frac{e^k}{k!}\,\frac{d^k\mathcal{L}}{d\theta^k}(\theta)</span> Here <span class="math inline">e</span> is an offset (not Euler’s number), <span class="math inline">k!</span> is the <a href="https://en.wikipedia.org/wiki/Factorial">factorial</a> <span class="math inline">1 \cdot 2 \cdots k</span>, and the <span class="math inline">k = 0</span> term is <span class="math inline">\mathcal{L}(\theta)</span> itself. See <a href="https://en.wikipedia.org/wiki/Taylor_series">Taylor series</a>.</p>
 </div>
+<div class="clarification callout callout-style-default callout-tip callout-titled" title="Question: What is a Taylor series, and why write the loss as a function of an offset from theta?">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-1-contents" aria-controls="callout-1" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Question: What is a Taylor series, and why write the loss as a function of an offset from theta?
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-1" class="callout-1-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p><strong>Why an offset at all.</strong> In gradient descent the parameter has a current value, and we are deciding where to move it. At the current value we know things: the loss, and (from backpropagation) its derivative. What we do not know is the loss at the places we might move to. So the question we keep asking is</p>
+<blockquote class="blockquote">
+<p><em>If I move from where I am now by some amount, what will the loss be?</em></p>
+</blockquote>
+<p>The Taylor series answers exactly that question. It is not a new way of defining <span class="math inline">\mathcal{L}</span>. It is a way of predicting <span class="math inline">\mathcal{L}</span> at a nearby point using only numbers we already have at the current point. Writing the input as <span class="math inline">\theta + e</span> splits it into those two parts: “where I am” and “how far I move”.</p>
+<p><strong>What each symbol means.</strong> The key is that <span class="math inline">\theta</span> and <span class="math inline">e</span> play different roles.</p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 33%">
+<col style="width: 33%">
+<col style="width: 33%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Symbol</th>
+<th>Meaning</th>
+<th>Fixed or varying?</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><span class="math inline">\theta</span></td>
+<td>the current parameter value, where we are standing</td>
+<td><strong>fixed</strong> (a known number)</td>
+</tr>
+<tr class="even">
+<td><span class="math inline">e</span></td>
+<td>the step we are considering, positive or negative</td>
+<td><strong>varies</strong> (the input we are asking about)</td>
+</tr>
+<tr class="odd">
+<td><span class="math inline">\theta + e</span></td>
+<td>the point we would land on after the step</td>
+<td>varies with <span class="math inline">e</span></td>
+</tr>
+<tr class="even">
+<td><span class="math inline">\mathcal{L}(\theta + e)</span></td>
+<td>the loss after taking that step</td>
+<td>varies with <span class="math inline">e</span>; this is what we want to predict</td>
+</tr>
+<tr class="odd">
+<td><span class="math inline">\mathcal{L}(\theta),\ \mathcal{L}'(\theta),\ \mathcal{L}''(\theta), \ldots</span></td>
+<td>the loss and its derivatives at the current point</td>
+<td><strong>fixed numbers</strong>, computed once</td>
+</tr>
+</tbody>
+</table>
+<p>So in <span class="math inline">\mathcal{L}(\theta + e)</span>, think of <span class="math inline">\theta</span> as a constant like <span class="math inline">1</span> or <span class="math inline">2.7</span>, and of <span class="math inline">e</span> as the variable. Later in the chapter we will plug in the gradient descent step, <span class="math inline">e = -\eta\,\mathcal{L}'(\theta)</span>, and the series tells us what loss that step leads to.</p>
+<p><strong>Step 1: a concrete example by plain algebra.</strong> (Our example.) Let <span class="math inline">\mathcal{L}(\theta) = \theta^3</span> and suppose we are standing at <span class="math inline">\theta = 1</span>. The loss after a step <span class="math inline">e</span> is <span class="math inline">\mathcal{L}(1 + e) = (1 + e)^3</span>. Multiplying out the brackets:</p>
+<p><span class="math display">(1 + e)^3 = 1 + 3e + 3e^2 + e^3</span></p>
+<p>This is a polynomial in the step <span class="math inline">e</span>. The constant term <span class="math inline">1</span> is the current loss, and the other terms say how the loss changes with the step. Now compute the derivatives of <span class="math inline">\mathcal{L}(\theta) = \theta^3</span> at the current point <span class="math inline">\theta = 1</span>:</p>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th></th>
+<th>Formula</th>
+<th>Value at <span class="math inline">\theta = 1</span></th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><span class="math inline">\mathcal{L}(\theta)</span></td>
+<td><span class="math inline">\theta^3</span></td>
+<td><span class="math inline">1</span></td>
+</tr>
+<tr class="even">
+<td><span class="math inline">\mathcal{L}'(\theta)</span></td>
+<td><span class="math inline">3\theta^2</span></td>
+<td><span class="math inline">3</span></td>
+</tr>
+<tr class="odd">
+<td><span class="math inline">\mathcal{L}''(\theta)</span></td>
+<td><span class="math inline">6\theta</span></td>
+<td><span class="math inline">6</span></td>
+</tr>
+<tr class="even">
+<td><span class="math inline">\mathcal{L}'''(\theta)</span></td>
+<td><span class="math inline">6</span></td>
+<td><span class="math inline">6</span></td>
+</tr>
+</tbody>
+</table>
+<p>Compare the coefficients of <span class="math inline">1 + 3e + 3e^2 + e^3</span> with this table:</p>
+<ul>
+<li>the coefficient of <span class="math inline">e^0</span> is <span class="math inline">1 = \mathcal{L}(1)</span></li>
+<li>the coefficient of <span class="math inline">e^1</span> is <span class="math inline">3 = \mathcal{L}'(1)</span></li>
+<li>the coefficient of <span class="math inline">e^2</span> is <span class="math inline">3 = 6/2 = \mathcal{L}''(1)/2</span></li>
+<li>the coefficient of <span class="math inline">e^3</span> is <span class="math inline">1 = 6/6 = \mathcal{L}'''(1)/6</span></li>
+</ul>
+<p>Each coefficient is a derivative at the current point divided by a number (<span class="math inline">1, 1, 2, 6</span>). Those numbers are <span class="math inline">0!, 1!, 2!, 3!</span>. The rest of this box explains why that pattern always holds.</p>
+<p><strong>Step 2: a new function of the step alone.</strong> For a general <span class="math inline">\mathcal{L}</span> we cannot multiply out brackets, so we use derivatives instead. Hold <span class="math inline">\theta</span> fixed and define a function of the step only:</p>
+<p><span class="math display">g(e) = \mathcal{L}(\theta + e)</span></p>
+<p><span class="math inline">g</span> answers “what is the loss if I step by <span class="math inline">e</span>?”. Two facts about <span class="math inline">g</span> connect it to the derivatives we know:</p>
+<ul>
+<li>At <span class="math inline">e = 0</span> we have not moved, so <span class="math inline">g(0) = \mathcal{L}(\theta)</span>.</li>
+<li>By the chain rule, the derivative of <span class="math inline">g</span> is the derivative of <span class="math inline">\mathcal{L}</span> at the point we land on, times the derivative of <span class="math inline">\theta + e</span> with respect to <span class="math inline">e</span>. Since <span class="math inline">\theta</span> is fixed, that inner derivative is <span class="math inline">1</span>, so <span class="math inline">g'(e) = \mathcal{L}'(\theta + e)</span>. Doing this again for each higher derivative gives <span class="math inline">g''(e) = \mathcal{L}''(\theta + e)</span>, and so on. Setting <span class="math inline">e = 0</span>:</li>
+</ul>
+<p><span class="math display">g(0) = \mathcal{L}(\theta), \qquad g'(0) = \mathcal{L}'(\theta), \qquad g''(0) = \mathcal{L}''(\theta), \qquad \ldots</span></p>
+<p>So the derivatives of <span class="math inline">g</span> at “no step” are exactly the derivatives of <span class="math inline">\mathcal{L}</span> at the current point, the fixed numbers in the table above.</p>
+<p><strong>Step 3: approximate <span class="math inline">g</span> by a polynomial in <span class="math inline">e</span>.</strong> Step 1 showed that for <span class="math inline">\theta^3</span> the loss after a step is a polynomial in <span class="math inline">e</span>. For a general loss we look for a polynomial that behaves the same way near <span class="math inline">e = 0</span>:</p>
+<p><span class="math display">p(e) = c_0 + c_1 e + c_2 e^2 + c_3 e^3 + \cdots</span></p>
+<p>The coefficients <span class="math inline">c_0, c_1, c_2, \ldots</span> are unknown numbers to be chosen. We choose them so that <span class="math inline">p</span> and <span class="math inline">g</span> have the same value at <span class="math inline">e = 0</span>, the same first derivative there, the same second derivative, and so on.</p>
+<p><strong>Step 4: find each coefficient.</strong> To find <span class="math inline">c_k</span>, differentiate <span class="math inline">p</span> <span class="math inline">k</span> times and set <span class="math inline">e = 0</span>. Every term with a power of <span class="math inline">e</span> left over becomes <span class="math inline">0</span> at <span class="math inline">e = 0</span>, so only one term survives each time.</p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 20%">
+<col style="width: 20%">
+<col style="width: 20%">
+<col style="width: 20%">
+<col style="width: 20%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Differentiate <span class="math inline">p</span></th>
+<th>Result</th>
+<th>At <span class="math inline">e = 0</span></th>
+<th>Must equal</th>
+<th>So</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>0 times</td>
+<td><span class="math inline">c_0 + c_1 e + c_2 e^2 + c_3 e^3 + \cdots</span></td>
+<td><span class="math inline">c_0</span></td>
+<td><span class="math inline">g(0) = \mathcal{L}(\theta)</span></td>
+<td><span class="math inline">c_0 = \mathcal{L}(\theta)</span></td>
+</tr>
+<tr class="even">
+<td>1 time</td>
+<td><span class="math inline">c_1 + 2c_2 e + 3c_3 e^2 + \cdots</span></td>
+<td><span class="math inline">c_1</span></td>
+<td><span class="math inline">g'(0) = \mathcal{L}'(\theta)</span></td>
+<td><span class="math inline">c_1 = \mathcal{L}'(\theta)</span></td>
+</tr>
+<tr class="odd">
+<td>2 times</td>
+<td><span class="math inline">2c_2 + 6c_3 e + \cdots</span></td>
+<td><span class="math inline">2c_2</span></td>
+<td><span class="math inline">g''(0) = \mathcal{L}''(\theta)</span></td>
+<td><span class="math inline">c_2 = \mathcal{L}''(\theta)/2</span></td>
+</tr>
+<tr class="even">
+<td>3 times</td>
+<td><span class="math inline">6c_3 + \cdots</span></td>
+<td><span class="math inline">6c_3</span></td>
+<td><span class="math inline">g'''(0) = \mathcal{L}'''(\theta)</span></td>
+<td><span class="math inline">c_3 = \mathcal{L}'''(\theta)/6</span></td>
+</tr>
+</tbody>
+</table>
+<p>The multipliers <span class="math inline">1, 1, 2, 6</span> come from the power rule: differentiating <span class="math inline">e^k</span> brings down <span class="math inline">k</span>, then <span class="math inline">k-1</span>, and so on down to <span class="math inline">1</span>, so differentiating <span class="math inline">e^k</span> exactly <span class="math inline">k</span> times leaves <span class="math inline">k(k-1)\cdots 1 = k!</span>. In general:</p>
+<p><span class="math display">k!\, c_k = \frac{d^k\mathcal{L}}{d\theta^k}(\theta) \quad\Longrightarrow\quad c_k = \frac{1}{k!}\,\frac{d^k\mathcal{L}}{d\theta^k}(\theta)</span></p>
+<p><strong>Step 5: put the pieces together.</strong> Substituting every <span class="math inline">c_k</span> into <span class="math inline">p(e)</span>, and remembering that <span class="math inline">p(e)</span> stands in for <span class="math inline">g(e) = \mathcal{L}(\theta + e)</span>:</p>
+<p><span class="math display">\mathcal{L}(\theta + e) = \mathcal{L}(\theta) + e\,\mathcal{L}'(\theta) + \frac{e^2}{2}\,\mathcal{L}''(\theta) + \frac{e^3}{6}\,\mathcal{L}'''(\theta) + \cdots</span></p>
+<p>Written with a summation sign, this is the formula in the definition above. Reading it with the symbol table: the left side is the loss after a step <span class="math inline">e</span>; on the right, every derivative is a fixed number at the current point, and the only thing that changes with the step is the powers <span class="math inline">e, e^2, e^3, \ldots</span>. For <span class="math inline">\theta^3</span> at <span class="math inline">\theta = 1</span> this gives back <span class="math inline">1 + 3e + 3e^2 + e^3</span> from Step 1.</p>
+<p><strong>Why the first two terms are enough for small steps.</strong> With <span class="math inline">e = 0.1</span> in the example, the four terms are <span class="math inline">1</span>, <span class="math inline">0.3</span>, <span class="math inline">0.03</span>, and <span class="math inline">0.001</span>, adding to <span class="math inline">1.331 = 1.1^3</span>. Each extra power of a small <span class="math inline">e</span> makes the term much smaller, and the growing <span class="math inline">k!</span> shrinks it further. Keeping only <span class="math inline">\mathcal{L}(\theta) + e\,\mathcal{L}'(\theta)</span> already gives <span class="math inline">1.3</span>. That two-term version is the tangent line in Figure 1 below, and it is the approximation the gradient descent argument uses.</p>
+<p><strong>One caveat.</strong> For a polynomial like <span class="math inline">\theta^3</span> the series stops after finitely many terms and is exact. For other functions it is an infinite sum. For the smooth functions in this course it adds up to the function near <span class="math inline">\theta</span>, but being infinitely differentiable does not guarantee that by itself. Functions for which it does hold are called <em>analytic</em>, and the slides assume this. The gradient descent argument only needs the first two terms plus a bound on everything else, which is what the big-O notation below provides.</p>
+</div>
+</div>
+</div>
+<div class="clarification callout callout-style-default callout-tip callout-titled" title="Question: Can any differentiable function be written as a Taylor series in the offset?">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-2-contents" aria-controls="callout-2" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Question: Can any differentiable function be written as a Taylor series in the offset?
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-2" class="callout-2-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>No.&nbsp;Being differentiable is not enough for the full infinite series to equal the function. There are three levels, and each needs more from the function than the one before.</p>
+<p><strong>1. Differentiable once: two terms and a leftover.</strong> If <span class="math inline">\mathcal{L}</span> has a derivative at <span class="math inline">\theta</span>, all we can say is</p>
+<p><span class="math display">\mathcal{L}(\theta + e) = \mathcal{L}(\theta) + e\,\mathcal{L}'(\theta) + r(e)</span></p>
+<p>where the leftover <span class="math inline">r(e)</span> shrinks faster than <span class="math inline">e</span> itself as <span class="math inline">e \to 0</span>. This is the tangent-line approximation and nothing more. Higher derivatives might not exist, so there is no <span class="math inline">e^2</span> term or beyond to write down, and the leftover is not guaranteed to be as small as <span class="math inline">O(e^2)</span>.</p>
+<p><strong>2. Differentiable <span class="math inline">k</span> times: a finite polynomial and a leftover we can bound.</strong> <a href="https://en.wikipedia.org/wiki/Taylor%27s_theorem">Taylor’s theorem</a> says that if <span class="math inline">\mathcal{L}</span> has two derivatives, then</p>
+<p><span class="math display">\mathcal{L}(\theta + e) = \mathcal{L}(\theta) + e\,\mathcal{L}'(\theta) + \frac{e^2}{2}\,\mathcal{L}''(\xi)</span></p>
+<p>for some point <span class="math inline">\xi</span> between <span class="math inline">\theta</span> and <span class="math inline">\theta + e</span>. If <span class="math inline">|\mathcal{L}''|</span> is at most some number <span class="math inline">M</span> near <span class="math inline">\theta</span>, the leftover is at most <span class="math inline">\tfrac{M}{2}e^2</span>, which is the <span class="math inline">O(\epsilon^2)</span> in the lecture. <strong>This finite version is all the gradient descent argument uses</strong>: the first two terms plus a bound on the rest. It does not need the infinite series.</p>
+<p><strong>3. Infinitely differentiable: the series can be written down, but it may not equal the function.</strong> Every coefficient <span class="math inline">\frac{1}{k!}\mathcal{L}^{(k)}(\theta)</span> exists, so the infinite sum makes sense to write. It can still fail in two ways.</p>
+<ul>
+<li><em>It adds up to the wrong function.</em> The standard example is <span class="math inline">f(x) = \exp(-1/x^2)</span> for <span class="math inline">x \neq 0</span>, with <span class="math inline">f(0) = 0</span>. Every derivative of <span class="math inline">f</span> at <span class="math inline">0</span> equals <span class="math inline">0</span>, so its Taylor series around <span class="math inline">0</span> is <span class="math inline">0 + 0 + 0 + \cdots = 0</span>. But <span class="math inline">f(x) &gt; 0</span> for every <span class="math inline">x \neq 0</span>, so the series equals the function only at the single point <span class="math inline">0</span>. See <a href="https://en.wikipedia.org/wiki/Non-analytic_smooth_function">non-analytic smooth function</a>.</li>
+<li><em>It adds up correctly only for small steps.</em> <span class="math inline">f(\theta) = 1/(1 + \theta^2)</span> is smooth at every real <span class="math inline">\theta</span>. Its series around <span class="math inline">\theta = 0</span> is <span class="math inline">1 - e^2 + e^4 - e^6 + \cdots</span>, which equals the function only when <span class="math inline">|e| &lt; 1</span>. For <span class="math inline">|e| \ge 1</span> the terms do not shrink and the sum does not settle on any value.</li>
+</ul>
+<p>Functions whose series does equal them for all small enough steps around every point are called <a href="https://en.wikipedia.org/wiki/Analytic_function">analytic</a>. Polynomials, <span class="math inline">\exp</span>, <span class="math inline">\log</span>, the sigmoid, tanh, softmax, and cross-entropy are all analytic, which is why the lecture can treat the infinite series as safe. Even then it holds only within some distance of <span class="math inline">\theta</span>, so “for small <span class="math inline">e</span>” is part of the claim.</p>
+<p><strong>What this means for neural networks.</strong> ReLU, <span class="math inline">\max(0, a)</span>, is not differentiable at <span class="math inline">a = 0</span>, so the loss of a ReLU network has creases where not even level 1 holds. Away from the creases the loss is built from smooth pieces, and level 2 holds within each piece. That is where the gradient descent argument is applied in practice.</p>
+<p>In short: a twice-differentiable function with a bounded second derivative supports the two-term approximation with an <span class="math inline">O(e^2)</span> leftover, which is everything gradient descent needs. Only analytic functions can be written as the full infinite series in the offset <span class="math inline">e</span>, and only for small enough <span class="math inline">e</span>.</p>
+</div>
+</div>
+</div>
 <p>The handwritten slide uses <span class="math inline">n</span> for the summation index. These notes use <span class="math inline">k</span>, because <span class="math inline">n</span> will soon stand for the training set size.</p>
 <p>Why is this useful? The factorial in the denominator grows very quickly with <span class="math inline">k</span>. As long as the derivatives of <span class="math inline">\mathcal{L}</span> do not grow comparably fast (a smooth function), the terms of the sum shrink rapidly, and for a small offset the first two terms carry almost all of the value.</p>
 <div class="definition-block">
-<p><strong>Definition.</strong> For a small quantity <span class="math inline">\epsilon</span>, writing <span class="math inline">f(\epsilon) = O(\epsilon^2)</span> means that <span class="math inline">|f(\epsilon)|</span> is at most a constant times <span class="math inline">\epsilon^2</span> when <span class="math inline">\epsilon</span> is small. In words: whatever is hidden inside the <span class="math inline">O(\cdot)</span> shrinks at least as fast as <span class="math inline">\epsilon^2</span>. See <a href="https://en.wikipedia.org/wiki/Big_O_notation">big O notation</a>.</p>
+<p><strong>Definition.</strong> For a small quantity <span class="math inline">\epsilon</span>, <span class="math inline">O(\epsilon^2)</span> is the <strong>set</strong> of all functions <span class="math inline">f</span> for which <span class="math inline">|f(\epsilon)|</span> is at most a constant times <span class="math inline">\epsilon^2</span> when <span class="math inline">\epsilon</span> is small. A function in that set is written <span class="math inline">f(\epsilon) \in O(\epsilon^2)</span>. In words: whatever is hidden inside the <span class="math inline">O(\cdot)</span> shrinks at least as fast as <span class="math inline">\epsilon^2</span>. See <a href="https://en.wikipedia.org/wiki/Big_O_notation">big O notation</a>.</p>
+<p>When <span class="math inline">O(\epsilon^2)</span> appears as a term inside a formula, as in <span class="math inline">\mathcal{L}(\theta) + \epsilon\,\mathcal{L}'(\theta) + O(\epsilon^2)</span> below, it is shorthand for “plus some function that belongs to <span class="math inline">O(\epsilon^2)</span>”. Many texts also write <span class="math inline">f(\epsilon) = O(\epsilon^2)</span> for membership; the <span class="math inline">=</span> there means “belongs to”, not equality.</p>
+</div>
+<div class="clarification callout callout-style-default callout-tip callout-titled" title="Question: What does the notation with vertical bars mean, and what does this definition look like on an example?">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-3-contents" aria-controls="callout-3" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Question: What does the notation with vertical bars mean, and what does this definition look like on an example?
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-3" class="callout-3-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p><strong>The vertical bars.</strong> <span class="math inline">|f(\epsilon)|</span> is the <a href="https://en.wikipedia.org/wiki/Absolute_value">absolute value</a> of <span class="math inline">f(\epsilon)</span>: its size with the sign dropped. For example <span class="math inline">|0.03| = 0.03</span> and <span class="math inline">|-0.03| = 0.03</span>. The definition is about how <em>big</em> the leftover is, and a leftover can be negative (it can push the loss down as well as up), so we compare its size, not its signed value.</p>
+<p><strong>An example from the Taylor box above.</strong> (Our example.) With <span class="math inline">\mathcal{L}(\theta) = \theta^3</span> at <span class="math inline">\theta = 1</span> and a step <span class="math inline">\epsilon</span>, the loss after the step is <span class="math inline">(1 + \epsilon)^3 = 1 + 3\epsilon + 3\epsilon^2 + \epsilon^3</span>. Keep the first two terms, <span class="math inline">1 + 3\epsilon</span> (the tangent line), and call everything else the leftover:</p>
+<p><span class="math display">f(\epsilon) = 3\epsilon^2 + \epsilon^3</span></p>
+<p>The claim is <span class="math inline">f(\epsilon) \in O(\epsilon^2)</span>. To check it against the definition we need one constant <span class="math inline">C</span> such that <span class="math inline">|f(\epsilon)| \le C\epsilon^2</span> for all small <span class="math inline">\epsilon</span>. Take “small” to mean <span class="math inline">|\epsilon| \le 1</span>. Then <span class="math inline">|\epsilon^3| = |\epsilon| \cdot \epsilon^2 \le \epsilon^2</span>, so</p>
+<p><span class="math display">|f(\epsilon)| \le 3\epsilon^2 + |\epsilon^3| \le 3\epsilon^2 + \epsilon^2 = 4\epsilon^2</span></p>
+<p>(The first <span class="math inline">\le</span> holds because the size of a sum is at most the sum of the sizes.) So <span class="math inline">C = 4</span> works. Any larger constant would also work; the definition only asks that <em>some</em> constant exists.</p>
+<p>On actual numbers:</p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 20%">
+<col style="width: 20%">
+<col style="width: 20%">
+<col style="width: 20%">
+<col style="width: 20%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Step <span class="math inline">\epsilon</span></th>
+<th>Leftover <span class="math inline">f(\epsilon) = 3\epsilon^2 + \epsilon^3</span></th>
+<th><span class="math inline">\lvert f(\epsilon)\rvert</span></th>
+<th>Bound <span class="math inline">4\epsilon^2</span></th>
+<th><span class="math inline">\lvert f(\epsilon)\rvert / \epsilon^2</span></th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><span class="math inline">0.1</span></td>
+<td><span class="math inline">0.031</span></td>
+<td><span class="math inline">0.031</span></td>
+<td><span class="math inline">0.04</span></td>
+<td><span class="math inline">3.1</span></td>
+</tr>
+<tr class="even">
+<td><span class="math inline">0.05</span></td>
+<td><span class="math inline">0.007625</span></td>
+<td><span class="math inline">0.007625</span></td>
+<td><span class="math inline">0.01</span></td>
+<td><span class="math inline">3.05</span></td>
+</tr>
+<tr class="odd">
+<td><span class="math inline">0.01</span></td>
+<td><span class="math inline">0.000301</span></td>
+<td><span class="math inline">0.000301</span></td>
+<td><span class="math inline">0.0004</span></td>
+<td><span class="math inline">3.01</span></td>
+</tr>
+<tr class="even">
+<td><span class="math inline">-0.1</span></td>
+<td><span class="math inline">0.029</span></td>
+<td><span class="math inline">0.029</span></td>
+<td><span class="math inline">0.04</span></td>
+<td><span class="math inline">2.9</span></td>
+</tr>
+</tbody>
+</table>
+<p>Two things to read off. Every <span class="math inline">|f(\epsilon)|</span> is below <span class="math inline">4\epsilon^2</span>. And halving the step from <span class="math inline">0.1</span> to <span class="math inline">0.05</span> divides the leftover by about <span class="math inline">4</span>, and shrinking it tenfold from <span class="math inline">0.1</span> to <span class="math inline">0.01</span> divides it by about <span class="math inline">100</span>. That is what “shrinks at least as fast as <span class="math inline">\epsilon^2</span>” means: the last column stays bounded (here it settles near <span class="math inline">3</span>) instead of blowing up as <span class="math inline">\epsilon</span> gets small.</p>
+<p><strong>Why the bars are needed.</strong> Without them, any <em>negative</em> leftover would pass the test, however large. Take <span class="math inline">h(\epsilon) = -\epsilon</span> with <span class="math inline">\epsilon &gt; 0</span>. The signed statement <span class="math inline">h(\epsilon) \le C\epsilon^2</span> is true for every <span class="math inline">C \ge 0</span>, because the left side is negative. But at <span class="math inline">\epsilon = 0.01</span> the leftover has size <span class="math inline">|h(0.01)| = 0.01</span>, while <span class="math inline">\epsilon^2 = 0.0001</span> is a hundred times smaller. This leftover shrinks only like <span class="math inline">\epsilon</span>, not like <span class="math inline">\epsilon^2</span>. With the bars the test correctly fails: <span class="math inline">0.01 \le C \cdot 0.0001</span> would need <span class="math inline">C \ge 100</span>, and at <span class="math inline">\epsilon = 0.001</span> it would need <span class="math inline">C \ge 1000</span>, so no single constant works.</p>
+<p><strong>Where this is used.</strong> In the scalar case below, the gradient descent argument keeps the first two Taylor terms and writes the rest as <span class="math inline">O(\epsilon^2)</span>. The bound says that for a small enough step the rest is tiny compared with the term <span class="math inline">-\eta\,(d\mathcal{L}/d\theta)^2</span> that lowers the loss.</p>
+</div>
+</div>
 </div>
 </section>
 <section id="the-scalar-case" class="level3">
@@ -348,9 +630,46 @@ Note
 </div>
 <div class="callout-body-container callout-body">
 <p><strong>Worked example.</strong> Take the loss <span class="math inline">\mathcal{L}(\theta) = \theta^2</span> (our own choice, a simple bowl) and start at <span class="math inline">\theta = 1</span>. Then <span class="math inline">\mathcal{L}(1) = 1</span> and <span class="math inline">d\mathcal{L}/d\theta = 2\theta = 2</span>.</p>
-<p>For this loss the Taylor series stops after three terms, because the third derivative is <span class="math inline">0</span>, so the big-O term can be written out exactly. With <span class="math inline">\epsilon = -\eta \cdot 2</span>:</p>
+<p>For this loss the Taylor series stops after three terms, because the third derivative is <span class="math inline">0</span>, so the big-O term can be written out exactly.</p>
+<p>To match this to <span class="math inline">\mathcal{L}(\theta + \epsilon)</span>: the current point is <span class="math inline">\theta = 1</span>, its derivative there is <span class="math inline">d\mathcal{L}/d\theta = 2</span>, and the gradient descent offset is <span class="math inline">\epsilon = -\eta\,\frac{d\mathcal{L}}{d\theta} = -2\eta</span>. So the new point is <span class="math inline">\theta + \epsilon = 1 - 2\eta</span>, and</p>
 <p><span class="math display">\mathcal{L}(1 - 2\eta) = (1 - 2\eta)^2 = 1 - 4\eta + 4\eta^2</span></p>
-<p>The three terms are <span class="math inline">\mathcal{L}(\theta) = 1</span>, the gain <span class="math inline">\eta\,(d\mathcal{L}/d\theta)^2 = 4\eta</span>, and the leftover term <span class="math inline">4\eta^2</span> that the big-O was hiding.</p>
+<p>Each term on the right is one term of the Taylor series, with <span class="math inline">\mathcal{L}''(\theta) = 2</span>:</p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 25%">
+<col style="width: 25%">
+<col style="width: 25%">
+<col style="width: 25%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Term</th>
+<th>Taylor term it comes from</th>
+<th>Plugging in <span class="math inline">\theta = 1</span>, <span class="math inline">\epsilon = -2\eta</span></th>
+<th>Role</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><span class="math inline">1</span></td>
+<td><span class="math inline">\mathcal{L}(\theta)</span></td>
+<td><span class="math inline">1^2 = 1</span></td>
+<td>the current loss</td>
+</tr>
+<tr class="even">
+<td><span class="math inline">-4\eta</span></td>
+<td><span class="math inline">\epsilon\,\mathcal{L}'(\theta) = -\eta\left(\frac{d\mathcal{L}}{d\theta}\right)^2</span></td>
+<td><span class="math inline">(-2\eta)(2) = -4\eta</span></td>
+<td>the gain from the step</td>
+</tr>
+<tr class="odd">
+<td><span class="math inline">4\eta^2</span></td>
+<td><span class="math inline">\frac{\epsilon^2}{2}\,\mathcal{L}''(\theta)</span></td>
+<td><span class="math inline">\frac{4\eta^2}{2}\cdot 2 = 4\eta^2</span></td>
+<td>the leftover the big-O was hiding</td>
+</tr>
+</tbody>
+</table>
 <table class="caption-top table">
 <colgroup>
 <col style="width: 20%">
@@ -469,6 +788,50 @@ Note
 </section>
 <section id="sec-sgd" class="level2">
 <h2 class="anchored" data-anchor-id="sec-sgd">Stochastic Gradient Descent</h2>
+<div class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+Note
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p><strong>The difference in one sentence.</strong> Gradient descent, in its original <em>full-batch</em> form, updates the parameters using the <strong>entire training set at once</strong>: every step averages the gradients of all <span class="math inline">n</span> examples. Stochastic gradient descent (SGD) updates the parameters using <strong>a single randomly chosen training example at a time</strong>: every step uses the gradient of just that one example.</p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 25%">
+<col style="width: 25%">
+<col style="width: 25%">
+<col style="width: 25%">
+</colgroup>
+<thead>
+<tr class="header">
+<th></th>
+<th>Examples used per update</th>
+<th>Cost per update</th>
+<th>Direction of each step</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>Full-batch gradient descent</td>
+<td>all <span class="math inline">n</span></td>
+<td>high (grows with <span class="math inline">n</span>)</td>
+<td>the exact gradient of the training loss</td>
+</tr>
+<tr class="even">
+<td>Stochastic gradient descent</td>
+<td><span class="math inline">1</span>, chosen at random</td>
+<td>low (one example)</td>
+<td>a noisy estimate that is right on average</td>
+</tr>
+</tbody>
+</table>
+<p>The rest of this section makes both precise. The <a href="#sec-minibatch">mini-batch</a> version in between, which uses <span class="math inline">B</span> random examples per update, comes after.</p>
+</div>
+</div>
 <p>So far <span class="math inline">\mathcal{L}</span> has been “the loss”. In machine learning it is really built from many smaller functions, one per training example. For example <span class="math inline">i</span>, with input <span class="math inline">\bm{x}^{(i)}</span> and target <span class="math inline">y^{(i)}</span>, write the loss on that example as</p>
 <p><span class="math display">\mathcal{L}\!\left(y^{(i)}, \bm{x}^{(i)}, \bm{\theta}\right) = \mathcal{L}_i(\bm{\theta})</span></p>
 <p>The loss function is the same for every example, but plugging in a different <span class="math inline">(\bm{x}^{(i)}, y^{(i)})</span> gives a different function of <span class="math inline">\bm{\theta}</span>. What we actually want to minimize is the average over a training set of size <span class="math inline">n</span>:</p>
@@ -751,6 +1114,203 @@ Note
 <p><em>Alternating gradient.</em> Suppose <span class="math inline">g_t</span> alternates <span class="math inline">+1, -1, +1, \ldots</span>. Then <span class="math inline">v_1 = 1</span>, <span class="math inline">v_2 = 0.9 - 1 = -0.1</span>, <span class="math inline">v_3 = -0.09 + 1 = 0.91</span>, <span class="math inline">v_4 = 0.819 - 1 = -0.181</span>. The accumulated value and the new gradient keep cancelling, and <span class="math inline">|v_t|</span> settles near <span class="math inline">1/(1 + 0.9) \approx 0.53</span>, about half a plain step.</p>
 </div>
 </div>
+<div class="clarification callout callout-style-default callout-tip callout-titled" title="Question: How does the update rule turn into a geometric series?">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-10-contents" aria-controls="callout-10" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Question: How does the update rule turn into a geometric series?
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-10" class="callout-10-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p><strong>Unroll the rule one step at a time.</strong> Start from <span class="math inline">v_0 = 0</span> and apply <span class="math inline">v_t \leftarrow \beta\,v_{t-1} + g_t</span>, substituting each line into the next. Keep the gradients general for now:</p>
+<p><span class="math display">\begin{aligned}
+v_1 &amp;= \beta \cdot 0 + g_1 = g_1 \\
+v_2 &amp;= \beta\,v_1 + g_2 = \beta\,g_1 + g_2 \\
+v_3 &amp;= \beta\,v_2 + g_3 = \beta^2 g_1 + \beta\,g_2 + g_3
+\end{aligned}</span></p>
+<p>Each update multiplies everything already in the accumulator by <span class="math inline">\beta</span> and adds the new gradient with weight <span class="math inline">1</span>. So a gradient that arrived <span class="math inline">k</span> steps ago has been multiplied by <span class="math inline">\beta</span> exactly <span class="math inline">k</span> times. In general:</p>
+<p><span class="math display">v_t = \beta^{t-1} g_1 + \beta^{t-2} g_2 + \cdots + \beta\,g_{t-1} + g_t = \sum_{k=1}^{t} \beta^{\,t-k}\, g_k</span></p>
+<p>Starting from <span class="math inline">v_0 = 0</span> is what makes this clean: the <span class="math inline">\beta \cdot 0</span> in the first line contributes nothing, so <span class="math inline">v_t</span> is made of gradients only. (A nonzero start would add an extra term <span class="math inline">\beta^t v_0</span>.)</p>
+<p><strong>Now set every gradient to <span class="math inline">1</span>.</strong> Each <span class="math inline">g_k</span> becomes <span class="math inline">1</span>, and only the powers of <span class="math inline">\beta</span> are left:</p>
+<p><span class="math display">v_t = \beta^{t-1} + \beta^{t-2} + \cdots + \beta + 1 = 1 + \beta + \beta^2 + \cdots + \beta^{t-1}</span></p>
+<p>This is a geometric series: each term is the one before it times the same ratio <span class="math inline">\beta</span>, and there are <span class="math inline">t</span> terms.</p>
+<p><strong>Add it up.</strong> Call the sum <span class="math inline">S</span>. Multiply it by <span class="math inline">\beta</span> and line the two up:</p>
+<p><span class="math display">\begin{aligned}
+S &amp;= 1 + \beta + \beta^2 + \cdots + \beta^{t-1} \\
+\beta S &amp;= \phantom{1 + {}} \beta + \beta^2 + \cdots + \beta^{t-1} + \beta^t
+\end{aligned}</span></p>
+<p>Subtracting, every term except the first of <span class="math inline">S</span> and the last of <span class="math inline">\beta S</span> cancels:</p>
+<p><span class="math display">S - \beta S = 1 - \beta^t \quad\Longrightarrow\quad S = \frac{1 - \beta^t}{1 - \beta}</span></p>
+<p><strong>Check against the numbers above.</strong> With <span class="math inline">\beta = 0.9</span> and <span class="math inline">t = 3</span>: <span class="math inline">(1 - 0.729)/0.1 = 2.71</span>, matching <span class="math inline">v_3</span>.</p>
+<p><strong>Why it climbs toward <span class="math inline">10</span>.</strong> Since <span class="math inline">0 &lt; \beta &lt; 1</span>, <span class="math inline">\beta^t</span> shrinks toward <span class="math inline">0</span> as <span class="math inline">t</span> grows (<span class="math inline">0.9^{10} \approx 0.35</span>, <span class="math inline">0.9^{50} \approx 0.005</span>). The numerator approaches <span class="math inline">1</span>, so <span class="math inline">v_t</span> approaches <span class="math inline">1/(1 - \beta) = 10</span> but never quite reaches it. Each new step adds <span class="math inline">\beta^{t-1}</span>, a smaller amount every time, which is why the growth slows down.</p>
+<p><strong>The alternating case uses the same sum.</strong> With <span class="math inline">g_k = +1, -1, +1, \ldots</span>, the general formula gives terms that alternate in sign, a geometric series with ratio <span class="math inline">-\beta</span> instead of <span class="math inline">\beta</span>. The same subtraction gives <span class="math inline">\big(1 - (-\beta)^t\big)/(1 + \beta)</span> in size, which settles near <span class="math inline">1/(1 + 0.9) \approx 0.53</span>.</p>
+</div>
+</div>
+</div>
+<div class="clarification callout callout-style-default callout-tip callout-titled" title="Question: What does training look like before and after adding momentum, and what makes it adaptive?">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-11-contents" aria-controls="callout-11" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Question: What does training look like before and after adding momentum, and what makes it adaptive?
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-11" class="callout-11-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p><strong>The setup.</strong> (Our numbers.) Use the long, narrow valley from Figure 4, with two parameters:</p>
+<p><span class="math display">\mathcal{L}(\bm{\theta}) = \tfrac{1}{2}\left(\theta_1^2 + 20\,\theta_2^2\right), \qquad \nabla_{\bm{\theta}}\mathcal{L} = (\theta_1,\; 20\,\theta_2)</span></p>
+<p><span class="math inline">\theta_1</span> runs along the valley floor (low curvature, small gradients) and <span class="math inline">\theta_2</span> runs across the steep walls (high curvature, gradients <span class="math inline">20</span> times larger for the same distance). The minimum is <span class="math inline">(0, 0)</span>, where the loss is <span class="math inline">0</span>. Both runs start at <span class="math inline">\bm{\theta} = (-4,\ 0.5)</span>, with loss <span class="math inline">10.5</span>, and use the same learning rate <span class="math inline">\eta = 0.04</span>.</p>
+<p><strong>Before: plain gradient descent.</strong> Every parameter’s step is <span class="math inline">-\eta</span> times its own current gradient, with the same <span class="math inline">\eta = 0.04</span> for both. Step 1: the gradient is <span class="math inline">(-4,\ 10)</span>, so the step is <span class="math inline">-0.04 \cdot (-4,\ 10) = (0.16,\ -0.4)</span>, giving <span class="math inline">\bm{\theta} = (-3.84,\ 0.1)</span>.</p>
+<p>Each step multiplies <span class="math inline">\theta_2</span> by <span class="math inline">1 - 0.04 \cdot 20 = 0.2</span>, so the steep parameter settles almost immediately. But each step multiplies <span class="math inline">\theta_1</span> by <span class="math inline">1 - 0.04 \cdot 1 = 0.96</span>, so the gradual parameter only crawls. The learning rate cannot be raised much to help <span class="math inline">\theta_1</span>: above <span class="math inline">\eta = 0.1</span>, the factor for <span class="math inline">\theta_2</span>, <span class="math inline">1 - 20\eta</span>, would drop below <span class="math inline">-1</span>, and <span class="math inline">\theta_2</span> would diverge. This is the mismatch of <a href="#sec-one-eta">Descending in a valley</a> on actual numbers.</p>
+<p><strong>After: momentum with <span class="math inline">\beta = 0.9</span>.</strong> Now each parameter keeps a running sum <span class="math inline">v_j</span> of its own past gradients, and the step is <span class="math inline">-\eta\,v_j</span>. Step 1 is identical to plain gradient descent, because <span class="math inline">\bm{v}_0 = \bm{0}</span> gives <span class="math inline">\bm{v}_1 = \bm{g}_1 = (-4,\ 10)</span>. The difference starts at step 2. The gradient at <span class="math inline">(-3.84,\ 0.1)</span> is <span class="math inline">(-3.84,\ 2)</span>, and</p>
+<p><span class="math display">\bm{v}_2 = 0.9\,(-4,\ 10) + (-3.84,\ 2) = (-7.44,\ 11)</span></p>
+<p><span class="math display">\bm{\theta}_2 = (-3.84,\ 0.1) - 0.04\,(-7.44,\ 11) = (-3.542,\ -0.34)</span></p>
+<p>Plain gradient descent would have stepped <span class="math inline">\theta_1</span> by only <span class="math inline">0.154</span>; momentum steps it by <span class="math inline">0.298</span>, because the earlier gradient for <span class="math inline">\theta_1</span> pointed the same way and is still in <span class="math inline">v_1</span>.</p>
+<p><strong>Ten steps of each.</strong></p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 20%">
+<col style="width: 20%">
+<col style="width: 20%">
+<col style="width: 20%">
+<col style="width: 20%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Step</th>
+<th>Plain GD <span class="math inline">\bm{\theta}</span></th>
+<th>Plain GD loss</th>
+<th>Momentum <span class="math inline">\bm{\theta}</span></th>
+<th>Momentum loss</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>0</td>
+<td><span class="math inline">(-4.000,\ 0.500)</span></td>
+<td><span class="math inline">10.500</span></td>
+<td><span class="math inline">(-4.000,\ 0.500)</span></td>
+<td><span class="math inline">10.500</span></td>
+</tr>
+<tr class="even">
+<td>1</td>
+<td><span class="math inline">(-3.840,\ 0.100)</span></td>
+<td><span class="math inline">7.473</span></td>
+<td><span class="math inline">(-3.840,\ 0.100)</span></td>
+<td><span class="math inline">7.473</span></td>
+</tr>
+<tr class="odd">
+<td>2</td>
+<td><span class="math inline">(-3.686,\ 0.020)</span></td>
+<td><span class="math inline">6.799</span></td>
+<td><span class="math inline">(-3.542,\ -0.340)</span></td>
+<td><span class="math inline">7.430</span></td>
+</tr>
+<tr class="even">
+<td>3</td>
+<td><span class="math inline">(-3.539,\ 0.004)</span></td>
+<td><span class="math inline">6.262</span></td>
+<td><span class="math inline">(-3.133,\ -0.464)</span></td>
+<td><span class="math inline">7.060</span></td>
+</tr>
+<tr class="odd">
+<td>4</td>
+<td><span class="math inline">(-3.397,\ 0.001)</span></td>
+<td><span class="math inline">5.771</span></td>
+<td><span class="math inline">(-2.639,\ -0.204)</span></td>
+<td><span class="math inline">3.900</span></td>
+</tr>
+<tr class="even">
+<td>5</td>
+<td><span class="math inline">(-3.261,\ 0.000)</span></td>
+<td><span class="math inline">5.319</span></td>
+<td><span class="math inline">(-2.089,\ 0.193)</span></td>
+<td><span class="math inline">2.553</span></td>
+</tr>
+<tr class="odd">
+<td>6</td>
+<td><span class="math inline">(-3.131,\ 0.000)</span></td>
+<td><span class="math inline">4.902</span></td>
+<td><span class="math inline">(-1.510,\ 0.396)</span></td>
+<td><span class="math inline">2.709</span></td>
+</tr>
+<tr class="even">
+<td>7</td>
+<td><span class="math inline">(-3.006,\ 0.000)</span></td>
+<td><span class="math inline">4.517</span></td>
+<td><span class="math inline">(-0.929,\ 0.262)</span></td>
+<td><span class="math inline">1.119</span></td>
+</tr>
+<tr class="odd">
+<td>8</td>
+<td><span class="math inline">(-2.886,\ 0.000)</span></td>
+<td><span class="math inline">4.163</span></td>
+<td><span class="math inline">(-0.369,\ -0.068)</span></td>
+<td><span class="math inline">0.114</span></td>
+</tr>
+<tr class="even">
+<td>9</td>
+<td><span class="math inline">(-2.770,\ 0.000)</span></td>
+<td><span class="math inline">3.837</span></td>
+<td><span class="math inline">(0.150,\ -0.311)</span></td>
+<td><span class="math inline">0.977</span></td>
+</tr>
+<tr class="odd">
+<td>10</td>
+<td><span class="math inline">(-2.659,\ 0.000)</span></td>
+<td><span class="math inline">3.536</span></td>
+<td><span class="math inline">(0.611,\ -0.281)</span></td>
+<td><span class="math inline">0.974</span></td>
+</tr>
+</tbody>
+</table>
+<p>After ten steps, plain gradient descent has moved <span class="math inline">\theta_1</span> only from <span class="math inline">-4</span> to <span class="math inline">-2.659</span>. Momentum has carried it all the way to the minimum and slightly past it.</p>
+<p><strong>Where “adaptive” comes in.</strong> Define a parameter’s <em>effective learning rate</em> at a step as the size of its step divided by the size of its current gradient. For plain gradient descent this is <span class="math inline">\eta = 0.04</span> for every parameter at every step, by construction. With momentum, for <span class="math inline">\theta_1</span>:</p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 14%">
+<col style="width: 14%">
+<col style="width: 14%">
+<col style="width: 14%">
+<col style="width: 14%">
+<col style="width: 14%">
+<col style="width: 14%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Step</th>
+<th>1</th>
+<th>2</th>
+<th>3</th>
+<th>4</th>
+<th>5</th>
+<th>6</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>Effective learning rate for <span class="math inline">\theta_1</span></td>
+<td><span class="math inline">0.040</span></td>
+<td><span class="math inline">0.077</span></td>
+<td><span class="math inline">0.116</span></td>
+<td><span class="math inline">0.158</span></td>
+<td><span class="math inline">0.208</span></td>
+<td><span class="math inline">0.277</span></td>
+</tr>
+</tbody>
+</table>
+<p>Nobody tuned these numbers. They grew on their own because every gradient <span class="math inline">\theta_1</span> has seen so far has pointed the same way (consistent gradients, bigger steps). For <span class="math inline">\theta_2</span> the accumulated value changes sign repeatedly (<span class="math inline">v_2</span> goes <span class="math inline">10,\ 11,\ 3.1,\ -6.5,\ -9.9,\ -5.1,\ 3.3, \ldots</span>) because the steep gradient keeps reversing, so old and new gradients partly cancel and <span class="math inline">\theta_2</span> never builds up a runaway step (inconsistent gradients, smaller steps). Each parameter’s step is set by <strong>its own gradient history</strong>. That is the sense in which momentum is the simplest adaptive gradient method: one global <span class="math inline">\eta</span>, but a different effective learning rate per parameter, adjusted automatically.</p>
+<p><strong>What it costs.</strong> The table also shows momentum’s downside. <span class="math inline">\theta_2</span> bounces between about <span class="math inline">-0.46</span> and <span class="math inline">0.40</span>, where plain gradient descent had settled it by step 4. And the loss under momentum is not always decreasing: it rises from <span class="math inline">0.114</span> to <span class="math inline">0.977</span> at step 9, because the momentum built up in <span class="math inline">\theta_1</span> carries it past the minimum. That is the overshoot in Figure 5. Even so, after ten steps momentum’s loss is <span class="math inline">0.974</span>, against <span class="math inline">3.536</span> for plain gradient descent.</p>
+<p><a href="#sec-adam">Adam</a> goes one step further: it also divides each parameter’s step by the typical size of that parameter’s gradient, which tames the steep direction directly instead of relying on cancellation.</p>
+</div>
+</div>
+</div>
 <figure style="margin:1.5rem 0;" class="figure">
 <svg viewbox="0 0 900 370" width="100%" style="max-width:900px; display:block; margin:auto; font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;" role="img" aria-label="Left: a momentum trajectory on a bowl that speeds up and overshoots. Right: the momentum vector for a constant gradient grows toward 10, while for an alternating gradient it stays small">
   <text x="220" y="34" font-size="24" font-weight="bold" text-anchor="middle" fill="#002A5C">Momentum on a bowl</text>
@@ -880,6 +1440,125 @@ Note
 </tbody>
 </table>
 <p>Early in training, <span class="math inline">\bm{v}_t</span> and <span class="math inline">\bm{s}_t</span> are therefore too close to zero compared with the true average gradient and average squared gradient. They are <strong>biased toward zero</strong>. Here “bias” means a systematic error in an estimate (see <a href="https://en.wikipedia.org/wiki/Bias_of_an_estimator">bias of an estimator</a>), not the bias parameter <span class="math inline">b</span> of a layer.</p>
+<div class="clarification callout callout-style-default callout-tip callout-titled" title="Question: What does it look like for the moving averages to be too close to zero early in training?">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-12-contents" aria-controls="callout-12" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Question: What does it look like for the moving averages to be too close to zero early in training?
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-12" class="callout-12-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p><strong>What the averages are supposed to be.</strong> <span class="math inline">\bm{v}_t</span> is meant to estimate the typical recent gradient, and <span class="math inline">\bm{s}_t</span> the typical recent squared gradient. Take the simplest case, one parameter whose gradient is the same value <span class="math inline">g = 2</span> at every step. Then the “true average gradient” is just <span class="math inline">2</span> and the “true average squared gradient” is <span class="math inline">4</span>. Those are the values we want <span class="math inline">v_t</span> and <span class="math inline">s_t</span> to report.</p>
+<p><strong>What they actually report.</strong> Both start at <span class="math inline">0</span>. Each update moves the average only a fraction <span class="math inline">1 - \beta</span> of the way toward the new value, so with <span class="math inline">\beta</span> close to <span class="math inline">1</span> they fill up slowly. With <span class="math inline">\beta_1 = 0.9</span> and <span class="math inline">\beta_2 = 0.999</span>:</p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 20%">
+<col style="width: 20%">
+<col style="width: 20%">
+<col style="width: 20%">
+<col style="width: 20%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Step <span class="math inline">t</span></th>
+<th><span class="math inline">v_t</span></th>
+<th>should be</th>
+<th><span class="math inline">s_t</span></th>
+<th>should be</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><span class="math inline">1</span></td>
+<td><span class="math inline">0.1 \cdot 2 = 0.2</span></td>
+<td><span class="math inline">2</span></td>
+<td><span class="math inline">0.001 \cdot 4 = 0.004</span></td>
+<td><span class="math inline">4</span></td>
+</tr>
+<tr class="even">
+<td><span class="math inline">2</span></td>
+<td><span class="math inline">0.9 \cdot 0.2 + 0.2 = 0.38</span></td>
+<td><span class="math inline">2</span></td>
+<td><span class="math inline">0.999 \cdot 0.004 + 0.004 \approx 0.008</span></td>
+<td><span class="math inline">4</span></td>
+</tr>
+<tr class="odd">
+<td><span class="math inline">10</span></td>
+<td><span class="math inline">\approx 1.30</span></td>
+<td><span class="math inline">2</span></td>
+<td><span class="math inline">\approx 0.040</span></td>
+<td><span class="math inline">4</span></td>
+</tr>
+</tbody>
+</table>
+<p>Each entry equals the true value times the factor <span class="math inline">1 - \beta^t</span> from the table above: <span class="math inline">v_{10} = 0.65 \cdot 2</span> and <span class="math inline">s_{10} = 0.010 \cdot 4</span>. Neither number is noisy or random; the gradient never changed. The averages are simply too small, and too small in a predictable way. That systematic shortfall is the “bias toward zero”. It shrinks as <span class="math inline">t</span> grows (<span class="math inline">v_t</span> is close to <span class="math inline">2</span> by about step <span class="math inline">50</span>), but <span class="math inline">s_t</span> is still well short of <span class="math inline">4</span> after a thousand steps, because <span class="math inline">\beta_2</span> is so close to <span class="math inline">1</span>.</p>
+</div>
+</div>
+</div>
+<div class="clarification callout callout-style-default callout-tip callout-titled" title="Question: Where does the factor 1 minus beta to the t come from, and why is a bias toward zero a problem for Adam?">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-13-contents" aria-controls="callout-13" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Question: Where does the factor 1 minus beta to the t come from, and why is a bias toward zero a problem for Adam?
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-13" class="callout-13-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p><strong>Nobody multiplies by <span class="math inline">1 - \beta^t</span> on purpose.</strong> It is not a step of the algorithm. It is a description of what the moving average already contains, and it appears because the average starts at <span class="math inline">0</span>. Unroll the update <span class="math inline">v_t = \beta\,v_{t-1} + (1 - \beta)\,g_t</span> from <span class="math inline">v_0</span>, the same way as for momentum:</p>
+<p><span class="math display">\begin{aligned}
+v_t &amp;= (1 - \beta)\,g_t + (1 - \beta)\,\beta\,g_{t-1} + \cdots + (1 - \beta)\,\beta^{t-1} g_1 \\
+&amp;\quad + \beta^t\,v_0
+\end{aligned}</span></p>
+<p>Read this as a weighted average. The real gradients get weights <span class="math inline">(1 - \beta), (1 - \beta)\beta, \ldots</span>, which add up to <span class="math inline">1 - \beta^t</span> (the geometric series computed above). The remaining weight, <span class="math inline">\beta^t</span>, sits on the starting value <span class="math inline">v_0</span>. All the weights together add to <span class="math inline">1</span>.</p>
+<p>So <span class="math inline">v_t</span> is an average of the real gradients <strong>and</strong> one made-up value, the starting value <span class="math inline">0</span>, and that made-up value gets weight <span class="math inline">\beta^t</span>:</p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 33%">
+<col style="width: 33%">
+<col style="width: 33%">
+</colgroup>
+<thead>
+<tr class="header">
+<th></th>
+<th>Weight on real gradients, <span class="math inline">1 - \beta^t</span></th>
+<th>Weight on the starting <span class="math inline">0</span>, <span class="math inline">\beta^t</span></th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><span class="math inline">v_1</span>, with <span class="math inline">\beta_1 = 0.9</span></td>
+<td><span class="math inline">0.1</span></td>
+<td><span class="math inline">0.9</span></td>
+</tr>
+<tr class="even">
+<td><span class="math inline">s_1</span>, with <span class="math inline">\beta_2 = 0.999</span></td>
+<td><span class="math inline">0.001</span></td>
+<td><span class="math inline">0.999</span></td>
+</tr>
+<tr class="odd">
+<td><span class="math inline">v_{50}</span>, with <span class="math inline">\beta_1 = 0.9</span></td>
+<td><span class="math inline">0.995</span></td>
+<td><span class="math inline">0.005</span></td>
+</tr>
+</tbody>
+</table>
+<p>Early on, most of the average is the fake <span class="math inline">0</span>, which drags it toward <span class="math inline">0</span>. That is the whole content of “biased toward zero”. So the answer to “is the idea just that <span class="math inline">1 - \beta^t</span> starts too close to <span class="math inline">0</span>?” is: <span class="math inline">1 - \beta^t</span> near <span class="math inline">0</span> <strong>is</strong> the bias, measured. It says how little of the average comes from real gradients so far. In the language of estimator bias: if the gradients have mean <span class="math inline">\mu</span>, then <span class="math inline">\mathbb{E}[v_t] = (1 - \beta^t)\,\mu</span> rather than <span class="math inline">\mu</span>, a systematic error that does not average out.</p>
+<p><strong>What the correction does.</strong> Dividing by <span class="math inline">1 - \beta^t</span> throws away the weight on the fake starting value and rescales the real gradients’ weights so they add to <span class="math inline">1</span>:</p>
+<p><span class="math display">\hat{v}_t = \frac{v_t}{1 - \beta^t} = \frac{(1 - \beta)\,g_t + (1 - \beta)\,\beta\,g_{t-1} + \cdots}{(1 - \beta) + (1 - \beta)\,\beta + \cdots}</span></p>
+<p>That is an honest weighted average of the gradients seen so far, with recent ones weighted more. In the example above, <span class="math inline">\hat{v}_1 = 0.2/0.1 = 2</span> and <span class="math inline">\hat{s}_1 = 0.004/0.001 = 4</span>, exactly the true values.</p>
+<p><strong>Why it matters for Adam.</strong> If both averages were shrunk by the same factor, the factors would cancel in <span class="math inline">\bm{v}_t/\sqrt{\bm{s}_t}</span> and the bias would do no harm. They are not. The step is shrunk by <span class="math inline">1 - \beta_1^t</span> on top and by <span class="math inline">\sqrt{1 - \beta_2^t}</span> underneath, so without correction it is off by the ratio</p>
+<p><span class="math display">\frac{1 - \beta_1^t}{\sqrt{1 - \beta_2^t}}</span></p>
+<p>With the defaults this is <span class="math inline">0.1/\sqrt{0.001} \approx 3.2</span> at <span class="math inline">t = 1</span> and about <span class="math inline">0.65/\sqrt{0.010} \approx 6.5</span> at <span class="math inline">t = 10</span>. The second moment is biased much more strongly, so a too-small denominator makes the uncorrected steps several times larger than <span class="math inline">\eta</span>. That happens at the start of training, when the parameters are freshly initialized and the gradients may be large, which is exactly when an oversized step is most likely to throw training off. With the correction, the step has size about <span class="math inline">\eta</span> from the first iteration on, which is what the default <span class="math inline">\eta</span> is chosen for.</p>
+</div>
+</div>
+</div>
 <p>The correction is to divide the scaling back out:</p>
 <p><span class="math display">\hat{\bm{v}}_t = \frac{\bm{v}_t}{1 - \beta_1^t}, \qquad \hat{\bm{s}}_t = \frac{\bm{s}_t}{1 - \beta_2^t}</span></p>
 <div class="callout callout-style-default callout-note callout-titled">
@@ -1439,8 +2118,8 @@ Note
       </a>          
   </div>
   <div class="nav-page nav-page-next">
-      <a href="../glossary.html" class="pagination-link" aria-label="Glossary">
-        <span class="nav-page-text"><span class="chapter-title">Glossary</span></span> <i class="bi bi-arrow-right-short"></i>
+      <a href="../lectures/week04-practice.html" class="pagination-link" aria-label="Week 4 practice: Gradient Descent, SGD, Momentum, and Adam">
+        <span class="nav-page-text"><span class="chapter-title">Week 4 practice: Gradient Descent, SGD, Momentum, and Adam</span></span> <i class="bi bi-arrow-right-short"></i>
       </a>
   </div>
 </nav>

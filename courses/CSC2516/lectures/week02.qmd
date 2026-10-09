@@ -307,7 +307,7 @@ its variants (Leaky ReLU, GELU, SiLU, etc.).
 
 ## Backpropagation {#sec-backprop}
 
-Let $\mathcal{L}$ denote the **loss function**, a scalar that measures the discrepancy between the model's predictions and the true targets. Training proceeds by minimizing $\mathcal{L}$ using gradient descent, which requires computing the gradient of the loss with respect to every parameter in the model, i.e., $\dfrac{\partial \mathcal{L}}{\partial W^m}$ for each weight matrix $W^m$.
+Let $\mathcal{L}$ denote the **loss function**, a scalar that measures the discrepancy between the model's predictions and the true targets. Training proceeds by minimizing $\mathcal{L}$ using gradient descent, which requires computing the gradient of the loss with respect to every parameter in the model, i.e., $\dfrac{\partial \mathcal{L}}{\partial W^m}$ for each weight matrix $W^m$ and $\dfrac{\partial \mathcal{L}}{\partial b^m}$ for each bias vector $b^m$.
 
 **Backpropagation** provides an algorithm for evaluating all such gradients by systematically applying the chain rule of calculus from the output layer back to the input layer. It can achieve more efficiency by reusing intermediate quantities computed during the forward pass, avoiding redundant calculations and enabling gradient computation in time proportional to a single forward evaluation.
 
@@ -415,7 +415,45 @@ $$\begin{pmatrix} 0.25 \\ 0 \end{pmatrix}\begin{pmatrix} 1 & 2 \end{pmatrix} = \
 and the mini-batch gradient adds the second example's contribution in the same way.
 :::
 
-The bias gradient follows the same derivation and is simpler: differentiating $a^m_i$ with respect to $b^m_i$ gives $1$ rather than $h^{m-1}_j$, so $\frac{\partial \mathcal{L}}{\partial b^m} = \frac{\partial \mathcal{L}}{\partial a^m}$.
+### Deriving the Bias Gradient {#sec-bias-gradient}
+
+The bias $b^m$ is also a parameter, and gradient descent updates it alongside $W^m$. So we also need $\frac{\partial \mathcal{L}}{\partial b^m_i}$ for every unit $i \in \{1,\ldots,N^m\}$ of layer $m$. The derivation uses the same four steps as the weight gradient. Only Step 2 gives a different answer.
+
+**Step 1: Apply the chain rule, pivoting through $a^m$.** The bias enters the network only through the pre-activations of its own layer, so by Case 2 of the chain rule we sum over every pre-activation $a^m_k$ the bias might affect:
+
+$$\frac{\partial \mathcal{L}}{\partial b^m_i} = \sum_{k=1}^{N^m} \frac{\partial \mathcal{L}}{\partial a^m_k} \frac{\partial a^m_k}{\partial b^m_i}$$
+
+**Step 2: Evaluate $\partial a^m_k / \partial b^m_i$.**
+
+Write out the pre-activation again:
+
+$$a^m_k = \sum_{\ell=1}^{N^{m-1}} W^m_{k\ell}\,h^{m-1}_\ell + b^m_k$$
+
+Each unit $k$ has its own bias entry $b^m_k$, added once with coefficient $1$. The bias $b^m_i$ therefore appears *only* in $a^m_i$, and there it is not multiplied by anything:
+
+$$\frac{\partial a^m_k}{\partial b^m_i} = \begin{cases} 1 & k = i \\ 0 & k \neq i \end{cases}$$
+
+Compare this with the weight. In $a^m_i$ the weight $W^m_{ij}$ is multiplied by $h^{m-1}_j$, so its derivative is $h^{m-1}_j$. The bias $b^m_i$ is multiplied by $1$, so its derivative is $1$. In words: nudging $b^m_i$ by $\varepsilon$ moves $a^m_i$ by exactly $\varepsilon$, whatever the input is, and leaves every other pre-activation unchanged.
+
+**Step 3: Collapse the sum.** All terms except $k = i$ are zero, and the surviving factor is $1$:
+
+$$\frac{\partial \mathcal{L}}{\partial b^m_i} = \frac{\partial \mathcal{L}}{\partial a^m_i} \cdot 1 = \frac{\partial \mathcal{L}}{\partial a^m_i}$$
+
+**Step 4: Vector form.** Stacking this over $i = 1, \ldots, N^m$ gives a vector of length $N^m$, matching the shape of $b^m$:
+
+::: {.boxed-eq}
+$$\frac{\partial \mathcal{L}}{\partial b^m} = \frac{\partial \mathcal{L}}{\partial a^m}$$
+:::
+
+The bias gradient is the error signal at layer $m$ itself, with no activation multiplied in. Once backpropagation has computed $\frac{\partial \mathcal{L}}{\partial a^m}$ for the weight gradient, the bias gradient costs nothing extra.
+
+**A consistency check.** We can treat the bias as one more weight whose input is always $1$. Append a constant $1$ to $h^{m-1}$ and append $b^m$ as an extra last column of $W^m$:
+
+$$a^m = \begin{pmatrix} W^m & b^m \end{pmatrix} \begin{pmatrix} h^{m-1} \\ 1 \end{pmatrix}$$
+
+The weight-gradient formula $\frac{\partial \mathcal{L}}{\partial a^m}\,(h^{m-1})^\top$ then has an extra last column equal to $\frac{\partial \mathcal{L}}{\partial a^m} \cdot 1$, which is exactly the bias gradient above.
+
+**Example.** In the worked example below, the first example has $\frac{\partial \mathcal{L}}{\partial a^1} = (0.25, 0)^\top$. Its contribution to $\frac{\partial \mathcal{L}}{\partial W^1}$ was the outer product with $\mathbf{x}^\top = (1, 2)$. Its contribution to $\frac{\partial \mathcal{L}}{\partial b^1}$ is the vector itself, $(0.25, 0)^\top$. With a mini-batch, every example contributes its own column of $\frac{\partial \mathcal{L}}{\partial A^m}$, and the bias gradient adds these columns together, since all examples share one bias vector.
 
 ### The Backward Recursion
 
@@ -519,18 +557,19 @@ $$\begin{aligned}
 &\quad \odot \underbrace{\frac{dh^m}{da^m}}_{\text{known}}
 \end{aligned}$$
 
-**Step 3: Weight gradients** for all $m$:
+**Step 3: Weight and bias gradients** for all $m$:
 $$\begin{aligned}
 \frac{\partial \mathcal{L}}{\partial W^m} &= \underbrace{\frac{\partial \mathcal{L}}{\partial a^m}}_{\text{step 2}} \\
 &\quad \cdot \underbrace{(h^{m-1})^\top}_{\text{forward pass}}
 \end{aligned}$$
+$$\frac{\partial \mathcal{L}}{\partial b^m} = \underbrace{\frac{\partial \mathcal{L}}{\partial a^m}}_{\text{step 2}}$$
 
 **Gradient descent update:**
-$$W^m \leftarrow W^m - \eta\,\frac{\partial \mathcal{L}}{\partial W^m}$$
+$$W^m \leftarrow W^m - \eta\,\frac{\partial \mathcal{L}}{\partial W^m}, \qquad b^m \leftarrow b^m - \eta\,\frac{\partial \mathcal{L}}{\partial b^m}$$
 :::
 
 **Why is this efficient?** A single forward pass (caching all $a^m$) plus a
-single backward pass gives **all** weight gradients simultaneously. Without
+single backward pass gives **all** weight and bias gradients simultaneously. Without
 caching, computing the gradient for layer 1 would require recomputing the same
 intermediate quantities over and over, far more expensive work that caching
 avoids at the cost of a little memory.
@@ -1267,7 +1306,8 @@ foreshadow most of what we'll learn this semester.
   this and dominates modern practice.
 - **Backpropagation** is a three-step algorithm: (1) base case at the output
   layer, (2) backward recursion using the weight transpose, (3) outer product
-  to get weight gradients. The forward pass caches activations to avoid
+  to get weight gradients, with the bias gradient equal to
+  $\frac{\partial \mathcal{L}}{\partial a^m}$ itself. The forward pass caches activations to avoid
   recomputation.
 - The **Universal Approximation Theorem** guarantees a wide enough
   single-hidden-layer MLP can approximate any continuous function on a

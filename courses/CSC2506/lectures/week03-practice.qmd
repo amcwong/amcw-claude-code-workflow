@@ -1,0 +1,465 @@
+---
+title: "Week 3 practice: Markov random fields and exact inference"
+---
+
+```{=html}
+<style>#title-block-header { display: none; }</style>
+<div class="lecture-header">
+  <h1>Week 3 practice: Markov random fields and exact inference</h1>
+</div>
+```
+
+**Overview.** These problems drill [Week 3](week03.qmd). Try each stem before opening the worked solution. The graphs, potentials, and probability tables here are invented for practice; they are not the seven-node clique example, the student network, the six-node evidence example, or the diamond graph from the lecture. Notation matches the week chapter. The exception is the final section, @sec-tut3, which restates the Week 3 tutorial's own examples.
+
+## Problem 1: Cliques in a house-shaped graph {#prb-1}
+
+A [Markov random field](https://en.wikipedia.org/wiki/Markov_random_field) has five variables arranged like the outline of a house: a square $1\text{-}2\text{-}3\text{-}4\text{-}1$ (the walls) with a roof node 5 joined to both 1 and 2. The edges are $1\text{-}2$, $2\text{-}3$, $3\text{-}4$, $4\text{-}1$, $1\text{-}5$, $2\text{-}5$.
+
+```{=html}
+<div style="overflow-x:auto; margin:1.5rem 0;">
+<svg viewBox="0 0 320 320" width="100%" style="max-width:320px;display:block;margin:auto;font-family:Helvetica,'Helvetica Neue',Arial,sans-serif;" role="img" aria-label="A house-shaped graph: square 1-2-3-4 with a roof node 5 connected to nodes 1 and 2">
+  <text x="160" y="28" text-anchor="middle" font-size="24" font-weight="600" fill="#333">A house-shaped MRF</text>
+  <line x1="100" y1="150" x2="220" y2="150" stroke="#555" stroke-width="1.5"/>
+  <line x1="220" y1="150" x2="220" y2="270" stroke="#555" stroke-width="1.5"/>
+  <line x1="220" y1="270" x2="100" y2="270" stroke="#555" stroke-width="1.5"/>
+  <line x1="100" y1="270" x2="100" y2="150" stroke="#555" stroke-width="1.5"/>
+  <line x1="100" y1="150" x2="160" y2="75" stroke="#555" stroke-width="1.5"/>
+  <line x1="220" y1="150" x2="160" y2="75" stroke="#555" stroke-width="1.5"/>
+  <circle cx="160" cy="75" r="22" fill="#F7D9C4" stroke="#C78557" stroke-width="1.5"/>
+  <text x="160" y="81" text-anchor="middle" font-size="16" fill="#794520">5</text>
+  <circle cx="100" cy="150" r="22" fill="#C6DEF1" stroke="#5795C7" stroke-width="1.5"/>
+  <text x="100" y="156" text-anchor="middle" font-size="16" fill="#205279">1</text>
+  <circle cx="220" cy="150" r="22" fill="#C9E4DE" stroke="#57C7AE" stroke-width="1.5"/>
+  <text x="220" y="156" text-anchor="middle" font-size="16" fill="#207965">2</text>
+  <circle cx="220" cy="270" r="22" fill="#F2C6DE" stroke="#C75794" stroke-width="1.5"/>
+  <text x="220" y="276" text-anchor="middle" font-size="16" fill="#792051">3</text>
+  <circle cx="100" cy="270" r="22" fill="#FAEDCB" stroke="#C7A857" stroke-width="1.5"/>
+  <text x="100" y="276" text-anchor="middle" font-size="16" fill="#796020">4</text>
+</svg>
+</div>
+```
+
+**Figure 1.** The house graph used in Problems 1 and 2.
+
+List every maximal clique of this graph, then write the general form of a distribution that factorizes with respect to it.
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+This uses [Week 3, Markov random fields, cliques, and the factorization theorem](week03.qmd#sec-mrf) and the clique-hunting method of [the worked example](week03.qmd#sec-mrf-example).
+
+A [clique](https://en.wikipedia.org/wiki/Clique_(graph_theory)) needs every pair inside it connected. Start with the largest candidates. The roof gives a triangle: $1\text{-}2$, $1\text{-}5$, $2\text{-}5$ are all edges, so $\{1,2,5\}$ is a clique. Can it grow? Adding 3 fails ($1\text{-}3$ is not an edge), and adding 4 fails ($2\text{-}4$ is not an edge), so it is maximal.
+
+The square has no diagonals, so no three of $1,2,3,4$ are pairwise connected. The remaining edges $2\text{-}3$, $3\text{-}4$, $4\text{-}1$ are each cliques of size two. None extends: for example $\{2,3\}$ would need a third node adjacent to both 2 and 3, and no such node exists. The edge $1\text{-}2$ is not maximal on its own, because it sits inside $\{1,2,5\}$.
+
+**Answer.** Four maximal cliques: $\{1,2,5\}$, $\{2,3\}$, $\{3,4\}$, $\{1,4\}$. Any distribution that factorizes with respect to the house graph has the form
+$$p(\boldsymbol{x}) = \frac{1}{Z}\,\psi_{1,2,5}(x_1,x_2,x_5)\,\psi_{2,3}(x_2,x_3)\,\psi_{3,4}(x_3,x_4)\,\psi_{1,4}(x_1,x_4)$$
+for nonnegative potentials, with $Z$ the partition function.
+:::
+
+## Problem 2: Reading independence off the house graph {#prb-2}
+
+Using the house graph of Problem 1, answer each question by graph separation.
+
+1. Is $X_5\perp X_3\mid X_2$?
+2. Is $X_5\perp X_3\mid\{X_1,X_2\}$?
+3. Is $X_1\perp X_3\mid\{X_2,X_4\}$?
+4. What is the Markov blanket of $X_5$?
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+This uses the global Markov property from [Week 3, The Hammersley-Clifford theorem](week03.qmd#sec-hc): $X_A\perp X_B\mid X_S$ whenever every path from $A$ to $B$ passes through $S$.
+
+1. Paths from 5 to 3: $5\text{-}2\text{-}3$ passes through 2 and is blocked. But $5\text{-}1\text{-}4\text{-}3$ never touches 2, so it stays open. One open path is enough to break separation: **no**, $X_5\not\perp X_3\mid X_2$ in general.
+2. Node 5's only neighbours are 1 and 2, so every path out of 5 starts by entering 1 or 2. Conditioning on both blocks them all: **yes**.
+3. Node 1's neighbours are 2, 4, and 5. Paths through 2 or 4 are blocked directly. A path through 5 must continue $5\text{-}2$, since 2 is the only other neighbour of 5, so it is blocked at 2 as well: **yes**.
+4. In an MRF the Markov blanket of a node is just its graph neighbours, with no co-parent correction (the contrast with DAGs drawn in [§hc](week03.qmd#sec-hc)).
+
+**Answer.** (1) No. (2) Yes. (3) Yes. (4) $\{X_1, X_2\}$, which is exactly why question 2 came out yes.
+:::
+
+## Problem 3: Directed, undirected, both, or neither? {#prb-3}
+
+For each independence pattern below, say whether it can be represented exactly by a DAG, by an MRF, by both, or by neither. Give a one-line reason.
+
+(a) Three variables with $X\perp Y$ marginally, but $X\not\perp Y\mid Z$.
+
+(b) Three variables with $X\perp Z\mid Y$ and no other independencies.
+
+(c) Three variables with no independencies at all, marginal or conditional.
+
+(d) Five variables on a ring $1\text{-}2\text{-}3\text{-}4\text{-}5\text{-}1$, where each variable is conditionally independent of the two non-neighbouring variables given all the others, and no other independencies hold.
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+This uses [Week 3, What MRFs can express that DAGs cannot, and vice versa](week03.qmd#sec-mrf-vs-dag), together with the three canonical structures from [Week 2](week02.qmd#sec-cistructures).
+
+(a) This is explaining away: $X\to Z\leftarrow Y$ produces it. An MRF cannot, because in an undirected graph conditioning on more variables can only block paths, never open them, so a marginal independence can never be destroyed by conditioning.
+
+(b) The chain $X\to Y\to Z$ (or the common cause $X\leftarrow Y\to Z$) gives it as a DAG, and the undirected chain $X - Y - Z$ gives it as an MRF, since $Y$ separates $X$ from $Z$.
+
+(c) A fully connected graph encodes no independencies. As an MRF, that is the triangle; as a DAG, any ordering with all three arrows, such as $X\to Y$, $X\to Z$, $Y\to Z$.
+
+(d) The undirected 5-cycle represents it exactly: non-neighbours are separated by the rest of the ring. For a DAG, orient the five edges any way that creates no directed cycle. Some node must then have both of its ring edges pointing into it (follow arrows forward and you must stop somewhere, and that stopping node has two incoming arrows). Say that node is 3, with parents 2 and 4. The pattern requires $X_2\perp X_4$ given all the others, including $X_3$; but conditioning on the collider 3 opens the path $2\to3\leftarrow4$, so the DAG makes them dependent. The same argument works for every orientation. This is the 4-cycle argument of the lecture, extended to a longer ring.
+
+**Answer.** (a) DAG only. (b) Both. (c) Both. (d) MRF only.
+:::
+
+## Problem 4: A two-spin Ising model {#prb-4}
+
+Two spins $x_1,x_2\in\{-1,+1\}$ form an [Ising model](https://en.wikipedia.org/wiki/Ising_model) with a single edge potential $\psi_{12}(x_1,x_2)=e^{Jx_1x_2}$, where $e^{J}=2$. Spin 1 also has an external-field potential $\psi_1(x_1)=e^{b x_1}$ with $e^{b}=2$. Spin 2 has no field.
+
+1. Compute the unnormalized weight of each of the four configurations, and the partition function $Z$.
+2. Compute $P(x_1=x_2)$, $P(x_1=+1)$, and $P(x_2=+1)$.
+3. Without the field on spin 1, what is $P(x_1=x_2)$? Explain why the field did or did not change it.
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+This uses [Week 3, The Ising model](week03.qmd#sec-ising).
+
+The edge potential is $e^{J}=2$ when the spins agree and $e^{-J}=\tfrac12$ when they disagree. The field gives spin 1 a factor $e^{b}=2$ when it is $+1$ and $e^{-b}=\tfrac12$ when it is $-1$. Multiply the two for each configuration:
+
+| $(x_1,x_2)$ | field | edge | weight |
+|---|---|---|---|
+| $(+1,+1)$ | 2 | 2 | 4 |
+| $(+1,-1)$ | 2 | $\tfrac12$ | 1 |
+| $(-1,+1)$ | $\tfrac12$ | $\tfrac12$ | $\tfrac14$ |
+| $(-1,-1)$ | $\tfrac12$ | 2 | 1 |
+
+So $Z = 4 + 1 + \tfrac14 + 1 = 6.25$.
+
+$P(x_1=x_2) = (4+1)/6.25 = 0.8$. $P(x_1=+1) = (4+1)/6.25 = 0.8$. $P(x_2=+1) = (4+\tfrac14)/6.25 = 0.68$. The field acts only on spin 1, yet spin 2 also leans toward $+1$, because the coupling passes the preference along the edge.
+
+For part 3, drop the field: weights become $2, \tfrac12, \tfrac12, 2$, so $Z=5$ and $P(x_1=x_2)=4/5=0.8$, unchanged. The reason: for either fixed value of $x_1$, the field multiplies the agreeing and disagreeing configurations by the same factor, so the conditional chance of agreement given $x_1$ is always $2/(2+\tfrac12)=0.8$. The field moves where the spins point; only the coupling $J$ controls how often they agree.
+
+**Answer.** Weights $4, 1, \tfrac14, 1$ and $Z=6.25$. $P(x_1=x_2)=0.8$, $P(x_1=+1)=0.8$, $P(x_2=+1)=0.68$. Without the field, $P(x_1=x_2)$ is still $0.8$.
+:::
+
+## Problem 5: A star-shaped precision matrix {#prb-5}
+
+A zero-mean Gaussian over $(X_1,X_2,X_3,X_4)$ has [precision matrix](https://en.wikipedia.org/wiki/Precision_(statistics))
+$$K=\Sigma^{-1}=\begin{bmatrix}4&-1&-1&-1\\-1&2&0&0\\-1&0&2&0\\-1&0&0&2\end{bmatrix}.$$
+
+1. Draw the Gaussian graphical model.
+2. Is $X_2\perp X_3\mid\{X_1,X_4\}$?
+3. Is $X_2\perp X_3\mid X_1$ (conditioning on $X_1$ alone)?
+4. Is $X_2\perp X_3\mid X_4$?
+5. Is $X_2\perp X_3$ marginally?
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+This uses [Week 3, Gaussian graphical models](week03.qmd#sec-ggm) and the separation rule of [§hc](week03.qmd#sec-hc).
+
+1. Edges sit where off-diagonal entries of $K$ are nonzero: $K_{12}, K_{13}, K_{14}$. The graph is a star with centre 1 and leaves 2, 3, 4.
+2. $K_{23}=0$, which is exactly the statement $X_2\perp X_3\mid X_{\text{rest}}$: **yes**.
+3. The precision-matrix rule speaks only about conditioning on *everything else*, so switch to graph separation. In a star, every path between two leaves passes through the centre, so $\{1\}$ separates 2 from 3: **yes**.
+4. Conditioning on 4 leaves the path $2\text{-}1\text{-}3$ open: **no**.
+5. Marginal independence is read from $\Sigma$, not $K$. With nothing conditioned on, the path $2\text{-}1\text{-}3$ is open, so we should expect dependence. Inverting $K$ confirms it: $\Sigma_{23}=0.1\neq 0$. A zero in $K$ does not produce a zero in $\Sigma$.
+
+**Answer.** (1) Star centred at 1. (2) Yes. (3) Yes. (4) No. (5) No: $\Sigma_{23}=0.1$.
+:::
+
+## Problem 6: Elimination order on a star {#prb-6}
+
+An MRF has a centre variable $C$ joined to four leaves $L_1,L_2,L_3,L_4$, with one pairwise potential per edge: $\psi(C,L_1),\dots,\psi(C,L_4)$, so $m=4$ factors. Every variable has $k$ states. We want $p(L_1)$.
+
+Compare two [variable elimination](https://en.wikipedia.org/wiki/Variable_elimination) orders:
+
+- **Order A:** $C$, then $L_2, L_3, L_4$.
+- **Order B:** $L_2, L_3, L_4$, then $C$.
+
+For each order, give the variables involved in each sum, $N_{\max}$, and the complexity $O(m\,k^{N_{\max}})$.
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+This uses [Week 3, Variable elimination](week03.qmd#sec-ve) and the complexity bookkeeping of [the Bayes-net worked example](week03.qmd#sec-ve-student).
+
+**Order A.** $C$ appears in all four potentials, so summing it out first touches every variable at once:
+$$\sum_C \psi(C,L_1)\,\psi(C,L_2)\,\psi(C,L_3)\,\psi(C,L_4) = \tau(L_1,L_2,L_3,L_4).$$
+That sum involves 5 variables. Eliminating $L_2$ then sums $\tau$ over $L_2$ with 4 variables inside, $L_3$ with 3, and $L_4$ with 2. So $N_{\max}=5$ and the cost is $O(4k^5)$.
+
+**Order B.** Each leaf appears in one potential only:
+$$\sum_{L_2}\psi(C,L_2) = \tau_2(C),$$
+with 2 variables inside, and the same for $L_3$ and $L_4$. Finally
+$$\sum_C \psi(C,L_1)\,\tau_2(C)\,\tau_3(C)\,\tau_4(C) = \tau(L_1),$$
+again with only 2 variables inside. So $N_{\max}=2$ and the cost is $O(4k^2)$.
+
+Eliminating the hub first glued all its neighbours into one large intermediate factor; eliminating the leaves first never created a factor over more than one variable. The star is a tree, and this leaves-inward pattern is the starting point of Week 4.
+
+**Answer.** Order A: $N_{\max}=5$, $O(4k^5)$. Order B: $N_{\max}=2$, $O(4k^2)$. Both give the same $p(L_1)$, since summation order does not change the answer.
+:::
+
+## Problem 7: Elimination with evidence on a three-node chain {#prb-7}
+
+A [Bayesian network](https://en.wikipedia.org/wiki/Bayesian_network) $A\to B\to C$ has binary variables with
+
+- $p(A=1)=0.3$,
+- $p(B=1\mid A=1)=0.8$ and $p(B=1\mid A=0)=0.1$,
+- $p(C=1\mid B=1)=0.9$ and $p(C=1\mid B=0)=0.2$.
+
+We observe $C=1$. Use variable elimination to compute $p(A=1\mid C=1)$.
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+This uses [Week 3, Variable elimination with evidence](week03.qmd#sec-ve-evidence) and the definition of inference in [§inference](week03.qmd#sec-inference).
+
+Here $x_F=\{A\}$, $x_E=\{C\}$, $x_R=\{B\}$. The evidence value is plugged in, not summed over:
+$$p(a, C=1) = p(a)\sum_b p(b\mid a)\,p(C=1\mid b).$$
+
+Eliminate $B$ first. The inner sum is a new factor depending only on $a$:
+$$\tau(a) = \sum_b p(b\mid a)\,p(C=1\mid b) = p(C=1\mid a).$$
+For $a=1$: $0.8\cdot0.9 + 0.2\cdot0.2 = 0.72+0.04 = 0.76$.
+For $a=0$: $0.1\cdot0.9 + 0.9\cdot0.2 = 0.09+0.18 = 0.27$.
+
+Multiply by the prior on $A$:
+$p(A=1, C=1) = 0.3\cdot0.76 = 0.228$ and $p(A=0, C=1) = 0.7\cdot0.27 = 0.189$.
+
+Normalize over $A$:
+$$p(A=1\mid C=1) = \frac{0.228}{0.228+0.189} = \frac{0.228}{0.417}\approx 0.547.$$
+
+As in the lecture's evidence example, eliminating the middle variable collapses the computation to Bayes' rule on the two-node relationship $A\to C$, with the derived likelihood $p(C=1\mid a)$.
+
+**Answer.** $p(A=1\mid C=1)\approx 0.547$, up from the prior $0.3$.
+:::
+
+## Problem 8: What an RBM can compute without Z {#prb-8}
+
+A [restricted Boltzmann machine](https://en.wikipedia.org/wiki/Restricted_Boltzmann_machine) has three visible units $X_1,X_2,X_3$ and two hidden units $H_1,H_2$, all in $\{-1,+1\}$, with every hidden unit joined to every visible unit and no other edges.
+
+1. Why is $p(h_1,h_2\mid x) = p(h_1\mid x)\,p(h_2\mid x)$?
+2. Is the marginal $p(h_1,h_2)$ also a product $p(h_1)\,p(h_2)$ in general? Why or why not?
+3. Which of $p(h_1\mid x)$, $p(x,h)$, and $p(h)$ can be computed without knowing the partition function $Z$?
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+This uses [Week 3, Restricted Boltzmann machines](week03.qmd#sec-rbm) and the separation rule of [§hc](week03.qmd#sec-hc).
+
+1. There is no $H_1\text{-}H_2$ edge, and every path between them runs through some visible unit. Observing all of $X$ blocks every such path, so $H_1\perp H_2\mid X$ by the global Markov property, and the conditional factors.
+2. Not in general. With $X$ unobserved, paths like $H_1\text{-}X_1\text{-}H_2$ are open, so summing out the visible units typically couples the hidden units. Separation needs the separating set to be observed.
+3. $p(h_1\mid x)$ is a ratio in which $Z$ cancels: the week chapter's formula gives $\sigma(\beta_1+\sum_i J_{i1}x_i)$ with Week 3's $\sigma(y)=1/(1+e^{-2y})$. In contrast, $p(x,h)$ is the product of potentials divided by $Z$, and $p(h)$ is a sum of those joint probabilities, so both need $Z$.
+
+**Answer.** (1) $X$ separates the hidden units. (2) No: summing out $X$ couples them. (3) Only $p(h_1\mid x)$ avoids $Z$.
+:::
+
+## Marginalization in factorized models {#sec-w3-marg-drills}
+
+These problems drill summing a variable out of a **product of factors**, which is the core step of variable elimination and of every message-passing algorithm later in the course. All numbers are invented.
+
+### Problem 9: Summing out a shared variable {#prb-9}
+
+Two factors over binary variables are given as tables, rows indexed by the first argument and columns by the second (value 0 first):
+$$f(a,b)=\begin{pmatrix}1&2\\3&1\end{pmatrix}, \qquad g(b,c)=\begin{pmatrix}2&1\\1&4\end{pmatrix}.$$
+Compute the new factor $\tau(a,c)=\sum_bf(a,b)\,g(b,c)$ as a $2\times2$ table.
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+This is the elementary step of [Week 3, Variable elimination](week03.qmd#sec-ve): multiply the factors that mention $b$, then sum $b$ out. The result depends only on the variables left over, $a$ and $c$.
+
+For each of the four $(a,c)$ pairs, add the two terms $b=0$ and $b=1$:
+
+- $\tau(0,0)=f(0,0)g(0,0)+f(0,1)g(1,0)=1\cdot2+2\cdot1=4$
+- $\tau(0,1)=f(0,0)g(0,1)+f(0,1)g(1,1)=1\cdot1+2\cdot4=9$
+- $\tau(1,0)=f(1,0)g(0,0)+f(1,1)g(1,0)=3\cdot2+1\cdot1=7$
+- $\tau(1,1)=f(1,0)g(0,1)+f(1,1)g(1,1)=3\cdot1+1\cdot4=7$
+
+Row $a$ of $f$ meets column $c$ of $g$, and the shared index $b$ is summed: this is exactly the matrix product $FG$. Summing out a variable shared by two pairwise factors is always a matrix multiplication.
+
+**Answer.** $\tau=\begin{pmatrix}4&9\\7&7\end{pmatrix}$.
+:::
+
+### Problem 10: Push the sum inward {#prb-10}
+
+Let every variable have $k$ states, and consider $h(a)=\sum_b\sum_cf(a,b)\,g(b,c)$.
+
+1. Computed naively (for each $a$, sum the product over all $(b,c)$ pairs), how many multiplications does $h$ take?
+2. Rewrite $h(a)$ by pushing $\sum_c$ inside past $f$. How many multiplications now?
+3. Evaluate $h$ with the tables of Problem 9.
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+This is the "push the sum inward" move of [Week 3, Variable elimination](week03.qmd#sec-ve).
+
+1. There are $k$ values of $a$ and $k^2$ pairs $(b,c)$, with one multiplication per term: $k^3$ in total.
+2. $f(a,b)$ does not mention $c$, so it moves outside the inner sum:
+$$h(a)=\sum_bf(a,b)\Big[\sum_cg(b,c)\Big]=\sum_bf(a,b)\,s(b).$$
+Computing $s(b)$ takes only additions. The outer sum takes one multiplication per $(a,b)$ pair: $k^2$ in total, a factor of $k$ saved.
+3. $s(0)=2+1=3$ and $s(1)=1+4=5$. Then $h(0)=1\cdot3+2\cdot5=13$ and $h(1)=3\cdot3+1\cdot5=14$. As a check, these are the row sums of $\tau$ from Problem 9.
+
+**Answer.** $k^3$ naively, $k^2$ after pushing the sum in; $h=(13,\ 14)$.
+:::
+
+### Problem 11: The partition function and marginals of a three-node MRF {#prb-11}
+
+An MRF on the chain $x_1-x_2-x_3$, with every $x_i\in\{0,1\}$, has potentials
+$$\psi_{12}(x_1,x_2)=\begin{pmatrix}3&1\\1&3\end{pmatrix}, \qquad \psi_{23}(x_2,x_3)=\begin{pmatrix}1&2\\2&1\end{pmatrix},$$
+so the first edge favours agreement and the second favours disagreement. Compute the partition function $Z$, the marginal $p(x_2)$, and the pairwise marginal $p(x_1,x_3)$.
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+This uses [Week 3, Variable elimination](week03.qmd#sec-ve) on an MRF, as in [Week 3, Sum-product inference](week03.qmd#sec-sum-product).
+
+**$Z$ by eliminating the ends.** For each $x_2$, sum out $x_1$ and $x_3$ separately, since no factor contains both:
+$$Z=\sum_{x_2}\Big[\sum_{x_1}\psi_{12}(x_1,x_2)\Big]\Big[\sum_{x_3}\psi_{23}(x_2,x_3)\Big].$$
+Each column of $\psi_{12}$ sums to 4 and each row of $\psi_{23}$ sums to 3, so both values of $x_2$ contribute $4\times3=12$, and $Z=24$.
+
+**$p(x_2)$.** The same bracketed product, before summing over $x_2$, is the unnormalized marginal: $(12,12)/24$, so $p(x_2)$ is uniform.
+
+**$p(x_1,x_3)$.** Now $x_2$ is the variable summed out, which is Problem 9's matrix product:
+$$\sum_{x_2}\psi_{12}(x_1,x_2)\,\psi_{23}(x_2,x_3)=\begin{pmatrix}3&1\\1&3\end{pmatrix}\begin{pmatrix}1&2\\2&1\end{pmatrix}=\begin{pmatrix}5&7\\7&5\end{pmatrix}.$$
+Dividing by $Z=24$ gives $p(x_1,x_3)$. The entries sum to 24, as they must.
+
+$x_1$ and $x_3$ share no edge, yet they are dependent: they disagree with probability $14/24$ rather than $1/2$. Agreement along the first edge and disagreement along the second combine into disagreement between the ends.
+
+**Answer.** $Z=24$; $p(x_2)=(\tfrac12,\tfrac12)$; $p(x_1,x_3)=\tfrac{1}{24}\begin{pmatrix}5&7\\7&5\end{pmatrix}$.
+:::
+
+### Problem 12: Evidence: normalize last {#prb-12}
+
+In the MRF of Problem 11, we observe $x_3=1$. Compute $p(x_1\mid x_3=1)$ without using $Z$.
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+This follows [Week 3, Variable elimination with evidence](week03.qmd#sec-ve-evidence): fix the observed variable instead of summing it, eliminate the rest, and normalize at the very end.
+
+With $x_3=1$ fixed, summing out $x_2$ gives the $x_3=1$ column of the table from Problem 11: $\tau(x_1)=(7,\ 5)$ for $x_1=0,1$. These are proportional to $p(x_1,x_3{=}1)$, and the constant $\tfrac1Z$ cancels when we normalize over $x_1$:
+$$p(x_1=0\mid x_3=1)=\frac{7}{7+5}=\frac{7}{12}, \qquad p(x_1=1\mid x_3=1)=\frac{5}{12}.$$
+
+**Answer.** $p(x_1\mid x_3=1)=(\tfrac{7}{12},\ \tfrac{5}{12})$.
+:::
+
+### Problem 13: Which axis gets summed? {#prb-13}
+
+With the arrays of Problem 9 stored as `f = np.array([[1, 2], [3, 1]])` and `g = np.array([[2, 1], [1, 4]])`, what does this line produce, and which variable has been eliminated?
+
+```python
+tau = (f[:, :, None] * g[None, :, :]).sum(axis=1)
+```
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+This is Problem 9 written with array broadcasting.
+
+- `f[:, :, None]` has shape `(2, 2, 1)` and axes $(a,b,\cdot)$.
+- `g[None, :, :]` has shape `(1, 2, 2)` and axes $(\cdot,b,c)$.
+- Their product broadcasts to shape `(2, 2, 2)` with axes $(a,b,c)$, and entry `[a, b, c]` equals $f(a,b)\,g(b,c)$.
+- `.sum(axis=1)` sums over the middle axis, which is $b$.
+
+So `tau[a, c]` $=\sum_bf(a,b)g(b,c)$, a `(2, 2)` array equal to `f @ g`. Lining up each factor's variables on its own axis, multiplying, and summing the axis of the eliminated variable is how variable elimination is usually implemented.
+
+**Answer.** `array([[4, 9], [7, 7]])`; $b$ was eliminated.
+:::
+
+### Problem 14: Summing out creates new dependencies {#prb-14}
+
+A star-shaped MRF has a centre $x_2$ joined to three leaves $x_1,x_3,x_4$, with one pairwise potential per edge. Sum out $x_2$. What does the graph of the resulting marginal over $(x_1,x_3,x_4)$ look like, and why?
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+This uses [Week 3, Variable elimination](week03.qmd#sec-ve) together with [Week 3, The Hammersley-Clifford theorem](week03.qmd#sec-hc).
+
+All three potentials mention $x_2$, so eliminating it multiplies all three and sums:
+$$\tau(x_1,x_3,x_4)=\sum_{x_2}\psi_{21}(x_2,x_1)\,\psi_{23}(x_2,x_3)\,\psi_{24}(x_2,x_4).$$
+This new factor involves all three leaves at once, and in general it does not split into a product of pairwise pieces. The marginal is $p(x_1,x_3,x_4)\propto\tau(x_1,x_3,x_4)$, a single factor over all three, so its graph needs $\{x_1,x_3,x_4\}$ as a clique: every pair of leaves is now joined.
+
+Before elimination, the leaves were independent given $x_2$, because $x_2$ separated them. Summing $x_2$ out removes the separator, and the leaves become dependent through it. In variable elimination, these new edges are what make an intermediate factor larger than any original one.
+
+**Answer.** A triangle: every pair of leaves becomes adjacent, because the factor created by eliminating $x_2$ involves all three leaves.
+:::
+
+## Tutorial questions {#sec-tut3}
+
+The questions below are the Week 3 tutorial's examples, restated as questions. They use the tutorial's own graphs and models, and each is also worked in the week chapter; each solution says where.
+
+### Tutorial question 1: Hammersley-Clifford on a chain {#tut3-1}
+
+Take the chain $X-Y-Z$. Its graphical model consists of all distributions that factorize as $f(x,y,z)=\alpha(x,y)\,\beta(y,z)$. Show that, when $\alpha>0$ and $\beta>0$ everywhere, this is equivalent to $X\perp Z\mid Y$. Use the characterization: $X\perp Z\mid Y$ if and only if $f(x\mid y,z)$ does not depend on $z$.
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+This is the chain example of [Week 3, The Hammersley-Clifford theorem](week03.qmd#sec-hc).
+
+**Independence implies the factorization.** If $X\perp Z\mid Y$, then $f(x\mid y,z)=f(x\mid y)$, so
+$$f(x,y,z)=f(y,z)\,f(x\mid y,z)=f(x\mid y)\,f(y,z).$$
+This has the required form with $\alpha(x,y)=f(x\mid y)$ and $\beta(y,z)=f(y,z)$.
+
+**The factorization implies independence.** If $f=\alpha\beta$, summing out $x$ gives $f(y,z)=\big(\sum_x\alpha(x,y)\big)\beta(y,z)$. Dividing,
+$$f(x\mid y,z)=\frac{\alpha(x,y)\,\beta(y,z)}{\big(\sum_{x'}\alpha(x',y)\big)\beta(y,z)}=\frac{\alpha(x,y)}{\sum_{x'}\alpha(x',y)}.$$
+The $\beta$ factor cancels (positivity makes the division safe), and what remains does not depend on $z$.
+
+**Answer.** Both directions hold, so for positive factors "factorizes over the cliques $\{X,Y\},\{Y,Z\}$" and "$X\perp Z\mid Y$" describe the same distributions.
+:::
+
+### Tutorial question 2: The Gaussian log-likelihood in the precision matrix {#tut3-2}
+
+Observe $x_1,\dots,x_n$ i.i.d. from an $m$-variate Gaussian with mean 0 (centre the data first) and precision matrix $K=\Sigma^{-1}$. The log-density is $\log f(x;K)=-\frac m2\log(2\pi)+\frac12\log\det K-\frac12x^\top Kx$.
+
+1. Show that, up to constants, $\ell_n(K)=\frac n2\big(\log\det K-\mathrm{tr}(KS_n)\big)$, where $S_n=\frac1n\sum_ix_ix_i^\top$.
+2. Using $\nabla\log\det K=K^{-1}$ and $\nabla\,\mathrm{tr}(KS_n)=S_n$, find the maximizer.
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+This is the derivation in [Week 3, Gaussian graphical models](week03.qmd#sec-ggm).
+
+1. Summing the log-density over the data and dropping $-\frac{nm}{2}\log(2\pi)$,
+$$\ell_n(K)=\frac n2\log\det K-\frac12\sum_{i=1}^nx_i^\top Kx_i.$$
+A scalar equals its own trace, and the trace is unchanged by cycling a product, so $x_i^\top Kx_i=\mathrm{tr}(Kx_ix_i^\top)$. By linearity, $\sum_i\mathrm{tr}(Kx_ix_i^\top)=\mathrm{tr}\big(K\sum_ix_ix_i^\top\big)=n\,\mathrm{tr}(KS_n)$.
+
+2. The gradient is $\frac n2\big(K^{-1}-S_n\big)$. Setting it to zero gives $K^{-1}=S_n$. Since $\log\det K$ is strictly concave and $\mathrm{tr}(KS_n)$ is linear, this stationary point is the unique maximizer (when $S_n$ is invertible).
+
+**Answer.** $\hat K=S_n^{-1}$, equivalently $\hat\Sigma=S_n$.
+:::
+
+### Tutorial question 3: A binary chain MRF as an exponential family {#tut3-3}
+
+Take binary variables on the chain $X_1-X_2-X_3$ with
+$$p(x_1,x_2,x_3\mid\theta)=\frac{1}{Z(\theta)}\,\psi_{1,2}(x_1,x_2\mid\theta_{1,2})\,\psi_{2,3}(x_2,x_3\mid\theta_{2,3}).$$
+
+1. Let $\theta_{1,2}\in\mathbb{R}^4$ list $\log\psi_{1,2}$ at $(0,0),(0,1),(1,0),(1,1)$. Find $\phi_{1,2}(x_1,x_2)$ with $\log\psi_{1,2}=\theta_{1,2}^\top\phi_{1,2}$, and write $p$ as an exponential family. What is $Z(\theta)$ in this parameterization?
+2. Why is this representation not minimal, and how do we make it minimal?
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+This is the worked example in [Week 3, MRFs as exponential families](week03.qmd#sec-mrf-expfam).
+
+1. Let $\phi_{1,2}$ be the indicator vector of which of the four configurations occurred:
+$$\phi_{1,2}(x_1,x_2)=\big((1-x_1)(1-x_2),\ (1-x_1)x_2,\ x_1(1-x_2),\ x_1x_2\big)^\top.$$
+Exactly one entry is 1, so $\theta_{1,2}^\top\phi_{1,2}$ picks out the right log-potential. Defining $\phi_{2,3}$ and $\theta_{2,3}$ the same way,
+$$p(x_1,x_2,x_3\mid\theta)=\exp\big\{\theta_{1,2}^\top\phi_{1,2}(x_1,x_2)+\theta_{2,3}^\top\phi_{2,3}(x_2,x_3)-\log Z(\theta)\big\},$$
+an exponential family with sufficient statistics $(\phi_{1,2},\phi_{2,3})$. Following the tutorial, the potentials in this parameterization are taken to be normalized already, so $Z(\theta)=1$ and $A(\theta)=0$.
+
+2. The four entries of $\phi_{1,2}$ always sum to 1, so the statistics lie in a hyperplane. With $\theta$ restricted so that $Z(\theta)=1$, $A\equiv0$ on that set, so $\nabla A=0$ there cannot equal $\mathbb{E}_\theta T(X)$. For the unrestricted $A=\log Z$ the identity holds; what non-minimality really costs is identifiability, since different $\theta$ give the same distribution. The fix is to drop the first coordinate and measure the others relative to it:
+$$\bar\theta_{1,2}=\big(\theta^{(1)},\,\theta^{(2)},\,\theta^{(3)}\big), \qquad \theta^{(1)}=\log\psi_{1,2}(0,1)-\log\psi_{1,2}(0,0),$$
+$$\theta^{(2)}=\log\psi_{1,2}(1,0)-\log\psi_{1,2}(0,0), \qquad \theta^{(3)}=\log\psi_{1,2}(1,1)-\log\psi_{1,2}(0,0),$$
+$$\bar\phi_{1,2}=\begin{pmatrix}(1-x_1)x_2\\ x_1(1-x_2)\\ x_1x_2\end{pmatrix},$$
+and similarly for the $(2,3)$ edge. Since $\log\psi_{1,2}(x_1,x_2)=\log\psi_{1,2}(0,0)+\bar\theta_{1,2}^\top\bar\phi_{1,2}(x_1,x_2)$ for every configuration,
+$$p(x_1,x_2,x_3)=\exp\big\{\bar\theta_{1,2}^\top\bar\phi_{1,2}+\bar\theta_{2,3}^\top\bar\phi_{2,3}+\log\psi_{1,2}(0,0)\,\psi_{2,3}(0,0)\big\},$$
+so $A(\bar\theta)=-\log\psi_{1,2}(0,0)\,\psi_{2,3}(0,0)$. The tutorial writes this without the minus sign. The minus sign is needed: $A(\bar\theta)=\log\sum_xe^{\bar\theta^\top\bar\phi(x)}$ is at least $0$ because the all-zeros configuration contributes $e^0=1$, while $\psi_{1,2}(0,0)\,\psi_{2,3}(0,0)=p(0,0,0)\le1$ has a nonpositive log.
+
+**Answer.** (1) Indicator features with $Z=1$. (2) The indicators sum to 1; dropping one coordinate per edge gives a minimal family with $A(\bar\theta)=-\log\big(\psi_{1,2}(0,0)\,\psi_{2,3}(0,0)\big)$, which must then be written in terms of $\bar\theta_{1,2}$ and $\bar\theta_{2,3}$.
+:::
+
+### Tutorial question 4: Variable elimination with evidence {#tut3-4}
+
+The DAG with edges $x_1\to x_2$, $x_1\to x_3$, $x_2\to x_4$, $x_3\to x_5$, $x_2\to x_6$, $x_5\to x_6$ factorizes as
+$$p(x_1,\dots,x_6)=p(x_1)\,p(x_2\mid x_1)\,p(x_3\mid x_1)\,p(x_4\mid x_2)\,p(x_5\mid x_3)\,p(x_6\mid x_2,x_5).$$
+We observe $X_6=\bar x_6$. Compute $p(x_1\mid\bar x_6)$ by variable elimination, eliminating $x_5$, then $x_4$, $x_3$, $x_2$.
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+This is the worked example of [Week 3, Variable elimination with evidence](week03.qmd#sec-ve-evidence).
+
+Here $x_F=\{x_1\}$, $x_E=\{x_6\}$, $x_R=\{x_2,x_3,x_4,x_5\}$, and $p(x_1\mid\bar x_6)=p(x_1,\bar x_6)\big/\sum_{x_1}p(x_1,\bar x_6)$. Push each sum inward past the factors that do not mention its variable:
+$$p(x_1,\bar x_6)=p(x_1)\sum_{x_2}p(x_2\mid x_1)\sum_{x_3}p(x_3\mid x_1)\sum_{x_4}p(x_4\mid x_2)\sum_{x_5}p(x_5\mid x_3)\,p(\bar x_6\mid x_2,x_5).$$
+
+- Eliminate $x_5$: $\sum_{x_5}p(x_5\mid x_3)\,p(\bar x_6\mid x_2,x_5)=p(\bar x_6\mid x_2,x_3)$. This result does not involve $x_4$, so it moves outside the $x_4$ sum.
+- Eliminate $x_4$: $\sum_{x_4}p(x_4\mid x_2)=1$. A leaf that is neither queried nor observed drops out.
+- Eliminate $x_3$: $\sum_{x_3}p(x_3\mid x_1)\,p(\bar x_6\mid x_2,x_3)=p(\bar x_6\mid x_1,x_2)$.
+- Eliminate $x_2$: $\sum_{x_2}p(x_2\mid x_1)\,p(\bar x_6\mid x_1,x_2)=p(\bar x_6\mid x_1)$.
+
+**Answer.**
+$$p(x_1\mid\bar x_6)=\frac{p(x_1)\,p(\bar x_6\mid x_1)}{\sum_{x_1}p(x_1)\,p(\bar x_6\mid x_1)},$$
+Bayes' rule on the two-node relationship $x_1\to x_6$, after everything in between has been summed out.
+:::
+
+### Tutorial question 5: Conditionals of a restricted Boltzmann machine {#tut3-5}
+
+A restricted Boltzmann machine has visible units $X_1,\dots,X_k$ and hidden units $H_1,\dots,H_l$, all in $\{-1,1\}$, on the complete bipartite graph between them:
+$$p(x,h)\propto\exp\Big\{\sum_i\alpha_ix_i+\sum_j\beta_jh_j+\sum_{i=1}^k\sum_{j=1}^lJ_{ij}x_ih_j\Big\}.$$
+
+1. Write $p(x,h)$ as $\frac1Z\prod_{i,j}\psi_{X_i,H_j}(x_i,h_j)$.
+2. Show that $p(h_j=1\mid x)=\sigma\big(\beta_j+\sum_iJ_{ij}x_i\big)$ with $\sigma(y)=1/(1+e^{-2y})$, and that the $H_j$ are independent given $X$.
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+This is [Week 3, Restricted Boltzmann machines](week03.qmd#sec-rbm).
+
+1. Share each single-node term evenly across the edges that touch it. $x_i$ has $l$ edges and $h_j$ has $k$:
+$$\psi_{X_i,H_j}(x_i,h_j)=\exp\Big\{\tfrac1l\alpha_ix_i+\tfrac1k\beta_jh_j+J_{ij}x_ih_j\Big\}.$$
+Multiplying over all $k\times l$ pairs recovers each $\alpha_ix_i$ once ($l$ copies of $\frac1l$), each $\beta_jh_j$ once, and every coupling term.
+
+2. With $x$ fixed, $p(h\mid x)\propto\prod_j\big[\prod_i\psi_{X_i,H_j}(x_i,h_j)\big]$ is a product of separate functions of each $h_j$. That makes the $H_j$ independent given $X$, as Hammersley-Clifford predicts: $X$ separates the hidden units. Normalizing one factor over $h_j\in\{-1,1\}$, the $\alpha$ terms cancel and, with $a_j=\beta_j+\sum_iJ_{ij}x_i$,
+$$p(h_j=1\mid x)=\frac{e^{a_j}}{e^{-a_j}+e^{a_j}}=\frac{1}{1+e^{-2a_j}}=\sigma(a_j).$$
+$Z$ never appears, because it cancels in the ratio. The same argument gives $p(x\mid h)$.
+
+**Answer.** $p(h_j=1\mid x)=\sigma(\beta_j+\sum_iJ_{ij}x_i)$, and $p(h\mid x)=\prod_jp(h_j\mid x)$.
+:::

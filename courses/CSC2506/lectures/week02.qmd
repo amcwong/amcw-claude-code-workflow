@@ -9,7 +9,7 @@ title: "Week 2: Decision Theory and Graphical Models"
 </div>
 ```
 
-**Overview.** Week 1 showed how to estimate a joint distribution $p(x,c)$ from data. This lecture asks the next question: once we have that distribution, or an estimate of it, how do we actually act on it? We build up statistical decision theory from misclassification rate to a general loss-based discriminant rule, then do the same for regression. The second half returns to a problem from Week 1: a joint over $N$ variables needs $2^N-1$ parameters in general. Directed graphical models are a way to write down which conditional independencies we are willing to assume, and get a much smaller parameter count in return. The Bayes Ball algorithm reads those independencies directly off the graph. The tutorial's Naive Bayes classifier ties the two halves together: it is a graphical model whose independence assumption is exactly what makes its maximum likelihood estimate as simple as Week 1's Bernoulli MLE.
+**Overview.** Week 1 showed how to estimate a joint distribution $p(x,c)$ from data. This lecture asks the next question: once we have that distribution, or an estimate of it, how do we actually act on it? We build up statistical decision theory from misclassification rate to a general loss-based discriminant rule, then do the same for regression. The second half returns to a problem from Week 1: a joint over $N$ binary variables needs $2^N-1$ parameters in general. Directed graphical models are a way to write down which conditional independencies we are willing to assume, and get a much smaller parameter count in return. The Bayes Ball algorithm reads those independencies directly off the graph. The tutorial's Naive Bayes classifier ties the two halves together: it is a graphical model whose independence assumption is exactly what makes its maximum likelihood estimate as simple as Week 1's Bernoulli MLE.
 
 There were no logistics slides to skip this week.
 
@@ -249,6 +249,27 @@ where $\text{parents}(x_i)$ is the set of nodes with an edge pointing into $x_i$
 
 This is the same chain-rule factorization as @sec-factoring, restricted so that each $x_i$'s conditioning set is only its parents rather than every variable before it in some ordering. A **conditional probability table** (CPT) stores $p(x_i \mid \text{parents}(x_i))$: for binary variables, a node with $K_i$ parents needs $2^{K_i}$ free parameters (one probability per parent configuration, since the two outcomes sum to 1). The total across the graph is roughly $N \cdot 2^{\max_i K_i}$, which is far smaller than $2^N - 1$ whenever the graph is sparse. Restricting every node to a small number of parents is what buys the savings; a fully-connected DAG recovers the general chain rule and its full $2^N-1$ parameter cost, with no savings at all.
 
+::: {.callout-tip collapse="true" .clarification title="Question: Does an arrow in a DAG mean implication, causation, or dependence?"}
+An arrow $A\to B$ means different things in different places, and none of them is by itself a statement about independence. The lecture's examples (low pressure, rain, traffic, a ballgame, a project deadline, busy forums, a full lab) separate three meanings.
+
+**1. Logical implication between events.** If $A$ and $B$ are events, $A\Rightarrow B$ means $A\subseteq B$: whenever $A$ happens, $B$ happens. If rain always caused heavy traffic, the event "rain" would be contained in the event "traffic", and
+$$P(\text{traffic}\mid\text{rain}) = \frac{P(\text{rain}\cap\text{traffic})}{P(\text{rain})} = \frac{P(\text{rain})}{P(\text{rain})} = 1.$$
+Independence would need $P(\text{traffic}\mid\text{rain}) = P(\text{traffic})$, which then forces $P(\text{traffic})=1$ (or $P(\text{rain})=0$). So implication is close to the opposite of independence: $A$ tells us everything about $B$.
+
+**2. A causal edge.** Reading rain $\to$ traffic causally says traffic is generated from rain plus other inputs: changing the weather would change the traffic. That is a claim about *intervening*, setting rain by force, which is not the same as *observing* rain. This chapter's DAGs only use the factorization, so this causal reading is extra.
+
+**3. Dependence is not causation.** The lecture's common-cause example has a project deadline (the shared cause) $\to$ busy forums and deadline $\to$ full lab. Observing busy forums makes a full lab more likely, so the two are dependent. Yet forcing the forums to be busy would do nothing to the lab, because only the deadline affects it. Averaging over the deadline $Y$ with its own distribution, rather than the one implied by the forums, gives the effect of setting the forums $X=x$ on the lab $Z$:
+$$\sum_y P(Z\mid X=x,Y=y)\,P(Y=y) = \sum_y P(Z\mid Y=y)\,P(Y=y) = P(Z).$$
+The first equality uses $X\perp Z\mid Y$ from @sec-cistructures. The observational $P(Z\mid X=x)$ instead weights each $y$ by $P(Y=y\mid X=x)$, which is why it differs. A shared cause that creates this gap is called a **[confounder](https://en.wikipedia.org/wiki/Confounding)**. When the observed variable also has a real effect of its own, confounding can even reverse the apparent direction of that effect, which is **[Simpson's paradox](https://en.wikipedia.org/wiki/Simpson%27s_paradox)**.
+
+**What an edge does and does not say about the data.**
+
+- **An edge alone constrains nothing.** Any joint over two variables factors both ways, $p(\text{rain})\,p(\text{traffic}\mid\text{rain}) = p(\text{traffic})\,p(\text{rain}\mid\text{traffic})$, so rain $\to$ traffic and traffic $\to$ rain fit the same data equally well.
+- **Missing edges are what constrain.** In the chain low pressure $\to$ rain $\to$ traffic, the absent edge from low pressure to traffic is what asserts low pressure $\perp$ traffic $\mid$ rain. Every independence a DAG encodes comes from a missing edge (@sec-cistructures).
+- **Causation usually, but not always, produces dependence.** If an effect works through two routes that exactly cancel, the variables can be independent despite a causal link. Assuming this never happens is called **faithfulness**, and only under it does independence rule out a causal effect.
+- **Dependence needs an explanation.** If two variables are dependent, then one causes the other or they share a common cause, as busy forums and a full lab share the deadline. Within a data set there is one more source: conditioning on a common effect, as in explaining away, where rain and a ballgame become dependent once we observe the traffic.
+:::
+
 ```{=html}
 <div style="overflow-x:auto; margin:1.5rem 0;">
 <svg viewBox="0 0 520 310" width="100%" style="max-width:520px;display:block;margin:auto;font-family:Helvetica,'Helvetica Neue',Arial,sans-serif;" role="img" aria-label="A six-node DAG with x1 as root branching into two chains that both feed x6">
@@ -275,7 +296,7 @@ This is the same chain-rule factorization as @sec-factoring, restricted so that 
   <line x1="222" y1="110" x2="316" y2="96" stroke="#555" stroke-width="1.5" marker-end="url(#arrD)"/>
   <line x1="222" y1="250" x2="316" y2="262" stroke="#555" stroke-width="1.5" marker-end="url(#arrD)"/>
   <line x1="224" y1="132" x2="440" y2="165" stroke="#555" stroke-width="1.5" marker-end="url(#arrD)"/>
-  <line x1="224" y1="248" x2="440" y2="190" stroke="#555" stroke-width="1.5" marker-end="url(#arrD)"/>
+  <line x1="361" y1="245" x2="438" y2="190" stroke="#555" stroke-width="1.5" marker-end="url(#arrD)"/>
 </svg>
 </div>
 ```
@@ -285,7 +306,7 @@ This is the same chain-rule factorization as @sec-factoring, restricted so that 
 ::: {.callout-note}
 **Practice question.** For the DAG in Figure 2, treat every node as binary. How many parameters does each node's CPT need, and what is the total across the whole graph? How does that total compare to the $2^6-1$ a fully-connected DAG on six nodes would need?
 
-**Solution.** Read the parent count straight off the arrows into each node: $x_1$ has no parents ($K=0$, so $2^0=1$ parameter); $x_2$ and $x_3$ each have one parent, $x_1$ ($K=1$, $2^1=2$ parameters each); $x_4$ has one parent, $x_2$ ($2$ parameters); $x_5$ has one parent, $x_3$ ($2$ parameters); $x_6$ has two parents, $x_2$ and $x_5$ ($K=2$, $2^2=4$ parameters). Summing these, $1+2+2+2+2+4=13$ parameters for the whole graph, against $2^6-1=63$ for the fully-connected case. The savings come entirely from $x_6$'s CPT: it depends on $x_2$ and $x_5$ but not on $x_1$, $x_3$, or $x_4$, which is exactly the kind of assumption @sec-factoring said was the only way to cut the parameter count.
+**Solution.** Read the parent count straight off the arrows into each node: $x_1$ has no parents ($K=0$, so $2^0=1$ parameter); $x_2$ and $x_3$ each have one parent, $x_1$ ($K=1$, $2^1=2$ parameters each); $x_4$ has one parent, $x_2$ ($2$ parameters); $x_5$ has one parent, $x_3$ ($2$ parameters); $x_6$ has two parents, $x_2$ and $x_5$ ($K=2$, $2^2=4$ parameters). Summing these, $1+2+2+2+2+4=13$ parameters for the whole graph, against $2^6-1=63$ for the fully-connected case. Compared with the chain rule in the order $x_1,\dots,x_6$ (costs $1,2,4,8,16,32$), every node from $x_3$ on has fewer parents (costs $1,2,2,2,2,4$). The largest single saving is $x_6$'s CPT, 32 down to 4: it depends on $x_2$ and $x_5$ but not on $x_1$, $x_3$, or $x_4$, which is exactly the kind of assumption @sec-factoring said was the only way to cut the parameter count.
 :::
 
 ## Conditional independence: three canonical structures {#sec-cistructures}
@@ -325,7 +346,7 @@ in general. $X$ and $Z$ are marginally independent (with $Y$ unobserved), but co
 
 ## The Bayes Ball algorithm {#sec-bayesball}
 
-Checking $x_A \perp x_B \mid x_C$ by hand from the joint, as in @sec-cistructures, does not scale: for more than three variables, writing out the full factorization and cancelling terms gets unwieldy fast. **D-separation** is a purely graph-theoretic condition, built only from paths and arrows, that turns out to be exactly equivalent to conditional independence. Unlike the joint-distribution algebra of @sec-cistructures, it can be checked by eye on the picture, which is what makes it useful.
+Checking $x_A \perp x_B \mid x_C$ by hand from the joint, as in @sec-cistructures, does not scale: for more than three variables, writing out the full factorization and cancelling terms gets unwieldy fast. **D-separation** is a purely graph-theoretic condition, built only from paths and arrows, that guarantees conditional independence in every distribution the DAG represents. Unlike the joint-distribution algebra of @sec-cistructures, it can be checked by eye on the picture, which is what makes it useful.
 
 D-separation is built from the same three junction types as @sec-cistructures, now named for their shape on a path rather than their causal story: a **chain** node ($\to Y \to$), a **fork** node ($\leftarrow Y \to$, what @sec-cistructures called common cause), and a **collider** node ($\to Y \leftarrow$, what @sec-cistructures called explaining away). Fix a conditioning set $C$.
 
@@ -341,13 +362,13 @@ A path that is not blocked is **active**. Two disjoint sets of nodes $A$ and $B$
 D-separation is a statement about the graph alone, no probabilities involved, which is exactly why it is worth having:
 
 ::: {.theorem-block}
-**Result.** $x_A \perp x_B \mid x_C$ holds if and only if $A$ and $B$ are d-separated by $C$.
+**Result.** If $A$ and $B$ are d-separated by $C$, then $x_A \perp x_B \mid x_C$ in every distribution that factorizes according to the DAG. If they are not d-separated, the independence fails in almost every such distribution (it can hold only by an exact cancellation of the numbers in the tables).
 :::
 
 This is the fact that licenses reading independence off a picture. The **Bayes Ball algorithm** is a mechanical way to check d-separation without enumerating every path by hand:
 
 ::: {.callout-note}
-**Bayes Ball procedure.** To test whether $A$ and $B$ are d-separated by $C$: shade every node in $C$ (observed). Place a ball at each node in $A$ and let it bounce along edges, obeying the rules below at every node it reaches. If any ball can reach a node in $B$, some path is active and $x_A \not\perp x_B \mid x_C$. If no ball can reach $B$, every path is blocked and $x_A \perp x_B \mid x_C$.
+**Bayes Ball procedure.** To test whether $A$ and $B$ are d-separated by $C$: shade every node in $C$ (observed). Place a ball at each node in $A$ and let it bounce along edges, obeying the rules below at every node it reaches. If any ball can reach a node in $B$, some path is active and the graph does not guarantee $x_A \perp x_B \mid x_C$. If no ball can reach $B$, every path is blocked and $x_A \perp x_B \mid x_C$.
 :::
 
 The bouncing rules are exactly the blocking condition above, restated as what a ball is and is not allowed to cross:
@@ -408,7 +429,7 @@ That last rule is the one that reverses the usual pattern, and it is exactly the
 
 **Figure 3.** The tutorial's practice graph ($a\to e$, $f\to e$, $e\to c$, $f\to b$), shaded (grey) nodes are the conditioning set. Panel (a) conditions on $c$; panel (b) conditions on $f$.
 
-The only path from $a$ to $b$ is $a \to e \leftarrow f \to b$, with two junctions to check: $e$ is a collider on this path (both $a\to e$ and $f\to e$ point into it), and $f$ is a chain node on this path (one edge, $f\to e$, points out of $f$; the other, $f\to b$, also points out of $f$, so it is actually a fork, but either way it blocks under the same rule as a chain: shaded blocks, unshaded passes).
+The only path from $a$ to $b$ is $a \to e \leftarrow f \to b$, with two junctions to check: $e$ is a collider on this path (both $a\to e$ and $f\to e$ point into it), and $f$ is a fork node on this path (both edges, $f\to e$ and $f\to b$, point out of $f$), which blocks under the same rule as a chain: shaded blocks, unshaded passes.
 
 In panel (a), $C=\{c\}$. At the collider $e$: is $e$ or a descendant of $e$ in $C$? Yes, $e$'s child $c$ is shaded, so the collider is **open**. At the fork $f$: is $f$ shaded? No, so the fork is also open. Both junctions on the only path are open, so the path is active: $a \not\perp b \mid c$. This is worth sitting with, since it runs against plain intuition: shading $c$, which is not on the direct route between $a$ and $f$ at all, is exactly what *creates* the dependency, because $c$ is a descendant of the collider $e$. This is the explaining-away asymmetry from @sec-cistructures, one hop removed.
 
@@ -448,7 +469,7 @@ The tutorial surveys a few more graphical models to show the same "assume some i
 
 - **Markov chains.** A first-order chain $p(x_{1:T}) = p(x_1)\prod_{t=2}^T p(x_t\mid x_{t-1})$ assumes each state depends only on the immediately previous one; a second-order chain conditions on the two previous states instead.
 - **Hidden Markov models (HMMs).** A chain of unobserved (hidden) states $Z_t$, each taking one of $K$ discrete values, each emitting an observed $X_t$: $p(X_{1:T}, Z_{1:T}) = p(Z_1)\prod_{t=2}^T p(Z_t\mid Z_{t-1}) \prod_{t=1}^T p(X_t\mid Z_t)$. This is a Markov chain over the hidden layer, with an emission model attached to each step.
-- **Medical diagnosis networks.** The Quick Medical Reference network is a bipartite DAG: hidden disease nodes as parents, observed symptom nodes as children, with a **noisy-OR** conditional probability table (any positive parent disease tends to make a symptom positive). The Alarm network is a hand-built DAG of 37 ICU-monitoring variables; because it is sparse, it needs only 504 parameters against a $2^{37}-1$ fully-connected cost, and its edges are drawn from known causal relationships in medicine rather than fit as a generic template.
+- **Medical diagnosis networks.** The Quick Medical Reference network is a bipartite DAG: hidden disease nodes as parents, observed symptom nodes as children, with a **noisy-OR** conditional probability table (any positive parent disease tends to make a symptom positive). The Alarm network is a hand-built DAG of 37 ICU-monitoring variables; because it is sparse, it needs only 509 parameters (the tutorial quotes 504), against far more than $2^{37}-1$ for a full joint table, since most of its variables have three or four states, and its edges are drawn from known causal relationships in medicine rather than fit as a generic template.
 
 ## Summary {#sec-summary2}
 
@@ -458,7 +479,7 @@ The tutorial surveys a few more graphical models to show the same "assume some i
 - Decision theory separates *inference* (estimating $p(x,c)$) from *decision* (acting on it). Minimizing misclassification rate is the special case of minimizing expected loss where every error costs the same.
 - The general discriminant rule minimizes $\sum_k L_{kj}\,p(\mathcal{C}_k\mid x)$ over the decision $j$; the reject option lets us decline to decide when no posterior clears a threshold.
 - For regression under squared loss, the best predictor is the conditional expectation $y(x) = \mathbb{E}[t\mid x]$.
-- A general joint over $N$ variables costs $2^N-1$ parameters. Directed graphical models trade that cost down by assuming each variable depends only on its parents.
+- A general joint over $N$ binary variables costs $2^N-1$ parameters. Directed graphical models trade that cost down by assuming each variable depends only on its parents.
 - Three structures (chain, common cause, common effect) cover how conditioning opens or blocks dependence; the Bayes Ball algorithm reads $x_A\perp x_B\mid x_C$ directly off the graph using these rules.
 - Naive Bayes is a common-cause DAG over word features given the class label; its independence assumption is what makes its MLE reduce to per-word, per-class Bernoulli MLEs, in the same shape as Week 1's Bernoulli derivation.
 :::

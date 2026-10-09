@@ -1,0 +1,676 @@
+---
+title: "Week 4 practice: Gradient Descent, SGD, Momentum, and Adam"
+---
+
+```{=html}
+<style>#title-block-header { display: none; }</style>
+<div class="lecture-header">
+  <h1>Week 4 practice: Gradient Descent, SGD, Momentum, and Adam</h1>
+</div>
+```
+
+**Overview.** These problems drill [Week 4](week04.qmd). Try each stem before opening the worked solution. Every numeric problem has a single number as its answer, the same shape as the course's quiz questions. An equation sheet comes first, then six parts:
+
+1. **Gradient descent and the learning rate.** Three problems on the Taylor argument and on choosing $\eta$.
+2. **SGD, mini-batches, and schedules.** Three problems on the noise in stochastic gradient descent and its remedies.
+3. **Momentum and Adam.** Three problems that work the update rules by hand.
+4. **Testing Homework 4.** A context section on the pieces Homework 4 adds beyond the lecture (optimizer state, AdamW, Glorot uniform initialization), then five problems on the same ideas.
+5. **Official Week 5 quiz practice.** Four questions provided by the course for this offering, reproduced with their answers.
+6. **Conceptual questions.** Two short-answer questions with no numeric answer.
+
+In every part except Part 5, the numbers and setups are invented for practice. They are not homework answers: the learning rates, hyperparameter settings, and initialization runs that Homework 4 asks for are left to the assignment. Notation matches the week chapter: $\bm{g}_t$ is the gradient at iteration $t$, momentum keeps $\bm{v}_t$, and Adam keeps $\bm{v}_t$ (first moment) and $\bm{s}_t$ (second moment).
+
+## Equations to know for the quiz {#sec-w4p-equations}
+
+Every problem in this chapter, and every official quiz question in Part 5, can be solved with the equations below. They are collected from the [Week 4](week04.qmd) chapter, plus a few results from Week 3 that the quiz leans on. Each table says where the equation is explained. This is our own summary of the lecture, not a list published by the course. Results marked *(ours)* are short consequences that the week chapter derives or states as its own, not lines copied from the slides.
+
+### Gradient descent and the learning rate
+
+| Equation | What it says | Where |
+|---|---|---|
+| $\mathcal{L}(\theta + \epsilon) = \mathcal{L}(\theta) + \epsilon\,\mathcal{L}'(\theta) + O(\epsilon^2)$ | first-order Taylor approximation: near $\theta$, the loss follows its tangent line | [Why GD works](week04.qmd#sec-why-gd) |
+| $\tfrac{\epsilon^2}{2}\,\mathcal{L}''(\theta)$ | the next Taylor term, the leftover the $O(\epsilon^2)$ hides (exact for a quadratic) | [Taylor series](week04.qmd#sec-taylor) |
+| $\theta \leftarrow \theta - \eta\,\dfrac{d\mathcal{L}}{d\theta}$ | the gradient descent update | [Why GD works](week04.qmd#sec-why-gd) |
+| $\bm{\theta} \leftarrow \bm{\theta} - \eta\,\nabla_{\bm{\theta}}\mathcal{L}$ | the same update with many parameters | [Multivariate](week04.qmd#sec-multivariate) |
+| predicted decrease $= \eta\,\lVert\nabla_{\bm{\theta}}\mathcal{L}\rVert^2$ | how much the first-order approximation says one step lowers the loss | [Multivariate](week04.qmd#sec-multivariate) |
+| $\theta \leftarrow (1 - \eta h)\,\theta$ for $\mathcal{L} = \tfrac{h}{2}\theta^2$ | on a quadratic, each step multiplies $\theta$ by a fixed factor *(ours)* | [Valley](week04.qmd#sec-one-eta) |
+| converges iff $0 < \eta < 2/h$; one step to the minimum at $\eta = 1/h$ | the factor's size must be below $1$; it is $0$ at $\eta = 1/h$ *(ours)* | [Valley](week04.qmd#sec-one-eta), Problem 2 |
+
+With several parameters on a quadratic, each direction has its own $h$, and the steepest direction (largest $h$) sets the limit $2/h_\text{max}$.
+
+### SGD, mini-batches, and schedules
+
+| Equation | What it says | Where |
+|---|---|---|
+| $\mathcal{L}(\bm{\theta}) = \dfrac{1}{n}\sum_{i=1}^{n}\mathcal{L}_i(\bm{\theta})$ | the training loss is an average of per-example losses | [SGD](week04.qmd#sec-sgd) |
+| $\bm{\theta} \leftarrow \bm{\theta} - \eta\,\nabla_{\bm{\theta}}\mathcal{L}_i(\bm{\theta})$, $i$ uniform | one SGD step, on one random example | [SGD](week04.qmd#sec-sgd) |
+| $\mathbb{E}\big[\nabla_{\bm{\theta}}\mathcal{L}_i\big] = \nabla_{\bm{\theta}}\mathcal{L}$ | one example's gradient is right on average | [SGD](week04.qmd#sec-sgd) |
+| $\bm{\theta} \leftarrow \bm{\theta} - \eta\,\dfrac{1}{B}\sum_{i=1}^{B}\nabla_{\bm{\theta}}\mathcal{L}_i$ | the mini-batch update | [Mini-batches](week04.qmd#sec-minibatch) |
+| $\operatorname{Var}[\bar{g}] = \dfrac{\operatorname{Var}[g]}{B}$, so std $= \dfrac{\text{std}[g]}{\sqrt{B}}$ | averaging $B$ independent draws cuts the noise *(ours, from the Week 3 variance rules)* | Problem 5 |
+| $\eta(t) = \eta_0\,e^{-\lambda t}$ | exponential decay schedule; piecewise constant uses $\eta_j$ on $t_j \le t < t_{j+1}$ | [Schedules](week04.qmd#sec-schedules) |
+
+For a per-example loss $\tfrac{1}{2}(\theta - a_i)^2$, the gradient is $\theta - a_i$ and the average loss is minimized at the mean of the $a_i$ (Problem 4, Quiz question 4).
+
+### The linear model's gradient
+
+| Equation | What it says | Where |
+|---|---|---|
+| $\mathcal{L} = \tfrac{1}{2}(y - \hat{y})^2$, $\hat{y} = \bm{w}^\top\bm{x}$ | squared error on a linear model | [One learning rate?](week04.qmd#sec-one-eta) |
+| $\dfrac{\partial\mathcal{L}}{\partial w_i} = (\hat{y} - y)\,x_i$ | each weight's gradient is the shared error times its own feature | [One learning rate?](week04.qmd#sec-one-eta) |
+
+So with one learning rate, the ratio of two weights' updates is the ratio of their features (Quiz question 1).
+
+### Momentum
+
+| Equation | What it says | Where |
+|---|---|---|
+| $\bm{v}_t \leftarrow \beta\,\bm{v}_{t-1} + \bm{g}_t$, $\quad \bm{\theta}_t \leftarrow \bm{\theta}_{t-1} - \eta\,\bm{v}_t$ | the momentum update, with $\bm{v}_0 = \bm{0}$ | [Momentum](week04.qmd#sec-momentum) |
+| $v_t = \sum_{k=1}^{t}\beta^{\,t-k}\,g_k$ | unrolled: the gradient from step $k$ is weighted by $\beta^{\,t-k}$, so older gradients count less | [Momentum](week04.qmd#sec-momentum) |
+| $v_t = \dfrac{1 - \beta^t}{1 - \beta} \to \dfrac{1}{1 - \beta}$ for $g_t = 1$ | constant gradient: a geometric series that climbs toward $1/(1-\beta)$ | [Momentum](week04.qmd#sec-momentum) |
+| $\lvert v_t\rvert \to \dfrac{1}{1 + \beta}$ for $g_t = \pm 1$ alternating | alternating gradient: the accumulator stays small | [Momentum](week04.qmd#sec-momentum) |
+
+Once the accumulator has stopped changing, it satisfies $v = \beta v + g$, so $v = g/(1 - \beta)$ (Quiz question 2).
+
+### Adam
+
+| Equation | What it says | Where |
+|---|---|---|
+| $v_t \leftarrow \beta\,v_{t-1} + (1 - \beta)\,g_t$ | exponential moving average: weights $\beta$ and $1 - \beta$ add to $1$ | [Moving averages](week04.qmd#sec-adam) |
+| $\bm{v}_t \leftarrow \beta_1\bm{v}_{t-1} + (1 - \beta_1)\bm{g}_t$ | first moment: moving average of the gradient | [Moving averages](week04.qmd#sec-adam) |
+| $\bm{s}_t \leftarrow \beta_2\bm{s}_{t-1} + (1 - \beta_2)\bm{g}_t^2$ | second moment: moving average of the squared gradient | [Moving averages](week04.qmd#sec-adam) |
+| total scaling of the gradients in $\bm{v}_t$ $= 1 - \beta_1^t$ | why the averages start biased toward zero ($1 - \beta_2^t$ for $\bm{s}_t$) | [Bias toward zero](week04.qmd#sec-bias-correction) |
+| $\hat{\bm{v}}_t = \dfrac{\bm{v}_t}{1 - \beta_1^t}$, $\quad \hat{\bm{s}}_t = \dfrac{\bm{s}_t}{1 - \beta_2^t}$ | bias correction | [Bias toward zero](week04.qmd#sec-bias-correction) |
+| $\bm{\theta}_t \leftarrow \bm{\theta}_{t-1} - \dfrac{\eta\,\hat{\bm{v}}_t}{\sqrt{\hat{\bm{s}}_t} + \epsilon}$ | the Adam update (entry by entry) | [Full algorithm](week04.qmd#sec-adam-algorithm) |
+| first step $= \dfrac{\eta\,g_1}{\lvert g_1\rvert + \epsilon} \approx \pm\eta$ | after bias correction, the first step has size about $\eta$ whatever $g_1$ is | [Bias toward zero](week04.qmd#sec-bias-correction) |
+| uncorrected first step $\div$ corrected $= \dfrac{1 - \beta_1}{\sqrt{1 - \beta_2}}$ | how much too large the first step is without bias correction *(ours, with $\epsilon = 0$)* | Quiz question 3 |
+| $\beta_1 = 0.9$, $\beta_2 = 0.999$, $\eta = 0.001$, $\epsilon = 10^{-8}$ | default hyperparameters | [Defaults](week04.qmd#sec-adam-defaults) |
+
+Memory: plain SGD stores only the $d$ parameters between steps, momentum adds $d$ more, and Adam adds $2d$ more ([The memory cost](week04.qmd#sec-adam)).
+
+### From Week 3, used by the quiz
+
+| Equation | What it says | Where |
+|---|---|---|
+| $\operatorname{Var}[cX] = c^2\operatorname{Var}[X]$ | a constant factor comes out squared | [Variance rules](week03-practice.qmd#sec-var-rules) |
+| $\operatorname{Var}[X + Y] = \operatorname{Var}[X] + \operatorname{Var}[Y]$ (independent) | variances of independent terms add | [Variance rules](week03-practice.qmd#sec-var-rules) |
+| $\mathbb{E}[X^2] = \operatorname{Var}[X] + (\mathbb{E}[X])^2$ | so $\mathbb{E}[X^2] = \operatorname{Var}[X]$ when the mean is $0$ | [Variance rules](week03-practice.qmd#sec-var-rules) |
+| $\sigma = \sqrt{2/(n_\text{in} + n_\text{out})}$ | Glorot initialization; He is $\sqrt{2/n_\text{in}}$ | [Week 3, Initialization](week03.qmd#sec-init) |
+
+The Homework 4 extras are not lecture material: AdamW and Glorot uniform initialization are in the [Part 4 context section](#sec-w4p-hw-context), and the chance-level cross-entropy $\ln K$ is in [Problem 14](#prb-14).
+
+## Part 1: Gradient descent and the learning rate {#sec-w4p-gd}
+
+### Problem 1: How big is the leftover term? {#prb-1}
+
+Take the loss $\mathcal{L}(\theta) = 2\theta^2$, start at $\theta = 1$, and take one gradient descent step with $\eta = 0.2$. The first two terms of the [Taylor series](https://en.wikipedia.org/wiki/Taylor_series) predict a new loss. By how much is the exact new loss **above** that prediction?
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+This uses [Week 4, Why Gradient Descent Works](week04.qmd#sec-why-gd) and its worked example.
+
+**The step.** The derivative is $\mathcal{L}'(\theta) = 4\theta = 4$ at $\theta = 1$, so the offset is $\epsilon = -\eta\,\mathcal{L}'(\theta) = -0.8$ and the new point is $\theta = 0.2$.
+
+**The two-term prediction.**
+
+$$\mathcal{L}(\theta) + \epsilon\,\mathcal{L}'(\theta) = 2 + (-0.8)(4) = -1.2$$
+
+A negative loss is impossible for $2\theta^2$, which already says the step is too long for the tangent line to be trusted.
+
+**The exact new loss.** $\mathcal{L}(0.2) = 2 \cdot 0.04 = 0.08$.
+
+**The gap.** For a quadratic the series stops after the third term, so the gap is exactly the term the big-O was hiding, $\tfrac{\epsilon^2}{2}\mathcal{L}''(\theta)$ with $\mathcal{L}'' = 4$:
+
+$$\frac{(-0.8)^2}{2}\cdot 4 = 0.32 \cdot 4 = 1.28$$
+
+and indeed $0.08 - (-1.2) = 1.28$. The loss still dropped (from $2$ to $0.08$), but by less than the tangent line promised.
+
+**Answer:** $1.28$.
+:::
+
+### Problem 2: A learning rate that lands on the minimum {#prb-2}
+
+For the loss $\mathcal{L}(\theta) = 4\theta^2$, there is one learning rate for which a single gradient descent step from **any** starting $\theta$ lands exactly on the minimum. What is it?
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+This uses [Week 4, Choosing the Learning Rate](week04.qmd#sec-learning-rate) and the divergence limit in [Descending in a valley](week04.qmd#sec-one-eta).
+
+The derivative is $8\theta$, so one step gives
+
+$$\theta - \eta \cdot 8\theta = (1 - 8\eta)\,\theta$$
+
+Every step multiplies $\theta$ by the same factor $1 - 8\eta$. The minimum is at $\theta = 0$, and we land on it from any start exactly when the factor is $0$, that is, $\eta = 1/8$.
+
+The same factor sorts every other learning rate into the lecture's regimes. With a second derivative of $h = 8$:
+
+| $\eta$ | Factor $1 - 8\eta$ | Behaviour |
+|---|---|---|
+| $0.05$ | $0.6$ | shrinks steadily toward $0$ (small $\eta$) |
+| $0.125$ | $0$ | lands on the minimum in one step |
+| $0.2$ | $-0.6$ | jumps across the minimum but still shrinks |
+| $0.3$ | $-1.4$ | jumps across and grows: divergence, since $\eta > 2/h = 0.25$ |
+
+For a quadratic the one-step learning rate is $1/h$, half of the divergence limit $2/h$.
+
+**Answer:** $0.125$.
+:::
+
+### Problem 3: The predicted decrease with two parameters {#prb-3}
+
+Take $\mathcal{L}(\bm{\theta}) = \theta_1^2 + 4\theta_2^2$, start at $\bm{\theta} = (1,\ 1)$, and take one gradient descent step with $\eta = 0.05$. According to the first-order Taylor approximation, by how much does the loss decrease?
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+This uses [Week 4, The Multivariate Case](week04.qmd#sec-multivariate).
+
+**The gradient.** $\nabla_{\bm{\theta}}\mathcal{L} = (2\theta_1,\ 8\theta_2) = (2,\ 8)$.
+
+**The predicted decrease.** Substituting $\bm{\epsilon} = -\eta\nabla\mathcal{L}$ into the first-order approximation gives a decrease of $\eta$ times the dot product of the gradient with itself:
+
+$$\eta\,\lVert\nabla\mathcal{L}\rVert^2 = 0.05\,(2^2 + 8^2) = 0.05 \cdot 68$$
+
+**Compare with the exact step.** The new point is $(1 - 0.1,\ 1 - 0.4) = (0.9,\ 0.6)$, with loss $0.81 + 4 \cdot 0.36 = 2.25$. The loss started at $5$, so it actually fell by $2.75$. The prediction is optimistic by $0.65$, the leftover term. Most of that leftover comes from $\theta_2$, the steeper direction, whose large gradient makes the step there long.
+
+**Answer:** $3.4$.
+:::
+
+## Part 2: SGD, mini-batches, and schedules {#sec-w4p-sgd}
+
+### Problem 4: A single example can point the wrong way {#prb-4}
+
+A training set has three examples with per-example losses $\mathcal{L}_i(\theta) = \tfrac{1}{2}(\theta - a_i)^2$, where $(a_1, a_2, a_3) = (2,\ 5,\ 11)$, and the training loss is their average. At $\theta = 4$, one step of [stochastic gradient descent](https://en.wikipedia.org/wiki/Stochastic_gradient_descent) picks one example uniformly at random. What is the probability that this step moves $\theta$ in the **opposite** direction from a full-batch gradient descent step?
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+This uses [Week 4, Stochastic Gradient Descent](week04.qmd#sec-sgd).
+
+**Per-example gradients.** The derivative of $\tfrac{1}{2}(\theta - a_i)^2$ is $\theta - a_i$, so at $\theta = 4$ the three gradients are
+
+$$(4 - 2,\ 4 - 5,\ 4 - 11) = (2,\ -1,\ -7)$$
+
+**Full-batch gradient.** Their average is $(2 - 1 - 7)/3 = -2$. A full-batch step $\theta \leftarrow \theta - \eta(-2)$ increases $\theta$, toward the minimum of the training loss at the mean of the $a_i$, which is $6$.
+
+**SGD.** Each example is picked with probability $1/3$, and its step is $-\eta(\theta - a_i)$:
+
+| Example | Gradient | Step direction |
+|---|---|---|
+| $1$ | $+2$ | decreases $\theta$ (opposite) |
+| $2$ | $-1$ | increases $\theta$ (same) |
+| $3$ | $-7$ | increases $\theta$ (same) |
+
+The expected SGD gradient is still $\tfrac{1}{3}(2 - 1 - 7) = -2$, exactly the full-batch gradient. "Right on average" does not mean every step is right: example 1 has its own minimum at $\theta = 2$, and stepping toward it moves away from $6$.
+
+**Answer:** $1/3$.
+:::
+
+### Problem 5: How large a mini-batch? {#prb-5}
+
+Suppose the gradient of a single randomly chosen example has standard deviation $0.8$ around the full-batch gradient. A mini-batch averages $B$ examples, each drawn independently and uniformly at random. What is the smallest $B$ for which the mini-batch gradient's standard deviation is at most $0.1$?
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+This uses [Week 4, Mini-batches](week04.qmd#sec-minibatch) and the variance rules from the [Week 3 practice chapter](week03-practice.qmd#sec-var-rules).
+
+The mini-batch gradient is $\tfrac{1}{B}\sum_{i=1}^{B} g_i$ with independent draws. By rule 3 the sum has variance $B \cdot 0.8^2$, and by rule 2 the factor $1/B$ comes out squared:
+
+$$\operatorname{Var}\left[\frac{1}{B}\sum_{i=1}^{B} g_i\right] = \frac{B \cdot 0.8^2}{B^2} = \frac{0.8^2}{B}$$
+
+So the standard deviation is $0.8/\sqrt{B}$. Requiring $0.8/\sqrt{B} \le 0.1$ gives $\sqrt{B} \ge 8$, so $B \ge 64$.
+
+The square root is the lesson: cutting the noise by a factor of $8$ costs $64$ times as many gradients per step. That is why mini-batches reduce SGD's noise but are not a cheap way to remove it.
+
+**Answer:** $64$.
+:::
+
+### Problem 6: Reading an exponential decay schedule {#prb-6}
+
+A run uses the exponential decay schedule $\eta(t) = \eta_0\,e^{-\lambda t}$ with $\eta_0 = 0.4$, and its decay speed $\lambda$ is chosen so that the learning rate halves every $100$ iterations. What is $\eta(300)$?
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+This uses [Week 4, Learning rate schedules](week04.qmd#sec-schedules).
+
+"Halves every $100$ iterations" means $e^{-100\lambda} = 1/2$, so $\lambda = \ln 2 / 100 \approx 0.0069$. We do not need $\lambda$ itself: $300$ iterations is three halving periods, so
+
+$$\eta(300) = 0.4\,\left(e^{-100\lambda}\right)^3 = 0.4 \cdot \left(\tfrac{1}{2}\right)^3$$
+
+Exponential decay shrinks the learning rate by the same factor over every stretch of the same length, which is what lets the parameters settle when SGD starts to jitter near the minimum.
+
+**Answer:** $0.05$.
+:::
+
+## Part 3: Momentum and Adam {#sec-w4p-adaptive}
+
+### Problem 7: Distance covered with momentum {#prb-7}
+
+A single parameter is trained with momentum, $v_t \leftarrow \beta v_{t-1} + g_t$ and $\theta_t \leftarrow \theta_{t-1} - \eta v_t$, using $\beta = 0.5$, $\eta = 0.1$, and $v_0 = 0$. The gradient is $g_t = 2$ at every step. How far does $\theta$ move in total over the first three steps?
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+This uses [Week 4, Momentum](week04.qmd#sec-momentum).
+
+**The accumulator.**
+
+| Step | $v_t = 0.5\,v_{t-1} + 2$ | Move $\eta v_t$ |
+|---|---|---|
+| $1$ | $2$ | $0.2$ |
+| $2$ | $1 + 2 = 3$ | $0.3$ |
+| $3$ | $1.5 + 2 = 3.5$ | $0.35$ |
+
+All three moves are in the same direction, so they add: $0.2 + 0.3 + 0.35 = 0.85$.
+
+**Compare.** Plain gradient descent would move $0.2$ per step, $0.6$ in total. The gradient is consistent, so momentum's steps grow, toward the limit $v = 2/(1 - 0.5) = 4$, twice the plain step. With $\beta = 0.9$ the limit would be ten times the plain step, as in the week chapter.
+
+**Answer:** $0.85$.
+:::
+
+### Problem 8: A bias-corrected average is not a plain average {#prb-8}
+
+Adam's first-moment accumulator uses $\beta_1 = 0.5$ and starts at $v_0 = 0$. The first two gradients are $g_1 = 4$ and $g_2 = 10$. What is the bias-corrected value $\hat{v}_2$?
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+This uses [Week 4, The bias toward zero](week04.qmd#sec-bias-correction).
+
+**The moving average.**
+
+$$v_1 = 0.5 \cdot 0 + 0.5 \cdot 4 = 2, \qquad v_2 = 0.5 \cdot 2 + 0.5 \cdot 10 = 6$$
+
+**The correction.** The total scaling of the gradients in $v_2$ is $1 - \beta_1^2 = 0.75$, so
+
+$$\hat{v}_2 = \frac{6}{0.75} = 8$$
+
+**Why not $7$?** The plain average of $4$ and $10$ is $7$. Written out, $v_2 = 0.25\,g_1 + 0.5\,g_2$, and dividing by $0.75$ gives weights $1/3$ on $g_1$ and $2/3$ on $g_2$. Bias correction makes the weights add to $1$, so $\hat{v}_2$ is a true average, but it keeps the exponential moving average's preference for recent gradients: $\tfrac{1}{3}\cdot 4 + \tfrac{2}{3}\cdot 10 = 8$.
+
+**Answer:** $8$.
+:::
+
+### Problem 9: When epsilon is not negligible {#prb-9}
+
+A parameter is trained with [Adam](https://en.wikipedia.org/wiki/Stochastic_gradient_descent#Adam) using the default $\beta_1 = 0.9$, $\beta_2 = 0.999$, and $\epsilon = 10^{-8}$. Its gradient on the first step is tiny: $g_1 = 10^{-8}$. The size of the first step is what fraction of $\eta$?
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+This uses [Week 4, The full algorithm](week04.qmd#sec-adam-algorithm) and its first-step worked example in [The bias toward zero](week04.qmd#sec-bias-correction).
+
+On the first step bias correction is exact: $\hat{v}_1 = g_1$ and $\hat{s}_1 = g_1^2$, so $\sqrt{\hat{s}_1} = |g_1|$. The step is
+
+$$\frac{\eta\,\hat{v}_1}{\sqrt{\hat{s}_1} + \epsilon} = \frac{\eta \cdot 10^{-8}}{10^{-8} + 10^{-8}} = \frac{\eta}{2}$$
+
+In the week chapter's example the gradient was much larger than $\epsilon$, so $\epsilon$ could be dropped and the first step was about $\eta$ for any gradient. Here the gradient is the same size as $\epsilon$, which is no longer negligible, and the step is halved. For a gradient much smaller than $\epsilon$ the step shrinks toward $0$. That is the job $\epsilon$ was introduced for: it stops a near-zero gradient from being blown up into a full-size step.
+
+**Answer:** $0.5$.
+:::
+
+## Part 4: Testing Homework 4 {#sec-w4p-homework}
+
+### Context for these questions {#sec-w4p-hw-context}
+
+Homework 4 implements the week's optimizers as code and adds three pieces that the lecture does not cover in detail. The problems below test each idea on invented setups. None of them reproduce the homework's function, networks, or hyperparameter searches.
+
+**An optimizer with state.** An optimizer is an object with a `step` method that takes the current parameters and their gradients and returns updated parameters. Momentum and Adam must remember their accumulators between calls, so they keep a dictionary `self.state`. When a network's parameters arrive as a list of arrays, such as `[W0, W1, b0, b1]`, the optimizer keeps one state entry per array, matched by position in the list, and each entry has the same shape as its array. Plain SGD needs no state.
+
+**Notation.** The homework writes Adam's two moments as $m$ (first) and $v$ (second). This chapter keeps the week chapter's names: $v$ for the first moment and $s$ for the second. Only the letters differ.
+
+**AdamW.** [Weight decay](https://en.wikipedia.org/wiki/Weight_decay) from [Week 3](week03.qmd#sec-regularization) shrinks the weights a little at every step. AdamW applies it *after* Adam's normalization, as a separate term in the update. Written in this chapter's notation:
+
+$$\bm{\theta}_t \leftarrow \bm{\theta}_{t-1} - \eta\left(\frac{\hat{\bm{v}}_t}{\sqrt{\hat{\bm{s}}_t} + \epsilon} + \lambda\,\bm{\theta}_{t-1}\right)$$
+
+where $\lambda$ is the weight decay coefficient. The alternative is to add the decay term $\lambda\bm{\theta}$ to the gradient *before* it enters Adam's moving averages. Problem 11 shows why the two are different.
+
+**Glorot uniform initialization.** Week 3 drew weights from a normal distribution with variance $2/(n_\text{in} + n_\text{out})$. The homework instead draws them from a [continuous uniform distribution](https://en.wikipedia.org/wiki/Continuous_uniform_distribution) on $[-a,\ a]$, with
+
+$$a = \sqrt{\frac{6}{n_\text{in} + n_\text{out}}}$$
+
+A uniform variable on $[-a,\ a]$ has mean $0$ and variance $a^2/3$. Problem 12 checks that this choice of $a$ gives the same variance as Week 3's Glorot rule.
+
+### Problem 10: Where plain gradient descent starts to diverge {#prb-10}
+
+Plain gradient descent minimizes $f(x, y) = 3x^2 + 15y^2$ from a start where both $x$ and $y$ are nonzero. It converges to $(0, 0)$ for every learning rate below some threshold and fails to converge at or above it. What is the threshold?
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+This uses [Week 4, Descending in a valley](week04.qmd#sec-one-eta) and Problem 2 above.
+
+**The coordinates update separately.** The gradient is $(6x,\ 30y)$, so one step is
+
+$$x \leftarrow (1 - 6\eta)\,x, \qquad y \leftarrow (1 - 30\eta)\,y$$
+
+Each coordinate is multiplied by its own factor on every step. It shrinks toward $0$ when the factor's size is below $1$.
+
+**Each direction's limit.** For $x$ we need $|1 - 6\eta| < 1$, so $\eta < 2/6 = 1/3$. For $y$ we need $|1 - 30\eta| < 1$, so $\eta < 2/30 = 1/15$. Both must hold, and the steep direction sets the stricter limit. At exactly $\eta = 1/15$ the factor for $y$ is $-1$, so $y$ flips sign forever without shrinking.
+
+**The cost.** Just below the threshold the factor for $x$ is about $1 - 6/15 = 0.6$, so $x$ converges, but no larger $\eta$ is available to speed it up. The gentle direction is held back by the steep one: the valley problem from the lecture, and the reason the homework moves on to momentum and Adam.
+
+**Answer:** $1/15 \approx 0.067$.
+:::
+
+### Problem 11: Weight decay before or after Adam's normalization {#prb-11}
+
+A parameter starts at $\theta_0 = 3$ with fresh Adam state ($t = 1$). Its loss gradient on this step is $g_1 = 0.4$. Use $\eta = 0.1$, a decay coefficient $\lambda = 0.5$, and $\epsilon = 0$. Compare two versions:
+
+- **(A)** Add $\lambda\theta_0$ to the gradient, then take an ordinary Adam step on the result.
+- **(B)** AdamW: take the Adam step on $g_1$ alone and add $\lambda\theta_0$ after the normalization, as in the context section.
+
+How many times larger is the move in version (B) than in version (A)?
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+This uses [Week 4, The full algorithm](week04.qmd#sec-adam-algorithm) and the AdamW update in the context section.
+
+**A fact about Adam's first step.** With $\epsilon = 0$, bias correction gives $\hat{v}_1 = g$ and $\sqrt{\hat{s}_1} = |g|$ for whatever gradient $g$ goes in, so the normalized term is $g/|g| = \pm 1$. The first step has size $\eta$ whatever the size of $g$.
+
+**(A) Decay inside the gradient.** The gradient fed to Adam is $0.4 + 0.5 \cdot 3 = 1.9$. Adam normalizes it to $+1$, so the move is $\eta \cdot 1 = 0.1$ and $\theta_1 = 2.9$. The decay term made the gradient almost five times larger, and the normalization erased that.
+
+**(B) AdamW.** The normalized term is $0.4/0.4 = 1$, and the decay term is added afterwards:
+
+$$\theta_1 = 3 - 0.1\,(1 + 0.5 \cdot 3) = 3 - 0.25 = 2.75$$
+
+The move is $0.25$.
+
+**The ratio** is $0.25/0.1 = 2.5$. In version (A), Adam's division by the typical gradient size also divides away the weight decay, so large weights are not shrunk any harder than small ones. AdamW keeps the decay outside the normalization, so a weight is pulled toward $0$ in proportion to its size, as in Week 3's weight decay.
+
+**Answer:** $2.5$.
+:::
+
+### Problem 12: The Glorot uniform limit {#prb-12}
+
+A dense layer maps $n_\text{in} = 100$ inputs to $n_\text{out} = 50$ outputs and uses Glorot uniform initialization, $W_{ij} \sim \text{Uniform}[-a,\ a]$ with $a = \sqrt{6/(n_\text{in} + n_\text{out})}$. What is $a$?
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+This uses [Week 3, Parameter Initialization](week03.qmd#sec-init) and the context section above.
+
+**The limit.**
+
+$$a = \sqrt{\frac{6}{100 + 50}} = \sqrt{0.04} = 0.2$$
+
+**Why a $6$ and not a $2$.** The rule's goal is a weight variance of $2/(n_\text{in} + n_\text{out})$, the same as Week 3's normal version. A uniform variable on $[-a,\ a]$ has variance $a^2/3$, so here
+
+$$\frac{a^2}{3} = \frac{0.04}{3} = \frac{2}{150} = \frac{2}{n_\text{in} + n_\text{out}}$$
+
+Matching $a^2/3$ to $2/(n_\text{in} + n_\text{out})$ forces $a^2 = 6/(n_\text{in} + n_\text{out})$. The $6$ is the $2$ of Glorot's variance times the $3$ from the uniform distribution. The two versions differ in the shape of the distribution, not in its spread.
+
+**Answer:** $0.2$.
+:::
+
+### Problem 13: How much state does Adam keep? {#prb-13}
+
+An MLP has layer widths `[3, 8, 4]`: two dense layers, each with a weight matrix and a bias vector. Its parameters are passed to the optimizer as a list of arrays, `[W0, W1, b0, b1]`. After the first call to `step`, how many numbers in total are stored in an Adam optimizer's `self.state`?
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+This uses [Week 4, The memory cost](week04.qmd#sec-adam) and the optimizer-state paragraph in the context section.
+
+**Count the parameters.** A dense layer from $n_\text{in}$ to $n_\text{out}$ has $n_\text{in} n_\text{out}$ weights and $n_\text{out}$ biases.
+
+| Array | Shape | Numbers |
+|---|---|---|
+| `W0` | $8 \times 3$ | $24$ |
+| `W1` | $4 \times 8$ | $32$ |
+| `b0` | $8$ | $8$ |
+| `b1` | $4$ | $4$ |
+| **Total** | | $68$ |
+
+**Count the state.** `self.state` has one entry per array in the list, four in all, keyed by position. Each Adam entry holds two arrays of the same shape as its parameter, the first moment and the second moment. So Adam stores $2 \cdot 68 = 136$ numbers.
+
+For comparison, momentum keeps one accumulator per parameter ($68$ numbers) and plain SGD keeps none ($0$). This is the week chapter's memory point on a small network: momentum doubles the stored state and Adam triples it.
+
+**Answer:** $136$.
+:::
+
+### Problem 14: Why identical weights stay identical {#prb-14}
+
+A classmate initializes every weight of a two-class MLP to the same value $1$ and every bias to $0$. They hope a strong optimizer like Adam will sort things out. Their loss curve is smooth and flat at about $0.693$. Explain what went wrong, and what the value $0.693$ tells us.
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+This uses [Week 3, Parameter Initialization](week03.qmd#sec-init) and [Week 4, The full algorithm](week04.qmd#sec-adam-algorithm).
+
+**Identical units.** In a hidden layer, every unit has the same incoming weights and the same bias, so every unit computes the same pre-activation and the same activation on every example. The units differ only in their names.
+
+**Identical gradients.** Each hidden unit also has the same outgoing weights, so backpropagation sends it the same error signal. Its incoming weights therefore get the same gradients as every other unit's. After the update they are still equal to each other, and the argument repeats on the next step.
+
+**The optimizer cannot help.** Momentum and Adam work entry by entry. Two weights with identical gradient histories have identical accumulators and take identical steps. A per-parameter learning rate gives the same value to parameters that look the same. The hidden layer behaves like a single unit for the whole run, however wide it is. Random initialization exists to break this symmetry before training starts.
+
+**What $0.693$ means.** With all weights equal, both output logits are equal too, so the softmax gives probability $1/2$ to each class on every example. The [cross-entropy](https://en.wikipedia.org/wiki/Cross-entropy) of predicting $1/2$ for the correct class is $-\ln(1/2) = \ln 2 \approx 0.693$. More generally, guessing uniformly among $K$ classes gives $\ln K$. A loss curve sitting at that value is smooth because nothing is being learned. A low-variance loss curve is not evidence of training: compare it with the chance-level value first.
+:::
+
+## Part 5: Official Week 5 quiz practice {#sec-w4p-official-quiz}
+
+The four questions below were provided by the course as Week 5 quiz practice, and they test Week 4 material. They are reproduced with the course's own numbers and answers, in increasing order of difficulty.
+
+### Quiz question 1: Updates scale with the feature (easy) {#quiz-1}
+
+A linear model $\hat{y} = w_1x_1 + w_2x_2$ is trained with the squared error loss $\mathcal{L} = \tfrac{1}{2}(y - \hat{y})^2$ using vanilla gradient descent with a single learning rate. For the example $\bm{x} = (12,\ 3)$, $y = 2$, and initial weights $w_1 = w_2 = 0$, how many times larger is the magnitude of the update to $w_1$ than the magnitude of the update to $w_2$ after one step?
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+This uses [Week 4, A linear model with features on different scales](week04.qmd#sec-one-eta).
+
+1. With $w_1 = w_2 = 0$, the prediction is $\hat{y} = 0$.
+2. The gradient for each weight is $\dfrac{\partial\mathcal{L}}{\partial w_i} = (\hat{y} - y)\,x_i = -2x_i$.
+3. So $\partial\mathcal{L}/\partial w_1 = -24$ and $\partial\mathcal{L}/\partial w_2 = -6$.
+4. The update is $\Delta w_i = -\eta\,\partial\mathcal{L}/\partial w_i$, so $|\Delta w_1| = 24\eta$ and $|\Delta w_2| = 6\eta$.
+5. The ratio is $24\eta / 6\eta = 12/3$.
+
+Both weights share the error factor, so the ratio of the updates is just the ratio of the features.
+
+**Answer:** $4$.
+:::
+
+### Quiz question 2: Momentum when the gradient reverses (medium) {#quiz-2}
+
+A parameter is trained with the momentum optimizer ($v_t \leftarrow \beta v_{t-1} + g_t$, $x_t \leftarrow x_{t-1} - \eta v_t$) with $\beta = 0.9$ and $\eta = \tfrac{1}{2}$. The gradient has been equal to $+1$ for so long that the accumulator has stopped changing. On the next step the gradient suddenly becomes $-1$. By what magnitude does $x$ move on that step?
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+This uses [Week 4, Momentum](week04.qmd#sec-momentum), in particular the consistent-gradient worked example there.
+
+**The equations from class.** Momentum's two update rules, with the accumulator starting at $v_0 = 0$:
+
+$$v_t \leftarrow \beta\,v_{t-1} + g_t, \qquad x_t \leftarrow x_{t-1} - \eta\,v_t$$
+
+**Step 1: what the accumulator is while the gradient is $+1$.** The week chapter's worked example runs exactly this case with $\beta = 0.9$ and $g_t = 1$ at every step:
+
+| Step $t$ | $v_t = 0.9\,v_{t-1} + 1$ |
+|---|---|
+| $1$ | $1$ |
+| $2$ | $0.9 \cdot 1 + 1 = 1.9$ |
+| $3$ | $0.9 \cdot 1.9 + 1 = 2.71$ |
+| $4$ | $0.9 \cdot 2.71 + 1 = 3.439$ |
+
+Unrolling the rule turns this into a [geometric series](https://en.wikipedia.org/wiki/Geometric_series):
+
+$$v_t = 1 + \beta + \beta^2 + \cdots + \beta^{t-1} = \frac{1 - \beta^t}{1 - \beta}$$
+
+**Step 2: what "stopped changing" means.** As $t$ grows, $\beta^t = 0.9^t$ shrinks toward $0$, so $v_t$ climbs toward
+
+$$\frac{1 - 0}{1 - \beta} = \frac{1}{0.1} = 10$$
+
+and each new step changes it by less. "The gradient has been $+1$ for so long that the accumulator has stopped changing" says we are at this limit: $v_{t-1} = 10$. (The quiz's own solution calls this value $v_\text{ss}$, for *steady state*. The lecture does not use that name; it is just the value the geometric series approaches.)
+
+A second way to find the same number: if the accumulator has stopped changing, then one more update with $g = 1$ leaves it where it was, so $v_{t-1}$ must satisfy
+
+$$v_{t-1} = \beta\,v_{t-1} + 1 \quad\Longrightarrow\quad (1 - \beta)\,v_{t-1} = 1 \quad\Longrightarrow\quad v_{t-1} = \frac{1}{0.1} = 10$$
+
+**Step 3: the accumulator on the step where the gradient flips.** Now $g_t = -1$:
+
+$$v_t = \beta\,v_{t-1} + g_t = 0.9 \cdot 10 + (-1) = 9 - 1 = 8$$
+
+The old value is shrunk by $\beta$ and the new gradient is added, but one gradient of size $1$ cannot cancel an accumulated $9$.
+
+**Step 4: the move.** The change in $x$ on this step is
+
+$$x_t - x_{t-1} = -\eta\,v_t = -\tfrac{1}{2} \cdot 8 = -4$$
+
+**What "magnitude" asks for.** The question asks for the size of the move, $|x_t - x_{t-1}| = |-\eta\,v_t|$, not the signed change $-\eta\,v_t$. Since $\eta > 0$, this is $\eta\,|v_t| = \tfrac{1}{2} \cdot 8 = 4$. The sign is still worth reading: $x$ decreases by $4$, the same direction it was moving while the gradient was $+1$. The new gradient of $-1$ on its own would say to *increase* $x$, but the accumulated momentum outweighs that one reversed gradient, so $x$ keeps going the old way, only a little more slowly than the $\eta \cdot 10 = 5$ per step it was moving before.
+
+**Answer:** $4$.
+:::
+
+### Quiz question 3: Adam without bias correction (medium-hard) {#quiz-3}
+
+A single parameter is trained with Adam using $\beta_1 = 0.8$, $\beta_2 = 0.99$, $\epsilon = 0$, and $v_0 = s_0 = 0$. On the first step the gradient is $g_1 = 5$. A student implements Adam but forgets the bias-correction step (that is, uses $v_t$ and $s_t$ directly instead of $\hat{v}_t$ and $\hat{s}_t$). How many times larger is the first update than the first update of standard Adam?
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+This uses [Week 4, The bias toward zero](week04.qmd#sec-bias-correction).
+
+1. The accumulators after one step:
+   - $v_1 = (1 - \beta_1)\,g_1 = 0.2 \cdot 5 = 1$
+   - $s_1 = (1 - \beta_2)\,g_1^2 = 0.01 \cdot 25 = 0.25$
+2. **Standard Adam:** $\hat{v}_1 = 1/0.2 = 5$ and $\hat{s}_1 = 0.25/0.01 = 25$, so the update is $\eta \cdot 5/5 = \eta$.
+3. **No bias correction:** the update is $\eta \cdot 1/\sqrt{0.25} = 2\eta$.
+4. The ratio is $2\eta/\eta = 2$.
+
+In general the ratio is $(1 - \beta_1)/\sqrt{1 - \beta_2} = 0.2/0.1 = 2$, whatever the gradient. The second moment is biased more strongly than the first, so the uncorrected first step comes out too large, as in the week chapter's worked example.
+
+**Answer:** $2$.
+:::
+
+### Quiz question 4: SGD noise at the minimum (hard) {#quiz-4}
+
+A training set has four examples with per-example losses $\mathcal{L}_i(\theta) = \tfrac{1}{2}(\theta - a_i)^2$, where $(a_1, a_2, a_3, a_4) = (1,\ 3,\ 5,\ 7)$, and the full training loss is their average. Mini-batch SGD with learning rate $\eta = 2$ and mini-batch size $B = 5$ (examples sampled independently and uniformly with replacement) is started exactly at the minimizer $\theta^*$ of the full training loss. After one step, what is the expected value of $(\theta_1 - \theta^*)^2$?
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+This combines three Week 4 equations with the expectation and variance rules from the Week 3 practice chapter. The plan: find $\theta^*$, write the one step as $\theta^*$ minus $\eta$ times a random mini-batch gradient, then find the average of that gradient's square.
+
+**The equations used.**
+
+| # | Equation | Source |
+|---|---|---|
+| E1 | $\mathcal{L}(\theta) = \dfrac{1}{n}\sum_{i=1}^{n}\mathcal{L}_i(\theta)$ (training loss is the average) | [Week 4, SGD](week04.qmd#sec-sgd) |
+| E2 | $\theta \leftarrow \theta - \eta\,\dfrac{1}{B}\sum_{b=1}^{B}\nabla_\theta\mathcal{L}_{i_b}(\theta)$ (mini-batch update) | [Week 4, Mini-batches](week04.qmd#sec-minibatch) |
+| E3 | $\mathbb{E}\big[\nabla_\theta\mathcal{L}_i(\theta)\big] = \nabla_\theta\mathcal{L}(\theta)$ for $i$ uniform (unbiased gradient) | [Week 4, SGD](week04.qmd#sec-sgd) |
+| R1 | $\operatorname{Var}[X] = \mathbb{E}[X^2] - (\mathbb{E}[X])^2$, so $\mathbb{E}[X^2] = \operatorname{Var}[X] + (\mathbb{E}[X])^2$ | [Week 3 practice, rule 1](week03-practice.qmd#sec-var-rules) |
+| R2 | $\operatorname{Var}[cX] = c^2\operatorname{Var}[X]$ and $\mathbb{E}[cX] = c\,\mathbb{E}[X]$ | [Week 3 practice, rule 2](week03-practice.qmd#sec-var-rules) and [expectation rules](week03-practice.qmd#sec-e-var) |
+| R3 | $\operatorname{Var}[X + Y] = \operatorname{Var}[X] + \operatorname{Var}[Y]$ for independent $X$, $Y$ | [Week 3 practice, rule 3](week03-practice.qmd#sec-var-rules) |
+
+Here $i_b$ is the index of the $b$-th example drawn into the mini-batch. The loss is a function of one number $\theta$, so every gradient is an ordinary derivative.
+
+E1 is not specific to SGD. It defines the training loss, the function every optimizer this week is trying to minimize: full-batch gradient descent, SGD, mini-batch SGD, momentum, and Adam all share it. They differ only in how they estimate its gradient (all $n$ examples, one, or $B$) and in what they do with that estimate (step directly, accumulate it, or normalize it). Some texts use the sum instead of the average; that multiplies every gradient by $n$, which a learning rate $n$ times smaller would cancel.
+
+**Step 1: the per-example gradient.** By the chain rule (the same calculation as the squared error in [Week 1](week01.qmd)), the derivative of $\tfrac{1}{2}(\theta - a_i)^2$ is
+
+$$\frac{d\mathcal{L}_i}{d\theta} = \tfrac{1}{2}\cdot 2(\theta - a_i)\cdot 1 = \theta - a_i$$
+
+**Step 2: the minimizer $\theta^*$.** By E1 the training loss is the average of the four per-example losses, so its derivative is the average of the four derivatives:
+
+$$\frac{d\mathcal{L}}{d\theta} = \frac{1}{4}\sum_{i=1}^{4}(\theta - a_i) = \theta - \frac{a_1 + a_2 + a_3 + a_4}{4}$$
+
+The minimum is where this is $0$, so $\theta^*$ is the mean of the $a_i$:
+
+$$\theta^* = \frac{1 + 3 + 5 + 7}{4} = 4$$
+
+(The loss is a bowl with second derivative $1 > 0$, so this point is a minimum.)
+
+**Step 3: the per-example gradients at $\theta^*$.** Using Step 1 with $\theta = 4$:
+
+| Example $i$ | $a_i$ | Gradient $\theta^* - a_i$ |
+|---|---|---|
+| $1$ | $1$ | $3$ |
+| $2$ | $3$ | $1$ |
+| $3$ | $5$ | $-1$ |
+| $4$ | $7$ | $-3$ |
+
+They add to $0$, as they must: their average is the full gradient, and the full gradient is $0$ at the minimizer. But no single one is $0$. That is the whole source of the answer.
+
+**Step 4: write the step as a random quantity.** One draw picks an example uniformly at random, so its gradient $g$ is a random variable taking the values $3, 1, -1, -3$, each with probability $1/4$. The mini-batch draws $B = 5$ of them, $g_1, \ldots, g_5$. "With replacement" means each draw is made from all four examples regardless of earlier draws, so the five draws are independent and each has the same distribution as $g$. Their average is the mini-batch gradient
+
+$$\bar{g} = \frac{1}{5}\sum_{b=1}^{5} g_b$$
+
+By E2, starting at $\theta_0 = \theta^*$, one step gives $\theta_1 = \theta^* - \eta\,\bar{g}$. So the quantity the question asks about is
+
+$$(\theta_1 - \theta^*)^2 = (-\eta\,\bar{g})^2 = \eta^2\,\bar{g}^2$$
+
+The randomness is only in which examples were drawn, and the question asks for the average of this over all possible mini-batches.
+
+**Step 5: mean and variance of one draw.** From Step 3, one draw gives $g$ one of the four values $3,\ 1,\ -1,\ -3$, and each example is picked with the same probability $1/4$. The expected value of a quantity picked uniformly from a list is just the average of the list:
+
+$$\mathbb{E}[g] = \frac{3 + 1 + (-1) + (-3)}{4} = 0$$
+
+$\mathbb{E}[g^2]$ works the same way. Squaring $g$ squares whichever value was picked, so $g^2$ takes the values $9,\ 1,\ 1,\ 9$, again each with probability $1/4$, and its expected value is their average:
+
+$$\mathbb{E}[g^2] = \frac{9 + 1 + 1 + 9}{4} = 5$$
+
+By R1, $\operatorname{Var}[g] = \mathbb{E}[g^2] - (\mathbb{E}[g])^2 = 5 - 0 = 5$.
+
+**Step 6: mean and variance of the mini-batch average.** Write the mini-batch gradient as the sum of the five draws divided by $5$. Call the sum $S$:
+
+$$S = g_1 + g_2 + g_3 + g_4 + g_5, \qquad \bar{g} = \tfrac{1}{5}\,S$$
+
+Each draw $g_b$ is a copy of the single draw from Step 5, so every one has $\mathbb{E}[g_b] = 0$ and $\operatorname{Var}[g_b] = 5$.
+
+*6a. The mean.* The expectation rules from the [Week 3 practice chapter](week03-practice.qmd#sec-e-var) say that constants come out and sums split, always (no independence needed):
+
+$$\mathbb{E}[aX + bY] = a\,\mathbb{E}[X] + b\,\mathbb{E}[Y]$$
+
+Applied to $\bar{g}$, with $a = 1/5$:
+
+$$\begin{aligned}
+\mathbb{E}[\bar{g}] &= \tfrac{1}{5}\big(\mathbb{E}[g_1] + \mathbb{E}[g_2] + \mathbb{E}[g_3] + \mathbb{E}[g_4] + \mathbb{E}[g_5]\big) \\
+&= \tfrac{1}{5}(0 + 0 + 0 + 0 + 0) = 0
+\end{aligned}$$
+
+*6b. The variance of the sum.* R3 says that for independent $X$ and $Y$,
+
+$$\operatorname{Var}[X + Y] = \operatorname{Var}[X] + \operatorname{Var}[Y]$$
+
+Applying it one term at a time extends it to five independent terms. The draws are independent because they are made with replacement (Step 4), so
+
+$$\begin{aligned}
+\operatorname{Var}[S] &= \operatorname{Var}[g_1] + \operatorname{Var}[g_2] + \operatorname{Var}[g_3] + \operatorname{Var}[g_4] + \operatorname{Var}[g_5] \\
+&= 5 + 5 + 5 + 5 + 5 = 25
+\end{aligned}$$
+
+Adding draws makes the sum more spread out, not less: the noise of five draws piles up.
+
+*6c. Dividing by $5$.* R2 says a constant factor comes out of a variance squared:
+
+$$\operatorname{Var}[cX] = c^2\operatorname{Var}[X]$$
+
+Here $c = 1/5$ and $X = S$:
+
+$$\operatorname{Var}[\bar{g}] = \operatorname{Var}\big[\tfrac{1}{5}S\big] = \left(\tfrac{1}{5}\right)^2 \operatorname{Var}[S] = \frac{1}{25}\cdot 25 = 1$$
+
+The sum's variance grew by a factor of $5$, but dividing by $5$ shrinks the variance by a factor of $5^2 = 25$, so the average ends up $5$ times less noisy than a single draw.
+
+*6d. The general rule.* The same three lines with $B$ draws, each of variance $\operatorname{Var}[g]$, give
+
+$$\operatorname{Var}[\bar{g}] = \left(\tfrac{1}{B}\right)^2 \cdot B\operatorname{Var}[g] = \frac{\operatorname{Var}[g]}{B}$$
+
+which is the rule on the equation sheet: here $5/5 = 1$.
+
+**Step 7: put it together.** $\eta^2 = 4$ is a constant, so it comes outside the expectation (R2). Then R1, applied to $\bar{g}$, turns $\mathbb{E}[\bar{g}^2]$ into the variance plus the squared mean:
+
+$$\begin{aligned}
+\mathbb{E}\big[(\theta_1 - \theta^*)^2\big] &= \eta^2\,\mathbb{E}[\bar{g}^2] \\
+&= \eta^2\left(\operatorname{Var}[\bar{g}] + (\mathbb{E}[\bar{g}])^2\right) \\
+&= 4\,(1 + 0^2)
+\end{aligned}$$
+
+**Answer:** $4$.
+
+**Key takeaways: what this question tests.**
+
+- **SGD's gradient is unbiased but noisy.** On average a mini-batch gradient equals the full gradient (Steps 5 and 6a). That does not make any single mini-batch gradient correct: at the minimum the full gradient is $0$, but each per-example gradient is not (Step 3).
+- **So SGD cannot sit still at the minimum.** Full-batch gradient descent started at $\theta^*$ would not move at all. Mini-batch SGD moves anyway, here landing a squared distance of $4$ from the minimum on average, a typical distance of about $2$. This is the stalling and jittering from [The Noise in SGD](week04.qmd#sec-sgd-noise), measured as a number.
+- **The two knobs, and how strongly each one acts.** The expected squared distance is $\eta^2\operatorname{Var}[g]/B$. Doubling $B$ halves it; halving $\eta$ quarters it. This is why mini-batches reduce the noise but do not remove it, and why learning rate schedules lower $\eta$ late in training.
+- **The probability skills behind it.** The expected value of a uniformly picked value is the average of the list; $\mathbb{E}[X^2] = \operatorname{Var}[X] + (\mathbb{E}[X])^2$; and the variance of an average of $B$ independent draws is the single-draw variance divided by $B$. "With replacement" is the detail in the question that makes the draws independent, so that last rule applies.
+:::
+
+## Part 6: Conceptual questions {#sec-w4p-conceptual}
+
+These have no numeric answer. Try answering in two or three sentences before opening the solution.
+
+### Conceptual 1: Why SGD stalls, and what a schedule fixes {#con-1}
+
+A training curve under SGD with a constant learning rate falls quickly, then flattens out and jitters well above the lowest loss the model could reach. Explain why, and explain what lowering the learning rate late in training does and does not fix.
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+This uses [Week 4, The Noise in SGD](week04.qmd#sec-sgd-noise) and [Learning rate schedules](week04.qmd#sec-schedules).
+
+Each SGD step follows one example's (or one mini-batch's) gradient, and each example's loss has its own minimum. Far from the minimum of the average, the per-example gradients mostly agree on which way is downhill, so progress is fast. Near it they disagree: at the minimum of the average their mean is $0$, but each one is not (Quiz question 4). So every step still moves the parameters by about $\eta$ times a nonzero gradient, and they bounce around the minimum instead of settling. The jitter is proportional to $\eta$.
+
+Lowering $\eta$ late in training shrinks those bounces, so the parameters settle closer to the minimum. It does not remove the noise itself: the per-example gradients still disagree. And lowering $\eta$ too early slows the fast first phase of training. A larger mini-batch is the other remedy. It cuts the noise's standard deviation by $\sqrt{B}$ (Problem 5), and only removes it entirely when the mini-batch is the whole training set.
+:::
+
+### Conceptual 2: Adam with no memory {#con-2}
+
+Suppose we run Adam with $\beta_1 = \beta_2 = 0$, so it keeps no memory of past gradients. What does each update reduce to, and what does that reveal about the role of the denominator $\sqrt{\hat{\bm{s}}_t}$?
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+This uses [Week 4, The full algorithm](week04.qmd#sec-adam-algorithm).
+
+With $\beta_1 = \beta_2 = 0$, the accumulators are just the current gradient and its square: $\bm{v}_t = \bm{g}_t$ and $\bm{s}_t = \bm{g}_t^2$. The bias corrections divide by $1 - 0^t = 1$, so they do nothing. Ignoring the small $\epsilon$, each entry's update is
+
+$$\frac{\eta\,g_t}{\sqrt{g_t^2}} = \frac{\eta\,g_t}{|g_t|} = \pm\eta$$
+
+Every parameter moves by exactly $\eta$ per step, in the downhill direction, whatever the size of its gradient. Only the sign of the gradient is used.
+
+This isolates the denominator's job. Dividing by the typical gradient size throws away the gradient's scale, which is how one global $\eta$ can suit parameters whose gradients differ by orders of magnitude. It also shows why the moving averages matter. With no memory, the step stays $\eta$ even as the gradient shrinks toward $0$ near a minimum, so the parameters keep bouncing by $\pm\eta$. With $\beta_1$ and $\beta_2$ close to $1$, $\hat{\bm{v}}_t$ averages out gradients that keep flipping sign, while $\hat{\bm{s}}_t$ still remembers their size, so the step shrinks when the gradient keeps reversing.
+:::

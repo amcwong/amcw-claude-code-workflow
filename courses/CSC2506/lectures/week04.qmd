@@ -1,0 +1,638 @@
+---
+title: "Week 4: Message Passing and Monte Carlo"
+---
+
+```{=html}
+<style>#title-block-header { display: none; }</style>
+<div class="lecture-header">
+  <h1>Week 4: Message Passing and Monte Carlo</h1>
+</div>
+```
+
+**Overview.** Week 3 ended with variable elimination: to compute a conditional $p(x_F\mid x_E)$ in a graphical model, sum out the remaining variables $x_R$ one at a time, pushing each sum inward past every factor that does not mention it. This lecture takes that algorithm in two directions. The first half starts from a model where exact inference is out of reach, the TrueSkill model for ranking game players, and then shows that on a **tree** variable elimination can be rewritten as **messages** passed between neighbouring nodes. Two sweeps of messages give every node's marginal at once (**belief propagation**). Running the same updates on a graph with cycles gives **loopy belief propagation**, an approximation with few guarantees that is still useful in practice; the tutorial uses it to denoise a binary image. The second half changes strategy entirely: instead of summing over a distribution, we draw random samples from it. We cover **ancestral sampling**, **simple Monte Carlo** estimation of expectations, and two tools for distributions we can only evaluate up to a constant: **importance sampling** and **rejection sampling**.
+
+Skipped: the title slide. The two agenda slides (slides 2 and 19) became the paragraph above.
+
+## Latent variables and the TrueSkill model {#sec-trueskill}
+
+Some variables in a model are never observed, yet the model depends on them. What do we do with such a variable?
+
+::: {.definition-block}
+**Definition.** A **[latent variable](https://en.wikipedia.org/wiki/Latent_and_observable_variables)** is an unobserved variable that governs some property of the observed data in a probabilistic model.
+:::
+
+If an inference question never asks about a latent variable $z$, we can simply marginalize it out (integrate over it, or sum if it is discrete), exactly as Week 3 summed out the remaining variables $x_R$ (@sec-inference in Week 3). In other problems the latent variables are the very thing we want to learn about. Clustering is one example, and the course returns to latent variables when it covers Gaussian mixtures.
+
+The lecture's running example of the second kind is **[TrueSkill](https://en.wikipedia.org/wiki/TrueSkill)**, a ranking system for players of competitive games. The goal is to infer each player's skill from observing who beats whom.
+
+::: {.definition-block}
+**Definition.** In the course's **TrueSkill model** (a logistic simplification: Microsoft's original TrueSkill adds Gaussian performance noise, giving a cumulative-normal win probability), each of $N$ players has a fixed skill $z_i \in \mathbb{R}$. Before seeing any games, the skills are independent, each with its own prior $p(z_i)$ (for example an independent Gaussian). Skills are never observed, so they are latent variables. In each game, the probability that player $i$ beats player $j$ is
+$$p(i \text{ beats } j \mid z_i, z_j) = \sigma(z_i - z_j), \qquad \sigma(y) = \frac{1}{1+\exp(-y)}.$$
+:::
+
+The function $\sigma$ here is the standard **[logistic function](https://en.wikipedia.org/wiki/Logistic_function)**: it maps any real number into $(0,1)$, equals $\tfrac12$ at $0$, and approaches $1$ as its argument grows. So two players of equal skill each win half the time, and the larger the skill gap $z_i - z_j$, the more likely the stronger player wins. Week 3's restricted Boltzmann machine section (@sec-rbm in Week 3) used the same letter for $\sigma(y) = 1/(1+e^{-2y})$, which has an extra factor of 2 because those units took values in $\{-1,+1\}$. In this chapter $\sigma$ always means the standard version, $1/(1+e^{-y})$.
+
+Treating the games as independent given the skills, the joint distribution of all skills and all $T$ game outcomes is the prior times one factor per game:
+
+$$p(z_1,\dots,z_N,\text{game } 1,\dots,\text{game } T) = \Big[\prod_{i=1}^N p(z_i)\Big]\Big[\prod_{\text{games}} p(i \text{ beats } j\mid z_i,z_j)\Big].$$
+
+**Why the posterior is hard.** Once we observe some games, the skills are no longer independent, even for two players who have never played each other. This is Week 2's explaining-away structure (@sec-cistructures in Week 2): a game outcome is a common child of the two players' skills, so observing it couples them. If $A$ beat $B$, then learning that $B$ is strong makes it more likely that $A$ is strong too. A chain of games ($A$ played $B$, $B$ played $C$) then couples $A$ and $C$ through $B$. As a result, even the exact posterior over just two players requires integrating over every other player's skill:
+
+$$p(z_1,z_2\mid\text{games}) = \int\!\cdots\!\int p(z_1,z_2,z_3,\dots,z_N\mid\text{games})\,dz_3\cdots dz_N.$$
+
+This is an $(N-2)$-dimensional integral with no closed form. The rest of the first half builds a tool, message passing, that computes approximate posteriors of this kind.
+
+::: {.callout-note}
+**Homework-relevant.** Assignment 2 returns to the TrueSkill model. This section explains the model, its joint distribution, and why the posterior couples the players; the specific posterior computations the assignment asks for are left to the assignment.
+:::
+
+## Trees and elimination order {#sec-trees}
+
+Week 3 showed that variable elimination's cost depends on the graph structure and on the elimination ordering, and that finding the best ordering is NP-hard in general (@sec-ve in Week 3). Even the best ordering can leave an intermediate factor over many variables at once, which is unreasonably costly. There is one large family of graphs where neither problem arises.
+
+::: {.definition-block}
+**Definition.** A graph $\mathcal{G}=(\mathcal{V},\mathcal{E})$ has a set of vertices (nodes) $\mathcal{V}$ and a set of edges $\mathcal{E}$, with $(i,j)\in\mathcal{E}$ when there is an edge between nodes $i$ and $j$. The **neighbours** of node $i$ are $N(i) = \{j : (i,j)\in\mathcal{E}\}$. An undirected graph is a **[tree](https://en.wikipedia.org/wiki/Tree_(graph_theory))** if it is connected and has no cycles. A **leaf** is a node with exactly one neighbour.
+:::
+
+The lecture's informal picture: a tree is a chain that sometimes branches. For trees, **any elimination ordering that works from the leaves inward toward some root is optimal.** The reason is that summing out a leaf only touches the leaf itself and its single neighbour, so the intermediate factor it produces depends on one variable, the neighbour. Removing that leaf leaves a smaller tree, which has its own leaves, and the process repeats. No intermediate factor ever involves more than two variables at once, so with $n$ variables of $k$ states each the whole elimination costs $O(nk^2)$, the same cost as the chain example of Week 3.
+
+A tree-shaped Markov random field with one potential per node and one per edge has joint distribution
+
+$$p(x_{1:n}) = \frac{1}{Z}\prod_{i\in\mathcal{V}}\psi_i(x_i)\prod_{(i,j)\in\mathcal{E}}\psi_{ij}(x_i,x_j).$$
+
+The edges of a tree are its maximal cliques, so this is Week 3's clique factorization (@sec-mrf in Week 3) with extra single-node potentials $\psi_i$ added. An edge potential is one function of the pair, so we write its arguments in whichever order is convenient: $\psi_{12}(x_1,x_2)$ and $\psi_{12}(x_2,x_1)$ mean the same table read the same way.
+
+## Worked example: elimination on a tree becomes message passing {#sec-tree-example}
+
+The lecture's example is a five-node tree: $x_1$ connects to $x_2$ and $x_3$, and $x_3$ connects to $x_4$ and $x_5$. The nodes $x_2, x_4, x_5$ are observed, with values written $\bar x_2, \bar x_4, \bar x_5$ (the bar marks an observed value, as in Week 3). We want $p(x_3\mid\bar x_2,\bar x_4,\bar x_5)$.
+
+```{=html}
+<div style="overflow-x:auto; margin:1.5rem 0;">
+<svg viewBox="0 0 440 320" width="100%" style="max-width:440px;display:block;margin:auto;font-family:Helvetica,'Helvetica Neue',Arial,sans-serif;" role="img" aria-label="A five-node tree: x1 connects to x2 and x3, and x3 connects to x4 and x5. Nodes x2, x4, x5 are observed.">
+  <text x="220" y="28" text-anchor="middle" font-size="24" font-weight="600" fill="#333">The lecture's five-node tree</text>
+  <line x1="200" y1="90" x2="120" y2="170" stroke="#555" stroke-width="1.5"/>
+  <line x1="200" y1="90" x2="280" y2="170" stroke="#555" stroke-width="1.5"/>
+  <line x1="280" y1="170" x2="210" y2="260" stroke="#555" stroke-width="1.5"/>
+  <line x1="280" y1="170" x2="350" y2="260" stroke="#555" stroke-width="1.5"/>
+  <circle cx="200" cy="90" r="24" fill="#C9E4DE" stroke="#57C7AE" stroke-width="1.5"/>
+  <text x="200" y="96" text-anchor="middle" font-size="16" fill="#207965">x1</text>
+  <circle cx="120" cy="170" r="24" fill="#C6DEF1" stroke="#5795C7" stroke-width="2.5"/>
+  <text x="120" y="176" text-anchor="middle" font-size="16" fill="#205279">x2</text>
+  <circle cx="280" cy="170" r="24" fill="#F2C6DE" stroke="#C75794" stroke-width="1.5"/>
+  <text x="280" y="176" text-anchor="middle" font-size="16" fill="#792051">x3</text>
+  <circle cx="210" cy="260" r="24" fill="#C6DEF1" stroke="#5795C7" stroke-width="2.5"/>
+  <text x="210" y="266" text-anchor="middle" font-size="16" fill="#205279">x4</text>
+  <circle cx="350" cy="260" r="24" fill="#C6DEF1" stroke="#5795C7" stroke-width="2.5"/>
+  <text x="350" y="266" text-anchor="middle" font-size="16" fill="#205279">x5</text>
+  <rect x="20" y="294" width="16" height="16" rx="3" fill="#C6DEF1" stroke="#5795C7" stroke-width="2"/>
+  <text x="42" y="307" font-size="14" fill="#333">observed</text>
+  <rect x="130" y="294" width="16" height="16" rx="3" fill="#C9E4DE" stroke="#57C7AE" stroke-width="1.5"/>
+  <text x="152" y="307" font-size="14" fill="#333">summed out</text>
+  <rect x="262" y="294" width="16" height="16" rx="3" fill="#F2C6DE" stroke="#C75794" stroke-width="1.5"/>
+  <text x="284" y="307" font-size="14" fill="#333">query</text>
+</svg>
+</div>
+```
+
+**Figure 1.** The lecture's tree. Blue nodes are observed, $x_3$ is the query variable, and $x_1$ is the only remaining variable, so it is the only one summed out.
+
+Since the only unobserved variable besides $x_3$ is $x_1$, Week 3's definition of inference says the answer is the joint with $x_1$ summed out, divided by a normalizer:
+
+$$p(x_3\mid\bar x_2,\bar x_4,\bar x_5) = \frac{1}{Z^E}\sum_{x_1}\psi_1(x_1)\,\psi_3(x_3)\,\psi_2(\bar x_2)\,\psi_4(\bar x_4)\,\psi_5(\bar x_5)$$
+$${}\times\psi_{12}(\bar x_2,x_1)\,\psi_{34}(\bar x_4,x_3)\,\psi_{35}(\bar x_5,x_3)\,\psi_{13}(x_1,x_3).$$
+
+Here $Z^E$ is whatever constant makes the right-hand side sum to 1 over $x_3$; it depends on the evidence but not on $x_3$. Now group the factors by which variable they mention, the same "push the sum inward" move as Week 3:
+
+- $\psi_4(\bar x_4)\,\psi_{34}(\bar x_4,x_3)$ involves only $x_3$ (the $x_4$ value is fixed). Call it $m_{4\to3}(x_3)$.
+- $\psi_5(\bar x_5)\,\psi_{35}(\bar x_5,x_3)$ also involves only $x_3$. Call it $m_{5\to3}(x_3)$.
+- $\psi_2(\bar x_2)\,\psi_{12}(\bar x_2,x_1)$ involves only $x_1$. Call it $m_{2\to1}(x_1)$.
+
+None of the first two mention $x_1$, so they move outside the sum, leaving
+
+$$p(x_3\mid\bar x_2,\bar x_4,\bar x_5) = \frac{1}{Z^E}\,\psi_3(x_3)\,m_{4\to3}(x_3)\,m_{5\to3}(x_3)\sum_{x_1}\psi_1(x_1)\,\psi_{13}(x_1,x_3)\,m_{2\to1}(x_1).$$
+
+The remaining sum is a function of $x_3$ alone. Call it $m_{1\to3}(x_3)$. Then
+
+$$p(x_3\mid\bar x_2,\bar x_4,\bar x_5) = \frac{\tilde b(x_3)}{\sum_{x_3}\tilde b(x_3)},$$
+$$\tilde b(x_3) = \psi_3(x_3)\,m_{1\to3}(x_3)\,m_{4\to3}(x_3)\,m_{5\to3}(x_3).$$
+
+The unnormalized product $\tilde b(x_3)$ gets a name, the belief, in @sec-messages.
+
+Each $m$ is an intermediate factor $\tau$ in Week 3's sense (@sec-sum-product in Week 3), but each one has a natural reading: it is a summary that one node sends to its neighbour about everything on its side of the tree. Node 2 summarizes its evidence for node 1; node 1 combines that with its own potential and summarizes the whole left branch for node 3; nodes 4 and 5 summarize their evidence for node 3.
+
+```{=html}
+<div style="overflow-x:auto; margin:1.5rem 0;">
+<svg viewBox="0 0 480 340" width="100%" style="max-width:480px;display:block;margin:auto;font-family:Helvetica,'Helvetica Neue',Arial,sans-serif;" role="img" aria-label="The same tree redrawn with x3 at the top as root. Arrows show messages m2 to 1, m1 to 3, m4 to 3 and m5 to 3 flowing toward the root.">
+  <defs>
+    <marker id="arrW4a" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+      <path d="M0,0 L0,8 L8,4 z" fill="#C75794"/>
+    </marker>
+  </defs>
+  <text x="240" y="28" text-anchor="middle" font-size="24" font-weight="600" fill="#333">Messages flow to the root</text>
+  <line x1="240" y1="80" x2="130" y2="180" stroke="#888" stroke-width="1.5"/>
+  <line x1="240" y1="80" x2="240" y2="180" stroke="#888" stroke-width="1.5"/>
+  <line x1="240" y1="80" x2="350" y2="180" stroke="#888" stroke-width="1.5"/>
+  <line x1="130" y1="180" x2="130" y2="280" stroke="#888" stroke-width="1.5"/>
+  <line x1="106" y1="260" x2="106" y2="205" stroke="#C75794" stroke-width="2" marker-end="url(#arrW4a)"/>
+  <text x="98" y="238" text-anchor="end" font-size="15" fill="#792051">m2→1</text>
+  <line x1="145" y1="148" x2="200" y2="98" stroke="#C75794" stroke-width="2" marker-end="url(#arrW4a)"/>
+  <text x="152" y="118" text-anchor="end" font-size="15" fill="#792051">m1→3</text>
+  <line x1="256" y1="160" x2="256" y2="108" stroke="#C75794" stroke-width="2" marker-end="url(#arrW4a)"/>
+  <text x="262" y="140" font-size="15" fill="#792051">m4→3</text>
+  <line x1="352" y1="150" x2="290" y2="94" stroke="#C75794" stroke-width="2" marker-end="url(#arrW4a)"/>
+  <text x="330" y="112" font-size="15" fill="#792051">m5→3</text>
+  <circle cx="240" cy="80" r="24" fill="#F2C6DE" stroke="#C75794" stroke-width="1.5"/>
+  <text x="240" y="86" text-anchor="middle" font-size="16" fill="#792051">x3</text>
+  <circle cx="130" cy="180" r="24" fill="#C9E4DE" stroke="#57C7AE" stroke-width="1.5"/>
+  <text x="130" y="186" text-anchor="middle" font-size="16" fill="#207965">x1</text>
+  <circle cx="240" cy="180" r="24" fill="#C6DEF1" stroke="#5795C7" stroke-width="2.5"/>
+  <text x="240" y="186" text-anchor="middle" font-size="16" fill="#205279">x4</text>
+  <circle cx="350" cy="180" r="24" fill="#C6DEF1" stroke="#5795C7" stroke-width="2.5"/>
+  <text x="350" y="186" text-anchor="middle" font-size="16" fill="#205279">x5</text>
+  <circle cx="130" cy="280" r="24" fill="#C6DEF1" stroke="#5795C7" stroke-width="2.5"/>
+  <text x="130" y="286" text-anchor="middle" font-size="16" fill="#205279">x2</text>
+</svg>
+</div>
+```
+
+**Figure 2.** The tree of Figure 1 redrawn with $x_3$ as the root. Each arrow is one message; the computation above is exactly these four messages followed by a product at the root.
+
+## Messages and beliefs {#sec-messages}
+
+The pattern in the worked example holds on any tree, so we can state it once for every edge.
+
+::: {.definition-block}
+**Definition.** In a tree-shaped MRF, the **message** from node $j$ to a neighbour $i\in N(j)$ is
+$$m_{j\to i}(x_i) = \sum_{x_j}\psi_j(x_j)\,\psi_{ij}(x_i,x_j)\prod_{k\in N(j)\setminus\{i\}} m_{k\to j}(x_j).$$
+If $x_j$ is observed with value $\bar x_j$, the sum is replaced by plugging in that value:
+$$m_{j\to i}(x_i) = \psi_j(\bar x_j)\,\psi_{ij}(x_i,\bar x_j)\prod_{k\in N(j)\setminus\{i\}} m_{k\to j}(\bar x_j).$$
+:::
+
+In words: to talk to $i$, node $j$ multiplies its own potential by the messages it has received from every *other* neighbour, multiplies by the edge potential to $i$, and sums out its own variable. The exclusion $k\neq i$ matters: $j$ does not echo back to $i$ what $i$ told it. The product over $k$ is what lets a message summarize an entire subtree rather than just one node. For a leaf $j$, the set $N(j)\setminus\{i\}$ is empty, so the product is just 1.
+
+If $x_i$ is discrete with $K$ possible values, a message $m_{j\to i}(x_i)$ is a vector with one entry for each value of $x_i$. It is not a probability distribution in general (it need not sum to 1), only a nonnegative score per state, like a potential.
+
+::: {.definition-block}
+**Definition.** Once node $i$ has received a message from every neighbour, its **belief** is
+$$b(x_i) \propto \psi_i(x_i)\prod_{j\in N(i)} m_{j\to i}(x_i).$$
+In practice we compute an unnormalized belief $\tilde b(x_i) = \psi_i(x_i)\prod_{j\in N(i)}m_{j\to i}(x_i)$, then normalize: $b(x_i) = \tilde b(x_i)\big/\sum_{x_i}\tilde b(x_i)$.
+:::
+
+The final line of the worked example in @sec-tree-example is exactly the belief at $x_3$, normalized. Since the messages reproduce variable elimination step for step, on a tree the normalized belief is the exact conditional marginal: here $b(x_3) = p(x_3\mid\bar x_2,\bar x_4,\bar x_5)$.
+
+::: {.callout-note}
+**Worked example: messages on a three-node chain.** Take binary spins $x_1 - x_2 - x_3$, each in $\{+1,-1\}$, with Ising edge potentials $\psi_{12}=\psi_{23}=e^{Jx_ix_j}$ (@sec-ising in Week 3) and $J=\log 2$, so an edge potential is $2$ when its endpoints agree and $\tfrac12$ when they disagree. Give $x_1$ the node potential $\psi_1(+1)=3$, $\psi_1(-1)=1$, and set $\psi_2=\psi_3=1$. Nothing is observed. We want $p(x_3)$, so treat $x_3$ as the root.
+
+*Message from the leaf $x_1$ to $x_2$* (no incoming messages, so no product):
+$$m_{1\to2}(+1) = 3\cdot 2 + 1\cdot\tfrac12 = 6.5, \qquad m_{1\to2}(-1) = 3\cdot\tfrac12 + 1\cdot 2 = 3.5.$$
+
+*Message from $x_2$ to $x_3$*, multiplying in the message $x_2$ received:
+$$m_{2\to3}(+1) = 6.5\cdot 2 + 3.5\cdot\tfrac12 = 14.75, \qquad m_{2\to3}(-1) = 6.5\cdot\tfrac12 + 3.5\cdot 2 = 10.25.$$
+
+*Belief at $x_3$:* $\tilde b(x_3) = (14.75,\ 10.25)$, which sums to $25$, so $b(x_3=+1) = 0.59$ and $b(x_3=-1)=0.41$.
+
+The bias at $x_1$ toward $+1$ has travelled down the chain, weakened at each edge because the coupling favours agreement without forcing it. If we had normalized $m_{1\to2}$ to $(0.65,\ 0.35)$ before sending it, the next message would be $(1.475,\ 1.025)$: every entry scaled by the same constant, so the final belief is unchanged. Scaling a message never changes a normalized belief, which is what makes the normalization trick of @sec-loopy safe.
+:::
+
+## Belief propagation on trees {#sec-bp}
+
+The worked example computed one marginal. If we want the marginal at *every* node, running variable elimination separately for each node would recompute the same messages over and over. Belief propagation computes each message once.
+
+::: {.definition-block}
+**Definition.** **[Belief propagation](https://en.wikipedia.org/wiki/Belief_propagation) (BP)**, also called the **sum-product algorithm** on trees, is message passing between neighbouring nodes that computes all node marginals of a tree-shaped graphical model.
+:::
+
+::: {.algorithm}
+**Belief propagation on a tree**
+
+1. Choose a root $r$ arbitrarily.
+2. Pass messages from the leaves to $r$: a node sends its message toward the root once it has heard from all its other neighbours.
+3. Pass messages from $r$ back out to the leaves, using the same message formula.
+4. Compute every node's belief $b(x_i)\propto\psi_i(x_i)\prod_{j\in N(i)}m_{j\to i}(x_i)$ and normalize.
+:::
+
+These two passes are sufficient on a tree. After the inward pass, the root has heard from every subtree. The outward pass then gives every other node the one message it was missing, the one from its parent's side. At that point each node has a message from every neighbour, which is all the belief formula needs. A tree with $|\mathcal{E}|$ edges needs exactly $2|\mathcal{E}|$ messages, one in each direction along each edge.
+
+```{=html}
+<div style="overflow-x:auto; margin:1.5rem 0;">
+<svg viewBox="0 0 480 350" width="100%" style="max-width:480px;display:block;margin:auto;font-family:Helvetica,'Helvetica Neue',Arial,sans-serif;" role="img" aria-label="A five-node tree rooted at node 1, with children 2 and 3, and node 2 having children 4 and 5. Each edge carries one inward message and one outward message.">
+  <defs>
+    <marker id="arrW4b" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+      <path d="M0,0 L0,8 L8,4 z" fill="#5795C7"/>
+    </marker>
+    <marker id="arrW4c" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+      <path d="M0,0 L0,8 L8,4 z" fill="#C78557"/>
+    </marker>
+  </defs>
+  <text x="240" y="28" text-anchor="middle" font-size="24" font-weight="600" fill="#333">Two passes on a tree</text>
+  <line x1="240" y1="80" x2="150" y2="170" stroke="#888" stroke-width="1.2"/>
+  <line x1="240" y1="80" x2="330" y2="170" stroke="#888" stroke-width="1.2"/>
+  <line x1="150" y1="170" x2="100" y2="270" stroke="#888" stroke-width="1.2"/>
+  <line x1="150" y1="170" x2="200" y2="270" stroke="#888" stroke-width="1.2"/>
+  <line x1="166.8" y1="141.8" x2="211.8" y2="96.8" stroke="#5795C7" stroke-width="2" marker-end="url(#arrW4b)"/>
+  <line x1="223.2" y1="108.2" x2="178.2" y2="153.2" stroke="#C78557" stroke-width="2" marker-end="url(#arrW4c)"/>
+  <line x1="313.2" y1="141.8" x2="268.2" y2="96.8" stroke="#5795C7" stroke-width="2" marker-end="url(#arrW4b)"/>
+  <line x1="256.8" y1="108.2" x2="301.8" y2="153.2" stroke="#C78557" stroke-width="2" marker-end="url(#arrW4c)"/>
+  <line x1="105.3" y1="241.4" x2="130.3" y2="191.4" stroke="#5795C7" stroke-width="2" marker-end="url(#arrW4b)"/>
+  <line x1="144.7" y1="198.6" x2="119.7" y2="248.6" stroke="#C78557" stroke-width="2" marker-end="url(#arrW4c)"/>
+  <line x1="194.7" y1="241.4" x2="169.7" y2="191.4" stroke="#5795C7" stroke-width="2" marker-end="url(#arrW4b)"/>
+  <line x1="155.3" y1="198.6" x2="180.3" y2="248.6" stroke="#C78557" stroke-width="2" marker-end="url(#arrW4c)"/>
+  <circle cx="240" cy="80" r="22" fill="#F2C6DE" stroke="#C75794" stroke-width="1.5"/>
+  <text x="240" y="86" text-anchor="middle" font-size="16" fill="#792051">1</text>
+  <text x="270" y="70" font-size="14" fill="#792051">root</text>
+  <circle cx="150" cy="170" r="22" fill="#C9E4DE" stroke="#57C7AE" stroke-width="1.5"/>
+  <text x="150" y="176" text-anchor="middle" font-size="16" fill="#207965">2</text>
+  <circle cx="330" cy="170" r="22" fill="#C9E4DE" stroke="#57C7AE" stroke-width="1.5"/>
+  <text x="330" y="176" text-anchor="middle" font-size="16" fill="#207965">3</text>
+  <circle cx="100" cy="270" r="22" fill="#C9E4DE" stroke="#57C7AE" stroke-width="1.5"/>
+  <text x="100" y="276" text-anchor="middle" font-size="16" fill="#207965">4</text>
+  <circle cx="200" cy="270" r="22" fill="#C9E4DE" stroke="#57C7AE" stroke-width="1.5"/>
+  <text x="200" y="276" text-anchor="middle" font-size="16" fill="#207965">5</text>
+  <line x1="260" y1="250" x2="296" y2="250" stroke="#5795C7" stroke-width="2" marker-end="url(#arrW4b)"/>
+  <text x="304" y="255" font-size="14" fill="#333">pass 1: leaves to root</text>
+  <line x1="260" y1="282" x2="296" y2="282" stroke="#C78557" stroke-width="2" marker-end="url(#arrW4c)"/>
+  <text x="304" y="287" font-size="14" fill="#333">pass 2: root to leaves</text>
+</svg>
+</div>
+```
+
+**Figure 3.** The tutorial's tree with node 1 as root. Blue arrows are the inward pass (4 and 5 report to 2, then 2 and 3 report to 1); orange arrows are the outward pass. Four edges, eight messages.
+
+::: {.callout-note}
+**Homework-relevant.** Assignment 2 uses message passing. The message and belief formulas above, and the order in which messages may be sent, are the pieces to understand before starting it.
+:::
+
+## Loopy belief propagation {#sec-loopy}
+
+What if the MRF has cycles? Then there are no leaves to start from, and "wait until you have heard from all other neighbours" never gets going, because every node on a cycle is waiting on another node on the same cycle. The lecture's answer is to apply the message updates anyway and keep passing messages until they settle down.
+
+::: {.algorithm}
+**Loopy belief propagation**
+
+1. Initialize every message uniformly: $m_{i\to j}(x_j) = [1/k,\dots,1/k]^\top$, where $k$ is the number of states $x_j$ can take.
+2. Repeatedly sweep through the edges, recomputing each message with the usual update
+$$m_{j\to i}(x_i) = \sum_{x_j}\psi_j(x_j)\,\psi_{ij}(x_i,x_j)\prod_{k\in N(j)\setminus\{i\}} m_{k\to j}(x_j),$$
+often normalizing each new message so its entries sum to 1, until the messages (approximately) stop changing or an iteration budget runs out.
+3. Compute beliefs $b(x_i)\propto\psi_i(x_i)\prod_{j\in N(i)}m_{j\to i}(x_i)$.
+:::
+
+The result is **loopy belief propagation**. Its beliefs are approximations to the marginals, not the exact marginals, and the lecture is candid about its limitations:
+
+- **No general guarantee.** It is guaranteed to give exact answers only on trees and in some special cases. It may not converge at all, and the messages may oscillate. In practice this is generally acceptable: the tutorial reports that 10–20 iterations are enough for useful approximate inference.
+- **Over-confidence.** On a cycle, a node's own evidence leaves along one edge and returns along another, so the same potentials get multiplied in more than once. The lecture compares this to someone who starts a rumour, then hears the same rumour back from someone else and becomes more certain it is true. Beliefs from loopy BP are therefore often more peaked than the true marginals.
+- **Stabilizing tricks.** Loopy BP often works better if messages are normalized (shown in @sec-messages to leave beliefs unchanged on a tree) and if updates use **momentum**: rather than replacing a message outright, move it part of the way toward the newly computed value,
+$$m^{\text{new}}_{j\to i}(x_i) = (1-\alpha)\,m^{\text{old}}_{j\to i}(x_i) + \alpha\,\big[\text{update}\big],$$
+with a step size $\alpha\in(0,1]$. Smaller $\alpha$ damps the oscillations described above.
+
+Despite the lack of guarantees, loopy BP is widely used in practice, and the tutorial's denoising example below is one illustration.
+
+::: {.callout-note}
+**Homework-relevant.** Assignment 2 uses loopy BP with normalized messages and momentum. The update rule and the reasons for each trick are above; implementation choices and results are left to the assignment.
+:::
+
+## Max-product BP and MAP inference {#sec-maxproduct}
+
+Everything so far computes **marginals**: for each node, a distribution over its states. Sometimes we want something else: the single most likely joint setting of the unobserved variables.
+
+::: {.definition-block}
+**Definition.** The **[maximum a posteriori (MAP)](https://en.wikipedia.org/wiki/Maximum_a_posteriori_estimation) estimate** is the most probable value of the unobserved variables given the evidence, $\arg\max_{x_F} p(x_F\mid x_E)$. **MAP inference** is the task of computing it.
+:::
+
+The algorithm we have been using is more precisely called **sum-product BP**, because each message is a sum of products. For MAP inference we **maximize** over $x_j$ instead of summing, which gives **max-product BP**:
+
+$$m_{j\to i}(x_i) = \max_{x_j}\ \psi_j(x_j)\,\psi_{ij}(x_i,x_j)\prod_{k\in N(j)\setminus\{i\}} m_{k\to j}(x_j).$$
+
+The resulting beliefs $b(x_i)\propto\psi_i(x_i)\prod_{j\in N(i)}m_{j\to i}(x_i)$ are now **max-marginals**: $b(x_i)$ scores the best joint configuration that has node $i$ in state $x_i$, rather than the total probability of all configurations with node $i$ in that state. The MAP estimate is then read off node by node:
+
+$$\hat x_i = \arg\max_{x_i}\, b(x_i).$$
+
+The swap works for the same reason sum-product works: on a tree, a maximum distributes over a product of nonnegative factors exactly as a sum does, so the same "push the operation inward past factors that do not mention $x_j$" argument goes through with $\max$ in place of $\sum$. (Reading off $\hat x_i$ node by node is safe when each node's maximizer is unique; ties need extra bookkeeping that the lecture does not cover.)
+
+## Tutorial example: image denoising with loopy BP {#sec-denoise}
+
+The tutorial applies loopy BP to a concrete problem. A binary image is a $\sqrt{n}\times\sqrt{n}$ grid of pixels, each $+1$ or $-1$, which we flatten into a vector $x\in\{-1,+1\}^n$. The tutorial's example is a $128\times128$ black-and-white Mona Lisa, so $n=16384$.
+
+The image is sent through a noisy channel that flips each pixel independently with a small probability $\epsilon$ (a **[binary symmetric channel](https://en.wikipedia.org/wiki/Binary_symmetric_channel)**). The true pixels $x$ are latent; we observe the noisy pixels $y$. The goal is to recover $x$ from $y$.
+
+```{=html}
+<div style="overflow-x:auto; margin:1.5rem 0;">
+<svg viewBox="0 0 480 300" width="100%" style="max-width:480px;display:block;margin:auto;font-family:Helvetica,'Helvetica Neue',Arial,sans-serif;" role="img" aria-label="A grid of true pixels x connected to their four grid neighbours, each with an attached observed noisy pixel y">
+  <text x="240" y="28" text-anchor="middle" font-size="24" font-weight="600" fill="#333">The denoising MRF</text>
+  <line x1="110" y1="110" x2="350" y2="110" stroke="#555" stroke-width="1.5"/>
+  <line x1="110" y1="220" x2="350" y2="220" stroke="#555" stroke-width="1.5"/>
+  <line x1="110" y1="110" x2="110" y2="220" stroke="#555" stroke-width="1.5"/>
+  <line x1="230" y1="110" x2="230" y2="220" stroke="#555" stroke-width="1.5"/>
+  <line x1="350" y1="110" x2="350" y2="220" stroke="#555" stroke-width="1.5"/>
+  <line x1="110" y1="110" x2="150" y2="75" stroke="#5795C7" stroke-width="1.5"/>
+  <line x1="230" y1="110" x2="270" y2="75" stroke="#5795C7" stroke-width="1.5"/>
+  <line x1="350" y1="110" x2="390" y2="75" stroke="#5795C7" stroke-width="1.5"/>
+  <line x1="110" y1="220" x2="150" y2="185" stroke="#5795C7" stroke-width="1.5"/>
+  <line x1="230" y1="220" x2="270" y2="185" stroke="#5795C7" stroke-width="1.5"/>
+  <line x1="350" y1="220" x2="390" y2="185" stroke="#5795C7" stroke-width="1.5"/>
+  <circle cx="150" cy="70" r="15" fill="#C6DEF1" stroke="#5795C7" stroke-width="2"/>
+  <text x="150" y="75" text-anchor="middle" font-size="14" fill="#205279">y</text>
+  <circle cx="270" cy="70" r="15" fill="#C6DEF1" stroke="#5795C7" stroke-width="2"/>
+  <text x="270" y="75" text-anchor="middle" font-size="14" fill="#205279">y</text>
+  <circle cx="390" cy="70" r="15" fill="#C6DEF1" stroke="#5795C7" stroke-width="2"/>
+  <text x="390" y="75" text-anchor="middle" font-size="14" fill="#205279">y</text>
+  <circle cx="150" cy="180" r="15" fill="#C6DEF1" stroke="#5795C7" stroke-width="2"/>
+  <text x="150" y="185" text-anchor="middle" font-size="14" fill="#205279">y</text>
+  <circle cx="270" cy="180" r="15" fill="#C6DEF1" stroke="#5795C7" stroke-width="2"/>
+  <text x="270" y="185" text-anchor="middle" font-size="14" fill="#205279">y</text>
+  <circle cx="390" cy="180" r="15" fill="#C6DEF1" stroke="#5795C7" stroke-width="2"/>
+  <text x="390" y="185" text-anchor="middle" font-size="14" fill="#205279">y</text>
+  <circle cx="110" cy="110" r="20" fill="#C9E4DE" stroke="#57C7AE" stroke-width="1.5"/>
+  <text x="110" y="116" text-anchor="middle" font-size="16" fill="#207965">x</text>
+  <circle cx="230" cy="110" r="20" fill="#C9E4DE" stroke="#57C7AE" stroke-width="1.5"/>
+  <text x="230" y="116" text-anchor="middle" font-size="16" fill="#207965">x</text>
+  <circle cx="350" cy="110" r="20" fill="#C9E4DE" stroke="#57C7AE" stroke-width="1.5"/>
+  <text x="350" y="116" text-anchor="middle" font-size="16" fill="#207965">x</text>
+  <circle cx="110" cy="220" r="20" fill="#C9E4DE" stroke="#57C7AE" stroke-width="1.5"/>
+  <text x="110" y="226" text-anchor="middle" font-size="16" fill="#207965">x</text>
+  <circle cx="230" cy="220" r="20" fill="#C9E4DE" stroke="#57C7AE" stroke-width="1.5"/>
+  <text x="230" y="226" text-anchor="middle" font-size="16" fill="#207965">x</text>
+  <circle cx="350" cy="220" r="20" fill="#C9E4DE" stroke="#57C7AE" stroke-width="1.5"/>
+  <text x="350" y="226" text-anchor="middle" font-size="16" fill="#207965">x</text>
+  <text x="170" y="270" text-anchor="middle" font-size="14" fill="#207965">grid edge: Jx_s x_t</text>
+  <text x="340" y="270" text-anchor="middle" font-size="14" fill="#205279">observation edge: βy_s x_s</text>
+</svg>
+</div>
+```
+
+**Figure 4.** A small corner of the denoising model. Each true pixel $x_s$ (green, latent) is linked to its grid neighbours by an Ising edge and to its own noisy observation $y_s$ (blue, observed). The grid contains many 4-cycles, so exact BP does not apply and the tutorial uses loopy BP.
+
+**The observation model.** One pixel's observation agrees with the truth ($y_sx_s=+1$) with probability $1-\epsilon$ and disagrees ($y_sx_s=-1$) with probability $\epsilon$. Since $\tfrac{1+y_sx_s}{2}$ is 1 on agreement and 0 on disagreement, this can be written as a single formula and rearranged into Ising form:
+
+$$\mathbb{P}(y_s\mid x_s) = (1-\epsilon)^{\frac{1+y_sx_s}{2}}\,\epsilon^{\frac{1-y_sx_s}{2}}$$
+$$= \exp\Big\{\tfrac{1+y_sx_s}{2}\log(1-\epsilon) + \tfrac{1-y_sx_s}{2}\log\epsilon\Big\}$$
+$$\propto \exp\Big\{y_sx_s\cdot\tfrac12\log\Big(\frac{1-\epsilon}{\epsilon}\Big)\Big\} = \exp\{\beta\,y_sx_s\},$$
+$$\beta = \tfrac12\log\Big(\frac{1-\epsilon}{\epsilon}\Big).$$
+
+The $\propto$ step drops $\tfrac12\log(1-\epsilon)+\tfrac12\log\epsilon$, which does not depend on $x_s$. When the noise is small, $\epsilon<\tfrac12$ makes $\beta>0$, so the model rewards each true pixel for agreeing with its observation; the smaller $\epsilon$, the larger $\beta$ and the stronger that pull.
+
+**The prior.** Natural images tend to have neighbouring pixels of the same colour, so the prior on $x$ is an Ising model on the grid (@sec-ising in Week 3) with coupling $J>0$:
+
+$$p(x)\propto\prod_{s\sim t}\psi_{st}(x_s,x_t), \qquad \psi_{st}(x_s,x_t) = \exp(Jx_sx_t) = \begin{pmatrix} e^{J} & e^{-J}\\ e^{-J} & e^{J}\end{pmatrix},$$
+
+where $s\sim t$ ranges over grid edges, and the matrix lists the potential's values with rows and columns ordered $(+1,-1)$.
+
+**The posterior.** Combining prior and observations with Bayes' rule, and using that pixels are flipped independently,
+
+$$p(x\mid y)\propto p(x,y) = p(x)\prod_s p(y_s\mid x_s) \propto \exp\Big\{J\sum_{s\sim t}x_sx_t + \beta\sum_s y_sx_s\Big\}$$
+$$= \prod_{s\sim t}\psi_{st}(x_s,x_t)\prod_s\psi_s(x_s), \qquad \psi_s(x_s) = \exp(\beta y_sx_s).$$
+
+So the posterior over the true image is itself an Ising MRF on the grid, with the observations entering only as node potentials. That is exactly the form BP needs.
+
+**Running loopy BP.** Each message $m_{j\to i}(x_i)$ is stored as a 2-vector $\big(m_{j\to i}(+1),\ m_{j\to i}(-1)\big)$, and each belief likewise. Initialize every message to $(\tfrac12,\tfrac12)$, run the loopy updates of @sec-loopy (summing over $x_j\in\{-1,+1\}$) with normalization, then compute beliefs. The tutorial reports that 10–20 iterations suffice, and the beliefs approximate the posterior marginals $p(x_i\mid y)$. One decision rule is $\hat x_i = \arg\max_{x_i} b(x_i)$, which picks whichever colour each pixel's approximate marginal favours. In the tutorial's Mona Lisa example, this recovers a clean image from one with a large fraction of flipped pixels.
+
+## Sampling from an unnormalized density {#sec-sampling}
+
+The second half of the lecture changes approach. Instead of computing sums exactly or approximately with messages, we draw random samples and average over them.
+
+::: {.definition-block}
+**Definition.** A **sample** from a distribution $p(x)$ is a single realization $x$ whose probability distribution is $p(x)$. Here $x$ may be a single real number or a high-dimensional vector.
+:::
+
+Throughout, we assume we can evaluate $p(x)$ only up to a multiplicative constant. That is, we can compute a function $\tilde p(x)$ with
+
+$$p(x) = \frac{\tilde p(x)}{Z}, \qquad Z = \int\tilde p(x)\,dx,$$
+
+but we do not know $Z$. This is the normal situation for the models in this course: an MRF's product of potentials is $\tilde p$, and its partition function $Z$ (@sec-mrf in Week 3) is exactly the hard part. The posterior of @sec-denoise is another example, since we wrote it only up to $\propto$.
+
+## Ancestral sampling {#sec-ancestral}
+
+Sampling is easiest in a directed model. The idea relies on one ordering concept.
+
+::: {.definition-block}
+**Definition.** A **[topological order](https://en.wikipedia.org/wiki/Topological_sorting)** of a DAG is an ordering of its nodes in which every node comes after all of its parents.
+:::
+
+::: {.definition-block}
+**Definition.** Given a DAG and the ability to sample from each node's conditional distribution given its parents, **ancestral sampling** draws a sample from the joint distribution by visiting the nodes in a topological order and sampling each one from $p(x_i\mid\text{parents}(x_i))$ with its parents set to the values already drawn.
+:::
+
+This works because a DAG's joint factorizes into exactly these conditionals (@sec-dag in Week 2), so sampling them in turn produces a draw from the product.
+
+```{=html}
+<div style="overflow-x:auto; margin:1.5rem 0;">
+<svg viewBox="0 0 460 300" width="100%" style="max-width:460px;display:block;margin:auto;font-family:Helvetica,'Helvetica Neue',Arial,sans-serif;" role="img" aria-label="A five-node DAG: 1 points to 2 and 3, 2 and 3 point to 4, and 3 points to 5">
+  <defs>
+    <marker id="arrW4d" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto">
+      <path d="M0,0 L0,7 L7,3.5 z" fill="#555"/>
+    </marker>
+  </defs>
+  <text x="230" y="28" text-anchor="middle" font-size="24" font-weight="600" fill="#333">Ancestral sampling order</text>
+  <line x1="214" y1="94" x2="180" y2="138" stroke="#555" stroke-width="1.5" marker-end="url(#arrW4d)"/>
+  <line x1="246" y1="94" x2="280" y2="138" stroke="#555" stroke-width="1.5" marker-end="url(#arrW4d)"/>
+  <line x1="177" y1="182" x2="212" y2="228" stroke="#555" stroke-width="1.5" marker-end="url(#arrW4d)"/>
+  <line x1="283" y1="182" x2="248" y2="228" stroke="#555" stroke-width="1.5" marker-end="url(#arrW4d)"/>
+  <line x1="313" y1="182" x2="350" y2="228" stroke="#555" stroke-width="1.5" marker-end="url(#arrW4d)"/>
+  <circle cx="230" cy="75" r="22" fill="#C6DEF1" stroke="#5795C7" stroke-width="1.5"/>
+  <text x="230" y="81" text-anchor="middle" font-size="16" fill="#205279">1</text>
+  <text x="262" y="72" font-size="14" fill="#555">step 1</text>
+  <circle cx="160" cy="160" r="22" fill="#C9E4DE" stroke="#57C7AE" stroke-width="1.5"/>
+  <text x="160" y="166" text-anchor="middle" font-size="16" fill="#207965">2</text>
+  <text x="128" y="165" text-anchor="end" font-size="14" fill="#555">step 2</text>
+  <circle cx="300" cy="160" r="22" fill="#C9E4DE" stroke="#57C7AE" stroke-width="1.5"/>
+  <text x="300" y="166" text-anchor="middle" font-size="16" fill="#207965">3</text>
+  <text x="332" y="165" font-size="14" fill="#555">step 2</text>
+  <circle cx="230" cy="250" r="22" fill="#FAEDCB" stroke="#C7A857" stroke-width="1.5"/>
+  <text x="230" y="256" text-anchor="middle" font-size="16" fill="#796020">4</text>
+  <text x="198" y="255" text-anchor="end" font-size="14" fill="#555">step 3</text>
+  <circle cx="370" cy="250" r="22" fill="#F7D9C4" stroke="#C78557" stroke-width="1.5"/>
+  <text x="370" y="256" text-anchor="middle" font-size="16" fill="#794520">5</text>
+  <text x="402" y="255" font-size="14" fill="#555">step 4</text>
+</svg>
+</div>
+```
+
+**Figure 5.** The lecture's ancestral-sampling example. Each node is sampled only after all of its parents.
+
+**Worked example.** The DAG in Figure 5 factorizes as
+
+$$p(x_1,\dots,x_5) = p(x_1)\,p(x_2\mid x_1)\,p(x_3\mid x_1)\,p(x_4\mid x_2,x_3)\,p(x_5\mid x_3).$$
+
+Sample $x_1$ from $p(x_1)$. Then sample $x_2$ from $p(x_2\mid x_1)$ and $x_3$ from $p(x_3\mid x_1)$, plugging in the drawn $x_1$. Then sample $x_4$ from $p(x_4\mid x_2,x_3)$. Finally, sample $x_5$ from $p(x_5\mid x_3)$. (Any order in which parents precede children would do; $x_5$ could equally come before $x_4$.)
+
+Ancestral sampling draws from the joint with nothing observed. It does not directly give samples from a conditional such as $p(x_1\mid x_4)$, and it needs a directed model with easy-to-sample conditionals; an MRF with an unknown $Z$ offers neither. The rest of the lecture deals with that harder setting.
+
+## What sampling is for {#sec-goals}
+
+The lecture names two problems that Monte Carlo methods solve:
+
+- **Problem 1:** generate samples $\{x^{(r)}\}_{r=1}^R$ from a given distribution $p(x)$.
+- **Problem 2:** estimate the expectation of a function under $p$,
+$$\Phi = \mathbb{E}_{x\sim p(x)}[\phi(x)] = \int\phi(x)\,p(x)\,dx.$$
+
+::: {.definition-block}
+**Definition.** The function $\phi$ whose expectation we want in Problem 2 is called a **test function**.
+:::
+
+Different test functions answer different questions. For a function $f$ of interest:
+
+- the **mean** of $f$ under $p$ is the expectation of $\phi_1(x)=f(x)$, giving $\Phi_1$;
+- the **variance** of $f$ needs a second test function $\phi_2(x)=f(x)^2$, giving $\Phi_2$, and then $\mathrm{var}(f(x)) = \Phi_2 - (\Phi_1)^2$.
+
+Probabilities are expectations too: $\mathbb{P}(x\in A) = \mathbb{E}[\mathbf{1}_{\{x\in A\}}]$, using the **[indicator function](https://en.wikipedia.org/wiki/Indicator_function)** $\mathbf{1}_{\{x\in A\}}$, which is 1 when $x\in A$ and 0 otherwise. This fact is used again in the rejection-sampling proof below.
+
+## Simple Monte Carlo {#sec-simplemc}
+
+If we already have samples from $p$ (Problem 1 solved), Problem 2 has a direct answer: average the test function over the samples.
+
+::: {.definition-block}
+**Definition.** Given samples $\{x^{(r)}\}_{r=1}^R\sim p(x)$, the **simple [Monte Carlo](https://en.wikipedia.org/wiki/Monte_Carlo_method) estimator** of $\Phi=\mathbb{E}_{x\sim p(x)}[\phi(x)]$ is
+$$\hat\Phi = \frac1R\sum_{r=1}^R\phi(x^{(r)}).$$
+:::
+
+Two standard properties of an estimator tell us whether this is a good idea. An estimator is **[unbiased](https://en.wikipedia.org/wiki/Bias_of_an_estimator)** if its expected value equals the quantity it estimates, and **[consistent](https://en.wikipedia.org/wiki/Consistent_estimator)** if it converges to that quantity as the number of samples grows. The **[law of large numbers](https://en.wikipedia.org/wiki/Law_of_large_numbers)**, which says an average of i.i.d. draws converges to their common mean, gives consistency of $\hat\Phi$ directly. The other two properties follow from short calculations.
+
+**Unbiasedness.** If the samples are drawn independently from $p$, linearity of expectation gives
+
+$$\mathbb{E}[\hat\Phi] = \frac1R\sum_{r=1}^R\mathbb{E}\big[\phi(x^{(r)})\big] = \frac1R\sum_{r=1}^R\mathbb{E}_{x\sim p(x)}\big[\phi(x)\big]$$
+$$= \frac{R}{R}\,\Phi = \Phi.$$
+
+**Variance.** Pulling the constant $\tfrac1R$ out squares it, and the variance of a sum of independent terms is the sum of their variances:
+
+$$\mathrm{var}[\hat\Phi] = \frac{1}{R^2}\,\mathrm{var}\Big[\sum_{r=1}^R\phi(x^{(r)})\Big] = \frac{1}{R^2}\sum_{r=1}^R\mathrm{var}\big[\phi(x^{(r)})\big]$$
+$$= \frac{R}{R^2}\,\mathrm{var}[\phi(x)] = \frac1R\,\mathrm{var}[\phi(x)].$$
+
+So the variance of the estimate shrinks at rate $1/R$, and its accuracy depends on $\mathrm{var}[\phi(x)]$, the spread of the test function under $p$. Notice what does *not* appear: the dimension of $x$. For example, if $\mathrm{var}[\phi(x)]=4$, then $R=100$ samples give $\mathrm{var}[\hat\Phi]=0.04$, a standard deviation of $0.2$, and quadrupling to $R=400$ halves that standard deviation to $0.1$. This dimension-free rate is what makes sampling attractive, provided we can get the samples.
+
+## Why the normalizing constant is hard {#sec-hardz}
+
+When we can only evaluate $\tilde p$, there are two separate difficulties:
+
+1. We generally do not know $Z=\int\tilde p(x)\,dx$, and computing it is a high-dimensional integral.
+2. Even if we knew $Z$, drawing samples from $p$ is still challenging, especially in high dimensions.
+
+**A bad idea: lattice discretization.** One way to approximate $Z$ is to evaluate $\tilde p$ on a grid of points and add up the values (and to sample, pick a grid point with probability proportional to $\tilde p$ there). The lecture's example uses 50 evenly spaced points in one dimension, which describes a one-dimensional density well. But a grid with 50 points per axis in $D$ dimensions has $50^D$ points: for $D=1000$, that is $50^{1000}$. The cost is exponential in dimension, an instance of the **[curse of dimensionality](https://en.wikipedia.org/wiki/Curse_of_dimensionality)**.
+
+**The lecture's lake analogy.** Imagine drawing water samples from a lake to find the average plankton concentration. Let $\tilde p(\boldsymbol{x})$ be the depth of the lake at location $\boldsymbol{x}=(x,y)$, $\phi(\boldsymbol{x})$ the plankton concentration there, and $Z=\int\tilde p(\boldsymbol{x})\,d\boldsymbol{x}$ the volume of the lake. The average concentration over the lake's water is
+
+$$\Phi = \frac1Z\int\phi(\boldsymbol{x})\,\tilde p(\boldsymbol{x})\,d\boldsymbol{x}.$$
+
+We can take a boat to any location and measure both the depth $\tilde p(\boldsymbol{x})$ and the concentration $\phi(\boldsymbol{x})$ there. Problem 1 is to draw water samples so that each is equally likely to come from any point within the lake's volume. Problem 2 is to find the average concentration. The difficulty is a lake with a few narrow, very deep canyons: they hold much of the water, but a boat visiting surface locations at random rarely lands on one. To estimate $\Phi$ correctly, a method must implicitly discover the canyons and find their volume relative to the rest of the lake. High-dimensional distributions behave the same way, with most of their probability mass concentrated in regions that are a tiny fraction of the space.
+
+## Importance sampling {#sec-importance}
+
+**[Importance sampling](https://en.wikipedia.org/wiki/Importance_sampling)** is a tool for Problem 2, estimating $\Phi=\mathbb{E}_p[\phi(x)]$, when we cannot sample from $p$. The setup:
+
+- The target density can be evaluated up to a constant: $p(x) = \tilde p(x)/Z_p$.
+- There is a simpler **proposal** density $q(x) = \tilde q(x)/Z_q$ that we can both sample from and evaluate up to a constant.
+
+Draw $R$ samples $\{x^{(r)}\}_{r=1}^R\sim q(x)$. If they had come from $p$, simple Monte Carlo would apply. They did not: values of $x$ where $q(x)>p(x)$ are over-represented, and values where $q(x)<p(x)$ are under-represented. The fix is to weight each sample.
+
+::: {.definition-block}
+**Definition.** The **importance weight** of sample $x^{(r)}$ is $\tilde w_r = \dfrac{\tilde p(x^{(r)})}{\tilde q(x^{(r)})}$, and the **normalized weights** are $w_r = \dfrac{\tilde w_r}{\sum_{r'=1}^R\tilde w_{r'}}$.
+:::
+
+**The weights estimate the ratio of normalizers.** The average weight is a simple Monte Carlo estimate under $q$:
+
+$$\frac1R\sum_{r=1}^R\tilde w_r \approx \mathbb{E}_{x\sim q(x)}\Big[\frac{\tilde p(x)}{\tilde q(x)}\Big]$$
+$$= \int\frac{Z_p\,p(x)}{Z_q\,q(x)}\,q(x)\,dx = \frac{Z_p}{Z_q}.$$
+
+**Correcting the estimate of $\Phi$.** Multiply and divide by $q$ inside the integral, then estimate with the samples from $q$:
+
+$$\Phi = \int\phi(x)\,p(x)\,dx = \int\phi(x)\,\frac{p(x)}{q(x)}\,q(x)\,dx$$
+$$\approx \frac1R\sum_{r=1}^R\phi(x^{(r)})\,\frac{p(x^{(r)})}{q(x^{(r)})}.$$
+
+Replacing $p/q$ with $\tilde p/\tilde q$ introduces the unknown ratio $Z_q/Z_p$:
+
+$$\frac1R\sum_{r=1}^R\phi(x^{(r)})\,\frac{p(x^{(r)})}{q(x^{(r)})} = \frac{Z_q}{Z_p}\cdot\frac1R\sum_{r=1}^R\phi(x^{(r)})\,\tilde w_r.$$
+
+Finally, replace $Z_q/Z_p$ by the reciprocal of its estimate from the average weight. The two factors of $\tfrac1R$ cancel:
+
+::: {.boxed-eq}
+$$\Phi \approx \frac{\frac1R\sum_{r=1}^R\phi(x^{(r)})\,\tilde w_r}{\frac1R\sum_{r=1}^R\tilde w_r} = \sum_{r=1}^R\phi(x^{(r)})\,w_r.$$
+:::
+
+The estimate is a weighted average of the test function over samples from $q$, where each sample's weight says how much more (or less) likely it is under $p$ than under $q$. Neither $Z_p$ nor $Z_q$ is ever needed. Because the last step divides one estimate by another, this self-normalized estimator is not exactly unbiased for finite $R$, but it is consistent as $R$ grows. Its accuracy depends on how well $q$ covers $p$: if $q$ puts very little mass where $p$ has a lot (a missed canyon, in the lake picture), a few samples with huge weights dominate the sum.
+
+## Rejection sampling {#sec-rejection}
+
+Importance sampling estimates expectations but never produces samples from $p$. **[Rejection sampling](https://en.wikipedia.org/wiki/Rejection_sampling)** is a tool for Problem 1: it produces exact samples from $p$. The lecture presents it for a complicated one-dimensional density $p(x)=\tilde p(x)/Z_p$, with the same kind of proposal as before, $\tilde q(x) = Z_q\,q(x)$, that we can sample from and evaluate. One more assumption: we know a constant $c$ with
+
+$$c\,\tilde q(x) \ge \tilde p(x) \quad\text{for all } x,$$
+
+so the scaled proposal $c\tilde q$ is an envelope lying everywhere on or above $\tilde p$.
+
+::: {.algorithm}
+**Rejection sampling**
+
+1. Generate two random numbers:
+    a. $x$ from the proposal density $q(x)$;
+    b. $u$ uniformly from the interval $[0,\ c\,\tilde q(x)]$.
+2. Compare $u$ with $\tilde p(x)$:
+    a. if $u>\tilde p(x)$, reject $x$;
+    b. otherwise accept $x$: add it to the set of samples $\{x^{(r)}\}$ and discard $u$.
+3. Repeat until enough samples are accepted.
+:::
+
+```{=html}
+<div style="overflow-x:auto; margin:1.5rem 0;">
+<svg viewBox="0 0 520 320" width="100%" style="max-width:520px;display:block;margin:auto;font-family:Helvetica,'Helvetica Neue',Arial,sans-serif;" role="img" aria-label="A bimodal target curve under a dashed envelope curve. A vertical line at one x value carries an accepted point under the target and a rejected point between the target and the envelope.">
+  <text x="260" y="28" text-anchor="middle" font-size="24" font-weight="600" fill="#333">Accept under the curve</text>
+  <path d="M40 260 C 90 260 110 90 150 90 C 190 90 200 190 260 190 C 320 190 330 150 360 150 C 400 150 420 260 470 260 Z" fill="#F2C6DE" stroke="none" opacity="0.6"/>
+  <path d="M40 260 C 90 260 110 90 150 90 C 190 90 200 190 260 190 C 320 190 330 150 360 150 C 400 150 420 260 470 260" fill="none" stroke="#C75794" stroke-width="2.5"/>
+  <path d="M30 230 C 120 60 200 50 250 55 C 330 60 420 120 490 240" fill="none" stroke="#5795C7" stroke-width="2.5" stroke-dasharray="7,5"/>
+  <line x1="30" y1="260" x2="500" y2="260" stroke="#888" stroke-width="1"/>
+  <line x1="300" y1="260" x2="300" y2="65" stroke="#555" stroke-width="1.2"/>
+  <circle cx="300" cy="225" r="6" fill="#2e7d32"/>
+  <text x="310" y="230" font-size="14" fill="#2e7d32">u here: accept</text>
+  <circle cx="300" cy="115" r="6" fill="#e53935"/>
+  <text x="310" y="120" font-size="14" fill="#e53935">u here: reject</text>
+  <text x="300" y="282" text-anchor="middle" font-size="14" fill="#555">x drawn from q</text>
+  <text x="95" y="120" text-anchor="end" font-size="15" fill="#205279">c·q̃(x)</text>
+  <text x="140" y="80" text-anchor="end" font-size="15" fill="#792051">p̃(x)</text>
+</svg>
+</div>
+```
+
+**Figure 6.** Rejection sampling. Given $x$ drawn from $q$, the point $(x,u)$ is uniform on the vertical segment under the dashed envelope $c\tilde q(x)$. It is accepted when it falls in the shaded region under $\tilde p(x)$.
+
+Geometrically, the pair $(x,u)$ is a point drawn uniformly from the area under the envelope $c\tilde q$. Keeping only the points under $\tilde p$ leaves points uniform under $\tilde p$, and the $x$-coordinate of a point uniform under a curve is distributed in proportion to that curve's height, which is exactly $p$.
+
+**Why it works.** The lecture flags this proof as advanced. We want to show that for any set $A$, an accepted $x$ lands in $A$ with probability $\mathbb{P}_{x\sim p}(x\in A) = \mathbb{E}_{x\sim p}[\mathbf{1}_{\{x\in A\}}]$. Given $x$, $u$ is uniform on $[0,c\tilde q(x)]$, and $\tilde p(x)\le c\tilde q(x)$, so
+
+$$\mathbb{P}\big(u\le\tilde p(x)\mid x\big) = \frac{\tilde p(x)}{c\,\tilde q(x)}.$$
+
+Write "accept" for the event $u\le\tilde p(x)$. By the definition of conditional probability,
+
+$$\mathbb{P}_{q}(x\in A\mid \text{accept}) = \frac{\mathbb{P}_{q}(x\in A,\ \text{accept})}{\mathbb{P}_{q}(\text{accept})},$$
+
+where the subscript $q$ means $x$ is drawn from $q$.
+
+Averaging the acceptance probability above over $x\sim q$ writes the numerator and denominator as expectations:
+
+$$\mathbb{P}_{x\sim q}\big(x\in A,\ u\le\tilde p(x)\big) = \mathbb{E}_{x\sim q}\Big[\mathbf{1}_{\{x\in A\}}\,\frac{\tilde p(x)}{c\,\tilde q(x)}\Big],$$
+$$\mathbb{P}_{x\sim q}\big(u\le\tilde p(x)\big) = \mathbb{E}_{x\sim q}\Big[\frac{\tilde p(x)}{c\,\tilde q(x)}\Big].$$
+
+Each expectation is an integral against $q(x) = \tilde q(x)/Z_q$, so $\tilde q$ cancels inside it. The denominator becomes $\frac{1}{cZ_q}\int\tilde p(x)\,dx = \frac{Z_p}{cZ_q}$, and the numerator becomes $\frac{1}{cZ_q}\int_A\tilde p(x)\,dx = \frac{Z_p}{cZ_q}\,\mathbb{P}_{x\sim p}(x\in A)$. Dividing,
+
+$$\mathbb{P}_{x\sim q}\big(x\in A\mid u\le\tilde p(x)\big) = \mathbb{P}_{x\sim p}(x\in A).$$
+
+So accepted samples are distributed exactly according to $p$, and $Z_p$ never had to be known.
+
+**Rejection sampling in many dimensions.** The denominator above is the probability that a proposal is accepted:
+
+$$\text{acceptance rate} = \frac{\text{area under }\tilde p}{\text{area under }c\tilde q} = \frac{Z_p}{cZ_q}.$$
+
+In high-dimensional problems, the requirement $c\tilde q(x)\ge\tilde p(x)$ everywhere forces $c$ to be huge, so acceptances become very rare. In general $c$ grows exponentially with the dimension, so the acceptance rate is expected to be exponentially small in the dimension. Finding a valid $c$ at all is also hard, since we do not know where the modes of $\tilde p$ are or how high they are. This is why the lecture presents rejection sampling as a one-dimensional tool.
+
+## Summary {#sec-summary4}
+
+::: {.callout-note}
+**Key takeaways from Week 4:**
+
+- **Latent variables and TrueSkill.** TrueSkill models each player's skill as a latent variable with $p(i\text{ beats }j\mid z_i,z_j)=\sigma(z_i-z_j)$. Observing games couples the skills (explaining away), so the exact posterior needs a high-dimensional integral.
+- **Message passing on trees.** On a tree, eliminating from the leaves inward is optimal, and the intermediate factors become messages $m_{j\to i}(x_i)=\sum_{x_j}\psi_j\psi_{ij}\prod_{k\ne i}m_{k\to j}$. A node's normalized belief $b(x_i)\propto\psi_i\prod_j m_{j\to i}$ is its exact marginal.
+- **Belief propagation.** Two passes (leaves to root, root to leaves) compute every marginal on a tree. On graphs with cycles, loopy BP iterates the same updates from uniform messages; it gives approximate, often over-confident beliefs, may not converge, and is stabilized by normalization and momentum. Replacing the sum with a max gives max-product BP, whose max-marginals yield the MAP estimate.
+- **Image denoising.** A noisy binary image's posterior is an Ising MRF with edge potentials $e^{Jx_sx_t}$ and node potentials $e^{\beta y_sx_s}$, $\beta=\tfrac12\log\frac{1-\epsilon}{\epsilon}$, and loopy BP approximates its pixel marginals.
+- **Monte Carlo.** Ancestral sampling draws from a DAG in topological order. Simple Monte Carlo estimates $\mathbb{E}_p[\phi]$ by a sample average that is unbiased with variance $\mathrm{var}[\phi]/R$, independent of dimension. When $p$ is known only up to $Z$, importance sampling reweights samples from a proposal $q$ by $\tilde p/\tilde q$, and rejection sampling accepts proposals that fall under $\tilde p$ beneath an envelope $c\tilde q$, at an acceptance rate $Z_p/(cZ_q)$ that collapses in high dimensions.
+:::
+
+**Next week:** per the lecture's closing slide, methods for generating samples from a particular distribution, continuing the sampling thread.
+
+## Quick self-check
+
+If you can explain why a message $m_{j\to i}$ excludes what $i$ itself sent to $j$, why that same rule makes loopy BP over-confident on a cycle, and why importance sampling and rejection sampling both avoid ever computing $Z_p$, you have understood the core of Week 4.

@@ -1,0 +1,1224 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.10.18">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+
+<title>Week 4: Message Passing and Monte Carlo – CSC412/2506: Probabilistic Machine Learning notes</title>
+<style>
+/* Default styles provided by pandoc.
+** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
+*/
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: 1.5em;}
+div.column{flex: auto;}
+@media screen {
+div.columns{gap: min(4vw, 1.5em);}
+div.column{overflow-x: auto;}
+}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+</style>
+
+
+<script src="../site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="../site_libs/quarto-nav/headroom.min.js"></script>
+<script src="../site_libs/clipboard/clipboard.min.js"></script>
+<script src="../site_libs/quarto-search/autocomplete.umd.js"></script>
+<script src="../site_libs/quarto-search/fuse.min.js"></script>
+<script src="../site_libs/quarto-search/quarto-search.js"></script>
+<meta name="quarto:offset" content="../">
+<link href="../lectures/week05.html" rel="next">
+<link href="../lectures/week03-practice.html" rel="prev">
+<script src="../site_libs/quarto-html/quarto.js" type="module"></script>
+<script src="../site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
+<script src="../site_libs/quarto-html/popper.min.js"></script>
+<script src="../site_libs/quarto-html/tippy.umd.min.js"></script>
+<script src="../site_libs/quarto-html/anchor.min.js"></script>
+<link href="../site_libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="../site_libs/quarto-html/quarto-syntax-highlighting-bb62276ab45c84d9efd712f51ff97b5a.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<script src="../site_libs/bootstrap/bootstrap.min.js"></script>
+<link href="../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="../site_libs/bootstrap/bootstrap-ce0958bf53307a1b0bb60f85d87db72f.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
+<script id="quarto-search-options" type="application/json">{
+  "location": "sidebar",
+  "copy-button": false,
+  "collapse-after": 3,
+  "panel-placement": "start",
+  "type": "textbox",
+  "limit": 50,
+  "keyboard-shortcut": [
+    "f",
+    "/",
+    "s"
+  ],
+  "show-item-context": false,
+  "language": {
+    "search-no-results-text": "No results",
+    "search-matching-documents-text": "matching documents",
+    "search-copy-link-title": "Copy link to search",
+    "search-hide-matches-text": "Hide additional matches",
+    "search-more-match-text": "more match in this document",
+    "search-more-matches-text": "more matches in this document",
+    "search-clear-button-title": "Clear",
+    "search-text-placeholder": "",
+    "search-detached-cancel-button-title": "Cancel",
+    "search-submit-button-title": "Submit",
+    "search-label": "Search"
+  }
+}</script>
+<style>html{ scroll-behavior: smooth; }</style>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+<link href="https://fonts.googleapis.com/css2?family=Source+Code+Pro:wght@400;600&amp;family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&amp;display=swap" rel="stylesheet">
+
+  <script>window.backupDefine = window.define; window.define = undefined;</script><script src="https://cdn.jsdelivr.net/npm/katex@latest/dist/katex.min.js"></script>
+  <script>document.addEventListener("DOMContentLoaded", function () {
+ var mathElements = document.getElementsByClassName("math");
+ var macros = [];
+ for (var i = 0; i < mathElements.length; i++) {
+  var texText = mathElements[i].firstChild;
+  if (mathElements[i].tagName == "SPAN") {
+   katex.render(texText.data, mathElements[i], {
+    displayMode: mathElements[i].classList.contains('display'),
+    throwOnError: false,
+    macros: macros,
+    fleqn: false
+   });
+}}});
+  </script>
+  <script>window.define = window.backupDefine; window.backupDefine = undefined;</script><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@latest/dist/katex.min.css">
+
+<script type="text/javascript">
+const typesetMath = (el) => {
+  if (window.MathJax) {
+    // MathJax Typeset
+    window.MathJax.typeset([el]);
+  } else if (window.katex) {
+    // KaTeX Render
+    var mathElements = el.getElementsByClassName("math");
+    var macros = [];
+    for (var i = 0; i < mathElements.length; i++) {
+      var texText = mathElements[i].firstChild;
+      if (mathElements[i].tagName == "SPAN" && texText && texText.data) {
+        window.katex.render(texText.data, mathElements[i], {
+          displayMode: mathElements[i].classList.contains('display'),
+          throwOnError: false,
+          macros: macros,
+          fleqn: false
+        });
+      }
+    }
+  }
+}
+window.Quarto = {
+  typesetMath
+};
+</script>
+
+<link rel="stylesheet" href="../styles/custom.css">
+</head>
+
+<body class="nav-sidebar floating quarto-light">
+
+<div id="quarto-search-results"></div>
+  <header id="quarto-header" class="headroom fixed-top">
+  <nav class="quarto-secondary-nav">
+    <div class="container-fluid d-flex">
+      <button type="button" class="quarto-btn-toggle btn" data-bs-toggle="collapse" role="button" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+        <i class="bi bi-layout-text-sidebar-reverse"></i>
+      </button>
+        <nav class="quarto-page-breadcrumbs" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../lectures/week04.html"><span class="chapter-title">Week 4: Message Passing and Monte Carlo</span></a></li></ol></nav>
+        <a class="flex-grow-1" role="navigation" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">      
+        </a>
+      <button type="button" class="btn quarto-search-button" aria-label="Search" onclick="window.quartoOpenSearch();">
+        <i class="bi bi-search"></i>
+      </button>
+    </div>
+  </nav>
+</header>
+<!-- content -->
+<div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-article">
+<!-- sidebar -->
+  <nav id="quarto-sidebar" class="sidebar collapse collapse-horizontal quarto-sidebar-collapse-item sidebar-navigation floating overflow-auto">
+    <div class="pt-lg-2 mt-2 text-left sidebar-header">
+    <div class="sidebar-title mb-0 py-0">
+      <a href="../">CSC412/2506: Probabilistic Machine Learning notes</a> 
+    </div>
+      </div>
+        <div class="mt-2 flex-shrink-0 align-items-center">
+        <div class="sidebar-search">
+        <div id="quarto-search" class="" title="Search"></div>
+        </div>
+        </div>
+    <div class="sidebar-menu-container"> 
+    <ul class="list-unstyled mt-1">
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../index.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">CSC412/2506 Probabilistic Machine Learning</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../lectures/week01.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Week 1: Introduction and Probabilistic Models</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../lectures/week01-practice.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Week 1 practice: Introduction and probabilistic models</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../lectures/week02.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Week 2: Decision Theory and Graphical Models</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../lectures/week02-practice.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Week 2 practice: Decision theory and graphical models</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../lectures/week03.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Week 3: Markov Random Fields and Exact Inference</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../lectures/week03-practice.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Week 3 practice: Markov random fields and exact inference</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../lectures/week04.html" class="sidebar-item-text sidebar-link active"><span class="chapter-title">Week 4: Message Passing and Monte Carlo</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../lectures/week05.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Week 5: Sampling with MCMC</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../glossary.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Glossary</span></a>
+  </div>
+</li>
+    </ul>
+    </div>
+</nav>
+<div id="quarto-sidebar-glass" class="quarto-sidebar-collapse-item" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item"></div>
+<!-- margin-sidebar -->
+    <div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
+        <nav id="TOC" role="doc-toc" class="toc-active">
+    <h2 id="toc-title">On this page</h2>
+   
+  <ul>
+  <li><a href="#sec-trueskill" id="toc-sec-trueskill" class="nav-link active" data-scroll-target="#sec-trueskill">Latent variables and the TrueSkill model</a></li>
+  <li><a href="#sec-trees" id="toc-sec-trees" class="nav-link" data-scroll-target="#sec-trees">Trees and elimination order</a></li>
+  <li><a href="#sec-tree-example" id="toc-sec-tree-example" class="nav-link" data-scroll-target="#sec-tree-example">Worked example: elimination on a tree becomes message passing</a></li>
+  <li><a href="#sec-messages" id="toc-sec-messages" class="nav-link" data-scroll-target="#sec-messages">Messages and beliefs</a></li>
+  <li><a href="#sec-bp" id="toc-sec-bp" class="nav-link" data-scroll-target="#sec-bp">Belief propagation on trees</a></li>
+  <li><a href="#sec-loopy" id="toc-sec-loopy" class="nav-link" data-scroll-target="#sec-loopy">Loopy belief propagation</a></li>
+  <li><a href="#sec-maxproduct" id="toc-sec-maxproduct" class="nav-link" data-scroll-target="#sec-maxproduct">Max-product BP and MAP inference</a></li>
+  <li><a href="#sec-denoise" id="toc-sec-denoise" class="nav-link" data-scroll-target="#sec-denoise">Tutorial example: image denoising with loopy BP</a></li>
+  <li><a href="#sec-sampling" id="toc-sec-sampling" class="nav-link" data-scroll-target="#sec-sampling">Sampling from an unnormalized density</a></li>
+  <li><a href="#sec-ancestral" id="toc-sec-ancestral" class="nav-link" data-scroll-target="#sec-ancestral">Ancestral sampling</a></li>
+  <li><a href="#sec-goals" id="toc-sec-goals" class="nav-link" data-scroll-target="#sec-goals">What sampling is for</a></li>
+  <li><a href="#sec-simplemc" id="toc-sec-simplemc" class="nav-link" data-scroll-target="#sec-simplemc">Simple Monte Carlo</a></li>
+  <li><a href="#sec-hardz" id="toc-sec-hardz" class="nav-link" data-scroll-target="#sec-hardz">Why the normalizing constant is hard</a></li>
+  <li><a href="#sec-importance" id="toc-sec-importance" class="nav-link" data-scroll-target="#sec-importance">Importance sampling</a></li>
+  <li><a href="#sec-rejection" id="toc-sec-rejection" class="nav-link" data-scroll-target="#sec-rejection">Rejection sampling</a></li>
+  <li><a href="#sec-summary4" id="toc-sec-summary4" class="nav-link" data-scroll-target="#sec-summary4">Summary</a></li>
+  <li><a href="#quick-self-check" id="toc-quick-self-check" class="nav-link" data-scroll-target="#quick-self-check">Quick self-check</a></li>
+  </ul>
+</nav>
+    </div>
+<!-- main -->
+<main class="content" id="quarto-document-content">
+
+<header id="title-block-header" class="quarto-title-block default">
+<div class="quarto-title">
+<h1 class="title"><span class="chapter-title">Week 4: Message Passing and Monte Carlo</span></h1>
+</div>
+
+
+
+<div class="quarto-title-meta">
+
+    
+  
+    
+  </div>
+  
+
+
+</header>
+
+
+<style>#title-block-header { display: none; }</style>
+<div class="lecture-header">
+  <h1>Week 4: Message Passing and Monte Carlo</h1>
+</div>
+<p><strong>Overview.</strong> Week 3 ended with variable elimination: to compute a conditional <span class="math inline">p(x_F\mid x_E)</span> in a graphical model, sum out the remaining variables <span class="math inline">x_R</span> one at a time, pushing each sum inward past every factor that does not mention it. This lecture takes that algorithm in two directions. The first half starts from a model where exact inference is out of reach, the TrueSkill model for ranking game players, and then shows that on a <strong>tree</strong> variable elimination can be rewritten as <strong>messages</strong> passed between neighbouring nodes. Two sweeps of messages give every node’s marginal at once (<strong>belief propagation</strong>). Running the same updates on a graph with cycles gives <strong>loopy belief propagation</strong>, an approximation with few guarantees that is still useful in practice; the tutorial uses it to denoise a binary image. The second half changes strategy entirely: instead of summing over a distribution, we draw random samples from it. We cover <strong>ancestral sampling</strong>, <strong>simple Monte Carlo</strong> estimation of expectations, and two tools for distributions we can only evaluate up to a constant: <strong>importance sampling</strong> and <strong>rejection sampling</strong>.</p>
+<p>Skipped: the title slide. The two agenda slides (slides 2 and 19) became the paragraph above.</p>
+<section id="sec-trueskill" class="level2">
+<h2 class="anchored" data-anchor-id="sec-trueskill">Latent variables and the TrueSkill model</h2>
+<p>Some variables in a model are never observed, yet the model depends on them. What do we do with such a variable?</p>
+<div class="definition-block">
+<p><strong>Definition.</strong> A <strong><a href="https://en.wikipedia.org/wiki/Latent_and_observable_variables">latent variable</a></strong> is an unobserved variable that governs some property of the observed data in a probabilistic model.</p>
+</div>
+<p>If an inference question never asks about a latent variable <span class="math inline">z</span>, we can simply marginalize it out (integrate over it, or sum if it is discrete), exactly as Week 3 summed out the remaining variables <span class="math inline">x_R</span> (<a href="week03.html#sec-inference" class="quarto-xref"><span>Exact inference as a conditional distribution</span></a> in Week 3). In other problems the latent variables are the very thing we want to learn about. Clustering is one example, and the course returns to latent variables when it covers Gaussian mixtures.</p>
+<p>The lecture’s running example of the second kind is <strong><a href="https://en.wikipedia.org/wiki/TrueSkill">TrueSkill</a></strong>, a ranking system for players of competitive games. The goal is to infer each player’s skill from observing who beats whom.</p>
+<div class="definition-block">
+<p><strong>Definition.</strong> In the course’s <strong>TrueSkill model</strong> (a logistic simplification: Microsoft’s original TrueSkill adds Gaussian performance noise, giving a cumulative-normal win probability), each of <span class="math inline">N</span> players has a fixed skill <span class="math inline">z_i \in \mathbb{R}</span>. Before seeing any games, the skills are independent, each with its own prior <span class="math inline">p(z_i)</span> (for example an independent Gaussian). Skills are never observed, so they are latent variables. In each game, the probability that player <span class="math inline">i</span> beats player <span class="math inline">j</span> is <span class="math display">p(i \text{ beats } j \mid z_i, z_j) = \sigma(z_i - z_j), \qquad \sigma(y) = \frac{1}{1+\exp(-y)}.</span></p>
+</div>
+<p>The function <span class="math inline">\sigma</span> here is the standard <strong><a href="https://en.wikipedia.org/wiki/Logistic_function">logistic function</a></strong>: it maps any real number into <span class="math inline">(0,1)</span>, equals <span class="math inline">\tfrac12</span> at <span class="math inline">0</span>, and approaches <span class="math inline">1</span> as its argument grows. So two players of equal skill each win half the time, and the larger the skill gap <span class="math inline">z_i - z_j</span>, the more likely the stronger player wins. Week 3’s restricted Boltzmann machine section (<a href="week03.html#sec-rbm" class="quarto-xref"><span>Restricted Boltzmann machines</span></a> in Week 3) used the same letter for <span class="math inline">\sigma(y) = 1/(1+e^{-2y})</span>, which has an extra factor of 2 because those units took values in <span class="math inline">\{-1,+1\}</span>. In this chapter <span class="math inline">\sigma</span> always means the standard version, <span class="math inline">1/(1+e^{-y})</span>.</p>
+<p>Treating the games as independent given the skills, the joint distribution of all skills and all <span class="math inline">T</span> game outcomes is the prior times one factor per game:</p>
+<p><span class="math display">p(z_1,\dots,z_N,\text{game } 1,\dots,\text{game } T) = \Big[\prod_{i=1}^N p(z_i)\Big]\Big[\prod_{\text{games}} p(i \text{ beats } j\mid z_i,z_j)\Big].</span></p>
+<p><strong>Why the posterior is hard.</strong> Once we observe some games, the skills are no longer independent, even for two players who have never played each other. This is Week 2’s explaining-away structure (<a href="week02.html#sec-cistructures" class="quarto-xref"><span>Conditional independence: three canonical structures</span></a> in Week 2): a game outcome is a common child of the two players’ skills, so observing it couples them. If <span class="math inline">A</span> beat <span class="math inline">B</span>, then learning that <span class="math inline">B</span> is strong makes it more likely that <span class="math inline">A</span> is strong too. A chain of games (<span class="math inline">A</span> played <span class="math inline">B</span>, <span class="math inline">B</span> played <span class="math inline">C</span>) then couples <span class="math inline">A</span> and <span class="math inline">C</span> through <span class="math inline">B</span>. As a result, even the exact posterior over just two players requires integrating over every other player’s skill:</p>
+<p><span class="math display">p(z_1,z_2\mid\text{games}) = \int\!\cdots\!\int p(z_1,z_2,z_3,\dots,z_N\mid\text{games})\,dz_3\cdots dz_N.</span></p>
+<p>This is an <span class="math inline">(N-2)</span>-dimensional integral with no closed form. The rest of the first half builds a tool, message passing, that computes approximate posteriors of this kind.</p>
+<div class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+Note
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p><strong>Homework-relevant.</strong> Assignment 2 returns to the TrueSkill model. This section explains the model, its joint distribution, and why the posterior couples the players; the specific posterior computations the assignment asks for are left to the assignment.</p>
+</div>
+</div>
+</section>
+<section id="sec-trees" class="level2">
+<h2 class="anchored" data-anchor-id="sec-trees">Trees and elimination order</h2>
+<p>Week 3 showed that variable elimination’s cost depends on the graph structure and on the elimination ordering, and that finding the best ordering is NP-hard in general (<a href="week03.html#sec-ve" class="quarto-xref"><span>Variable elimination</span></a> in Week 3). Even the best ordering can leave an intermediate factor over many variables at once, which is unreasonably costly. There is one large family of graphs where neither problem arises.</p>
+<div class="definition-block">
+<p><strong>Definition.</strong> A graph <span class="math inline">\mathcal{G}=(\mathcal{V},\mathcal{E})</span> has a set of vertices (nodes) <span class="math inline">\mathcal{V}</span> and a set of edges <span class="math inline">\mathcal{E}</span>, with <span class="math inline">(i,j)\in\mathcal{E}</span> when there is an edge between nodes <span class="math inline">i</span> and <span class="math inline">j</span>. The <strong>neighbours</strong> of node <span class="math inline">i</span> are <span class="math inline">N(i) = \{j : (i,j)\in\mathcal{E}\}</span>. An undirected graph is a <strong><a href="https://en.wikipedia.org/wiki/Tree_(graph_theory)">tree</a></strong> if it is connected and has no cycles. A <strong>leaf</strong> is a node with exactly one neighbour.</p>
+</div>
+<p>The lecture’s informal picture: a tree is a chain that sometimes branches. For trees, <strong>any elimination ordering that works from the leaves inward toward some root is optimal.</strong> The reason is that summing out a leaf only touches the leaf itself and its single neighbour, so the intermediate factor it produces depends on one variable, the neighbour. Removing that leaf leaves a smaller tree, which has its own leaves, and the process repeats. No intermediate factor ever involves more than two variables at once, so with <span class="math inline">n</span> variables of <span class="math inline">k</span> states each the whole elimination costs <span class="math inline">O(nk^2)</span>, the same cost as the chain example of Week 3.</p>
+<p>A tree-shaped Markov random field with one potential per node and one per edge has joint distribution</p>
+<p><span class="math display">p(x_{1:n}) = \frac{1}{Z}\prod_{i\in\mathcal{V}}\psi_i(x_i)\prod_{(i,j)\in\mathcal{E}}\psi_{ij}(x_i,x_j).</span></p>
+<p>The edges of a tree are its maximal cliques, so this is Week 3’s clique factorization (<a href="week03.html#sec-mrf" class="quarto-xref"><span>Markov random fields, cliques, and the factorization theorem</span></a> in Week 3) with extra single-node potentials <span class="math inline">\psi_i</span> added. An edge potential is one function of the pair, so we write its arguments in whichever order is convenient: <span class="math inline">\psi_{12}(x_1,x_2)</span> and <span class="math inline">\psi_{12}(x_2,x_1)</span> mean the same table read the same way.</p>
+</section>
+<section id="sec-tree-example" class="level2">
+<h2 class="anchored" data-anchor-id="sec-tree-example">Worked example: elimination on a tree becomes message passing</h2>
+<p>The lecture’s example is a five-node tree: <span class="math inline">x_1</span> connects to <span class="math inline">x_2</span> and <span class="math inline">x_3</span>, and <span class="math inline">x_3</span> connects to <span class="math inline">x_4</span> and <span class="math inline">x_5</span>. The nodes <span class="math inline">x_2, x_4, x_5</span> are observed, with values written <span class="math inline">\bar x_2, \bar x_4, \bar x_5</span> (the bar marks an observed value, as in Week 3). We want <span class="math inline">p(x_3\mid\bar x_2,\bar x_4,\bar x_5)</span>.</p>
+<div style="overflow-x:auto; margin:1.5rem 0;">
+<svg viewbox="0 0 440 320" width="100%" style="max-width:440px;display:block;margin:auto;font-family:Helvetica,'Helvetica Neue',Arial,sans-serif;" role="img" aria-label="A five-node tree: x1 connects to x2 and x3, and x3 connects to x4 and x5. Nodes x2, x4, x5 are observed.">
+  <text x="220" y="28" text-anchor="middle" font-size="24" font-weight="600" fill="#333">The lecture's five-node tree</text>
+  <line x1="200" y1="90" x2="120" y2="170" stroke="#555" stroke-width="1.5"></line>
+  <line x1="200" y1="90" x2="280" y2="170" stroke="#555" stroke-width="1.5"></line>
+  <line x1="280" y1="170" x2="210" y2="260" stroke="#555" stroke-width="1.5"></line>
+  <line x1="280" y1="170" x2="350" y2="260" stroke="#555" stroke-width="1.5"></line>
+  <circle cx="200" cy="90" r="24" fill="#C9E4DE" stroke="#57C7AE" stroke-width="1.5"></circle>
+  <text x="200" y="96" text-anchor="middle" font-size="16" fill="#207965">x1</text>
+  <circle cx="120" cy="170" r="24" fill="#C6DEF1" stroke="#5795C7" stroke-width="2.5"></circle>
+  <text x="120" y="176" text-anchor="middle" font-size="16" fill="#205279">x2</text>
+  <circle cx="280" cy="170" r="24" fill="#F2C6DE" stroke="#C75794" stroke-width="1.5"></circle>
+  <text x="280" y="176" text-anchor="middle" font-size="16" fill="#792051">x3</text>
+  <circle cx="210" cy="260" r="24" fill="#C6DEF1" stroke="#5795C7" stroke-width="2.5"></circle>
+  <text x="210" y="266" text-anchor="middle" font-size="16" fill="#205279">x4</text>
+  <circle cx="350" cy="260" r="24" fill="#C6DEF1" stroke="#5795C7" stroke-width="2.5"></circle>
+  <text x="350" y="266" text-anchor="middle" font-size="16" fill="#205279">x5</text>
+  <rect x="20" y="294" width="16" height="16" rx="3" fill="#C6DEF1" stroke="#5795C7" stroke-width="2"></rect>
+  <text x="42" y="307" font-size="14" fill="#333">observed</text>
+  <rect x="130" y="294" width="16" height="16" rx="3" fill="#C9E4DE" stroke="#57C7AE" stroke-width="1.5"></rect>
+  <text x="152" y="307" font-size="14" fill="#333">summed out</text>
+  <rect x="262" y="294" width="16" height="16" rx="3" fill="#F2C6DE" stroke="#C75794" stroke-width="1.5"></rect>
+  <text x="284" y="307" font-size="14" fill="#333">query</text>
+</svg>
+</div>
+<p><strong>Figure 1.</strong> The lecture’s tree. Blue nodes are observed, <span class="math inline">x_3</span> is the query variable, and <span class="math inline">x_1</span> is the only remaining variable, so it is the only one summed out.</p>
+<p>Since the only unobserved variable besides <span class="math inline">x_3</span> is <span class="math inline">x_1</span>, Week 3’s definition of inference says the answer is the joint with <span class="math inline">x_1</span> summed out, divided by a normalizer:</p>
+<p><span class="math display">p(x_3\mid\bar x_2,\bar x_4,\bar x_5) = \frac{1}{Z^E}\sum_{x_1}\psi_1(x_1)\,\psi_3(x_3)\,\psi_2(\bar x_2)\,\psi_4(\bar x_4)\,\psi_5(\bar x_5)</span> <span class="math display">{}\times\psi_{12}(\bar x_2,x_1)\,\psi_{34}(\bar x_4,x_3)\,\psi_{35}(\bar x_5,x_3)\,\psi_{13}(x_1,x_3).</span></p>
+<p>Here <span class="math inline">Z^E</span> is whatever constant makes the right-hand side sum to 1 over <span class="math inline">x_3</span>; it depends on the evidence but not on <span class="math inline">x_3</span>. Now group the factors by which variable they mention, the same “push the sum inward” move as Week 3:</p>
+<ul>
+<li><span class="math inline">\psi_4(\bar x_4)\,\psi_{34}(\bar x_4,x_3)</span> involves only <span class="math inline">x_3</span> (the <span class="math inline">x_4</span> value is fixed). Call it <span class="math inline">m_{4\to3}(x_3)</span>.</li>
+<li><span class="math inline">\psi_5(\bar x_5)\,\psi_{35}(\bar x_5,x_3)</span> also involves only <span class="math inline">x_3</span>. Call it <span class="math inline">m_{5\to3}(x_3)</span>.</li>
+<li><span class="math inline">\psi_2(\bar x_2)\,\psi_{12}(\bar x_2,x_1)</span> involves only <span class="math inline">x_1</span>. Call it <span class="math inline">m_{2\to1}(x_1)</span>.</li>
+</ul>
+<p>None of the first two mention <span class="math inline">x_1</span>, so they move outside the sum, leaving</p>
+<p><span class="math display">p(x_3\mid\bar x_2,\bar x_4,\bar x_5) = \frac{1}{Z^E}\,\psi_3(x_3)\,m_{4\to3}(x_3)\,m_{5\to3}(x_3)\sum_{x_1}\psi_1(x_1)\,\psi_{13}(x_1,x_3)\,m_{2\to1}(x_1).</span></p>
+<p>The remaining sum is a function of <span class="math inline">x_3</span> alone. Call it <span class="math inline">m_{1\to3}(x_3)</span>. Then</p>
+<p><span class="math display">p(x_3\mid\bar x_2,\bar x_4,\bar x_5) = \frac{\tilde b(x_3)}{\sum_{x_3}\tilde b(x_3)},</span> <span class="math display">\tilde b(x_3) = \psi_3(x_3)\,m_{1\to3}(x_3)\,m_{4\to3}(x_3)\,m_{5\to3}(x_3).</span></p>
+<p>The unnormalized product <span class="math inline">\tilde b(x_3)</span> gets a name, the belief, in <a href="#sec-messages" class="quarto-xref"><span>Messages and beliefs</span></a>.</p>
+<p>Each <span class="math inline">m</span> is an intermediate factor <span class="math inline">\tau</span> in Week 3’s sense (<a href="week03.html#sec-sum-product" class="quarto-xref"><span>Sum-product inference: unifying DAGMs and MRFs</span></a> in Week 3), but each one has a natural reading: it is a summary that one node sends to its neighbour about everything on its side of the tree. Node 2 summarizes its evidence for node 1; node 1 combines that with its own potential and summarizes the whole left branch for node 3; nodes 4 and 5 summarize their evidence for node 3.</p>
+<div style="overflow-x:auto; margin:1.5rem 0;">
+<svg viewbox="0 0 480 340" width="100%" style="max-width:480px;display:block;margin:auto;font-family:Helvetica,'Helvetica Neue',Arial,sans-serif;" role="img" aria-label="The same tree redrawn with x3 at the top as root. Arrows show messages m2 to 1, m1 to 3, m4 to 3 and m5 to 3 flowing toward the root.">
+  <defs>
+    <marker id="arrW4a" markerwidth="8" markerheight="8" refx="7" refy="4" orient="auto">
+      <path d="M0,0 L0,8 L8,4 z" fill="#C75794"></path>
+    </marker>
+  </defs>
+  <text x="240" y="28" text-anchor="middle" font-size="24" font-weight="600" fill="#333">Messages flow to the root</text>
+  <line x1="240" y1="80" x2="130" y2="180" stroke="#888" stroke-width="1.5"></line>
+  <line x1="240" y1="80" x2="240" y2="180" stroke="#888" stroke-width="1.5"></line>
+  <line x1="240" y1="80" x2="350" y2="180" stroke="#888" stroke-width="1.5"></line>
+  <line x1="130" y1="180" x2="130" y2="280" stroke="#888" stroke-width="1.5"></line>
+  <line x1="106" y1="260" x2="106" y2="205" stroke="#C75794" stroke-width="2" marker-end="url(#arrW4a)"></line>
+  <text x="98" y="238" text-anchor="end" font-size="15" fill="#792051">m2→1</text>
+  <line x1="145" y1="148" x2="200" y2="98" stroke="#C75794" stroke-width="2" marker-end="url(#arrW4a)"></line>
+  <text x="152" y="118" text-anchor="end" font-size="15" fill="#792051">m1→3</text>
+  <line x1="256" y1="160" x2="256" y2="108" stroke="#C75794" stroke-width="2" marker-end="url(#arrW4a)"></line>
+  <text x="262" y="140" font-size="15" fill="#792051">m4→3</text>
+  <line x1="352" y1="150" x2="290" y2="94" stroke="#C75794" stroke-width="2" marker-end="url(#arrW4a)"></line>
+  <text x="330" y="112" font-size="15" fill="#792051">m5→3</text>
+  <circle cx="240" cy="80" r="24" fill="#F2C6DE" stroke="#C75794" stroke-width="1.5"></circle>
+  <text x="240" y="86" text-anchor="middle" font-size="16" fill="#792051">x3</text>
+  <circle cx="130" cy="180" r="24" fill="#C9E4DE" stroke="#57C7AE" stroke-width="1.5"></circle>
+  <text x="130" y="186" text-anchor="middle" font-size="16" fill="#207965">x1</text>
+  <circle cx="240" cy="180" r="24" fill="#C6DEF1" stroke="#5795C7" stroke-width="2.5"></circle>
+  <text x="240" y="186" text-anchor="middle" font-size="16" fill="#205279">x4</text>
+  <circle cx="350" cy="180" r="24" fill="#C6DEF1" stroke="#5795C7" stroke-width="2.5"></circle>
+  <text x="350" y="186" text-anchor="middle" font-size="16" fill="#205279">x5</text>
+  <circle cx="130" cy="280" r="24" fill="#C6DEF1" stroke="#5795C7" stroke-width="2.5"></circle>
+  <text x="130" y="286" text-anchor="middle" font-size="16" fill="#205279">x2</text>
+</svg>
+</div>
+<p><strong>Figure 2.</strong> The tree of Figure 1 redrawn with <span class="math inline">x_3</span> as the root. Each arrow is one message; the computation above is exactly these four messages followed by a product at the root.</p>
+</section>
+<section id="sec-messages" class="level2">
+<h2 class="anchored" data-anchor-id="sec-messages">Messages and beliefs</h2>
+<p>The pattern in the worked example holds on any tree, so we can state it once for every edge.</p>
+<div class="definition-block">
+<p><strong>Definition.</strong> In a tree-shaped MRF, the <strong>message</strong> from node <span class="math inline">j</span> to a neighbour <span class="math inline">i\in N(j)</span> is <span class="math display">m_{j\to i}(x_i) = \sum_{x_j}\psi_j(x_j)\,\psi_{ij}(x_i,x_j)\prod_{k\in N(j)\setminus\{i\}} m_{k\to j}(x_j).</span> If <span class="math inline">x_j</span> is observed with value <span class="math inline">\bar x_j</span>, the sum is replaced by plugging in that value: <span class="math display">m_{j\to i}(x_i) = \psi_j(\bar x_j)\,\psi_{ij}(x_i,\bar x_j)\prod_{k\in N(j)\setminus\{i\}} m_{k\to j}(\bar x_j).</span></p>
+</div>
+<p>In words: to talk to <span class="math inline">i</span>, node <span class="math inline">j</span> multiplies its own potential by the messages it has received from every <em>other</em> neighbour, multiplies by the edge potential to <span class="math inline">i</span>, and sums out its own variable. The exclusion <span class="math inline">k\neq i</span> matters: <span class="math inline">j</span> does not echo back to <span class="math inline">i</span> what <span class="math inline">i</span> told it. The product over <span class="math inline">k</span> is what lets a message summarize an entire subtree rather than just one node. For a leaf <span class="math inline">j</span>, the set <span class="math inline">N(j)\setminus\{i\}</span> is empty, so the product is just 1.</p>
+<p>If <span class="math inline">x_i</span> is discrete with <span class="math inline">K</span> possible values, a message <span class="math inline">m_{j\to i}(x_i)</span> is a vector with one entry for each value of <span class="math inline">x_i</span>. It is not a probability distribution in general (it need not sum to 1), only a nonnegative score per state, like a potential.</p>
+<div class="definition-block">
+<p><strong>Definition.</strong> Once node <span class="math inline">i</span> has received a message from every neighbour, its <strong>belief</strong> is <span class="math display">b(x_i) \propto \psi_i(x_i)\prod_{j\in N(i)} m_{j\to i}(x_i).</span> In practice we compute an unnormalized belief <span class="math inline">\tilde b(x_i) = \psi_i(x_i)\prod_{j\in N(i)}m_{j\to i}(x_i)</span>, then normalize: <span class="math inline">b(x_i) = \tilde b(x_i)\big/\sum_{x_i}\tilde b(x_i)</span>.</p>
+</div>
+<p>The final line of the worked example in <a href="#sec-tree-example" class="quarto-xref"><span>Worked example: elimination on a tree becomes message passing</span></a> is exactly the belief at <span class="math inline">x_3</span>, normalized. Since the messages reproduce variable elimination step for step, on a tree the normalized belief is the exact conditional marginal: here <span class="math inline">b(x_3) = p(x_3\mid\bar x_2,\bar x_4,\bar x_5)</span>.</p>
+<div class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+Note
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p><strong>Worked example: messages on a three-node chain.</strong> Take binary spins <span class="math inline">x_1 - x_2 - x_3</span>, each in <span class="math inline">\{+1,-1\}</span>, with Ising edge potentials <span class="math inline">\psi_{12}=\psi_{23}=e^{Jx_ix_j}</span> (<a href="week03.html#sec-ising" class="quarto-xref"><span>The Ising model</span></a> in Week 3) and <span class="math inline">J=\log 2</span>, so an edge potential is <span class="math inline">2</span> when its endpoints agree and <span class="math inline">\tfrac12</span> when they disagree. Give <span class="math inline">x_1</span> the node potential <span class="math inline">\psi_1(+1)=3</span>, <span class="math inline">\psi_1(-1)=1</span>, and set <span class="math inline">\psi_2=\psi_3=1</span>. Nothing is observed. We want <span class="math inline">p(x_3)</span>, so treat <span class="math inline">x_3</span> as the root.</p>
+<p><em>Message from the leaf <span class="math inline">x_1</span> to <span class="math inline">x_2</span></em> (no incoming messages, so no product): <span class="math display">m_{1\to2}(+1) = 3\cdot 2 + 1\cdot\tfrac12 = 6.5, \qquad m_{1\to2}(-1) = 3\cdot\tfrac12 + 1\cdot 2 = 3.5.</span></p>
+<p><em>Message from <span class="math inline">x_2</span> to <span class="math inline">x_3</span></em>, multiplying in the message <span class="math inline">x_2</span> received: <span class="math display">m_{2\to3}(+1) = 6.5\cdot 2 + 3.5\cdot\tfrac12 = 14.75, \qquad m_{2\to3}(-1) = 6.5\cdot\tfrac12 + 3.5\cdot 2 = 10.25.</span></p>
+<p><em>Belief at <span class="math inline">x_3</span>:</em> <span class="math inline">\tilde b(x_3) = (14.75,\ 10.25)</span>, which sums to <span class="math inline">25</span>, so <span class="math inline">b(x_3=+1) = 0.59</span> and <span class="math inline">b(x_3=-1)=0.41</span>.</p>
+<p>The bias at <span class="math inline">x_1</span> toward <span class="math inline">+1</span> has travelled down the chain, weakened at each edge because the coupling favours agreement without forcing it. If we had normalized <span class="math inline">m_{1\to2}</span> to <span class="math inline">(0.65,\ 0.35)</span> before sending it, the next message would be <span class="math inline">(1.475,\ 1.025)</span>: every entry scaled by the same constant, so the final belief is unchanged. Scaling a message never changes a normalized belief, which is what makes the normalization trick of <a href="#sec-loopy" class="quarto-xref"><span>Loopy belief propagation</span></a> safe.</p>
+</div>
+</div>
+</section>
+<section id="sec-bp" class="level2">
+<h2 class="anchored" data-anchor-id="sec-bp">Belief propagation on trees</h2>
+<p>The worked example computed one marginal. If we want the marginal at <em>every</em> node, running variable elimination separately for each node would recompute the same messages over and over. Belief propagation computes each message once.</p>
+<div class="definition-block">
+<p><strong>Definition.</strong> <strong><a href="https://en.wikipedia.org/wiki/Belief_propagation">Belief propagation</a> (BP)</strong>, also called the <strong>sum-product algorithm</strong> on trees, is message passing between neighbouring nodes that computes all node marginals of a tree-shaped graphical model.</p>
+</div>
+<div class="algorithm">
+<p><strong>Belief propagation on a tree</strong></p>
+<ol type="1">
+<li>Choose a root <span class="math inline">r</span> arbitrarily.</li>
+<li>Pass messages from the leaves to <span class="math inline">r</span>: a node sends its message toward the root once it has heard from all its other neighbours.</li>
+<li>Pass messages from <span class="math inline">r</span> back out to the leaves, using the same message formula.</li>
+<li>Compute every node’s belief <span class="math inline">b(x_i)\propto\psi_i(x_i)\prod_{j\in N(i)}m_{j\to i}(x_i)</span> and normalize.</li>
+</ol>
+</div>
+<p>These two passes are sufficient on a tree. After the inward pass, the root has heard from every subtree. The outward pass then gives every other node the one message it was missing, the one from its parent’s side. At that point each node has a message from every neighbour, which is all the belief formula needs. A tree with <span class="math inline">|\mathcal{E}|</span> edges needs exactly <span class="math inline">2|\mathcal{E}|</span> messages, one in each direction along each edge.</p>
+<div style="overflow-x:auto; margin:1.5rem 0;">
+<svg viewbox="0 0 480 350" width="100%" style="max-width:480px;display:block;margin:auto;font-family:Helvetica,'Helvetica Neue',Arial,sans-serif;" role="img" aria-label="A five-node tree rooted at node 1, with children 2 and 3, and node 2 having children 4 and 5. Each edge carries one inward message and one outward message.">
+  <defs>
+    <marker id="arrW4b" markerwidth="8" markerheight="8" refx="7" refy="4" orient="auto">
+      <path d="M0,0 L0,8 L8,4 z" fill="#5795C7"></path>
+    </marker>
+    <marker id="arrW4c" markerwidth="8" markerheight="8" refx="7" refy="4" orient="auto">
+      <path d="M0,0 L0,8 L8,4 z" fill="#C78557"></path>
+    </marker>
+  </defs>
+  <text x="240" y="28" text-anchor="middle" font-size="24" font-weight="600" fill="#333">Two passes on a tree</text>
+  <line x1="240" y1="80" x2="150" y2="170" stroke="#888" stroke-width="1.2"></line>
+  <line x1="240" y1="80" x2="330" y2="170" stroke="#888" stroke-width="1.2"></line>
+  <line x1="150" y1="170" x2="100" y2="270" stroke="#888" stroke-width="1.2"></line>
+  <line x1="150" y1="170" x2="200" y2="270" stroke="#888" stroke-width="1.2"></line>
+  <line x1="166.8" y1="141.8" x2="211.8" y2="96.8" stroke="#5795C7" stroke-width="2" marker-end="url(#arrW4b)"></line>
+  <line x1="223.2" y1="108.2" x2="178.2" y2="153.2" stroke="#C78557" stroke-width="2" marker-end="url(#arrW4c)"></line>
+  <line x1="313.2" y1="141.8" x2="268.2" y2="96.8" stroke="#5795C7" stroke-width="2" marker-end="url(#arrW4b)"></line>
+  <line x1="256.8" y1="108.2" x2="301.8" y2="153.2" stroke="#C78557" stroke-width="2" marker-end="url(#arrW4c)"></line>
+  <line x1="105.3" y1="241.4" x2="130.3" y2="191.4" stroke="#5795C7" stroke-width="2" marker-end="url(#arrW4b)"></line>
+  <line x1="144.7" y1="198.6" x2="119.7" y2="248.6" stroke="#C78557" stroke-width="2" marker-end="url(#arrW4c)"></line>
+  <line x1="194.7" y1="241.4" x2="169.7" y2="191.4" stroke="#5795C7" stroke-width="2" marker-end="url(#arrW4b)"></line>
+  <line x1="155.3" y1="198.6" x2="180.3" y2="248.6" stroke="#C78557" stroke-width="2" marker-end="url(#arrW4c)"></line>
+  <circle cx="240" cy="80" r="22" fill="#F2C6DE" stroke="#C75794" stroke-width="1.5"></circle>
+  <text x="240" y="86" text-anchor="middle" font-size="16" fill="#792051">1</text>
+  <text x="270" y="70" font-size="14" fill="#792051">root</text>
+  <circle cx="150" cy="170" r="22" fill="#C9E4DE" stroke="#57C7AE" stroke-width="1.5"></circle>
+  <text x="150" y="176" text-anchor="middle" font-size="16" fill="#207965">2</text>
+  <circle cx="330" cy="170" r="22" fill="#C9E4DE" stroke="#57C7AE" stroke-width="1.5"></circle>
+  <text x="330" y="176" text-anchor="middle" font-size="16" fill="#207965">3</text>
+  <circle cx="100" cy="270" r="22" fill="#C9E4DE" stroke="#57C7AE" stroke-width="1.5"></circle>
+  <text x="100" y="276" text-anchor="middle" font-size="16" fill="#207965">4</text>
+  <circle cx="200" cy="270" r="22" fill="#C9E4DE" stroke="#57C7AE" stroke-width="1.5"></circle>
+  <text x="200" y="276" text-anchor="middle" font-size="16" fill="#207965">5</text>
+  <line x1="260" y1="250" x2="296" y2="250" stroke="#5795C7" stroke-width="2" marker-end="url(#arrW4b)"></line>
+  <text x="304" y="255" font-size="14" fill="#333">pass 1: leaves to root</text>
+  <line x1="260" y1="282" x2="296" y2="282" stroke="#C78557" stroke-width="2" marker-end="url(#arrW4c)"></line>
+  <text x="304" y="287" font-size="14" fill="#333">pass 2: root to leaves</text>
+</svg>
+</div>
+<p><strong>Figure 3.</strong> The tutorial’s tree with node 1 as root. Blue arrows are the inward pass (4 and 5 report to 2, then 2 and 3 report to 1); orange arrows are the outward pass. Four edges, eight messages.</p>
+<div class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+Note
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p><strong>Homework-relevant.</strong> Assignment 2 uses message passing. The message and belief formulas above, and the order in which messages may be sent, are the pieces to understand before starting it.</p>
+</div>
+</div>
+</section>
+<section id="sec-loopy" class="level2">
+<h2 class="anchored" data-anchor-id="sec-loopy">Loopy belief propagation</h2>
+<p>What if the MRF has cycles? Then there are no leaves to start from, and “wait until you have heard from all other neighbours” never gets going, because every node on a cycle is waiting on another node on the same cycle. The lecture’s answer is to apply the message updates anyway and keep passing messages until they settle down.</p>
+<div class="algorithm">
+<p><strong>Loopy belief propagation</strong></p>
+<ol type="1">
+<li>Initialize every message uniformly: <span class="math inline">m_{i\to j}(x_j) = [1/k,\dots,1/k]^\top</span>, where <span class="math inline">k</span> is the number of states <span class="math inline">x_j</span> can take.</li>
+<li>Repeatedly sweep through the edges, recomputing each message with the usual update <span class="math display">m_{j\to i}(x_i) = \sum_{x_j}\psi_j(x_j)\,\psi_{ij}(x_i,x_j)\prod_{k\in N(j)\setminus\{i\}} m_{k\to j}(x_j),</span> often normalizing each new message so its entries sum to 1, until the messages (approximately) stop changing or an iteration budget runs out.</li>
+<li>Compute beliefs <span class="math inline">b(x_i)\propto\psi_i(x_i)\prod_{j\in N(i)}m_{j\to i}(x_i)</span>.</li>
+</ol>
+</div>
+<p>The result is <strong>loopy belief propagation</strong>. Its beliefs are approximations to the marginals, not the exact marginals, and the lecture is candid about its limitations:</p>
+<ul>
+<li><strong>No general guarantee.</strong> It is guaranteed to give exact answers only on trees and in some special cases. It may not converge at all, and the messages may oscillate. In practice this is generally acceptable: the tutorial reports that 10–20 iterations are enough for useful approximate inference.</li>
+<li><strong>Over-confidence.</strong> On a cycle, a node’s own evidence leaves along one edge and returns along another, so the same potentials get multiplied in more than once. The lecture compares this to someone who starts a rumour, then hears the same rumour back from someone else and becomes more certain it is true. Beliefs from loopy BP are therefore often more peaked than the true marginals.</li>
+<li><strong>Stabilizing tricks.</strong> Loopy BP often works better if messages are normalized (shown in <a href="#sec-messages" class="quarto-xref"><span>Messages and beliefs</span></a> to leave beliefs unchanged on a tree) and if updates use <strong>momentum</strong>: rather than replacing a message outright, move it part of the way toward the newly computed value, <span class="math display">m^{\text{new}}_{j\to i}(x_i) = (1-\alpha)\,m^{\text{old}}_{j\to i}(x_i) + \alpha\,\big[\text{update}\big],</span> with a step size <span class="math inline">\alpha\in(0,1]</span>. Smaller <span class="math inline">\alpha</span> damps the oscillations described above.</li>
+</ul>
+<p>Despite the lack of guarantees, loopy BP is widely used in practice, and the tutorial’s denoising example below is one illustration.</p>
+<div class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+Note
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p><strong>Homework-relevant.</strong> Assignment 2 uses loopy BP with normalized messages and momentum. The update rule and the reasons for each trick are above; implementation choices and results are left to the assignment.</p>
+</div>
+</div>
+</section>
+<section id="sec-maxproduct" class="level2">
+<h2 class="anchored" data-anchor-id="sec-maxproduct">Max-product BP and MAP inference</h2>
+<p>Everything so far computes <strong>marginals</strong>: for each node, a distribution over its states. Sometimes we want something else: the single most likely joint setting of the unobserved variables.</p>
+<div class="definition-block">
+<p><strong>Definition.</strong> The <strong><a href="https://en.wikipedia.org/wiki/Maximum_a_posteriori_estimation">maximum a posteriori (MAP)</a> estimate</strong> is the most probable value of the unobserved variables given the evidence, <span class="math inline">\arg\max_{x_F} p(x_F\mid x_E)</span>. <strong>MAP inference</strong> is the task of computing it.</p>
+</div>
+<p>The algorithm we have been using is more precisely called <strong>sum-product BP</strong>, because each message is a sum of products. For MAP inference we <strong>maximize</strong> over <span class="math inline">x_j</span> instead of summing, which gives <strong>max-product BP</strong>:</p>
+<p><span class="math display">m_{j\to i}(x_i) = \max_{x_j}\ \psi_j(x_j)\,\psi_{ij}(x_i,x_j)\prod_{k\in N(j)\setminus\{i\}} m_{k\to j}(x_j).</span></p>
+<p>The resulting beliefs <span class="math inline">b(x_i)\propto\psi_i(x_i)\prod_{j\in N(i)}m_{j\to i}(x_i)</span> are now <strong>max-marginals</strong>: <span class="math inline">b(x_i)</span> scores the best joint configuration that has node <span class="math inline">i</span> in state <span class="math inline">x_i</span>, rather than the total probability of all configurations with node <span class="math inline">i</span> in that state. The MAP estimate is then read off node by node:</p>
+<p><span class="math display">\hat x_i = \arg\max_{x_i}\, b(x_i).</span></p>
+<p>The swap works for the same reason sum-product works: on a tree, a maximum distributes over a product of nonnegative factors exactly as a sum does, so the same “push the operation inward past factors that do not mention <span class="math inline">x_j</span>” argument goes through with <span class="math inline">\max</span> in place of <span class="math inline">\sum</span>. (Reading off <span class="math inline">\hat x_i</span> node by node is safe when each node’s maximizer is unique; ties need extra bookkeeping that the lecture does not cover.)</p>
+</section>
+<section id="sec-denoise" class="level2">
+<h2 class="anchored" data-anchor-id="sec-denoise">Tutorial example: image denoising with loopy BP</h2>
+<p>The tutorial applies loopy BP to a concrete problem. A binary image is a <span class="math inline">\sqrt{n}\times\sqrt{n}</span> grid of pixels, each <span class="math inline">+1</span> or <span class="math inline">-1</span>, which we flatten into a vector <span class="math inline">x\in\{-1,+1\}^n</span>. The tutorial’s example is a <span class="math inline">128\times128</span> black-and-white Mona Lisa, so <span class="math inline">n=16384</span>.</p>
+<p>The image is sent through a noisy channel that flips each pixel independently with a small probability <span class="math inline">\epsilon</span> (a <strong><a href="https://en.wikipedia.org/wiki/Binary_symmetric_channel">binary symmetric channel</a></strong>). The true pixels <span class="math inline">x</span> are latent; we observe the noisy pixels <span class="math inline">y</span>. The goal is to recover <span class="math inline">x</span> from <span class="math inline">y</span>.</p>
+<div style="overflow-x:auto; margin:1.5rem 0;">
+<svg viewbox="0 0 480 300" width="100%" style="max-width:480px;display:block;margin:auto;font-family:Helvetica,'Helvetica Neue',Arial,sans-serif;" role="img" aria-label="A grid of true pixels x connected to their four grid neighbours, each with an attached observed noisy pixel y">
+  <text x="240" y="28" text-anchor="middle" font-size="24" font-weight="600" fill="#333">The denoising MRF</text>
+  <line x1="110" y1="110" x2="350" y2="110" stroke="#555" stroke-width="1.5"></line>
+  <line x1="110" y1="220" x2="350" y2="220" stroke="#555" stroke-width="1.5"></line>
+  <line x1="110" y1="110" x2="110" y2="220" stroke="#555" stroke-width="1.5"></line>
+  <line x1="230" y1="110" x2="230" y2="220" stroke="#555" stroke-width="1.5"></line>
+  <line x1="350" y1="110" x2="350" y2="220" stroke="#555" stroke-width="1.5"></line>
+  <line x1="110" y1="110" x2="150" y2="75" stroke="#5795C7" stroke-width="1.5"></line>
+  <line x1="230" y1="110" x2="270" y2="75" stroke="#5795C7" stroke-width="1.5"></line>
+  <line x1="350" y1="110" x2="390" y2="75" stroke="#5795C7" stroke-width="1.5"></line>
+  <line x1="110" y1="220" x2="150" y2="185" stroke="#5795C7" stroke-width="1.5"></line>
+  <line x1="230" y1="220" x2="270" y2="185" stroke="#5795C7" stroke-width="1.5"></line>
+  <line x1="350" y1="220" x2="390" y2="185" stroke="#5795C7" stroke-width="1.5"></line>
+  <circle cx="150" cy="70" r="15" fill="#C6DEF1" stroke="#5795C7" stroke-width="2"></circle>
+  <text x="150" y="75" text-anchor="middle" font-size="14" fill="#205279">y</text>
+  <circle cx="270" cy="70" r="15" fill="#C6DEF1" stroke="#5795C7" stroke-width="2"></circle>
+  <text x="270" y="75" text-anchor="middle" font-size="14" fill="#205279">y</text>
+  <circle cx="390" cy="70" r="15" fill="#C6DEF1" stroke="#5795C7" stroke-width="2"></circle>
+  <text x="390" y="75" text-anchor="middle" font-size="14" fill="#205279">y</text>
+  <circle cx="150" cy="180" r="15" fill="#C6DEF1" stroke="#5795C7" stroke-width="2"></circle>
+  <text x="150" y="185" text-anchor="middle" font-size="14" fill="#205279">y</text>
+  <circle cx="270" cy="180" r="15" fill="#C6DEF1" stroke="#5795C7" stroke-width="2"></circle>
+  <text x="270" y="185" text-anchor="middle" font-size="14" fill="#205279">y</text>
+  <circle cx="390" cy="180" r="15" fill="#C6DEF1" stroke="#5795C7" stroke-width="2"></circle>
+  <text x="390" y="185" text-anchor="middle" font-size="14" fill="#205279">y</text>
+  <circle cx="110" cy="110" r="20" fill="#C9E4DE" stroke="#57C7AE" stroke-width="1.5"></circle>
+  <text x="110" y="116" text-anchor="middle" font-size="16" fill="#207965">x</text>
+  <circle cx="230" cy="110" r="20" fill="#C9E4DE" stroke="#57C7AE" stroke-width="1.5"></circle>
+  <text x="230" y="116" text-anchor="middle" font-size="16" fill="#207965">x</text>
+  <circle cx="350" cy="110" r="20" fill="#C9E4DE" stroke="#57C7AE" stroke-width="1.5"></circle>
+  <text x="350" y="116" text-anchor="middle" font-size="16" fill="#207965">x</text>
+  <circle cx="110" cy="220" r="20" fill="#C9E4DE" stroke="#57C7AE" stroke-width="1.5"></circle>
+  <text x="110" y="226" text-anchor="middle" font-size="16" fill="#207965">x</text>
+  <circle cx="230" cy="220" r="20" fill="#C9E4DE" stroke="#57C7AE" stroke-width="1.5"></circle>
+  <text x="230" y="226" text-anchor="middle" font-size="16" fill="#207965">x</text>
+  <circle cx="350" cy="220" r="20" fill="#C9E4DE" stroke="#57C7AE" stroke-width="1.5"></circle>
+  <text x="350" y="226" text-anchor="middle" font-size="16" fill="#207965">x</text>
+  <text x="170" y="270" text-anchor="middle" font-size="14" fill="#207965">grid edge: Jx_s x_t</text>
+  <text x="340" y="270" text-anchor="middle" font-size="14" fill="#205279">observation edge: βy_s x_s</text>
+</svg>
+</div>
+<p><strong>Figure 4.</strong> A small corner of the denoising model. Each true pixel <span class="math inline">x_s</span> (green, latent) is linked to its grid neighbours by an Ising edge and to its own noisy observation <span class="math inline">y_s</span> (blue, observed). The grid contains many 4-cycles, so exact BP does not apply and the tutorial uses loopy BP.</p>
+<p><strong>The observation model.</strong> One pixel’s observation agrees with the truth (<span class="math inline">y_sx_s=+1</span>) with probability <span class="math inline">1-\epsilon</span> and disagrees (<span class="math inline">y_sx_s=-1</span>) with probability <span class="math inline">\epsilon</span>. Since <span class="math inline">\tfrac{1+y_sx_s}{2}</span> is 1 on agreement and 0 on disagreement, this can be written as a single formula and rearranged into Ising form:</p>
+<p><span class="math display">\mathbb{P}(y_s\mid x_s) = (1-\epsilon)^{\frac{1+y_sx_s}{2}}\,\epsilon^{\frac{1-y_sx_s}{2}}</span> <span class="math display">= \exp\Big\{\tfrac{1+y_sx_s}{2}\log(1-\epsilon) + \tfrac{1-y_sx_s}{2}\log\epsilon\Big\}</span> <span class="math display">\propto \exp\Big\{y_sx_s\cdot\tfrac12\log\Big(\frac{1-\epsilon}{\epsilon}\Big)\Big\} = \exp\{\beta\,y_sx_s\},</span> <span class="math display">\beta = \tfrac12\log\Big(\frac{1-\epsilon}{\epsilon}\Big).</span></p>
+<p>The <span class="math inline">\propto</span> step drops <span class="math inline">\tfrac12\log(1-\epsilon)+\tfrac12\log\epsilon</span>, which does not depend on <span class="math inline">x_s</span>. When the noise is small, <span class="math inline">\epsilon&lt;\tfrac12</span> makes <span class="math inline">\beta&gt;0</span>, so the model rewards each true pixel for agreeing with its observation; the smaller <span class="math inline">\epsilon</span>, the larger <span class="math inline">\beta</span> and the stronger that pull.</p>
+<p><strong>The prior.</strong> Natural images tend to have neighbouring pixels of the same colour, so the prior on <span class="math inline">x</span> is an Ising model on the grid (<a href="week03.html#sec-ising" class="quarto-xref"><span>The Ising model</span></a> in Week 3) with coupling <span class="math inline">J&gt;0</span>:</p>
+<p><span class="math display">p(x)\propto\prod_{s\sim t}\psi_{st}(x_s,x_t), \qquad \psi_{st}(x_s,x_t) = \exp(Jx_sx_t) = \begin{pmatrix} e^{J} &amp; e^{-J}\\ e^{-J} &amp; e^{J}\end{pmatrix},</span></p>
+<p>where <span class="math inline">s\sim t</span> ranges over grid edges, and the matrix lists the potential’s values with rows and columns ordered <span class="math inline">(+1,-1)</span>.</p>
+<p><strong>The posterior.</strong> Combining prior and observations with Bayes’ rule, and using that pixels are flipped independently,</p>
+<p><span class="math display">p(x\mid y)\propto p(x,y) = p(x)\prod_s p(y_s\mid x_s) \propto \exp\Big\{J\sum_{s\sim t}x_sx_t + \beta\sum_s y_sx_s\Big\}</span> <span class="math display">= \prod_{s\sim t}\psi_{st}(x_s,x_t)\prod_s\psi_s(x_s), \qquad \psi_s(x_s) = \exp(\beta y_sx_s).</span></p>
+<p>So the posterior over the true image is itself an Ising MRF on the grid, with the observations entering only as node potentials. That is exactly the form BP needs.</p>
+<p><strong>Running loopy BP.</strong> Each message <span class="math inline">m_{j\to i}(x_i)</span> is stored as a 2-vector <span class="math inline">\big(m_{j\to i}(+1),\ m_{j\to i}(-1)\big)</span>, and each belief likewise. Initialize every message to <span class="math inline">(\tfrac12,\tfrac12)</span>, run the loopy updates of <a href="#sec-loopy" class="quarto-xref"><span>Loopy belief propagation</span></a> (summing over <span class="math inline">x_j\in\{-1,+1\}</span>) with normalization, then compute beliefs. The tutorial reports that 10–20 iterations suffice, and the beliefs approximate the posterior marginals <span class="math inline">p(x_i\mid y)</span>. One decision rule is <span class="math inline">\hat x_i = \arg\max_{x_i} b(x_i)</span>, which picks whichever colour each pixel’s approximate marginal favours. In the tutorial’s Mona Lisa example, this recovers a clean image from one with a large fraction of flipped pixels.</p>
+</section>
+<section id="sec-sampling" class="level2">
+<h2 class="anchored" data-anchor-id="sec-sampling">Sampling from an unnormalized density</h2>
+<p>The second half of the lecture changes approach. Instead of computing sums exactly or approximately with messages, we draw random samples and average over them.</p>
+<div class="definition-block">
+<p><strong>Definition.</strong> A <strong>sample</strong> from a distribution <span class="math inline">p(x)</span> is a single realization <span class="math inline">x</span> whose probability distribution is <span class="math inline">p(x)</span>. Here <span class="math inline">x</span> may be a single real number or a high-dimensional vector.</p>
+</div>
+<p>Throughout, we assume we can evaluate <span class="math inline">p(x)</span> only up to a multiplicative constant. That is, we can compute a function <span class="math inline">\tilde p(x)</span> with</p>
+<p><span class="math display">p(x) = \frac{\tilde p(x)}{Z}, \qquad Z = \int\tilde p(x)\,dx,</span></p>
+<p>but we do not know <span class="math inline">Z</span>. This is the normal situation for the models in this course: an MRF’s product of potentials is <span class="math inline">\tilde p</span>, and its partition function <span class="math inline">Z</span> (<a href="week03.html#sec-mrf" class="quarto-xref"><span>Markov random fields, cliques, and the factorization theorem</span></a> in Week 3) is exactly the hard part. The posterior of <a href="#sec-denoise" class="quarto-xref"><span>Tutorial example: image denoising with loopy BP</span></a> is another example, since we wrote it only up to <span class="math inline">\propto</span>.</p>
+</section>
+<section id="sec-ancestral" class="level2">
+<h2 class="anchored" data-anchor-id="sec-ancestral">Ancestral sampling</h2>
+<p>Sampling is easiest in a directed model. The idea relies on one ordering concept.</p>
+<div class="definition-block">
+<p><strong>Definition.</strong> A <strong><a href="https://en.wikipedia.org/wiki/Topological_sorting">topological order</a></strong> of a DAG is an ordering of its nodes in which every node comes after all of its parents.</p>
+</div>
+<div class="definition-block">
+<p><strong>Definition.</strong> Given a DAG and the ability to sample from each node’s conditional distribution given its parents, <strong>ancestral sampling</strong> draws a sample from the joint distribution by visiting the nodes in a topological order and sampling each one from <span class="math inline">p(x_i\mid\text{parents}(x_i))</span> with its parents set to the values already drawn.</p>
+</div>
+<p>This works because a DAG’s joint factorizes into exactly these conditionals (<a href="week02.html#sec-dag" class="quarto-xref"><span>Directed graphical models</span></a> in Week 2), so sampling them in turn produces a draw from the product.</p>
+<div style="overflow-x:auto; margin:1.5rem 0;">
+<svg viewbox="0 0 460 300" width="100%" style="max-width:460px;display:block;margin:auto;font-family:Helvetica,'Helvetica Neue',Arial,sans-serif;" role="img" aria-label="A five-node DAG: 1 points to 2 and 3, 2 and 3 point to 4, and 3 points to 5">
+  <defs>
+    <marker id="arrW4d" markerwidth="7" markerheight="7" refx="6" refy="3.5" orient="auto">
+      <path d="M0,0 L0,7 L7,3.5 z" fill="#555"></path>
+    </marker>
+  </defs>
+  <text x="230" y="28" text-anchor="middle" font-size="24" font-weight="600" fill="#333">Ancestral sampling order</text>
+  <line x1="214" y1="94" x2="180" y2="138" stroke="#555" stroke-width="1.5" marker-end="url(#arrW4d)"></line>
+  <line x1="246" y1="94" x2="280" y2="138" stroke="#555" stroke-width="1.5" marker-end="url(#arrW4d)"></line>
+  <line x1="177" y1="182" x2="212" y2="228" stroke="#555" stroke-width="1.5" marker-end="url(#arrW4d)"></line>
+  <line x1="283" y1="182" x2="248" y2="228" stroke="#555" stroke-width="1.5" marker-end="url(#arrW4d)"></line>
+  <line x1="313" y1="182" x2="350" y2="228" stroke="#555" stroke-width="1.5" marker-end="url(#arrW4d)"></line>
+  <circle cx="230" cy="75" r="22" fill="#C6DEF1" stroke="#5795C7" stroke-width="1.5"></circle>
+  <text x="230" y="81" text-anchor="middle" font-size="16" fill="#205279">1</text>
+  <text x="262" y="72" font-size="14" fill="#555">step 1</text>
+  <circle cx="160" cy="160" r="22" fill="#C9E4DE" stroke="#57C7AE" stroke-width="1.5"></circle>
+  <text x="160" y="166" text-anchor="middle" font-size="16" fill="#207965">2</text>
+  <text x="128" y="165" text-anchor="end" font-size="14" fill="#555">step 2</text>
+  <circle cx="300" cy="160" r="22" fill="#C9E4DE" stroke="#57C7AE" stroke-width="1.5"></circle>
+  <text x="300" y="166" text-anchor="middle" font-size="16" fill="#207965">3</text>
+  <text x="332" y="165" font-size="14" fill="#555">step 2</text>
+  <circle cx="230" cy="250" r="22" fill="#FAEDCB" stroke="#C7A857" stroke-width="1.5"></circle>
+  <text x="230" y="256" text-anchor="middle" font-size="16" fill="#796020">4</text>
+  <text x="198" y="255" text-anchor="end" font-size="14" fill="#555">step 3</text>
+  <circle cx="370" cy="250" r="22" fill="#F7D9C4" stroke="#C78557" stroke-width="1.5"></circle>
+  <text x="370" y="256" text-anchor="middle" font-size="16" fill="#794520">5</text>
+  <text x="402" y="255" font-size="14" fill="#555">step 4</text>
+</svg>
+</div>
+<p><strong>Figure 5.</strong> The lecture’s ancestral-sampling example. Each node is sampled only after all of its parents.</p>
+<p><strong>Worked example.</strong> The DAG in Figure 5 factorizes as</p>
+<p><span class="math display">p(x_1,\dots,x_5) = p(x_1)\,p(x_2\mid x_1)\,p(x_3\mid x_1)\,p(x_4\mid x_2,x_3)\,p(x_5\mid x_3).</span></p>
+<p>Sample <span class="math inline">x_1</span> from <span class="math inline">p(x_1)</span>. Then sample <span class="math inline">x_2</span> from <span class="math inline">p(x_2\mid x_1)</span> and <span class="math inline">x_3</span> from <span class="math inline">p(x_3\mid x_1)</span>, plugging in the drawn <span class="math inline">x_1</span>. Then sample <span class="math inline">x_4</span> from <span class="math inline">p(x_4\mid x_2,x_3)</span>. Finally, sample <span class="math inline">x_5</span> from <span class="math inline">p(x_5\mid x_3)</span>. (Any order in which parents precede children would do; <span class="math inline">x_5</span> could equally come before <span class="math inline">x_4</span>.)</p>
+<p>Ancestral sampling draws from the joint with nothing observed. It does not directly give samples from a conditional such as <span class="math inline">p(x_1\mid x_4)</span>, and it needs a directed model with easy-to-sample conditionals; an MRF with an unknown <span class="math inline">Z</span> offers neither. The rest of the lecture deals with that harder setting.</p>
+</section>
+<section id="sec-goals" class="level2">
+<h2 class="anchored" data-anchor-id="sec-goals">What sampling is for</h2>
+<p>The lecture names two problems that Monte Carlo methods solve:</p>
+<ul>
+<li><strong>Problem 1:</strong> generate samples <span class="math inline">\{x^{(r)}\}_{r=1}^R</span> from a given distribution <span class="math inline">p(x)</span>.</li>
+<li><strong>Problem 2:</strong> estimate the expectation of a function under <span class="math inline">p</span>, <span class="math display">\Phi = \mathbb{E}_{x\sim p(x)}[\phi(x)] = \int\phi(x)\,p(x)\,dx.</span></li>
+</ul>
+<div class="definition-block">
+<p><strong>Definition.</strong> The function <span class="math inline">\phi</span> whose expectation we want in Problem 2 is called a <strong>test function</strong>.</p>
+</div>
+<p>Different test functions answer different questions. For a function <span class="math inline">f</span> of interest:</p>
+<ul>
+<li>the <strong>mean</strong> of <span class="math inline">f</span> under <span class="math inline">p</span> is the expectation of <span class="math inline">\phi_1(x)=f(x)</span>, giving <span class="math inline">\Phi_1</span>;</li>
+<li>the <strong>variance</strong> of <span class="math inline">f</span> needs a second test function <span class="math inline">\phi_2(x)=f(x)^2</span>, giving <span class="math inline">\Phi_2</span>, and then <span class="math inline">\mathrm{var}(f(x)) = \Phi_2 - (\Phi_1)^2</span>.</li>
+</ul>
+<p>Probabilities are expectations too: <span class="math inline">\mathbb{P}(x\in A) = \mathbb{E}[\mathbf{1}_{\{x\in A\}}]</span>, using the <strong><a href="https://en.wikipedia.org/wiki/Indicator_function">indicator function</a></strong> <span class="math inline">\mathbf{1}_{\{x\in A\}}</span>, which is 1 when <span class="math inline">x\in A</span> and 0 otherwise. This fact is used again in the rejection-sampling proof below.</p>
+</section>
+<section id="sec-simplemc" class="level2">
+<h2 class="anchored" data-anchor-id="sec-simplemc">Simple Monte Carlo</h2>
+<p>If we already have samples from <span class="math inline">p</span> (Problem 1 solved), Problem 2 has a direct answer: average the test function over the samples.</p>
+<div class="definition-block">
+<p><strong>Definition.</strong> Given samples <span class="math inline">\{x^{(r)}\}_{r=1}^R\sim p(x)</span>, the <strong>simple <a href="https://en.wikipedia.org/wiki/Monte_Carlo_method">Monte Carlo</a> estimator</strong> of <span class="math inline">\Phi=\mathbb{E}_{x\sim p(x)}[\phi(x)]</span> is <span class="math display">\hat\Phi = \frac1R\sum_{r=1}^R\phi(x^{(r)}).</span></p>
+</div>
+<p>Two standard properties of an estimator tell us whether this is a good idea. An estimator is <strong><a href="https://en.wikipedia.org/wiki/Bias_of_an_estimator">unbiased</a></strong> if its expected value equals the quantity it estimates, and <strong><a href="https://en.wikipedia.org/wiki/Consistent_estimator">consistent</a></strong> if it converges to that quantity as the number of samples grows. The <strong><a href="https://en.wikipedia.org/wiki/Law_of_large_numbers">law of large numbers</a></strong>, which says an average of i.i.d. draws converges to their common mean, gives consistency of <span class="math inline">\hat\Phi</span> directly. The other two properties follow from short calculations.</p>
+<p><strong>Unbiasedness.</strong> If the samples are drawn independently from <span class="math inline">p</span>, linearity of expectation gives</p>
+<p><span class="math display">\mathbb{E}[\hat\Phi] = \frac1R\sum_{r=1}^R\mathbb{E}\big[\phi(x^{(r)})\big] = \frac1R\sum_{r=1}^R\mathbb{E}_{x\sim p(x)}\big[\phi(x)\big]</span> <span class="math display">= \frac{R}{R}\,\Phi = \Phi.</span></p>
+<p><strong>Variance.</strong> Pulling the constant <span class="math inline">\tfrac1R</span> out squares it, and the variance of a sum of independent terms is the sum of their variances:</p>
+<p><span class="math display">\mathrm{var}[\hat\Phi] = \frac{1}{R^2}\,\mathrm{var}\Big[\sum_{r=1}^R\phi(x^{(r)})\Big] = \frac{1}{R^2}\sum_{r=1}^R\mathrm{var}\big[\phi(x^{(r)})\big]</span> <span class="math display">= \frac{R}{R^2}\,\mathrm{var}[\phi(x)] = \frac1R\,\mathrm{var}[\phi(x)].</span></p>
+<p>So the variance of the estimate shrinks at rate <span class="math inline">1/R</span>, and its accuracy depends on <span class="math inline">\mathrm{var}[\phi(x)]</span>, the spread of the test function under <span class="math inline">p</span>. Notice what does <em>not</em> appear: the dimension of <span class="math inline">x</span>. For example, if <span class="math inline">\mathrm{var}[\phi(x)]=4</span>, then <span class="math inline">R=100</span> samples give <span class="math inline">\mathrm{var}[\hat\Phi]=0.04</span>, a standard deviation of <span class="math inline">0.2</span>, and quadrupling to <span class="math inline">R=400</span> halves that standard deviation to <span class="math inline">0.1</span>. This dimension-free rate is what makes sampling attractive, provided we can get the samples.</p>
+</section>
+<section id="sec-hardz" class="level2">
+<h2 class="anchored" data-anchor-id="sec-hardz">Why the normalizing constant is hard</h2>
+<p>When we can only evaluate <span class="math inline">\tilde p</span>, there are two separate difficulties:</p>
+<ol type="1">
+<li>We generally do not know <span class="math inline">Z=\int\tilde p(x)\,dx</span>, and computing it is a high-dimensional integral.</li>
+<li>Even if we knew <span class="math inline">Z</span>, drawing samples from <span class="math inline">p</span> is still challenging, especially in high dimensions.</li>
+</ol>
+<p><strong>A bad idea: lattice discretization.</strong> One way to approximate <span class="math inline">Z</span> is to evaluate <span class="math inline">\tilde p</span> on a grid of points and add up the values (and to sample, pick a grid point with probability proportional to <span class="math inline">\tilde p</span> there). The lecture’s example uses 50 evenly spaced points in one dimension, which describes a one-dimensional density well. But a grid with 50 points per axis in <span class="math inline">D</span> dimensions has <span class="math inline">50^D</span> points: for <span class="math inline">D=1000</span>, that is <span class="math inline">50^{1000}</span>. The cost is exponential in dimension, an instance of the <strong><a href="https://en.wikipedia.org/wiki/Curse_of_dimensionality">curse of dimensionality</a></strong>.</p>
+<p><strong>The lecture’s lake analogy.</strong> Imagine drawing water samples from a lake to find the average plankton concentration. Let <span class="math inline">\tilde p(\boldsymbol{x})</span> be the depth of the lake at location <span class="math inline">\boldsymbol{x}=(x,y)</span>, <span class="math inline">\phi(\boldsymbol{x})</span> the plankton concentration there, and <span class="math inline">Z=\int\tilde p(\boldsymbol{x})\,d\boldsymbol{x}</span> the volume of the lake. The average concentration over the lake’s water is</p>
+<p><span class="math display">\Phi = \frac1Z\int\phi(\boldsymbol{x})\,\tilde p(\boldsymbol{x})\,d\boldsymbol{x}.</span></p>
+<p>We can take a boat to any location and measure both the depth <span class="math inline">\tilde p(\boldsymbol{x})</span> and the concentration <span class="math inline">\phi(\boldsymbol{x})</span> there. Problem 1 is to draw water samples so that each is equally likely to come from any point within the lake’s volume. Problem 2 is to find the average concentration. The difficulty is a lake with a few narrow, very deep canyons: they hold much of the water, but a boat visiting surface locations at random rarely lands on one. To estimate <span class="math inline">\Phi</span> correctly, a method must implicitly discover the canyons and find their volume relative to the rest of the lake. High-dimensional distributions behave the same way, with most of their probability mass concentrated in regions that are a tiny fraction of the space.</p>
+</section>
+<section id="sec-importance" class="level2">
+<h2 class="anchored" data-anchor-id="sec-importance">Importance sampling</h2>
+<p><strong><a href="https://en.wikipedia.org/wiki/Importance_sampling">Importance sampling</a></strong> is a tool for Problem 2, estimating <span class="math inline">\Phi=\mathbb{E}_p[\phi(x)]</span>, when we cannot sample from <span class="math inline">p</span>. The setup:</p>
+<ul>
+<li>The target density can be evaluated up to a constant: <span class="math inline">p(x) = \tilde p(x)/Z_p</span>.</li>
+<li>There is a simpler <strong>proposal</strong> density <span class="math inline">q(x) = \tilde q(x)/Z_q</span> that we can both sample from and evaluate up to a constant.</li>
+</ul>
+<p>Draw <span class="math inline">R</span> samples <span class="math inline">\{x^{(r)}\}_{r=1}^R\sim q(x)</span>. If they had come from <span class="math inline">p</span>, simple Monte Carlo would apply. They did not: values of <span class="math inline">x</span> where <span class="math inline">q(x)&gt;p(x)</span> are over-represented, and values where <span class="math inline">q(x)&lt;p(x)</span> are under-represented. The fix is to weight each sample.</p>
+<div class="definition-block">
+<p><strong>Definition.</strong> The <strong>importance weight</strong> of sample <span class="math inline">x^{(r)}</span> is <span class="math inline">\tilde w_r = \dfrac{\tilde p(x^{(r)})}{\tilde q(x^{(r)})}</span>, and the <strong>normalized weights</strong> are <span class="math inline">w_r = \dfrac{\tilde w_r}{\sum_{r'=1}^R\tilde w_{r'}}</span>.</p>
+</div>
+<p><strong>The weights estimate the ratio of normalizers.</strong> The average weight is a simple Monte Carlo estimate under <span class="math inline">q</span>:</p>
+<p><span class="math display">\frac1R\sum_{r=1}^R\tilde w_r \approx \mathbb{E}_{x\sim q(x)}\Big[\frac{\tilde p(x)}{\tilde q(x)}\Big]</span> <span class="math display">= \int\frac{Z_p\,p(x)}{Z_q\,q(x)}\,q(x)\,dx = \frac{Z_p}{Z_q}.</span></p>
+<p><strong>Correcting the estimate of <span class="math inline">\Phi</span>.</strong> Multiply and divide by <span class="math inline">q</span> inside the integral, then estimate with the samples from <span class="math inline">q</span>:</p>
+<p><span class="math display">\Phi = \int\phi(x)\,p(x)\,dx = \int\phi(x)\,\frac{p(x)}{q(x)}\,q(x)\,dx</span> <span class="math display">\approx \frac1R\sum_{r=1}^R\phi(x^{(r)})\,\frac{p(x^{(r)})}{q(x^{(r)})}.</span></p>
+<p>Replacing <span class="math inline">p/q</span> with <span class="math inline">\tilde p/\tilde q</span> introduces the unknown ratio <span class="math inline">Z_q/Z_p</span>:</p>
+<p><span class="math display">\frac1R\sum_{r=1}^R\phi(x^{(r)})\,\frac{p(x^{(r)})}{q(x^{(r)})} = \frac{Z_q}{Z_p}\cdot\frac1R\sum_{r=1}^R\phi(x^{(r)})\,\tilde w_r.</span></p>
+<p>Finally, replace <span class="math inline">Z_q/Z_p</span> by the reciprocal of its estimate from the average weight. The two factors of <span class="math inline">\tfrac1R</span> cancel:</p>
+<div class="boxed-eq">
+<p><span class="math display">\Phi \approx \frac{\frac1R\sum_{r=1}^R\phi(x^{(r)})\,\tilde w_r}{\frac1R\sum_{r=1}^R\tilde w_r} = \sum_{r=1}^R\phi(x^{(r)})\,w_r.</span></p>
+</div>
+<p>The estimate is a weighted average of the test function over samples from <span class="math inline">q</span>, where each sample’s weight says how much more (or less) likely it is under <span class="math inline">p</span> than under <span class="math inline">q</span>. Neither <span class="math inline">Z_p</span> nor <span class="math inline">Z_q</span> is ever needed. Because the last step divides one estimate by another, this self-normalized estimator is not exactly unbiased for finite <span class="math inline">R</span>, but it is consistent as <span class="math inline">R</span> grows. Its accuracy depends on how well <span class="math inline">q</span> covers <span class="math inline">p</span>: if <span class="math inline">q</span> puts very little mass where <span class="math inline">p</span> has a lot (a missed canyon, in the lake picture), a few samples with huge weights dominate the sum.</p>
+</section>
+<section id="sec-rejection" class="level2">
+<h2 class="anchored" data-anchor-id="sec-rejection">Rejection sampling</h2>
+<p>Importance sampling estimates expectations but never produces samples from <span class="math inline">p</span>. <strong><a href="https://en.wikipedia.org/wiki/Rejection_sampling">Rejection sampling</a></strong> is a tool for Problem 1: it produces exact samples from <span class="math inline">p</span>. The lecture presents it for a complicated one-dimensional density <span class="math inline">p(x)=\tilde p(x)/Z_p</span>, with the same kind of proposal as before, <span class="math inline">\tilde q(x) = Z_q\,q(x)</span>, that we can sample from and evaluate. One more assumption: we know a constant <span class="math inline">c</span> with</p>
+<p><span class="math display">c\,\tilde q(x) \ge \tilde p(x) \quad\text{for all } x,</span></p>
+<p>so the scaled proposal <span class="math inline">c\tilde q</span> is an envelope lying everywhere on or above <span class="math inline">\tilde p</span>.</p>
+<div class="algorithm">
+<p><strong>Rejection sampling</strong></p>
+<ol type="1">
+<li>Generate two random numbers:
+<ol type="a">
+<li><span class="math inline">x</span> from the proposal density <span class="math inline">q(x)</span>;</li>
+<li><span class="math inline">u</span> uniformly from the interval <span class="math inline">[0,\ c\,\tilde q(x)]</span>.</li>
+</ol></li>
+<li>Compare <span class="math inline">u</span> with <span class="math inline">\tilde p(x)</span>:
+<ol type="a">
+<li>if <span class="math inline">u&gt;\tilde p(x)</span>, reject <span class="math inline">x</span>;</li>
+<li>otherwise accept <span class="math inline">x</span>: add it to the set of samples <span class="math inline">\{x^{(r)}\}</span> and discard <span class="math inline">u</span>.</li>
+</ol></li>
+<li>Repeat until enough samples are accepted.</li>
+</ol>
+</div>
+<div style="overflow-x:auto; margin:1.5rem 0;">
+<svg viewbox="0 0 520 320" width="100%" style="max-width:520px;display:block;margin:auto;font-family:Helvetica,'Helvetica Neue',Arial,sans-serif;" role="img" aria-label="A bimodal target curve under a dashed envelope curve. A vertical line at one x value carries an accepted point under the target and a rejected point between the target and the envelope.">
+  <text x="260" y="28" text-anchor="middle" font-size="24" font-weight="600" fill="#333">Accept under the curve</text>
+  <path d="M40 260 C 90 260 110 90 150 90 C 190 90 200 190 260 190 C 320 190 330 150 360 150 C 400 150 420 260 470 260 Z" fill="#F2C6DE" stroke="none" opacity="0.6"></path>
+  <path d="M40 260 C 90 260 110 90 150 90 C 190 90 200 190 260 190 C 320 190 330 150 360 150 C 400 150 420 260 470 260" fill="none" stroke="#C75794" stroke-width="2.5"></path>
+  <path d="M30 230 C 120 60 200 50 250 55 C 330 60 420 120 490 240" fill="none" stroke="#5795C7" stroke-width="2.5" stroke-dasharray="7,5"></path>
+  <line x1="30" y1="260" x2="500" y2="260" stroke="#888" stroke-width="1"></line>
+  <line x1="300" y1="260" x2="300" y2="65" stroke="#555" stroke-width="1.2"></line>
+  <circle cx="300" cy="225" r="6" fill="#2e7d32"></circle>
+  <text x="310" y="230" font-size="14" fill="#2e7d32">u here: accept</text>
+  <circle cx="300" cy="115" r="6" fill="#e53935"></circle>
+  <text x="310" y="120" font-size="14" fill="#e53935">u here: reject</text>
+  <text x="300" y="282" text-anchor="middle" font-size="14" fill="#555">x drawn from q</text>
+  <text x="95" y="120" text-anchor="end" font-size="15" fill="#205279">c·q̃(x)</text>
+  <text x="140" y="80" text-anchor="end" font-size="15" fill="#792051">p̃(x)</text>
+</svg>
+</div>
+<p><strong>Figure 6.</strong> Rejection sampling. Given <span class="math inline">x</span> drawn from <span class="math inline">q</span>, the point <span class="math inline">(x,u)</span> is uniform on the vertical segment under the dashed envelope <span class="math inline">c\tilde q(x)</span>. It is accepted when it falls in the shaded region under <span class="math inline">\tilde p(x)</span>.</p>
+<p>Geometrically, the pair <span class="math inline">(x,u)</span> is a point drawn uniformly from the area under the envelope <span class="math inline">c\tilde q</span>. Keeping only the points under <span class="math inline">\tilde p</span> leaves points uniform under <span class="math inline">\tilde p</span>, and the <span class="math inline">x</span>-coordinate of a point uniform under a curve is distributed in proportion to that curve’s height, which is exactly <span class="math inline">p</span>.</p>
+<p><strong>Why it works.</strong> The lecture flags this proof as advanced. We want to show that for any set <span class="math inline">A</span>, an accepted <span class="math inline">x</span> lands in <span class="math inline">A</span> with probability <span class="math inline">\mathbb{P}_{x\sim p}(x\in A) = \mathbb{E}_{x\sim p}[\mathbf{1}_{\{x\in A\}}]</span>. Given <span class="math inline">x</span>, <span class="math inline">u</span> is uniform on <span class="math inline">[0,c\tilde q(x)]</span>, and <span class="math inline">\tilde p(x)\le c\tilde q(x)</span>, so</p>
+<p><span class="math display">\mathbb{P}\big(u\le\tilde p(x)\mid x\big) = \frac{\tilde p(x)}{c\,\tilde q(x)}.</span></p>
+<p>Write “accept” for the event <span class="math inline">u\le\tilde p(x)</span>. By the definition of conditional probability,</p>
+<p><span class="math display">\mathbb{P}_{q}(x\in A\mid \text{accept}) = \frac{\mathbb{P}_{q}(x\in A,\ \text{accept})}{\mathbb{P}_{q}(\text{accept})},</span></p>
+<p>where the subscript <span class="math inline">q</span> means <span class="math inline">x</span> is drawn from <span class="math inline">q</span>.</p>
+<p>Averaging the acceptance probability above over <span class="math inline">x\sim q</span> writes the numerator and denominator as expectations:</p>
+<p><span class="math display">\mathbb{P}_{x\sim q}\big(x\in A,\ u\le\tilde p(x)\big) = \mathbb{E}_{x\sim q}\Big[\mathbf{1}_{\{x\in A\}}\,\frac{\tilde p(x)}{c\,\tilde q(x)}\Big],</span> <span class="math display">\mathbb{P}_{x\sim q}\big(u\le\tilde p(x)\big) = \mathbb{E}_{x\sim q}\Big[\frac{\tilde p(x)}{c\,\tilde q(x)}\Big].</span></p>
+<p>Each expectation is an integral against <span class="math inline">q(x) = \tilde q(x)/Z_q</span>, so <span class="math inline">\tilde q</span> cancels inside it. The denominator becomes <span class="math inline">\frac{1}{cZ_q}\int\tilde p(x)\,dx = \frac{Z_p}{cZ_q}</span>, and the numerator becomes <span class="math inline">\frac{1}{cZ_q}\int_A\tilde p(x)\,dx = \frac{Z_p}{cZ_q}\,\mathbb{P}_{x\sim p}(x\in A)</span>. Dividing,</p>
+<p><span class="math display">\mathbb{P}_{x\sim q}\big(x\in A\mid u\le\tilde p(x)\big) = \mathbb{P}_{x\sim p}(x\in A).</span></p>
+<p>So accepted samples are distributed exactly according to <span class="math inline">p</span>, and <span class="math inline">Z_p</span> never had to be known.</p>
+<p><strong>Rejection sampling in many dimensions.</strong> The denominator above is the probability that a proposal is accepted:</p>
+<p><span class="math display">\text{acceptance rate} = \frac{\text{area under }\tilde p}{\text{area under }c\tilde q} = \frac{Z_p}{cZ_q}.</span></p>
+<p>In high-dimensional problems, the requirement <span class="math inline">c\tilde q(x)\ge\tilde p(x)</span> everywhere forces <span class="math inline">c</span> to be huge, so acceptances become very rare. In general <span class="math inline">c</span> grows exponentially with the dimension, so the acceptance rate is expected to be exponentially small in the dimension. Finding a valid <span class="math inline">c</span> at all is also hard, since we do not know where the modes of <span class="math inline">\tilde p</span> are or how high they are. This is why the lecture presents rejection sampling as a one-dimensional tool.</p>
+</section>
+<section id="sec-summary4" class="level2">
+<h2 class="anchored" data-anchor-id="sec-summary4">Summary</h2>
+<div class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+Note
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p><strong>Key takeaways from Week 4:</strong></p>
+<ul>
+<li><strong>Latent variables and TrueSkill.</strong> TrueSkill models each player’s skill as a latent variable with <span class="math inline">p(i\text{ beats }j\mid z_i,z_j)=\sigma(z_i-z_j)</span>. Observing games couples the skills (explaining away), so the exact posterior needs a high-dimensional integral.</li>
+<li><strong>Message passing on trees.</strong> On a tree, eliminating from the leaves inward is optimal, and the intermediate factors become messages <span class="math inline">m_{j\to i}(x_i)=\sum_{x_j}\psi_j\psi_{ij}\prod_{k\ne i}m_{k\to j}</span>. A node’s normalized belief <span class="math inline">b(x_i)\propto\psi_i\prod_j m_{j\to i}</span> is its exact marginal.</li>
+<li><strong>Belief propagation.</strong> Two passes (leaves to root, root to leaves) compute every marginal on a tree. On graphs with cycles, loopy BP iterates the same updates from uniform messages; it gives approximate, often over-confident beliefs, may not converge, and is stabilized by normalization and momentum. Replacing the sum with a max gives max-product BP, whose max-marginals yield the MAP estimate.</li>
+<li><strong>Image denoising.</strong> A noisy binary image’s posterior is an Ising MRF with edge potentials <span class="math inline">e^{Jx_sx_t}</span> and node potentials <span class="math inline">e^{\beta y_sx_s}</span>, <span class="math inline">\beta=\tfrac12\log\frac{1-\epsilon}{\epsilon}</span>, and loopy BP approximates its pixel marginals.</li>
+<li><strong>Monte Carlo.</strong> Ancestral sampling draws from a DAG in topological order. Simple Monte Carlo estimates <span class="math inline">\mathbb{E}_p[\phi]</span> by a sample average that is unbiased with variance <span class="math inline">\mathrm{var}[\phi]/R</span>, independent of dimension. When <span class="math inline">p</span> is known only up to <span class="math inline">Z</span>, importance sampling reweights samples from a proposal <span class="math inline">q</span> by <span class="math inline">\tilde p/\tilde q</span>, and rejection sampling accepts proposals that fall under <span class="math inline">\tilde p</span> beneath an envelope <span class="math inline">c\tilde q</span>, at an acceptance rate <span class="math inline">Z_p/(cZ_q)</span> that collapses in high dimensions.</li>
+</ul>
+</div>
+</div>
+<p><strong>Next week:</strong> per the lecture’s closing slide, methods for generating samples from a particular distribution, continuing the sampling thread.</p>
+</section>
+<section id="quick-self-check" class="level2">
+<h2 class="anchored" data-anchor-id="quick-self-check">Quick self-check</h2>
+<p>If you can explain why a message <span class="math inline">m_{j\to i}</span> excludes what <span class="math inline">i</span> itself sent to <span class="math inline">j</span>, why that same rule makes loopy BP over-confident on a cycle, and why importance sampling and rejection sampling both avoid ever computing <span class="math inline">Z_p</span>, you have understood the core of Week 4.</p>
+
+
+</section>
+
+</main> <!-- /main -->
+<script id="quarto-html-after-body" type="application/javascript">
+  window.document.addEventListener("DOMContentLoaded", function (event) {
+    const icon = "";
+    const anchorJS = new window.AnchorJS();
+    anchorJS.options = {
+      placement: 'right',
+      icon: icon
+    };
+    anchorJS.add('.anchored');
+    const isCodeAnnotation = (el) => {
+      for (const clz of el.classList) {
+        if (clz.startsWith('code-annotation-')) {                     
+          return true;
+        }
+      }
+      return false;
+    }
+    const onCopySuccess = function(e) {
+      // button target
+      const button = e.trigger;
+      // don't keep focus
+      button.blur();
+      // flash "checked"
+      button.classList.add('code-copy-button-checked');
+      var currentTitle = button.getAttribute("title");
+      button.setAttribute("title", "Copied!");
+      let tooltip;
+      if (window.bootstrap) {
+        button.setAttribute("data-bs-toggle", "tooltip");
+        button.setAttribute("data-bs-placement", "left");
+        button.setAttribute("data-bs-title", "Copied!");
+        tooltip = new bootstrap.Tooltip(button, 
+          { trigger: "manual", 
+            customClass: "code-copy-button-tooltip",
+            offset: [0, -8]});
+        tooltip.show();    
+      }
+      setTimeout(function() {
+        if (tooltip) {
+          tooltip.hide();
+          button.removeAttribute("data-bs-title");
+          button.removeAttribute("data-bs-toggle");
+          button.removeAttribute("data-bs-placement");
+        }
+        button.setAttribute("title", currentTitle);
+        button.classList.remove('code-copy-button-checked');
+      }, 1000);
+      // clear code selection
+      e.clearSelection();
+    }
+    const getTextToCopy = function(trigger) {
+      const outerScaffold = trigger.parentElement.cloneNode(true);
+      const codeEl = outerScaffold.querySelector('code');
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+    }
+    const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
+      text: getTextToCopy
+    });
+    clipboard.on('success', onCopySuccess);
+    if (window.document.getElementById('quarto-embedded-source-code-modal')) {
+      const clipboardModal = new window.ClipboardJS('.code-copy-button[data-in-quarto-modal]', {
+        text: getTextToCopy,
+        container: window.document.getElementById('quarto-embedded-source-code-modal')
+      });
+      clipboardModal.on('success', onCopySuccess);
+    }
+      var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+      var mailtoRegex = new RegExp(/^mailto:/);
+        var filterRegex = new RegExp('/' + window.location.host + '/');
+      var isInternal = (href) => {
+          return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+      }
+      // Inspect non-navigation links and adorn them if external
+     var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+      for (var i=0; i<links.length; i++) {
+        const link = links[i];
+        if (!isInternal(link.href)) {
+          // undo the damage that might have been done by quarto-nav.js in the case of
+          // links that we want to consider external
+          if (link.dataset.originalHref !== undefined) {
+            link.href = link.dataset.originalHref;
+          }
+            // target, if specified
+            link.setAttribute("target", "_blank");
+            if (link.getAttribute("rel") === null) {
+              link.setAttribute("rel", "noopener");
+            }
+        }
+      }
+    function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+      const config = {
+        allowHTML: true,
+        maxWidth: 500,
+        delay: 100,
+        arrow: false,
+        appendTo: function(el) {
+            return el.parentElement;
+        },
+        interactive: true,
+        interactiveBorder: 10,
+        theme: 'quarto',
+        placement: 'bottom-start',
+      };
+      if (contentFn) {
+        config.content = contentFn;
+      }
+      if (onTriggerFn) {
+        config.onTrigger = onTriggerFn;
+      }
+      if (onUntriggerFn) {
+        config.onUntrigger = onUntriggerFn;
+      }
+      window.tippy(el, config); 
+    }
+    const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+    for (var i=0; i<noterefs.length; i++) {
+      const ref = noterefs[i];
+      tippyHover(ref, function() {
+        // use id or data attribute instead here
+        let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+        try { href = new URL(href).hash; } catch {}
+        const id = href.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note) {
+          return note.innerHTML;
+        } else {
+          return "";
+        }
+      });
+    }
+    const xrefs = window.document.querySelectorAll('a.quarto-xref');
+    const processXRef = (id, note) => {
+      // Strip column container classes
+      const stripColumnClz = (el) => {
+        el.classList.remove("page-full", "page-columns");
+        if (el.children) {
+          for (const child of el.children) {
+            stripColumnClz(child);
+          }
+        }
+      }
+      stripColumnClz(note)
+      if (id === null || id.startsWith('sec-')) {
+        // Special case sections, only their first couple elements
+        const container = document.createElement("div");
+        if (note.children && note.children.length > 2) {
+          container.appendChild(note.children[0].cloneNode(true));
+          for (let i = 1; i < note.children.length; i++) {
+            const child = note.children[i];
+            if (child.tagName === "P" && child.innerText === "") {
+              continue;
+            } else {
+              container.appendChild(child.cloneNode(true));
+              break;
+            }
+          }
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(container);
+          }
+          return container.innerHTML
+        } else {
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(note);
+          }
+          return note.innerHTML;
+        }
+      } else {
+        // Remove any anchor links if they are present
+        const anchorLink = note.querySelector('a.anchorjs-link');
+        if (anchorLink) {
+          anchorLink.remove();
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        if (note.classList.contains("callout")) {
+          return note.outerHTML;
+        } else {
+          return note.innerHTML;
+        }
+      }
+    }
+    for (var i=0; i<xrefs.length; i++) {
+      const xref = xrefs[i];
+      tippyHover(xref, undefined, function(instance) {
+        instance.disable();
+        let url = xref.getAttribute('href');
+        let hash = undefined; 
+        if (url.startsWith('#')) {
+          hash = url;
+        } else {
+          try { hash = new URL(url).hash; } catch {}
+        }
+        if (hash) {
+          const id = hash.replace(/^#\/?/, "");
+          const note = window.document.getElementById(id);
+          if (note !== null) {
+            try {
+              const html = processXRef(id, note.cloneNode(true));
+              instance.setContent(html);
+            } finally {
+              instance.enable();
+              instance.show();
+            }
+          } else {
+            // See if we can fetch this
+            fetch(url.split('#')[0])
+            .then(res => res.text())
+            .then(html => {
+              const parser = new DOMParser();
+              const htmlDoc = parser.parseFromString(html, "text/html");
+              const note = htmlDoc.getElementById(id);
+              if (note !== null) {
+                const html = processXRef(id, note);
+                instance.setContent(html);
+              } 
+            }).finally(() => {
+              instance.enable();
+              instance.show();
+            });
+          }
+        } else {
+          // See if we can fetch a full url (with no hash to target)
+          // This is a special case and we should probably do some content thinning / targeting
+          fetch(url)
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.querySelector('main.content');
+            if (note !== null) {
+              // This should only happen for chapter cross references
+              // (since there is no id in the URL)
+              // remove the first header
+              if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+                note.children[0].remove();
+              }
+              const html = processXRef(null, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      }, function(instance) {
+      });
+    }
+        let selectedAnnoteEl;
+        const selectorForAnnotation = ( cell, annotation) => {
+          let cellAttr = 'data-code-cell="' + cell + '"';
+          let lineAttr = 'data-code-annotation="' +  annotation + '"';
+          const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+          return selector;
+        }
+        const selectCodeLines = (annoteEl) => {
+          const doc = window.document;
+          const targetCell = annoteEl.getAttribute("data-target-cell");
+          const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+          const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+          const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+          const lineIds = lines.map((line) => {
+            return targetCell + "-" + line;
+          })
+          let top = null;
+          let height = null;
+          let parent = null;
+          if (lineIds.length > 0) {
+              //compute the position of the single el (top and bottom and make a div)
+              const el = window.document.getElementById(lineIds[0]);
+              top = el.offsetTop;
+              height = el.offsetHeight;
+              parent = el.parentElement.parentElement;
+            if (lineIds.length > 1) {
+              const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+              const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+              height = bottom - top;
+            }
+            if (top !== null && height !== null && parent !== null) {
+              // cook up a div (if necessary) and position it 
+              let div = window.document.getElementById("code-annotation-line-highlight");
+              if (div === null) {
+                div = window.document.createElement("div");
+                div.setAttribute("id", "code-annotation-line-highlight");
+                div.style.position = 'absolute';
+                parent.appendChild(div);
+              }
+              div.style.top = top - 2 + "px";
+              div.style.height = height + 4 + "px";
+              div.style.left = 0;
+              let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+              if (gutterDiv === null) {
+                gutterDiv = window.document.createElement("div");
+                gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+                gutterDiv.style.position = 'absolute';
+                const codeCell = window.document.getElementById(targetCell);
+                const gutter = codeCell.querySelector('.code-annotation-gutter');
+                gutter.appendChild(gutterDiv);
+              }
+              gutterDiv.style.top = top - 2 + "px";
+              gutterDiv.style.height = height + 4 + "px";
+            }
+            selectedAnnoteEl = annoteEl;
+          }
+        };
+        const unselectCodeLines = () => {
+          const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+          elementsIds.forEach((elId) => {
+            const div = window.document.getElementById(elId);
+            if (div) {
+              div.remove();
+            }
+          });
+          selectedAnnoteEl = undefined;
+        };
+          // Handle positioning of the toggle
+      window.addEventListener(
+        "resize",
+        throttle(() => {
+          elRect = undefined;
+          if (selectedAnnoteEl) {
+            selectCodeLines(selectedAnnoteEl);
+          }
+        }, 10)
+      );
+      function throttle(fn, ms) {
+      let throttle = false;
+      let timer;
+        return (...args) => {
+          if(!throttle) { // first call gets through
+              fn.apply(this, args);
+              throttle = true;
+          } else { // all the others get throttled
+              if(timer) clearTimeout(timer); // cancel #2
+              timer = setTimeout(() => {
+                fn.apply(this, args);
+                timer = throttle = false;
+              }, ms);
+          }
+        };
+      }
+        // Attach click handler to the DT
+        const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+        for (const annoteDlNode of annoteDls) {
+          annoteDlNode.addEventListener('click', (event) => {
+            const clickedEl = event.target;
+            if (clickedEl !== selectedAnnoteEl) {
+              unselectCodeLines();
+              const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+              if (activeEl) {
+                activeEl.classList.remove('code-annotation-active');
+              }
+              selectCodeLines(clickedEl);
+              clickedEl.classList.add('code-annotation-active');
+            } else {
+              // Unselect the line
+              unselectCodeLines();
+              clickedEl.classList.remove('code-annotation-active');
+            }
+          });
+        }
+    const findCites = (el) => {
+      const parentEl = el.parentElement;
+      if (parentEl) {
+        const cites = parentEl.dataset.cites;
+        if (cites) {
+          return {
+            el,
+            cites: cites.split(' ')
+          };
+        } else {
+          return findCites(el.parentElement)
+        }
+      } else {
+        return undefined;
+      }
+    };
+    var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+    for (var i=0; i<bibliorefs.length; i++) {
+      const ref = bibliorefs[i];
+      const citeInfo = findCites(ref);
+      if (citeInfo) {
+        tippyHover(citeInfo.el, function() {
+          var popup = window.document.createElement('div');
+          citeInfo.cites.forEach(function(cite) {
+            var citeDiv = window.document.createElement('div');
+            citeDiv.classList.add('hanging-indent');
+            citeDiv.classList.add('csl-entry');
+            var biblioDiv = window.document.getElementById('ref-' + cite);
+            if (biblioDiv) {
+              citeDiv.innerHTML = biblioDiv.innerHTML;
+            }
+            popup.appendChild(citeDiv);
+          });
+          return popup.innerHTML;
+        });
+      }
+    }
+  });
+  </script>
+<nav class="page-navigation">
+  <div class="nav-page nav-page-previous">
+      <a href="../lectures/week03-practice.html" class="pagination-link" aria-label="Week 3 practice: Markov random fields and exact inference">
+        <i class="bi bi-arrow-left-short"></i> <span class="nav-page-text"><span class="chapter-title">Week 3 practice: Markov random fields and exact inference</span></span>
+      </a>          
+  </div>
+  <div class="nav-page nav-page-next">
+      <a href="../lectures/week05.html" class="pagination-link" aria-label="Week 5: Sampling with MCMC">
+        <span class="nav-page-text"><span class="chapter-title">Week 5: Sampling with MCMC</span></span> <i class="bi bi-arrow-right-short"></i>
+      </a>
+  </div>
+</nav>
+</div> <!-- /content -->
+
+
+
+
+<script src="../site_libs/quarto-html/zenscroll-min.js"></script>
+</body></html>

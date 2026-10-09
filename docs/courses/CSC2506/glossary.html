@@ -36,7 +36,7 @@ ul.task-list li input[type="checkbox"] {
 <script src="site_libs/quarto-search/fuse.min.js"></script>
 <script src="site_libs/quarto-search/quarto-search.js"></script>
 <meta name="quarto:offset" content="./">
-<link href="./lectures/week03.html" rel="prev">
+<link href="./lectures/week05.html" rel="prev">
 <script src="site_libs/quarto-html/quarto.js" type="module"></script>
 <script src="site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
 <script src="site_libs/quarto-html/popper.min.js"></script>
@@ -192,6 +192,21 @@ window.Quarto = {
 </li>
         <li class="sidebar-item">
   <div class="sidebar-item-container"> 
+  <a href="./lectures/week03-practice.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Week 3 practice: Markov random fields and exact inference</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./lectures/week04.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Week 4: Message Passing and Monte Carlo</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./lectures/week05.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Week 5: Sampling with MCMC</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
   <a href="./glossary.html" class="sidebar-item-text sidebar-link active"><span class="chapter-title">Glossary</span></a>
   </div>
 </li>
@@ -208,6 +223,8 @@ window.Quarto = {
   <li><a href="#week-1" id="toc-week-1" class="nav-link active" data-scroll-target="#week-1">Week 1</a></li>
   <li><a href="#week-2" id="toc-week-2" class="nav-link" data-scroll-target="#week-2">Week 2</a></li>
   <li><a href="#week-3" id="toc-week-3" class="nav-link" data-scroll-target="#week-3">Week 3</a></li>
+  <li><a href="#week-4" id="toc-week-4" class="nav-link" data-scroll-target="#week-4">Week 4</a></li>
+  <li><a href="#week-5" id="toc-week-5" class="nav-link" data-scroll-target="#week-5">Week 5</a></li>
   </ul>
 </nav>
     </div>
@@ -299,6 +316,61 @@ window.Quarto = {
 <li><strong>Intermediate factor</strong> (<span class="math inline">\tau</span>): a new, generally non-probabilistic function of the remaining variables produced by summing out one variable during variable elimination (week 3, Sum-product inference: unifying DAGMs and MRFs).</li>
 <li><strong>Sum-product algorithm:</strong> the general inference computation <span class="math inline">\tau(x_F,x_E)=\sum_{x_R}\prod_{C\in\mathcal{F}}\psi_C(x_C)</span> shared by DAGs (factors = node plus parents) and MRFs (factors = maximal cliques) (week 3, Sum-product inference: unifying DAGMs and MRFs).</li>
 <li><strong>Restricted Boltzmann machine (RBM):</strong> a bipartite Ising model over visible and hidden binary units, with no within-layer edges, whose hidden units are conditionally independent given the visible units by Hammersley-Clifford (week 3, Restricted Boltzmann machines).</li>
+</ul>
+</section>
+<section id="week-4" class="level2">
+<h2 class="anchored" data-anchor-id="week-4">Week 4</h2>
+<ul>
+<li><strong>Latent variable:</strong> an unobserved variable that governs some property of the observed data; it is either marginalized out or is itself the target of inference (week 4, Latent variables and the TrueSkill model).</li>
+<li><strong>TrueSkill model (course version):</strong> a player-ranking model with a latent skill <span class="math inline">z_i</span> per player and <span class="math inline">p(i\text{ beats }j\mid z_i,z_j)=\sigma(z_i-z_j)</span> for the standard logistic function <span class="math inline">\sigma</span> (week 4, Latent variables and the TrueSkill model).</li>
+<li><strong>Tree:</strong> a connected undirected graph with no cycles; a <strong>leaf</strong> is a node with exactly one neighbour (week 4, Trees and elimination order).</li>
+<li><strong>Message</strong> (<span class="math inline">m_{j\to i}(x_i)</span>): the summary node <span class="math inline">j</span> sends neighbour <span class="math inline">i</span>, <span class="math inline">\sum_{x_j}\psi_j(x_j)\psi_{ij}(x_i,x_j)\prod_{k\in N(j)\setminus\{i\}}m_{k\to j}(x_j)</span>, with one entry per state of <span class="math inline">x_i</span>; on a tree it equals an intermediate factor of variable elimination (week 4, Messages and beliefs).</li>
+<li><strong>Belief</strong> (<span class="math inline">b(x_i)</span>): the normalized product <span class="math inline">\psi_i(x_i)\prod_{j\in N(i)}m_{j\to i}(x_i)</span>; on a tree it is the exact marginal of <span class="math inline">x_i</span> given the evidence (week 4, Messages and beliefs).</li>
+<li><strong>Belief propagation (BP) / sum-product BP:</strong> message passing that computes every node marginal of a tree in two passes, leaves to root and root to leaves (week 4, Belief propagation on trees).</li>
+<li><strong>Loopy belief propagation:</strong> BP updates iterated from uniform messages on a graph with cycles; gives approximate, often over-confident marginals without a general convergence guarantee (week 4, Loopy belief propagation).</li>
+<li><strong>Momentum (in loopy BP):</strong> updating a message as <span class="math inline">(1-\alpha)m^{\text{old}}+\alpha\,[\text{update}]</span> with step size <span class="math inline">\alpha</span>, to damp oscillation (week 4, Loopy belief propagation).</li>
+<li><strong>Maximum a posteriori (MAP) estimate:</strong> the most probable value of the unobserved variables given the evidence, <span class="math inline">\arg\max_{x_F}p(x_F\mid x_E)</span> (week 4, Max-product BP and MAP inference).</li>
+<li><strong>Max-product BP / max-marginal:</strong> BP with each message’s sum replaced by a max; the resulting beliefs are max-marginals, and <span class="math inline">\hat x_i=\arg\max_{x_i}b(x_i)</span> gives the MAP estimate (week 4, Max-product BP and MAP inference).</li>
+<li><strong>Sample:</strong> a single realization <span class="math inline">x</span> whose distribution is <span class="math inline">p(x)</span> (week 4, Sampling from an unnormalized density).</li>
+<li><strong>Topological order:</strong> an ordering of a DAG’s nodes in which every node comes after all its parents (week 4, Ancestral sampling).</li>
+<li><strong>Ancestral sampling:</strong> sampling a DAG’s joint by drawing each node from <span class="math inline">p(x_i\mid\text{parents}(x_i))</span> in topological order (week 4, Ancestral sampling).</li>
+<li><strong>Test function</strong> (<span class="math inline">\phi</span>): the function whose expectation <span class="math inline">\Phi=\mathbb{E}_{x\sim p}[\phi(x)]</span> a Monte Carlo method estimates (week 4, What sampling is for).</li>
+<li><strong>Simple Monte Carlo estimator</strong> (<span class="math inline">\hat\Phi</span>): the sample average <span class="math inline">\frac1R\sum_r\phi(x^{(r)})</span> over draws from <span class="math inline">p</span>; unbiased, consistent, with variance <span class="math inline">\mathrm{var}[\phi]/R</span> (week 4, Simple Monte Carlo).</li>
+<li><strong>Unbiased / consistent estimator:</strong> an estimator whose expected value equals the target, and one that converges to the target as the sample size grows (week 4, Simple Monte Carlo).</li>
+<li><strong>Importance sampling:</strong> estimating <span class="math inline">\mathbb{E}_p[\phi]</span> from samples of a proposal <span class="math inline">q</span>, weighting each by <span class="math inline">\tilde w_r=\tilde p(x^{(r)})/\tilde q(x^{(r)})</span> and normalizing the weights (week 4, Importance sampling).</li>
+<li><strong>Proposal density</strong> (<span class="math inline">q</span>): an easy-to-sample, easy-to-evaluate distribution used in place of the target <span class="math inline">p</span> by importance and rejection sampling (week 4, Importance sampling).</li>
+<li><strong>Rejection sampling:</strong> drawing exact samples from <span class="math inline">p</span> by proposing <span class="math inline">x\sim q</span>, drawing <span class="math inline">u</span> uniform on <span class="math inline">[0,c\tilde q(x)]</span>, and accepting when <span class="math inline">u\le\tilde p(x)</span>; the acceptance rate is <span class="math inline">Z_p/(cZ_q)</span> (week 4, Rejection sampling).</li>
+</ul>
+</section>
+<section id="week-5" class="level2">
+<h2 class="anchored" data-anchor-id="week-5">Week 5</h2>
+<ul>
+<li><strong>Markov chain (first-order):</strong> a sequence with <span class="math inline">p(x_t\mid x_{1:t-1})=p(x_t\mid x_{t-1})</span>; an <strong><span class="math inline">m</span>-th order</strong> chain conditions on the previous <span class="math inline">m</span> values instead (week 5, Markov chains; first previewed in week 2).</li>
+<li><strong>Stationary (homogeneous) Markov chain:</strong> a chain whose transition probabilities do not change with <span class="math inline">t</span>. Not the same as a stationary <em>distribution</em> (week 5, Markov chains).</li>
+<li><strong>Transition matrix</strong> (<span class="math inline">A</span>): the <span class="math inline">K\times K</span> matrix <span class="math inline">A_{ij}=p(x_t=j\mid x_{t-1}=i)</span> of a discrete stationary chain; each row sums to 1 (week 5, Transition matrices).</li>
+<li><strong>State transition diagram:</strong> a directed graph with one node per state value and an arrow <span class="math inline">i\to j</span> labelled <span class="math inline">A_{ij}</span> for each nonzero transition (week 5, Transition matrices).</li>
+<li><strong><span class="math inline">n</span>-step transition matrix / Chapman-Kolmogorov equations:</strong> <span class="math inline">A_{ij}(n)=p(x_{t+n}=j\mid x_t=i)</span>, with <span class="math inline">A(m+n)=A(m)A(n)</span> and so <span class="math inline">A(n)=A^n</span> (week 5, n-step transitions).</li>
+<li><strong>Markov (bigram) language model:</strong> a Markov chain over words with start probabilities <span class="math inline">\pi_j</span> and transitions <span class="math inline">A_{jk}</span>, fitted by <span class="math inline">\hat A_{jk}=N_{jk}/\sum_{k'}N_{jk'}</span> (week 5, Markov language models).</li>
+<li><strong>Stationary distribution:</strong> a distribution <span class="math inline">\pi</span> over states with <span class="math inline">\pi=A^\top\pi</span>, found as a normalized eigenvector of <span class="math inline">A^\top</span> with eigenvalue 1; also called invariant (week 5, The stationary distribution).</li>
+<li><strong>Irreducible / regular chain:</strong> irreducible if every state can reach every other; regular if some <span class="math inline">A^n</span> is entrywise positive. A regular finite chain has a unique stationary distribution and converges to it from any start (week 5, When is the stationary distribution unique?).</li>
+<li><strong>Detailed balance / time reversible:</strong> <span class="math inline">\pi_iA_{ij}=\pi_jA_{ji}</span> for all <span class="math inline">i,j</span>; it implies <span class="math inline">\pi</span> is stationary (week 5, Detailed balance).</li>
+<li><strong>Markov chain Monte Carlo (MCMC):</strong> sampling by running a Markov chain whose stationary distribution is the target <span class="math inline">p</span>, then averaging over its (dependent) states (week 5, Why MCMC).</li>
+<li><strong>Proposal density, MCMC sense</strong> (<span class="math inline">q(x'\mid x)</span>): a conditional distribution that proposes the next state from the current one. A stricter sense of week 4’s fixed proposal <span class="math inline">q(x)</span> (week 5, Why MCMC).</li>
+<li><strong>Burn-in:</strong> the initial stretch of an MCMC chain that is discarded because the chain has not yet reached its stationary distribution (week 5, Why MCMC).</li>
+<li><strong>Metropolis-Hastings (MH):</strong> propose <span class="math inline">x'\sim q(x'\mid x)</span> and accept with probability <span class="math inline">\min\{1,\ \tilde p(x')q(x\mid x')/(\tilde p(x)q(x'\mid x))\}</span>, otherwise repeat the current state; the <strong>Metropolis</strong> algorithm is the symmetric-proposal case (week 5, The Metropolis-Hastings algorithm).</li>
+<li><strong>Acceptance probability</strong> (<span class="math inline">\alpha(x'\mid x)</span>): the probability that an MCMC step moves to the proposed state; not the <span class="math inline">\alpha</span> of the two-state chain (week 5, The Metropolis-Hastings algorithm).</li>
+<li><strong>Beta distribution:</strong> the distribution on <span class="math inline">(0,1)</span> with density <span class="math inline">\propto\theta^{a-1}(1-\theta)^{b-1}</span>; <span class="math inline">\mathrm{Beta}(1,1)</span> is uniform, and a Beta prior with a Binomial likelihood gives a Beta posterior (conjugacy) (week 5, Clemente’s batting average).</li>
+<li><strong>Gibbs sampling:</strong> MCMC that resamples one coordinate at a time from its full conditional, accepting every draw; a special case of MH (week 5, Gibbs sampling).</li>
+<li><strong>Full conditional:</strong> <span class="math inline">p(x_j\mid x_{-j})</span>, the distribution of one coordinate given all the others (week 5, Gibbs sampling).</li>
+<li><strong>Energy</strong> (<span class="math inline">E(x)</span>): <span class="math inline">-\log\tilde p(x)</span>, so that <span class="math inline">p(x)\propto e^{-E(x)}</span>; low energy means high probability. Not an expectation <span class="math inline">\mathbb{E}</span> (week 5, Hamiltonian Monte Carlo).</li>
+<li><strong>Momentum, HMC sense</strong> (<span class="math inline">v</span>): an auxiliary Gaussian variable with kinetic energy <span class="math inline">\tfrac12\|v\|^2</span>. Unrelated to the damping momentum of loopy BP in week 4 (week 5, Hamiltonian Monte Carlo).</li>
+<li><strong>Hamiltonian</strong> (<span class="math inline">H(x,v)</span>): total energy <span class="math inline">E(x)+K(v)</span>; exact Hamiltonian dynamics conserve it (week 5, Hamiltonian Monte Carlo).</li>
+<li><strong>Leapfrog integrator:</strong> a numerical scheme for Hamiltonian dynamics: a half step in momentum, a full step in position, a half step in momentum; deterministic and reversible (week 5, The leapfrog integrator).</li>
+<li><strong>Hamiltonian Monte Carlo (HMC):</strong> MH whose proposal draws <span class="math inline">v\sim\mathcal N(0,I)</span>, runs <span class="math inline">L</span> leapfrog steps, and flips the momentum; accepted with probability <span class="math inline">\min\{1,e^{H_{\text{start}}-H_{\text{end}}}\}</span> (week 5, The leapfrog integrator and the HMC algorithm).</li>
+<li><strong>Mixing:</strong> an MCMC chain mixes well when it has reached and moves freely around its target distribution (week 5, MCMC diagnostics).</li>
+<li><strong>Autocorrelation</strong> (<span class="math inline">\rho_t</span>): the correlation between a chain’s draws <span class="math inline">t</span> steps apart (week 5, Effective sample size).</li>
+<li><strong><span class="math inline">\hat R</span> (R-hat) / split-<span class="math inline">\hat R</span>:</strong> <span class="math inline">\sqrt{\widehat{\mathrm{var}}^+/W}</span>, comparing between-chain and within-chain variance; near 1 when chains agree, above 1 when they have not mixed. Split-<span class="math inline">\hat R</span> also splits each chain in half (week 5, The R-hat statistic).</li>
+<li><strong>Effective sample size</strong> (<span class="math inline">n_{\text{eff}}</span>): <span class="math inline">mn/(1+2\sum_{t\ge1}\rho_t)</span>, the number of independent draws that would give the same accuracy as <span class="math inline">m</span> correlated chains of length <span class="math inline">n</span> (week 5, Effective sample size).</li>
 </ul>
 
 
@@ -712,8 +784,8 @@ window.Quarto = {
   </script>
 <nav class="page-navigation">
   <div class="nav-page nav-page-previous">
-      <a href="./lectures/week03.html" class="pagination-link" aria-label="Week 3: Markov Random Fields and Exact Inference">
-        <i class="bi bi-arrow-left-short"></i> <span class="nav-page-text"><span class="chapter-title">Week 3: Markov Random Fields and Exact Inference</span></span>
+      <a href="./lectures/week05.html" class="pagination-link" aria-label="Week 5: Sampling with MCMC">
+        <i class="bi bi-arrow-left-short"></i> <span class="nav-page-text"><span class="chapter-title">Week 5: Sampling with MCMC</span></span>
       </a>          
   </div>
   <div class="nav-page nav-page-next">

@@ -1,0 +1,1415 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.10.18">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+
+<title>Week 5: Sampling with MCMC – CSC412/2506: Probabilistic Machine Learning notes</title>
+<style>
+/* Default styles provided by pandoc.
+** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
+*/
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: 1.5em;}
+div.column{flex: auto;}
+@media screen {
+div.columns{gap: min(4vw, 1.5em);}
+div.column{overflow-x: auto;}
+}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+</style>
+
+
+<script src="../site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="../site_libs/quarto-nav/headroom.min.js"></script>
+<script src="../site_libs/clipboard/clipboard.min.js"></script>
+<script src="../site_libs/quarto-search/autocomplete.umd.js"></script>
+<script src="../site_libs/quarto-search/fuse.min.js"></script>
+<script src="../site_libs/quarto-search/quarto-search.js"></script>
+<meta name="quarto:offset" content="../">
+<link href="../glossary.html" rel="next">
+<link href="../lectures/week04.html" rel="prev">
+<script src="../site_libs/quarto-html/quarto.js" type="module"></script>
+<script src="../site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
+<script src="../site_libs/quarto-html/popper.min.js"></script>
+<script src="../site_libs/quarto-html/tippy.umd.min.js"></script>
+<script src="../site_libs/quarto-html/anchor.min.js"></script>
+<link href="../site_libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="../site_libs/quarto-html/quarto-syntax-highlighting-bb62276ab45c84d9efd712f51ff97b5a.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<script src="../site_libs/bootstrap/bootstrap.min.js"></script>
+<link href="../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="../site_libs/bootstrap/bootstrap-ce0958bf53307a1b0bb60f85d87db72f.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
+<script id="quarto-search-options" type="application/json">{
+  "location": "sidebar",
+  "copy-button": false,
+  "collapse-after": 3,
+  "panel-placement": "start",
+  "type": "textbox",
+  "limit": 50,
+  "keyboard-shortcut": [
+    "f",
+    "/",
+    "s"
+  ],
+  "show-item-context": false,
+  "language": {
+    "search-no-results-text": "No results",
+    "search-matching-documents-text": "matching documents",
+    "search-copy-link-title": "Copy link to search",
+    "search-hide-matches-text": "Hide additional matches",
+    "search-more-match-text": "more match in this document",
+    "search-more-matches-text": "more matches in this document",
+    "search-clear-button-title": "Clear",
+    "search-text-placeholder": "",
+    "search-detached-cancel-button-title": "Cancel",
+    "search-submit-button-title": "Submit",
+    "search-label": "Search"
+  }
+}</script>
+<style>html{ scroll-behavior: smooth; }</style>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+<link href="https://fonts.googleapis.com/css2?family=Source+Code+Pro:wght@400;600&amp;family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&amp;display=swap" rel="stylesheet">
+
+  <script>window.backupDefine = window.define; window.define = undefined;</script><script src="https://cdn.jsdelivr.net/npm/katex@latest/dist/katex.min.js"></script>
+  <script>document.addEventListener("DOMContentLoaded", function () {
+ var mathElements = document.getElementsByClassName("math");
+ var macros = [];
+ for (var i = 0; i < mathElements.length; i++) {
+  var texText = mathElements[i].firstChild;
+  if (mathElements[i].tagName == "SPAN") {
+   katex.render(texText.data, mathElements[i], {
+    displayMode: mathElements[i].classList.contains('display'),
+    throwOnError: false,
+    macros: macros,
+    fleqn: false
+   });
+}}});
+  </script>
+  <script>window.define = window.backupDefine; window.backupDefine = undefined;</script><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@latest/dist/katex.min.css">
+
+<script type="text/javascript">
+const typesetMath = (el) => {
+  if (window.MathJax) {
+    // MathJax Typeset
+    window.MathJax.typeset([el]);
+  } else if (window.katex) {
+    // KaTeX Render
+    var mathElements = el.getElementsByClassName("math");
+    var macros = [];
+    for (var i = 0; i < mathElements.length; i++) {
+      var texText = mathElements[i].firstChild;
+      if (mathElements[i].tagName == "SPAN" && texText && texText.data) {
+        window.katex.render(texText.data, mathElements[i], {
+          displayMode: mathElements[i].classList.contains('display'),
+          throwOnError: false,
+          macros: macros,
+          fleqn: false
+        });
+      }
+    }
+  }
+}
+window.Quarto = {
+  typesetMath
+};
+</script>
+
+<link rel="stylesheet" href="../styles/custom.css">
+</head>
+
+<body class="nav-sidebar floating quarto-light">
+
+<div id="quarto-search-results"></div>
+  <header id="quarto-header" class="headroom fixed-top">
+  <nav class="quarto-secondary-nav">
+    <div class="container-fluid d-flex">
+      <button type="button" class="quarto-btn-toggle btn" data-bs-toggle="collapse" role="button" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+        <i class="bi bi-layout-text-sidebar-reverse"></i>
+      </button>
+        <nav class="quarto-page-breadcrumbs" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../lectures/week05.html"><span class="chapter-title">Week 5: Sampling with MCMC</span></a></li></ol></nav>
+        <a class="flex-grow-1" role="navigation" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">      
+        </a>
+      <button type="button" class="btn quarto-search-button" aria-label="Search" onclick="window.quartoOpenSearch();">
+        <i class="bi bi-search"></i>
+      </button>
+    </div>
+  </nav>
+</header>
+<!-- content -->
+<div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-article">
+<!-- sidebar -->
+  <nav id="quarto-sidebar" class="sidebar collapse collapse-horizontal quarto-sidebar-collapse-item sidebar-navigation floating overflow-auto">
+    <div class="pt-lg-2 mt-2 text-left sidebar-header">
+    <div class="sidebar-title mb-0 py-0">
+      <a href="../">CSC412/2506: Probabilistic Machine Learning notes</a> 
+    </div>
+      </div>
+        <div class="mt-2 flex-shrink-0 align-items-center">
+        <div class="sidebar-search">
+        <div id="quarto-search" class="" title="Search"></div>
+        </div>
+        </div>
+    <div class="sidebar-menu-container"> 
+    <ul class="list-unstyled mt-1">
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../index.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">CSC412/2506 Probabilistic Machine Learning</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../lectures/week01.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Week 1: Introduction and Probabilistic Models</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../lectures/week01-practice.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Week 1 practice: Introduction and probabilistic models</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../lectures/week02.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Week 2: Decision Theory and Graphical Models</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../lectures/week02-practice.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Week 2 practice: Decision theory and graphical models</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../lectures/week03.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Week 3: Markov Random Fields and Exact Inference</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../lectures/week03-practice.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Week 3 practice: Markov random fields and exact inference</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../lectures/week04.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Week 4: Message Passing and Monte Carlo</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../lectures/week05.html" class="sidebar-item-text sidebar-link active"><span class="chapter-title">Week 5: Sampling with MCMC</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../glossary.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Glossary</span></a>
+  </div>
+</li>
+    </ul>
+    </div>
+</nav>
+<div id="quarto-sidebar-glass" class="quarto-sidebar-collapse-item" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item"></div>
+<!-- margin-sidebar -->
+    <div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
+        <nav id="TOC" role="doc-toc" class="toc-active">
+    <h2 id="toc-title">On this page</h2>
+   
+  <ul>
+  <li><a href="#sec-dependent" id="toc-sec-dependent" class="nav-link active" data-scroll-target="#sec-dependent">From independent to dependent samples</a></li>
+  <li><a href="#sec-markov" id="toc-sec-markov" class="nav-link" data-scroll-target="#sec-markov">Markov chains</a></li>
+  <li><a href="#sec-transition" id="toc-sec-transition" class="nav-link" data-scroll-target="#sec-transition">Transition matrices and state transition diagrams</a></li>
+  <li><a href="#sec-nstep" id="toc-sec-nstep" class="nav-link" data-scroll-target="#sec-nstep">n-step transitions and the Chapman-Kolmogorov equations</a></li>
+  <li><a href="#sec-langmodel" id="toc-sec-langmodel" class="nav-link" data-scroll-target="#sec-langmodel">Application: Markov language models</a></li>
+  <li><a href="#sec-stationary" id="toc-sec-stationary" class="nav-link" data-scroll-target="#sec-stationary">The stationary distribution</a></li>
+  <li><a href="#sec-unique" id="toc-sec-unique" class="nav-link" data-scroll-target="#sec-unique">When is the stationary distribution unique?</a></li>
+  <li><a href="#sec-detailed" id="toc-sec-detailed" class="nav-link" data-scroll-target="#sec-detailed">Detailed balance</a></li>
+  <li><a href="#sec-whymcmc" id="toc-sec-whymcmc" class="nav-link" data-scroll-target="#sec-whymcmc">Why MCMC</a></li>
+  <li><a href="#sec-mh" id="toc-sec-mh" class="nav-link" data-scroll-target="#sec-mh">The Metropolis-Hastings algorithm</a>
+  <ul class="collapse">
+  <li><a href="#sec-mh-baseball" id="toc-sec-mh-baseball" class="nav-link" data-scroll-target="#sec-mh-baseball">Tutorial example: Clemente’s batting average</a></li>
+  </ul></li>
+  <li><a href="#sec-mh-proof" id="toc-sec-mh-proof" class="nav-link" data-scroll-target="#sec-mh-proof">Why Metropolis-Hastings works</a></li>
+  <li><a href="#sec-gibbs" id="toc-sec-gibbs" class="nav-link" data-scroll-target="#sec-gibbs">Gibbs sampling</a></li>
+  <li><a href="#sec-gauss-cond" id="toc-sec-gauss-cond" class="nav-link" data-scroll-target="#sec-gauss-cond">The conditional distribution of a bivariate Gaussian</a></li>
+  <li><a href="#sec-gibbs-gauss" id="toc-sec-gibbs-gauss" class="nav-link" data-scroll-target="#sec-gibbs-gauss">Example: Gibbs sampling a bivariate Gaussian</a></li>
+  <li><a href="#sec-hmc" id="toc-sec-hmc" class="nav-link" data-scroll-target="#sec-hmc">Hamiltonian Monte Carlo</a></li>
+  <li><a href="#sec-leapfrog" id="toc-sec-leapfrog" class="nav-link" data-scroll-target="#sec-leapfrog">The leapfrog integrator and the HMC algorithm</a></li>
+  <li><a href="#sec-diagnostics" id="toc-sec-diagnostics" class="nav-link" data-scroll-target="#sec-diagnostics">MCMC diagnostics</a></li>
+  <li><a href="#sec-rhat" id="toc-sec-rhat" class="nav-link" data-scroll-target="#sec-rhat">The <span class="math inline">\hat R</span> statistic</a></li>
+  <li><a href="#sec-ess" id="toc-sec-ess" class="nav-link" data-scroll-target="#sec-ess">Effective sample size</a></li>
+  <li><a href="#sec-rule" id="toc-sec-rule" class="nav-link" data-scroll-target="#sec-rule">Diagnostics rule of thumb</a></li>
+  <li><a href="#sec-summary5" id="toc-sec-summary5" class="nav-link" data-scroll-target="#sec-summary5">Summary</a></li>
+  <li><a href="#quick-self-check" id="toc-quick-self-check" class="nav-link" data-scroll-target="#quick-self-check">Quick self-check</a></li>
+  </ul>
+</nav>
+    </div>
+<!-- main -->
+<main class="content" id="quarto-document-content">
+
+<header id="title-block-header" class="quarto-title-block default">
+<div class="quarto-title">
+<h1 class="title"><span class="chapter-title">Week 5: Sampling with MCMC</span></h1>
+</div>
+
+
+
+<div class="quarto-title-meta">
+
+    
+  
+    
+  </div>
+  
+
+
+</header>
+
+
+<style>#title-block-header { display: none; }</style>
+<div class="lecture-header">
+  <h1>Week 5: Sampling with MCMC</h1>
+</div>
+<p><strong>Overview.</strong> Week 4 ended with two ways to use a distribution <span class="math inline">p(x)=\tilde p(x)/Z</span> that we can evaluate only up to its normalizing constant: importance sampling and rejection sampling. Both draw from one fixed proposal <span class="math inline">q(x)</span>, and both work only when <span class="math inline">q</span> already resembles <span class="math inline">p</span>, which is hopeless in high dimensions. This lecture gives up on independent samples. Instead we build a random sequence <span class="math inline">x^{(1)},x^{(2)},\dots</span> in which each sample depends on the one before, arranged so that the sequence spends time in each region in proportion to <span class="math inline">p</span>. The first half develops the needed theory of <strong>Markov chains</strong>: transition matrices, the <strong>stationary distribution</strong> a chain settles into, and the <strong>detailed balance</strong> condition that certifies it. The second half uses that theory to build <strong>Markov chain Monte Carlo (MCMC)</strong> samplers: <strong>Metropolis-Hastings</strong>, <strong>Gibbs sampling</strong>, and <strong>Hamiltonian Monte Carlo</strong>. It ends with <strong>diagnostics</strong> for judging whether a run has gone on long enough.</p>
+<p>Skipped: the title slide. The two agenda slides (slides 2 and 21) became the paragraph above.</p>
+<section id="sec-dependent" class="level2">
+<h2 class="anchored" data-anchor-id="sec-dependent">From independent to dependent samples</h2>
+<p>Every sampler in Week 4 produced i.i.d. samples: <span class="math inline">T</span> draws <span class="math inline">x_{1:T}=\{x_1,\dots,x_T\}</span> with each <span class="math inline">x_t\sim p(x)</span> independently of the others. This week the samples will be dependent.</p>
+<p>Dependence is not only a feature of samplers. It also comes up when we model data. We usually assume data points are i.i.d., but for <strong>sequential data</strong> that is a poor assumption:</p>
+<ul>
+<li><strong><a href="https://en.wikipedia.org/wiki/Time_series">time series</a></strong>, such as stock prices, speech, or video, where each value is measured at successive times;</li>
+<li><strong>ordered data</strong>, such as text or gene sequences, where position matters even without a clock.</li>
+</ul>
+<p>Week 2’s chain rule (<a href="week02.html#sec-factoring" class="quarto-xref"><span>Why factor the joint</span></a> in Week 2) factorizes any joint distribution over a sequence without assumptions:</p>
+<p><span class="math display">p(x_{1:T}) = \prod_{t=1}^T p(x_t\mid x_{t-1},\dots,x_1), \qquad p(x_1\mid x_0) := p(x_1).</span></p>
+<p>The factor for <span class="math inline">x_t</span> conditions on all <span class="math inline">t-1</span> earlier values. If each <span class="math inline">x_t</span> takes <span class="math inline">K</span> values, specifying that factor as a table needs on the order of <span class="math inline">K^{t}</span> numbers, so the factorization is exact but quickly intractable. The same lesson as Week 2 applies: to get a usable model, we must assume some conditional independence.</p>
+</section>
+<section id="sec-markov" class="level2">
+<h2 class="anchored" data-anchor-id="sec-markov">Markov chains</h2>
+<p>What is the simplest assumption that makes the chain rule manageable? Let each value depend on the past only through the most recent value.</p>
+<div class="definition-block">
+<p><strong>Definition.</strong> A sequence <span class="math inline">x_1,x_2,\dots</span> is a (first-order) <strong><a href="https://en.wikipedia.org/wiki/Markov_chain">Markov chain</a></strong> if <span class="math display">p(x_t\mid x_{1:t-1}) = p(x_t\mid x_{t-1}) \qquad\text{for all } t.</span> Each <span class="math inline">x_t</span> is called the <strong>state</strong> of the chain at time <span class="math inline">t</span>.</p>
+</div>
+<p>Under this assumption every chain-rule factor shrinks to a one-step conditional, and the joint becomes</p>
+<p><span class="math display">p(x_{1:T}) = \prod_{t=1}^T p(x_t\mid x_{t-1}).</span></p>
+<p>This is the first-order chain that Week 2 listed among DGMs in the wild (<a href="week02.html#sec-wilddgm" class="quarto-xref"><span>DGMs in the wild, briefly</span></a> in Week 2): as a DAG, it is a single path <span class="math inline">x_1\to x_2\to\cdots\to x_T</span>.</p>
+<p>A further assumption is often useful: that the rule for moving from one state to the next does not change over time.</p>
+<div class="definition-block">
+<p><strong>Definition.</strong> A Markov chain is <strong>stationary</strong> (also called <strong>homogeneous</strong>) if its transition probabilities do not depend on <span class="math inline">t</span>: <span class="math display">p(x_{t+1}=y\mid x_t=x) = p(x_{t+2}=y\mid x_{t+1}=x)\qquad\text{for all } t,\,x,\,y.</span> If the transition probabilities depend on <span class="math inline">t</span>, the chain is <strong>non-stationary</strong>.</p>
+</div>
+<p>The lecture considers only stationary chains from here on. The word “stationary” is overloaded in this chapter. Here it describes the <strong>transition rule</strong>, which stays fixed over time. In <a href="#sec-stationary" class="quarto-xref"><span>The stationary distribution</span></a> it describes a <strong>distribution over states</strong> that stays fixed over time. A stationary (homogeneous) chain usually does <em>not</em> have a fixed distribution over states at early times; whether it settles into one is exactly the question of <a href="#sec-stationary" class="quarto-xref"><span>The stationary distribution</span></a>.</p>
+<p><strong>Higher-order chains.</strong> Sometimes one step of memory is too little. Natural language is the lecture’s example: a word can depend on words several positions back. The first-order assumption generalizes directly:</p>
+<ul>
+<li><strong>second order:</strong> <span class="math inline">p(x_t\mid x_{1:t-1}) = p(x_t\mid x_{t-1},x_{t-2})</span>;</li>
+<li><strong><span class="math inline">m</span>-th order:</strong> <span class="math inline">p(x_t\mid x_{1:t-1}) = p(x_t\mid x_{t-1:t-m})</span>.</li>
+</ul>
+<p>The rest of the lecture uses first-order chains.</p>
+</section>
+<section id="sec-transition" class="level2">
+<h2 class="anchored" data-anchor-id="sec-transition">Transition matrices and state transition diagrams</h2>
+<p>When the state is discrete, say <span class="math inline">x_t\in\{1,\dots,K\}</span>, the one-step conditional is a table with one row per current state and one column per next state.</p>
+<div class="definition-block">
+<p><strong>Definition.</strong> The <strong>transition matrix</strong> (or <strong><a href="https://en.wikipedia.org/wiki/Stochastic_matrix">stochastic matrix</a></strong>) of a stationary Markov chain on <span class="math inline">K</span> states is <span class="math inline">A\in\mathbb{R}^{K\times K}</span> with <span class="math display">A_{ij} = p(x_t = j\mid x_{t-1}=i),</span> the probability of moving from state <span class="math inline">i</span> to state <span class="math inline">j</span> in one step.</p>
+</div>
+<p>Row <span class="math inline">i</span> of <span class="math inline">A</span> is the distribution of the next state given that the current state is <span class="math inline">i</span>, so every entry is nonnegative and <strong>each row sums to one</strong>: <span class="math inline">\sum_j A_{ij}=1</span>. Columns need not sum to one.</p>
+<p>The matrix also tells us how the probability of each state evolves. Summing over where the chain was one step earlier,</p>
+<p><span class="math display">p(x_t=j) = \sum_i p(x_t=j\mid x_{t-1}=i)\,p(x_{t-1}=i) = \sum_i A_{ij}\,p(x_{t-1}=i).</span></p>
+<p>In words: the probability of being in <span class="math inline">j</span> now is the total probability flowing into <span class="math inline">j</span> from every state <span class="math inline">i</span>, each weighted by how likely the chain was to be in <span class="math inline">i</span>.</p>
+<div class="definition-block">
+<p><strong>Definition.</strong> A <strong>state transition diagram</strong> draws a Markov chain as a directed graph: one node per state, and an arrow from <span class="math inline">i</span> to <span class="math inline">j</span> labelled <span class="math inline">A_{ij}</span> whenever <span class="math inline">A_{ij}&gt;0</span> (a legal transition).</p>
+</div>
+<p>This graph is not a graphical model in the Week 2 sense. Its nodes are the possible <strong>values</strong> of a single variable, not different random variables.</p>
+<div style="overflow-x:auto; margin:1.5rem 0;">
+<svg viewbox="0 0 440 240" width="100%" style="max-width:440px;display:block;margin:auto;font-family:Helvetica,'Helvetica Neue',Arial,sans-serif;" role="img" aria-label="Two states, 1 and 2. State 1 moves to state 2 with probability alpha and stays with probability 1 minus alpha. State 2 moves to state 1 with probability beta and stays with probability 1 minus beta.">
+  <defs>
+    <marker id="arrW5a" markerwidth="8" markerheight="8" refx="7" refy="4" orient="auto">
+      <path d="M0,0 L0,8 L8,4 z" fill="#555"></path>
+    </marker>
+  </defs>
+  <text x="220" y="30" text-anchor="middle" font-size="24" font-weight="600" fill="#333">A two-state Markov chain</text>
+  <path d="M174,124 Q220,82 266,124" fill="none" stroke="#555" stroke-width="1.6" marker-end="url(#arrW5a)"></path>
+  <text x="220" y="92" text-anchor="middle" font-size="17" fill="#333">α</text>
+  <path d="M266,160 Q220,202 174,160" fill="none" stroke="#555" stroke-width="1.6" marker-end="url(#arrW5a)"></path>
+  <text x="220" y="206" text-anchor="middle" font-size="17" fill="#333">β</text>
+  <path d="M128,128 C 78,98 78,186 126,158" fill="none" stroke="#555" stroke-width="1.6" marker-end="url(#arrW5a)"></path>
+  <text x="72" y="147" text-anchor="end" font-size="16" fill="#333">1 − α</text>
+  <path d="M312,128 C 362,98 362,186 314,158" fill="none" stroke="#555" stroke-width="1.6" marker-end="url(#arrW5a)"></path>
+  <text x="368" y="147" font-size="16" fill="#333">1 − β</text>
+  <circle cx="150" cy="142" r="26" fill="#C6DEF1" stroke="#5795C7" stroke-width="1.5"></circle>
+  <text x="150" y="148" text-anchor="middle" font-size="17" fill="#205279">1</text>
+  <circle cx="290" cy="142" r="26" fill="#C9E4DE" stroke="#57C7AE" stroke-width="1.5"></circle>
+  <text x="290" y="148" text-anchor="middle" font-size="17" fill="#207965">2</text>
+</svg>
+</div>
+<p><strong>Figure 1.</strong> The lecture’s two-state chain. Each arrow carries its transition probability, and the arrows leaving each state sum to 1.</p>
+<p>The transition matrix of the chain in Figure 1 is</p>
+<p><span class="math display">A = \begin{pmatrix} 1-\alpha &amp; \alpha \\ \beta &amp; 1-\beta\end{pmatrix}.</span></p>
+<p>Row 1 says: from state 1, move to state 2 with probability <span class="math inline">\alpha</span>, otherwise stay. Row 2 says: from state 2, move to state 1 with probability <span class="math inline">\beta</span>, otherwise stay. We reuse this chain as the running example for the whole first half, sometimes with the numbers <span class="math inline">\alpha=0.1</span>, <span class="math inline">\beta=0.3</span>, which give</p>
+<p><span class="math display">A = \begin{pmatrix} 0.9 &amp; 0.1 \\ 0.3 &amp; 0.7\end{pmatrix}.</span></p>
+<p>In this chapter <span class="math inline">\alpha</span> and <span class="math inline">\beta</span> are always the two transition probabilities of this chain. (From <a href="#sec-mh" class="quarto-xref"><span>The Metropolis-Hastings algorithm</span></a> on, the same letter <span class="math inline">\alpha</span> is also used for an acceptance probability; we will say so each time.)</p>
+</section>
+<section id="sec-nstep" class="level2">
+<h2 class="anchored" data-anchor-id="sec-nstep">n-step transitions and the Chapman-Kolmogorov equations</h2>
+<p><span class="math inline">A</span> answers “where can I be after one step?” What about after <span class="math inline">n</span> steps?</p>
+<div class="definition-block">
+<p><strong>Definition.</strong> The <strong><span class="math inline">n</span>-step transition matrix</strong> <span class="math inline">A(n)</span> has entries <span class="math display">A_{ij}(n) = p(x_{t+n}=j\mid x_t=i),</span> the probability of getting from <span class="math inline">i</span> to <span class="math inline">j</span> in exactly <span class="math inline">n</span> steps. In particular <span class="math inline">A(1)=A</span>.</p>
+</div>
+<p>To get from <span class="math inline">i</span> to <span class="math inline">j</span> in <span class="math inline">m+n</span> steps, the chain must be in <em>some</em> state <span class="math inline">k</span> after the first <span class="math inline">m</span> steps. Summing over that intermediate state gives the <strong><a href="https://en.wikipedia.org/wiki/Chapman%E2%80%93Kolmogorov_equation">Chapman-Kolmogorov equations</a></strong>:</p>
+<div class="boxed-eq">
+<p><span class="math display">A_{ij}(m+n) = \sum_{k=1}^K A_{ik}(m)\,A_{kj}(n), \qquad\text{equivalently}\qquad A(m+n) = A(m)\,A(n).</span></p>
+</div>
+<p>The sum over <span class="math inline">k</span> is exactly a matrix product: row <span class="math inline">i</span> of <span class="math inline">A(m)</span> times column <span class="math inline">j</span> of <span class="math inline">A(n)</span>. Applying the equation repeatedly with <span class="math inline">m=1</span>,</p>
+<p><span class="math display">A(n) = A\,A(n-1) = A\,A\,A(n-2) = \cdots = A^n.</span></p>
+<p>So the <span class="math inline">n</span>-step transition matrix is just the <span class="math inline">n</span>-th power of the one-step matrix.</p>
+<div class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+Note
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p><strong>Worked example: two steps on the two-state chain.</strong> With <span class="math inline">\alpha=0.1</span>, <span class="math inline">\beta=0.3</span>, <span class="math display">A^2 = \begin{pmatrix} 0.9 &amp; 0.1 \\ 0.3 &amp; 0.7\end{pmatrix}\begin{pmatrix} 0.9 &amp; 0.1 \\ 0.3 &amp; 0.7\end{pmatrix}</span> <span class="math display">= \begin{pmatrix} 0.84 &amp; 0.16 \\ 0.48 &amp; 0.52\end{pmatrix}.</span> Check the top-right entry by the sum over intermediate states: from 1 to 2 in two steps, either stay at 1 then move (<span class="math inline">0.9\times0.1</span>) or move to 2 then stay (<span class="math inline">0.1\times0.7</span>), for a total of <span class="math inline">0.09+0.07=0.16</span>. Each row of <span class="math inline">A^2</span> still sums to 1, as it must.</p>
+</div>
+</div>
+</section>
+<section id="sec-langmodel" class="level2">
+<h2 class="anchored" data-anchor-id="sec-langmodel">Application: Markov language models</h2>
+<p>A Markov chain can serve as a <strong><a href="https://en.wikipedia.org/wiki/Language_model">language model</a></strong>, a probability distribution over sequences of words. The state space is the set of all words (the vocabulary, of size <span class="math inline">K</span>), and <span class="math inline">x_t</span> is the <span class="math inline">t</span>-th word of a sentence. A first-order model predicts each word from the previous word alone, so it is built from word pairs, or <strong><a href="https://en.wikipedia.org/wiki/Bigram">bigrams</a></strong>.</p>
+<p>The model has two sets of parameters, <span class="math inline">\theta=(\pi,A)</span>:</p>
+<ul>
+<li><span class="math inline">\pi_j</span>, the probability that a sentence <strong>starts</strong> with word <span class="math inline">j</span>;</li>
+<li><span class="math inline">A_{jk}</span>, the probability that word <span class="math inline">k</span> follows word <span class="math inline">j</span>.</li>
+</ul>
+<p>Here <span class="math inline">\pi</span> is the distribution of the first state. From <a href="#sec-stationary" class="quarto-xref"><span>The stationary distribution</span></a> on, <span class="math inline">\pi</span> also names the stationary distribution, which is a different object; the slides use the same letter for both.</p>
+<div style="overflow-x:auto; margin:1.5rem 0;">
+<svg viewbox="0 0 520 300" width="100%" style="max-width:520px;display:block;margin:auto;font-family:Helvetica,'Helvetica Neue',Arial,sans-serif;" role="img" aria-label="A word transition diagram: start leads to I; I goes to like with probability two thirds and to don't with probability one third; don't goes to like with probability 1; like goes to rabbits, turtles, and snails with probability one third each.">
+  <defs>
+    <marker id="arrW5b" markerwidth="8" markerheight="8" refx="7" refy="4" orient="auto">
+      <path d="M0,0 L0,8 L8,4 z" fill="#555"></path>
+    </marker>
+  </defs>
+  <text x="260" y="30" text-anchor="middle" font-size="24" font-weight="600" fill="#333">A bigram language model</text>
+  <text x="22" y="155" font-size="14" fill="#555">start</text>
+  <line x1="58" y1="150" x2="78" y2="150" stroke="#555" stroke-width="1.5" marker-end="url(#arrW5b)"></line>
+  <line x1="140" y1="150" x2="228" y2="150" stroke="#555" stroke-width="1.5" marker-end="url(#arrW5b)"></line>
+  <text x="185" y="142" text-anchor="middle" font-size="15" fill="#333">2/3</text>
+  <line x1="110" y1="180" x2="110" y2="218" stroke="#555" stroke-width="1.5" marker-end="url(#arrW5b)"></line>
+  <text x="102" y="204" text-anchor="end" font-size="15" fill="#333">1/3</text>
+  <line x1="135" y1="233.4" x2="233" y2="168" stroke="#555" stroke-width="1.5" marker-end="url(#arrW5b)"></line>
+  <text x="196" y="214" font-size="15" fill="#333">1</text>
+  <line x1="287.4" y1="137.7" x2="390.6" y2="91.2" stroke="#555" stroke-width="1.5" marker-end="url(#arrW5b)"></line>
+  <text x="332" y="104" text-anchor="middle" font-size="15" fill="#333">1/3</text>
+  <line x1="290" y1="150" x2="388" y2="150" stroke="#555" stroke-width="1.5" marker-end="url(#arrW5b)"></line>
+  <text x="340" y="142" text-anchor="middle" font-size="15" fill="#333">1/3</text>
+  <line x1="287.4" y1="162.3" x2="390.6" y2="208.8" stroke="#555" stroke-width="1.5" marker-end="url(#arrW5b)"></line>
+  <text x="332" y="208" text-anchor="middle" font-size="15" fill="#333">1/3</text>
+  <circle cx="110" cy="150" r="30" fill="#C6DEF1" stroke="#5795C7" stroke-width="1.5"></circle>
+  <text x="110" y="155" text-anchor="middle" font-size="15" fill="#205279">I</text>
+  <circle cx="260" cy="150" r="30" fill="#C9E4DE" stroke="#57C7AE" stroke-width="1.5"></circle>
+  <text x="260" y="155" text-anchor="middle" font-size="15" fill="#207965">like</text>
+  <circle cx="110" cy="250" r="30" fill="#C9E4DE" stroke="#57C7AE" stroke-width="1.5"></circle>
+  <text x="110" y="255" text-anchor="middle" font-size="15" fill="#207965">don't</text>
+  <circle cx="420" cy="78" r="30" fill="#F7D9C4" stroke="#C78557" stroke-width="1.5"></circle>
+  <text x="420" y="83" text-anchor="middle" font-size="14" fill="#794520">rabbits</text>
+  <circle cx="420" cy="150" r="30" fill="#F7D9C4" stroke="#C78557" stroke-width="1.5"></circle>
+  <text x="420" y="155" text-anchor="middle" font-size="14" fill="#794520">turtles</text>
+  <circle cx="420" cy="222" r="30" fill="#F7D9C4" stroke="#C78557" stroke-width="1.5"></circle>
+  <text x="420" y="227" text-anchor="middle" font-size="14" fill="#794520">snails</text>
+</svg>
+</div>
+<p><strong>Figure 2.</strong> The lecture’s word-level state transition diagram. The slide prints the fractions as decimals (0.66, 0.33, 1.0).</p>
+<p><strong>The likelihood of one sentence.</strong> Writing <span class="math inline">A(x_{t-1},x_t)</span> for <span class="math inline">A_{x_{t-1}x_t}</span>, the probability of a sentence <span class="math inline">x_{1:T}</span> is the first-word probability times one transition per later word:</p>
+<p><span class="math display">p(x_{1:T}\mid\theta) = \pi(x_1)\,A(x_1,x_2)\cdots A(x_{T-1},x_T).</span></p>
+<p>To prepare for maximum likelihood, the lecture rewrites this product with <strong><a href="https://en.wikipedia.org/wiki/Indicator_function">indicator functions</a></strong> <span class="math inline">\mathbf{1}[\cdot]</span> (1 when the condition holds, 0 otherwise), so that every parameter appears explicitly:</p>
+<p><span class="math display">p(x_{1:T}\mid\theta) = \prod_{j=1}^K \pi_j^{\mathbf{1}[x_1=j]}\ \prod_{t=2}^T\prod_{j=1}^K\prod_{k=1}^K A_{jk}^{\mathbf{1}[x_{t-1}=j,\ x_t=k]}.</span></p>
+<p>Every factor whose indicator is 0 equals 1, so the only factors that survive are <span class="math inline">\pi</span> of the actual first word and <span class="math inline">A</span> of each actual consecutive pair. It is the same product as before.</p>
+<p><strong>Maximum likelihood from a corpus.</strong> Given a data set <span class="math inline">\mathcal{D}=\{x^{(1)},\dots,x^{(N)}\}</span> of <span class="math inline">N</span> sentences, sentence <span class="math inline">i</span> having length <span class="math inline">T_i</span>, treated as independent, the log-likelihood is a sum of logs of the factors above. Collecting equal terms gives</p>
+<p><span class="math display">\log p(\mathcal{D}\mid\theta) = \sum_{i=1}^N\log p(x^{(i)}\mid\theta) = \sum_j N^1_j\log\pi_j + \sum_j\sum_k N_{jk}\log A_{jk},</span></p>
+<p>with the counts</p>
+<p><span class="math display">N^1_j = \sum_{i=1}^N\mathbf{1}\big[x^{(i)}_1=j\big], \qquad N_{jk} = \sum_{i=1}^N\sum_{t=1}^{T_i-1}\mathbf{1}\big[x^{(i)}_t=j,\ x^{(i)}_{t+1}=k\big].</span></p>
+<p><span class="math inline">N^1_j</span> counts the sentences that start with word <span class="math inline">j</span>; <span class="math inline">N_{jk}</span> counts how often word <span class="math inline">k</span> immediately follows word <span class="math inline">j</span> anywhere in the corpus. These counts are the sufficient statistics (<a href="week01.html#sec-sufficient" class="quarto-xref"><span>Sufficient statistics</span></a> in Week 1).</p>
+<p>The log-likelihood splits into separate pieces: one for <span class="math inline">\pi</span>, and one for each row <span class="math inline">A_{j\cdot}</span>. Each piece has the form <span class="math inline">\sum_k N_k\log q_k</span> subject to <span class="math inline">\sum_k q_k=1</span>, which is exactly the Multinomial MLE problem of Week 1 (<a href="week01.html#sec-multinomial" class="quarto-xref"><span>Multinomial as an exponential family</span></a> in Week 1), whose answer is “count divided by total”. So</p>
+<div class="boxed-eq">
+<p><span class="math display">\hat\pi_j = \frac{N^1_j}{\sum_{j'}N^1_{j'}}, \qquad \hat A_{jk} = \frac{N_{jk}}{\sum_{k'}N_{jk'}}.</span></p>
+</div>
+<p>The estimated probability that <span class="math inline">k</span> follows <span class="math inline">j</span> is the fraction of times, among all occurrences of <span class="math inline">j</span> followed by something, that the something was <span class="math inline">k</span>. This is the “natural form” the lecture refers to.</p>
+<div class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+Note
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p><strong>Worked example: recovering Figure 2 from counts.</strong> The slide does not say which corpus produced Figure 2, but one corpus consistent with it is the three sentences</p>
+<p>“I like rabbits”, “I like turtles”, “I don’t like snails”.</p>
+<p>Every sentence starts with “I”, so <span class="math inline">N^1_{\text{I}}=3</span> and <span class="math inline">\hat\pi_{\text{I}}=1</span>. The bigram counts are</p>
+<ul>
+<li>after “I”: like 2 times, don’t 1 time, so <span class="math inline">\hat A_{\text{I},\text{like}}=2/3</span> and <span class="math inline">\hat A_{\text{I},\text{don't}}=1/3</span>;</li>
+<li>after “don’t”: like 1 time, so <span class="math inline">\hat A_{\text{don't},\text{like}}=1</span>;</li>
+<li>after “like”: rabbits, turtles, snails once each, so each gets <span class="math inline">1/3</span>.</li>
+</ul>
+<p>These are the arrows of Figure 2. The fitted model then scores sentences, for example <span class="math display">p(\text{I don't like snails}) = \hat\pi_{\text{I}}\cdot\tfrac13\cdot1\cdot\tfrac13 = \tfrac19.</span></p>
+</div>
+</div>
+</section>
+<section id="sec-stationary" class="level2">
+<h2 class="anchored" data-anchor-id="sec-stationary">The stationary distribution</h2>
+<p>Run a chain for a long time. Does the probability of being in each state settle down, and if so, to what?</p>
+<p>Let <span class="math inline">\pi_t(j)=p(x_t=j)</span> be the probability of being in state <span class="math inline">j</span> at time <span class="math inline">t</span>, and <span class="math inline">\pi_0\in\mathbb{R}^K</span> the initial distribution. The update from <a href="#sec-transition" class="quarto-xref"><span>Transition matrices and state transition diagrams</span></a> reads</p>
+<p><span class="math display">\pi_1(j) = \sum_{i=1}^K p(x_1=j\mid x_0=i)\,\pi_0(i) = \sum_{i=1}^K A_{ij}\,\pi_0(i) = \sum_{i=1}^K (A^\top)_{ji}\,\pi_0(i).</span></p>
+<p>Treating each <span class="math inline">\pi_t</span> as a column vector, this is <span class="math inline">\pi_1 = A^\top\pi_0</span>, and repeating it,</p>
+<p><span class="math display">\pi_t = A^\top\pi_{t-1} = A^\top A^\top\pi_{t-2} = \cdots = (A^\top)^t\pi_0.</span></p>
+<p>The transpose appears because <span class="math inline">A</span> is indexed (from, to) and we are summing over the “from” index. If, as <span class="math inline">t</span> grows, <span class="math inline">\pi_t</span> converges to some <span class="math inline">\pi</span>, then one more step cannot change it.</p>
+<div class="definition-block">
+<p><strong>Definition.</strong> A distribution <span class="math inline">\pi</span> over the states is a <strong><a href="https://en.wikipedia.org/wiki/Discrete-time_Markov_chain#Stationary_distributions">stationary distribution</a></strong> (also called an <strong>invariant distribution</strong>) of the chain with transition matrix <span class="math inline">A</span> if <span class="math display">\pi = A^\top\pi, \qquad\text{that is,}\qquad \pi_j = \sum_i \pi_i A_{ij}\ \text{ for every } j.</span></p>
+</div>
+<p>If the chain’s state is distributed according to <span class="math inline">\pi</span> at some time, it stays distributed according to <span class="math inline">\pi</span> forever after. (As noted in <a href="#sec-markov" class="quarto-xref"><span>Markov chains</span></a>, this is the “distribution over states” meaning of stationary, not the “fixed transition rule” meaning.)</p>
+<p><strong>Finding it with linear algebra.</strong> The definition says <span class="math inline">\pi</span> is an <strong><a href="https://en.wikipedia.org/wiki/Eigenvalues_and_eigenvectors">eigenvector</a></strong> of <span class="math inline">A^\top</span> with eigenvalue 1. So we solve</p>
+<p><span class="math display">A^\top v = v</span></p>
+<p>and set <span class="math inline">\pi\propto v</span>, rescaling so the entries sum to 1 (an eigenvector is only determined up to a constant factor, so this normalization step is required). Here <span class="math inline">v</span> is an eigenvector, unrelated to the momentum <span class="math inline">v</span> that appears in <a href="#sec-hmc" class="quarto-xref"><span>Hamiltonian Monte Carlo</span></a>.</p>
+<p>Why is 1 always an eigenvalue of <span class="math inline">A^\top</span>? Because each row of <span class="math inline">A</span> sums to 1, <span class="math inline">A\mathbf{1}=\mathbf{1}</span>, where <span class="math inline">\mathbf{1}</span> is the all-ones vector. So 1 is an eigenvalue of <span class="math inline">A</span>, and a matrix and its transpose have the same eigenvalues. An eigenvector <span class="math inline">v</span> for eigenvalue 1 therefore exists. (That a nonnegative one exists, so that it can be rescaled into a distribution, is a further fact about stochastic matrices that the lecture uses without proof.)</p>
+<p>The lecture adds a warning: <strong>the stationary distribution may not be unique.</strong> <a href="#sec-unique" class="quarto-xref"><span>When is the stationary distribution unique?</span></a> says when it is.</p>
+<div class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+Note
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p><strong>Worked example: the two-state chain.</strong> With <span class="math inline">\alpha=0.1</span>, <span class="math inline">\beta=0.3</span>, <span class="math display">A^\top = \begin{pmatrix} 0.9 &amp; 0.3 \\ 0.1 &amp; 0.7\end{pmatrix}.</span> The vector <span class="math inline">v=(3,1)^\top</span> satisfies <span class="math inline">A^\top v=v</span>: <span class="math inline">0.9\cdot3+0.3\cdot1=3</span> and <span class="math inline">0.1\cdot3+0.7\cdot1=1</span>. Normalizing, <span class="math inline">\pi=(0.75,\ 0.25)</span>.</p>
+<p>For general <span class="math inline">\alpha,\beta&gt;0</span>, the second equation of <span class="math inline">A^\top\pi=\pi</span> reads <span class="math inline">\alpha\pi_1+(1-\beta)\pi_2=\pi_2</span>, that is <span class="math inline">\alpha\pi_1=\beta\pi_2</span>. Together with <span class="math inline">\pi_1+\pi_2=1</span>, <span class="math display">\pi = \Big(\frac{\beta}{\alpha+\beta},\ \frac{\alpha}{\alpha+\beta}\Big).</span> The chain spends more time in the state that is harder to leave: state 1 is left with probability <span class="math inline">\alpha=0.1</span> per step, state 2 with probability <span class="math inline">\beta=0.3</span>, so state 1 gets three times the long-run probability.</p>
+</div>
+</div>
+</section>
+<section id="sec-unique" class="level2">
+<h2 class="anchored" data-anchor-id="sec-unique">When is the stationary distribution unique?</h2>
+<p><em>This subsection adds a result from the assigned reading (MLPP 17.2.3) that the slides set up but do not state.</em> The slides define two properties of a chain without saying what they are for:</p>
+<div class="definition-block">
+<p><strong>Definition.</strong> A Markov chain is <strong>irreducible</strong> if every state can be reached from every other state (in some number of steps). It is <strong>regular</strong> if some power <span class="math inline">A^n</span> has all entries strictly positive, that is, for some single <span class="math inline">n</span> the chain can go from any state to any state in exactly <span class="math inline">n</span> steps.</p>
+</div>
+<p>Regular implies irreducible, but not the other way round. The payoff is the following theorem, stated in MLPP for finite state spaces.</p>
+<div class="definition-block">
+<p><strong>Theorem (MLPP §17.2.3).</strong> A regular Markov chain on finitely many states has a <strong>unique</strong> stationary distribution <span class="math inline">\pi</span>, and the chain converges to it from any starting distribution: <span class="math inline">\pi_t\to\pi</span> as <span class="math inline">t\to\infty</span>, whatever <span class="math inline">\pi_0</span> is.</p>
+</div>
+<p>The two-state chain shows what goes wrong without each property.</p>
+<ul>
+<li><strong>Not irreducible:</strong> <span class="math inline">\alpha=\beta=0</span>, so <span class="math inline">A=I</span>. The chain never moves, and <em>every</em> distribution satisfies <span class="math inline">\pi=A^\top\pi</span>. Stationary distributions exist but are not unique.</li>
+<li><strong>Irreducible but not regular:</strong> <span class="math inline">\alpha=\beta=1</span>, so the chain swaps state at every step. Its only stationary distribution is <span class="math inline">(0.5,0.5)</span>, but the powers of <span class="math inline">A</span> alternate between the swap matrix and the identity, so no power is all-positive. Started in state 1, the distribution of <span class="math inline">x_t</span> alternates <span class="math inline">(1,0),(0,1),(1,0),\dots</span> and never converges.</li>
+<li><strong>Regular:</strong> <span class="math inline">\alpha=0.1</span>, <span class="math inline">\beta=0.3</span>. Every entry of <span class="math inline">A</span> is already positive. Starting from <span class="math inline">\pi_0=(1,0)</span>, we get <span class="math inline">\pi_1=(0.9,0.1)</span>, <span class="math inline">\pi_2=(0.84,0.16)</span>, <span class="math inline">\pi_3=(0.804,0.196)</span>. The first entry approaches its stationary value <span class="math inline">0.75</span>, with gaps <span class="math inline">0.25,\ 0.15,\ 0.09,\ 0.054</span> at <span class="math inline">t=0,1,2,3</span>, shrinking by a factor <span class="math inline">0.6=1-\alpha-\beta</span> each step.</li>
+</ul>
+<p>For MCMC this is the property we will want: a chain that forgets where it started and settles into one target distribution. For continuous state spaces the precise conditions are more technical (MLPP states them under the name ergodicity); the lecture and these notes do not go into them.</p>
+</section>
+<section id="sec-detailed" class="level2">
+<h2 class="anchored" data-anchor-id="sec-detailed">Detailed balance</h2>
+<p>Solving <span class="math inline">A^\top\pi=\pi</span> requires knowing all of <span class="math inline">A</span> and doing linear algebra. MCMC needs the reverse direction: a target <span class="math inline">\pi</span> is given, and we want to <em>design</em> <span class="math inline">A</span> so that <span class="math inline">\pi</span> is stationary. A simpler, local condition does the job.</p>
+<div class="definition-block">
+<p><strong>Definition.</strong> A Markov chain with transition matrix <span class="math inline">A</span> is <strong>time reversible</strong> if there is a distribution <span class="math inline">\pi</span> such that <span class="math display">\pi_i A_{ij} = \pi_j A_{ji} \qquad\text{for all } i,j.</span> These are the <strong><a href="https://en.wikipedia.org/wiki/Detailed_balance">detailed balance</a></strong> equations, and we say the chain satisfies detailed balance with respect to <span class="math inline">\pi</span>.</p>
+</div>
+<p>The left side is the probability of being in <span class="math inline">i</span> and then moving to <span class="math inline">j</span>; the right side is the probability of being in <span class="math inline">j</span> and then moving to <span class="math inline">i</span>. Detailed balance says that, in equilibrium, the flow along every edge is the same in both directions.</p>
+<div class="definition-block">
+<p><strong>Theorem.</strong> If a Markov chain with transition matrix <span class="math inline">A</span> satisfies detailed balance with respect to a distribution <span class="math inline">\pi</span>, then <span class="math inline">\pi</span> is a stationary distribution of the chain.</p>
+</div>
+<p><strong>Proof.</strong> We need <span class="math inline">A^\top\pi=\pi</span>, that is, <span class="math inline">\sum_i\pi_iA_{ij}=\pi_j</span> for every <span class="math inline">j</span>. Use detailed balance on each term, then the fact that row <span class="math inline">j</span> of <span class="math inline">A</span> sums to 1:</p>
+<p><span class="math display">\sum_{i=1}^K\pi_iA_{ij} \overset{\text{(DB)}}{=} \sum_{i=1}^K\pi_jA_{ji} = \pi_j\sum_{i=1}^K A_{ji} = \pi_j.</span></p>
+<p>The converse is false: a chain can have a stationary distribution without satisfying detailed balance. Detailed balance is a <strong>sufficient</strong> condition, chosen because it is easy to check one pair of states at a time. It also says nothing about uniqueness or convergence; for those we still need the conditions of <a href="#sec-unique" class="quarto-xref"><span>When is the stationary distribution unique?</span></a>. The swapping chain with <span class="math inline">\alpha=\beta=1</span> satisfies detailed balance with respect to <span class="math inline">(0.5,0.5)</span>, since <span class="math inline">0.5\cdot1=0.5\cdot1</span>, and still never converges.</p>
+<div class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+Note
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p><strong>Worked example: detailed balance on the two-state chain.</strong> There is only one pair of distinct states, so detailed balance is the single equation <span class="math inline">\pi_1\alpha=\pi_2\beta</span>. That is exactly the equation we solved in <a href="#sec-stationary" class="quarto-xref"><span>The stationary distribution</span></a>. With <span class="math inline">\alpha=0.1</span>, <span class="math inline">\beta=0.3</span> and <span class="math inline">\pi=(0.75,0.25)</span>: <span class="math inline">0.75\times0.1 = 0.075 = 0.25\times0.3</span>. Every two-state chain with <span class="math inline">\alpha,\beta&gt;0</span> is therefore time reversible.</p>
+</div>
+</div>
+</section>
+<section id="sec-whymcmc" class="level2">
+<h2 class="anchored" data-anchor-id="sec-whymcmc">Why MCMC</h2>
+<p>We now return to sampling. The goal is the same as in Week 4 (<a href="week04.html#sec-goals" class="quarto-xref"><span>What sampling is for</span></a> in Week 4): draw samples from <span class="math inline">p(x)=\tilde p(x)/Z</span>, or estimate <span class="math inline">\mathbb{E}_p[\phi(x)]</span>, when we can evaluate <span class="math inline">\tilde p</span> but not <span class="math inline">Z</span>.</p>
+<p><strong>The trouble with a global proposal.</strong> Importance sampling and rejection sampling (<a href="week04.html#sec-importance" class="quarto-xref"><span>Importance sampling</span></a> and <a href="week04.html#sec-rejection" class="quarto-xref"><span>Rejection sampling</span></a> in Week 4) work only if the proposal <span class="math inline">q(x)</span> is similar to <span class="math inline">p(x)</span>, and in high dimensions such a <span class="math inline">q</span> is hard to find. The tutorial puts a number on this. Take <span class="math inline">p=\mathcal N(0,I_d)</span> and a proposal that is only slightly too wide, <span class="math inline">q=\mathcal N(0,1.1^2I_d)</span>. Rejection sampling then accepts a fraction <span class="math inline">1.1^{-d}</span> of its proposals, about <span class="math inline">10^{-4}</span> at <span class="math inline">d=100</span>. For a real posterior we do not even know in advance where the mass is.</p>
+<p><strong>A local proposal instead.</strong> The Metropolis-Hastings algorithm uses a proposal density that depends on the <strong>current state</strong> <span class="math inline">x^{(t)}</span>.</p>
+<div class="definition-block">
+<p><strong>Definition.</strong> In MCMC, a <strong>proposal density</strong> <span class="math inline">q(x'\mid x^{(t)})</span> is a conditional distribution, centred or otherwise depending on the current state <span class="math inline">x^{(t)}</span>, from which we can draw a candidate next state <span class="math inline">x'</span>.</p>
+</div>
+<p>This is a stricter sense of “proposal” than in Week 4, where <span class="math inline">q(x)</span> was a single fixed distribution. A typical choice is a Gaussian centred at the current state, <span class="math inline">q(x'\mid x^{(t)})=\mathcal N(x';\,x^{(t)},\sigma^2I)</span>, but any density we can sample from will do. Unlike importance and rejection sampling, <strong><span class="math inline">q(x'\mid x^{(t)})</span> need not look like <span class="math inline">p(x)</span></strong> at all. It only has to propose nearby moves; the algorithm decides which moves to keep.</p>
+<div style="overflow-x:auto; margin:1.5rem 0;">
+<svg viewbox="0 0 520 300" width="100%" style="max-width:520px;display:block;margin:auto;font-family:Helvetica,'Helvetica Neue',Arial,sans-serif;" role="img" aria-label="A wide two-peaked target density, with two narrow dashed proposal densities centred at two different current states x(1) and x(2).">
+  <text x="260" y="30" text-anchor="middle" font-size="24" font-weight="600" fill="#333">Local proposals</text>
+  <line x1="30" y1="250" x2="500" y2="250" stroke="#888" stroke-width="1"></line>
+  <path d="M40,250 C 100,250 130,110 190,110 C 240,110 250,190 300,190 C 350,190 360,140 400,140 C 440,140 460,250 500,250" fill="none" stroke="#C75794" stroke-width="2.5"></path>
+  <text x="432" y="128" font-size="16" fill="#792051">p̃(x)</text>
+  <path d="M84,250 C 106,250 110,120 120,120 C 130,120 134,250 156,250" fill="none" stroke="#5795C7" stroke-width="2" stroke-dasharray="6,4"></path>
+  <text x="70" y="112" font-size="15" fill="#205279">q(x′ | x(1))</text>
+  <path d="M294,250 C 316,250 320,120 330,120 C 340,120 344,250 366,250" fill="none" stroke="#5795C7" stroke-width="2" stroke-dasharray="6,4"></path>
+  <text x="292" y="112" font-size="15" fill="#205279">q(x′ | x(2))</text>
+  <line x1="120" y1="250" x2="120" y2="258" stroke="#555" stroke-width="1.5"></line>
+  <text x="120" y="276" text-anchor="middle" font-size="15" fill="#333">x(1)</text>
+  <line x1="330" y1="250" x2="330" y2="258" stroke="#555" stroke-width="1.5"></line>
+  <text x="330" y="276" text-anchor="middle" font-size="15" fill="#333">x(2)</text>
+</svg>
+</div>
+<p><strong>Figure 3.</strong> After the lecture’s picture of local proposals. The target <span class="math inline">\tilde p</span> (solid) is wide and has two peaks; the proposal (dashed) is a narrow bump that moves with the current state. Neither bump resembles <span class="math inline">\tilde p</span>, and neither needs to.</p>
+<div class="definition-block">
+<p><strong>Definition.</strong> <strong><a href="https://en.wikipedia.org/wiki/Markov_chain_Monte_Carlo">Markov chain Monte Carlo</a> (MCMC)</strong> methods generate a sequence <span class="math inline">x^{(1)},x^{(2)},\dots</span> in which each sample <span class="math inline">x^{(t)}</span> is drawn from a distribution that depends on the previous value <span class="math inline">x^{(t-1)}</span>, designed so that the sequence is a Markov chain whose stationary distribution is the target <span class="math inline">p</span>.</p>
+</div>
+<p>Here the superscript <span class="math inline">(t)</span> is the iteration number and <span class="math inline">x^{(t)}</span> is the whole state (possibly a vector); in <a href="#sec-markov" class="quarto-xref"><span>Markov chains</span></a> we wrote the same thing as <span class="math inline">x_t</span>. From <a href="#sec-gibbs" class="quarto-xref"><span>Gibbs sampling</span></a> on, a subscript <span class="math inline">x_j</span> will mean the <span class="math inline">j</span>-th coordinate of the state instead.</p>
+<p>Three consequences follow from building samples this way.</p>
+<ul>
+<li><strong>The samples are dependent.</strong> Rejection sampling’s accepted points are independent; an MCMC chain’s are not.</li>
+<li><strong>The chain needs time.</strong> It starts wherever we put it, and only approaches <span class="math inline">p</span> as it runs (<a href="#sec-unique" class="quarto-xref"><span>When is the stationary distribution unique?</span></a>). MCMC methods must therefore run for a while before their samples are (approximately) from <span class="math inline">p</span>, and it is a good idea to throw away a number of initial samples. That discarded stretch is called the <strong>burn-in</strong>.</li>
+<li><strong>Monte Carlo estimation still works.</strong> For large enough <span class="math inline">T</span>, the average of a test function over the chain estimates its expectation, <span class="math display">\mathbb{E}_{x\sim p}[\phi(x)] \approx \frac1T\sum_{t=1}^T\phi(x^{(t)}).</span> (The slide writes the test function as <span class="math inline">f</span>; it is Week 4’s <span class="math inline">\phi</span>.) This is the simple Monte Carlo estimator of <a href="week04.html#sec-simplemc" class="quarto-xref"><span>Simple Monte Carlo</span></a> in Week 4 applied to dependent samples. It is no longer the case that its variance is <span class="math inline">\mathrm{var}[\phi]/T</span>; <a href="#sec-ess" class="quarto-xref"><span>Effective sample size</span></a> measures how much the dependence costs.</li>
+</ul>
+<p>The lake picture from Week 4 (<a href="week04.html#sec-hardz" class="quarto-xref"><span>Why the normalizing constant is hard</span></a> in Week 4) fits this exactly. We can measure the depth <span class="math inline">\tilde p</span> wherever we steer the boat, but never the volume <span class="math inline">Z</span> of the whole lake. An MCMC sampler steers toward deep water and lingers there, without ever surveying the whole lake.</p>
+<div class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+Note
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p><strong>Homework-relevant.</strong> Assignment 2’s TrueSkill question (<a href="week04.html#sec-trueskill" class="quarto-xref"><span>Latent variables and the TrueSkill model</span></a> in Week 4) approximates the posterior over player skills by MCMC and then summarizes it with sample averages: posterior means, standard deviations, and probabilities written as expectations of indicators (<a href="week04.html#sec-goals" class="quarto-xref"><span>What sampling is for</span></a> in Week 4). The ideas to bring to it are the ones above: the chain targets a posterior known only up to <span class="math inline">Z</span>, early samples are not yet from that posterior, and every summary is an average over the chain. The specific estimates are left to the assignment.</p>
+</div>
+</div>
+</section>
+<section id="sec-mh" class="level2">
+<h2 class="anchored" data-anchor-id="sec-mh">The Metropolis-Hastings algorithm</h2>
+<p>How do we turn a local proposal into a chain whose stationary distribution is <span class="math inline">p</span>? Propose a move, then accept or reject it with a carefully chosen probability.</p>
+<div class="algorithm">
+<p><strong><a href="https://en.wikipedia.org/wiki/Metropolis%E2%80%93Hastings_algorithm">Metropolis-Hastings</a> (MH)</strong></p>
+<p>Given the current state <span class="math inline">x^{(t)}</span>:</p>
+<ol type="1">
+<li>Draw a candidate <span class="math inline">x'\sim q(x'\mid x^{(t)})</span>.</li>
+<li>Compute the <strong>acceptance probability</strong> <span class="math display">\alpha(x'\mid x^{(t)}) = \min\Bigg\{1,\ \frac{\tilde p(x')\,q(x^{(t)}\mid x')}{\tilde p(x^{(t)})\,q(x'\mid x^{(t)})}\Bigg\}.</span></li>
+<li>With probability <span class="math inline">\alpha(x'\mid x^{(t)})</span> accept: set <span class="math inline">x^{(t+1)}=x'</span>. Otherwise reject: set <span class="math inline">x^{(t+1)}=x^{(t)}</span>.</li>
+</ol>
+</div>
+<p>In this section <span class="math inline">\alpha</span> is the acceptance probability, not the transition probability of the two-state chain.</p>
+<p><strong>Reading the ratio.</strong> It has two factors.</p>
+<ul>
+<li><span class="math inline">\tilde p(x')/\tilde p(x^{(t)})</span> compares the target at the candidate and the current state. A move to a more probable point is always accepted (if the other factor is 1); a move to a less probable point is accepted with probability equal to the ratio. Sometimes moving “downhill” is what makes this a sampler rather than an optimizer: a chain that only moved uphill would get stuck at a mode.</li>
+<li><span class="math inline">q(x^{(t)}\mid x')/q(x'\mid x^{(t)})</span> corrects for a proposal that favours some directions. If <span class="math inline">q</span> tends to propose moves toward <span class="math inline">x'</span> more readily than back, the correction lowers the acceptance to compensate.</li>
+</ul>
+<p><strong><span class="math inline">Z</span> cancels.</strong> Only the ratio <span class="math inline">\tilde p(x')/\tilde p(x^{(t)})</span> appears, and <span class="math inline">p(x')/p(x^{(t)})=\tilde p(x')/\tilde p(x^{(t)})</span> because the two factors of <span class="math inline">1/Z</span> cancel. So MH needs to evaluate only <span class="math inline">\tilde p</span>, never <span class="math inline">Z</span>.</p>
+<p><strong>A rejection is still a sample.</strong> When a proposal is rejected, the chain stays put and the current state is recorded <em>again</em> as the next sample. The tutorial notes that dropping these repeats is the most common implementation bug; the repeated states are part of the chain, and the proof in <a href="#sec-mh-proof" class="quarto-xref"><span>Why Metropolis-Hastings works</span></a> depends on them.</p>
+<div class="definition-block">
+<p><strong>Definition.</strong> When the proposal is <strong>symmetric</strong>, <span class="math inline">q(x'\mid x)=q(x\mid x')</span> for all <span class="math inline">x,x'</span>, the correction factor is 1 and the acceptance probability simplifies to <span class="math inline">\min\{1,\ \tilde p(x')/\tilde p(x^{(t)})\}</span>. This special case is the <strong>Metropolis</strong> algorithm. A Gaussian centred at the current state is symmetric, so a Gaussian random walk is a Metropolis sampler.</p>
+</div>
+<p>The lecture states the key property as a theorem: <strong>the MH procedure defines a Markov chain whose stationary distribution is the target <span class="math inline">p(x)</span>.</strong> <a href="#sec-mh-proof" class="quarto-xref"><span>Why Metropolis-Hastings works</span></a> proves it.</p>
+<section id="sec-mh-baseball" class="level3">
+<h3 class="anchored" data-anchor-id="sec-mh-baseball">Tutorial example: Clemente’s batting average</h3>
+<p>The tutorial runs MH on a one-dimensional posterior where the answer is also available in closed form, so the sampler can be checked. Roberto Clemente started the 1970 baseball season with <span class="math inline">H=18</span> hits in <span class="math inline">N=45</span> at-bats, a .400 average. Let <span class="math inline">\theta\in(0,1)</span> be his true (unknown) probability of a hit. The data <span class="math inline">D=(N,H)</span> is fixed; the quantity we sample is <span class="math inline">\theta</span>. In the slides’ notation, the tutorial’s <span class="math inline">\theta</span> plays the role of <span class="math inline">x</span>.</p>
+<p>Two distributions build the model.</p>
+<div class="definition-block">
+<p><strong>Definition.</strong> The <strong><a href="https://en.wikipedia.org/wiki/Binomial_distribution">Binomial distribution</a></strong> <span class="math inline">\mathrm{Binomial}(N,\theta)</span> is the distribution of the number of successes <span class="math inline">H</span> in <span class="math inline">N</span> independent Bernoulli(<span class="math inline">\theta</span>) trials, <span class="math inline">p(H\mid\theta)=\binom{N}{H}\theta^H(1-\theta)^{N-H}</span>. The <strong><a href="https://en.wikipedia.org/wiki/Beta_distribution">Beta distribution</a></strong> <span class="math inline">\mathrm{Beta}(a,b)</span> with <span class="math inline">a,b&gt;0</span> is the distribution on <span class="math inline">(0,1)</span> with density proportional to <span class="math inline">\theta^{a-1}(1-\theta)^{b-1}</span>. <span class="math inline">\mathrm{Beta}(1,1)</span> is the uniform distribution on <span class="math inline">(0,1)</span>.</p>
+</div>
+<p>With likelihood <span class="math inline">H\mid\theta\sim\mathrm{Binomial}(45,\theta)</span> and the uniform prior <span class="math inline">\theta\sim\mathrm{Beta}(1,1)</span>, Bayes’ rule gives</p>
+<p><span class="math display">p(\theta\mid D) = \frac{\tilde p(\theta)}{Z}, \qquad \tilde p(\theta) = p(D\mid\theta)\,p(\theta) \propto \theta^{18}(1-\theta)^{27},</span></p>
+<p>where <span class="math inline">Z=p(D)=\int p(D\mid\theta)p(\theta)\,d\theta</span> is the normalizer we pretend not to know. In this particular model the posterior happens to be another Beta distribution, <span class="math inline">\mathrm{Beta}(1+18,\ 1+27)=\mathrm{Beta}(19,28)</span>, with mean <span class="math inline">19/47\approx0.404</span>, because a Beta prior is <strong><a href="https://en.wikipedia.org/wiki/Conjugate_prior">conjugate</a></strong> to a Binomial likelihood. The closed form is used only to check the sampler.</p>
+<div class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+Note
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p><strong>Worked example: one acceptance decision.</strong> The tutorial uses a Gaussian random walk, <span class="math inline">\theta'=\theta+0.2\,\varepsilon</span> with <span class="math inline">\varepsilon\sim\mathcal N(0,1)</span>, which is symmetric, so the Metropolis rule applies. Suppose the chain is at <span class="math inline">\theta=0.40</span> and proposes <span class="math inline">\theta'=0.30</span>. The ratio is <span class="math display">\frac{\tilde p(0.30)}{\tilde p(0.40)} = \Big(\frac{0.30}{0.40}\Big)^{18}\Big(\frac{0.70}{0.60}\Big)^{27} \approx \frac{1}{2.76} \approx 0.36.</span> The constant <span class="math inline">\binom{45}{18}</span> cancelled, along with <span class="math inline">Z</span>. So the move is accepted with probability about <span class="math inline">0.36</span>. The reverse move, from <span class="math inline">0.30</span> to <span class="math inline">0.40</span>, has ratio <span class="math inline">2.76&gt;1</span> and is always accepted. Over many steps, the chain visits <span class="math inline">\theta=0.40</span> about <span class="math inline">2.76</span> times as often as <span class="math inline">\theta=0.30</span> (per unit of <span class="math inline">\theta</span>), which is exactly the ratio of the posterior densities.</p>
+<p>A proposal outside <span class="math inline">(0,1)</span> has <span class="math inline">\tilde p(\theta')=0</span>, so its acceptance probability is 0 and it is always rejected.</p>
+</div>
+</div>
+<p>Started deliberately far away at <span class="math inline">\theta=0.9</span> and run for 5000 steps with the first 200 discarded as burn-in, the tutorial’s chain accepts 39% of its proposals. The histogram of its samples matches the <span class="math inline">\mathrm{Beta}(19,28)</span> density, and the sample mean is <span class="math inline">0.403</span> against the exact <span class="math inline">0.404</span>.</p>
+<p><strong>The step size matters.</strong> The tutorial reruns the chain with the random-walk step size <span class="math inline">\sigma</span> changed:</p>
+<ul>
+<li><strong><span class="math inline">\sigma=0.03</span> (too small):</strong> almost every proposal is accepted, but each move is tiny. The chain spends most of the burn-in just reaching the bulk of the posterior, then wanders slowly; consecutive samples have correlation about 0.9.</li>
+<li><strong><span class="math inline">\sigma=2.0</span> (too large):</strong> most proposals land outside <span class="math inline">(0,1)</span> or deep in the tails and are rejected, so the chain sits still for long stretches. Consecutive samples are again nearly identical.</li>
+<li><strong><span class="math inline">\sigma=0.2</span>:</strong> in between. The tutorial suggests that for a Gaussian random walk, an acceptance rate of roughly 25–40% is a good sign.</li>
+</ul>
+<p>So a high acceptance rate is not the goal in itself. What we want is a chain whose consecutive states are as uncorrelated as possible, because many nearly identical samples carry the information of far fewer independent ones. <a href="#sec-ess" class="quarto-xref"><span>Effective sample size</span></a> turns this into a number.</p>
+</section>
+</section>
+<section id="sec-mh-proof" class="level2">
+<h2 class="anchored" data-anchor-id="sec-mh-proof">Why Metropolis-Hastings works</h2>
+<p>We prove that the MH chain satisfies detailed balance with respect to <span class="math inline">p</span>, which by the theorem of <a href="#sec-detailed" class="quarto-xref"><span>Detailed balance</span></a> makes <span class="math inline">p</span> stationary. The lecture writes the proof for a discrete state space with sums; the continuous case is the same with sums replaced by integrals.</p>
+<p>First rewrite the acceptance probability with <span class="math inline">p</span> in place of <span class="math inline">\tilde p</span> (the <span class="math inline">Z</span>’s cancel):</p>
+<p><span class="math display">\alpha(x'\mid x) = \min\Big\{1,\ \frac{p(x')\,q(x\mid x')}{p(x)\,q(x'\mid x)}\Big\}.</span></p>
+<p><strong>The transition probabilities.</strong> From state <span class="math inline">x</span>, the chain moves to a different state <span class="math inline">x'</span> only if <span class="math inline">x'</span> is proposed <em>and</em> accepted. It ends up at <span class="math inline">x</span> again either by proposing <span class="math inline">x</span> itself or by proposing something else and rejecting it:</p>
+<p><span class="math display">r(x'\mid x) = q(x'\mid x)\,\alpha(x'\mid x) \qquad\text{if } x'\neq x,</span> <span class="math display">r(x\mid x) = q(x\mid x) + \sum_{x''\neq x} q(x''\mid x)\big(1-\alpha(x''\mid x)\big).</span></p>
+<p>The second line is the “stay-put” probability, the reason rejected proposals must be recorded as repeats.</p>
+<p><strong>Detailed balance.</strong> We need <span class="math inline">r(x'\mid x)\,p(x) = r(x\mid x')\,p(x')</span> for all <span class="math inline">x,x'</span>. If <span class="math inline">x'=x</span> the two sides are identical, so take <span class="math inline">x'\neq x</span>. Moving <span class="math inline">p(x)</span> inside the minimum,</p>
+<p><span class="math display">r(x'\mid x)\,p(x) = p(x)\,q(x'\mid x)\,\min\Big\{1,\ \frac{p(x')q(x\mid x')}{p(x)q(x'\mid x)}\Big\}</span> <span class="math display">= \min\big\{p(x)\,q(x'\mid x),\ p(x')\,q(x\mid x')\big\}.</span></p>
+<p>Doing the same with the roles of <span class="math inline">x</span> and <span class="math inline">x'</span> swapped,</p>
+<p><span class="math display">r(x\mid x')\,p(x') = p(x')\,q(x\mid x')\,\min\Big\{1,\ \frac{p(x)q(x'\mid x)}{p(x')q(x\mid x')}\Big\}</span> <span class="math display">= \min\big\{p(x')\,q(x\mid x'),\ p(x)\,q(x'\mid x)\big\}.</span></p>
+<p>The two minima contain the same two numbers, so they are equal. The MH chain satisfies detailed balance with respect to <span class="math inline">p</span>, so <span class="math inline">p</span> is a stationary distribution of the chain. The acceptance rule is shaped exactly so that the flow from <span class="math inline">x</span> to <span class="math inline">x'</span>, <span class="math inline">\min\{p(x)q(x'\mid x),\,p(x')q(x\mid x')\}</span>, is symmetric in <span class="math inline">x</span> and <span class="math inline">x'</span>.</p>
+<p>As <a href="#sec-detailed" class="quarto-xref"><span>Detailed balance</span></a> warned, detailed balance gives stationarity, not convergence. Whether the chain actually reaches <span class="math inline">p</span> from its starting point, and how fast, depends on the proposal; the step-size experiments above and the diagnostics of <a href="#sec-diagnostics" class="quarto-xref"><span>MCMC diagnostics</span></a> are the practical answer.</p>
+</section>
+<section id="sec-gibbs" class="level2">
+<h2 class="anchored" data-anchor-id="sec-gibbs">Gibbs sampling</h2>
+<p>Metropolis-Hastings needs a proposal. If the target is a distribution over a vector, there is a natural proposal that never needs to be rejected: resample one coordinate at a time from its exact conditional distribution.</p>
+<p>Divide the state into <span class="math inline">d</span> components, <span class="math inline">x=(x_1,\dots,x_d)</span>. Here the subscript <span class="math inline">j</span> indexes a <strong>coordinate</strong> of the state, and the superscript <span class="math inline">(t)</span> the iteration.</p>
+<div class="algorithm">
+<p><strong><a href="https://en.wikipedia.org/wiki/Gibbs_sampling">Gibbs sampling</a></strong></p>
+<p>Start with any <span class="math inline">x^{(0)}=(x^{(0)}_1,\dots,x^{(0)}_d)</span>. In iteration <span class="math inline">t</span>:</p>
+<p>For <span class="math inline">j=1,\dots,d</span>, sample <span class="math display">x^{(t)}_j \sim p\big(x_j\mid x^{(t-1)}_{-j}\big),</span> where <span class="math inline">x^{(t-1)}_{-j}</span> means all components except <span class="math inline">x_j</span>, <strong>at their current values</strong>: <span class="math display">x^{(t-1)}_{-j} = \big(x^{(t)}_1,\dots,x^{(t)}_{j-1},\ x^{(t-1)}_{j+1},\dots,x^{(t-1)}_d\big).</span></p>
+</div>
+<p>The notation needs a careful read. Despite the superscript <span class="math inline">(t-1)</span> on <span class="math inline">x_{-j}</span>, the components before <span class="math inline">j</span> have already been updated in this iteration and are used at their new values <span class="math inline">x^{(t)}</span>; only the components after <span class="math inline">j</span> still hold last iteration’s values. Each coordinate is drawn conditioned on the most recent value of every other coordinate.</p>
+<div class="definition-block">
+<p><strong>Definition.</strong> The <strong>full conditional</strong> of coordinate <span class="math inline">x_j</span> is <span class="math inline">p(x_j\mid x_{-j})</span>, its distribution given all other coordinates.</p>
+</div>
+<p>There is <strong>no accept/reject step</strong>: every draw is accepted. Gibbs sampling is useful exactly when the joint <span class="math inline">p(x)</span> is hard to sample but every full conditional is easy. The lecture’s example of this is the Ising model (<a href="week03.html#sec-ising" class="quarto-xref"><span>The Ising model</span></a> in Week 3). In an MRF, the full conditional of one node depends only on its neighbours, so for a <span class="math inline">\pm1</span> spin it is a single coin flip whose probability is computed from a few neighbouring values. The partition function <span class="math inline">Z</span> never appears.</p>
+<p><em>A note from the reading (MLPP 24.3.2):</em> Gibbs sampling is a special case of Metropolis-Hastings. Updating coordinate <span class="math inline">j</span> is an MH step with proposal <span class="math inline">q(x'\mid x)=p(x'_j\mid x_{-j})</span> that leaves the other coordinates unchanged. Plugging this into the MH acceptance ratio, every factor cancels and the ratio is exactly 1, which is why every Gibbs draw is accepted. In particular, each Gibbs update satisfies detailed balance with respect to <span class="math inline">p</span> by <a href="#sec-mh-proof" class="quarto-xref"><span>Why Metropolis-Hastings works</span></a>.</p>
+</section>
+<section id="sec-gauss-cond" class="level2">
+<h2 class="anchored" data-anchor-id="sec-gauss-cond">The conditional distribution of a bivariate Gaussian</h2>
+<p><em>Inserted prerequisite.</em> The lecture’s Gibbs example relies on the conditional distributions of a two-dimensional Gaussian, which the slides describe as seen in a previous lecture but which have not appeared in these notes. Here is the case the example needs.</p>
+<p>Let <span class="math inline">X=(X_1,X_2)^\top</span> follow a <strong><a href="https://en.wikipedia.org/wiki/Multivariate_normal_distribution">bivariate Gaussian</a></strong> with mean <span class="math inline">\mu=(\mu_1,\mu_2)^\top</span> and covariance</p>
+<p><span class="math display">\Sigma = \begin{pmatrix} 1 &amp; \rho\\ \rho &amp; 1\end{pmatrix},</span></p>
+<p>so each coordinate has variance 1 and the two have correlation <span class="math inline">\rho\in(-1,1)</span>. Then</p>
+<div class="boxed-eq">
+<p><span class="math display">X_1\mid X_2=x_2 \ \sim\ \mathcal N\big(\mu_1+\rho(x_2-\mu_2),\ 1-\rho^2\big),</span> <span class="math display">X_2\mid X_1=x_1 \ \sim\ \mathcal N\big(\mu_2+\rho(x_1-\mu_1),\ 1-\rho^2\big).</span></p>
+</div>
+<p>Knowing <span class="math inline">x_2</span> shifts the mean of <span class="math inline">X_1</span> by <span class="math inline">\rho</span> times how far <span class="math inline">x_2</span> is from its own mean, and shrinks its variance from 1 to <span class="math inline">1-\rho^2</span>. The stronger the correlation, the more <span class="math inline">x_2</span> pins down <span class="math inline">x_1</span>.</p>
+<p><strong>Where this comes from.</strong> Take <span class="math inline">\mu=0</span> for brevity (a nonzero mean just shifts both coordinates). The precision matrix is <span class="math inline">\Sigma^{-1}=\frac{1}{1-\rho^2}\begin{pmatrix}1&amp;-\rho\\-\rho&amp;1\end{pmatrix}</span> (Week 3 called it <span class="math inline">K</span>, <a href="week03.html#sec-ggm" class="quarto-xref"><span>Gaussian graphical models</span></a> in Week 3), so the joint density is</p>
+<p><span class="math display">p(x_1,x_2)\propto\exp\Big\{-\frac{x_1^2-2\rho x_1x_2+x_2^2}{2(1-\rho^2)}\Big\}.</span></p>
+<p>As a function of <span class="math inline">x_1</span> with <span class="math inline">x_2</span> fixed, complete the square: <span class="math inline">x_1^2-2\rho x_1x_2 = (x_1-\rho x_2)^2-\rho^2x_2^2</span>. The second term does not involve <span class="math inline">x_1</span>, so</p>
+<p><span class="math display">p(x_1\mid x_2)\propto\exp\Big\{-\frac{(x_1-\rho x_2)^2}{2(1-\rho^2)}\Big\},</span></p>
+<p>which is a Gaussian density in <span class="math inline">x_1</span> with mean <span class="math inline">\rho x_2</span> and variance <span class="math inline">1-\rho^2</span>. By symmetry the same holds with the roles of <span class="math inline">x_1</span> and <span class="math inline">x_2</span> swapped.</p>
+</section>
+<section id="sec-gibbs-gauss" class="level2">
+<h2 class="anchored" data-anchor-id="sec-gibbs-gauss">Example: Gibbs sampling a bivariate Gaussian</h2>
+<p>The lecture applies Gibbs sampling to a problem where direct sampling would be easy, so we can watch how it behaves: the bivariate Gaussian of <a href="#sec-gauss-cond" class="quarto-xref"><span>The conditional distribution of a bivariate Gaussian</span></a>. Using its two full conditionals, start at <span class="math inline">X^{(0)}=(0,0)</span> and for <span class="math inline">t\ge1</span> draw</p>
+<p><span class="math display">X^{(t)}_1\sim\mathcal N\big(\mu_1+\rho(x^{(t-1)}_2-\mu_2),\ 1-\rho^2\big),</span> <span class="math display">X^{(t)}_2\sim\mathcal N\big(\mu_2+\rho(x^{(t)}_1-\mu_1),\ 1-\rho^2\big).</span></p>
+<p>The second line conditions on the <span class="math inline">x_1</span> value just drawn in the same iteration, as the Gibbs algorithm prescribes.</p>
+<div style="overflow-x:auto; margin:1.5rem 0;">
+<svg viewbox="0 0 420 360" width="100%" style="max-width:420px;display:block;margin:auto;font-family:Helvetica,'Helvetica Neue',Arial,sans-serif;" role="img" aria-label="Elliptical contours of a correlated Gaussian tilted along the diagonal. A path of horizontal and vertical segments starts in the upper-left corner and zig-zags toward the centre.">
+  <defs>
+    <marker id="arrW5c" markerwidth="7" markerheight="7" refx="6" refy="3.5" orient="auto">
+      <path d="M0,0 L0,7 L7,3.5 z" fill="#5795C7"></path>
+    </marker>
+  </defs>
+  <text x="210" y="30" text-anchor="middle" font-size="24" font-weight="600" fill="#333">Gibbs moves one axis at a time</text>
+  <line x1="40" y1="200" x2="380" y2="200" stroke="#888" stroke-width="1"></line>
+  <line x1="210" y1="56" x2="210" y2="344" stroke="#888" stroke-width="1"></line>
+  <text x="384" y="205" font-size="15" fill="#555">x1</text>
+  <text x="216" y="66" font-size="15" fill="#555">x2</text>
+  <ellipse cx="210" cy="200" rx="150" ry="50" transform="rotate(-45 210 200)" fill="none" stroke="#C75794" stroke-width="1.2" opacity="0.5"></ellipse>
+  <ellipse cx="210" cy="200" rx="100" ry="33" transform="rotate(-45 210 200)" fill="none" stroke="#C75794" stroke-width="1.2" opacity="0.75"></ellipse>
+  <ellipse cx="210" cy="200" rx="50" ry="17" transform="rotate(-45 210 200)" fill="#F2C6DE" stroke="#C75794" stroke-width="1.2"></ellipse>
+  <polyline points="110,100 278,100 278,152 254,152 254,180 218,180 218,216 186,216" fill="none" stroke="#5795C7" stroke-width="2" marker-end="url(#arrW5c)"></polyline>
+  <circle cx="278" cy="100" r="3.5" fill="#5795C7"></circle>
+  <circle cx="278" cy="152" r="3.5" fill="#5795C7"></circle>
+  <circle cx="254" cy="152" r="3.5" fill="#5795C7"></circle>
+  <circle cx="254" cy="180" r="3.5" fill="#5795C7"></circle>
+  <circle cx="218" cy="180" r="3.5" fill="#5795C7"></circle>
+  <circle cx="218" cy="216" r="3.5" fill="#5795C7"></circle>
+  <circle cx="110" cy="100" r="6" fill="#fbc02d" stroke="#555" stroke-width="1"></circle>
+  <text x="104" y="88" text-anchor="middle" font-size="14" fill="#333">start</text>
+</svg>
+</div>
+<p><strong>Figure 4.</strong> Gibbs sampling a Gaussian with <span class="math inline">\rho=0.8</span> (contours tilted along the diagonal), started far out at <span class="math inline">(-2.5,\ 2.5)</span>. Each horizontal segment resamples <span class="math inline">x_1</span> with <span class="math inline">x_2</span> held fixed, each vertical segment resamples <span class="math inline">x_2</span> with <span class="math inline">x_1</span> held fixed. The specific draws are illustrative.</p>
+<p>The lecture shows a figure from <em>Bayesian Data Analysis</em> (Gelman et al.) with <span class="math inline">\rho=0.8</span> and four chains started at widely spread (<strong>overdispersed</strong>) points. After the first 10 iterations, the axis-parallel zig-zag paths are visible. After 500 iterations, the chains overlap and fill the elliptical region. Keeping the second half of each chain gives a cloud of draws shaped like the target. Starting the chains far apart is deliberate: it makes it visible whether they all reach the same distribution, an idea <a href="#sec-rhat" class="quarto-xref"><span>The \hat R statistic</span></a> turns into a statistic.</p>
+<div class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+Note
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p><strong>Worked example: the first Gibbs steps.</strong> Take <span class="math inline">\mu=(0,0)</span> and <span class="math inline">\rho=0.8</span>, so each full conditional has variance <span class="math inline">1-0.8^2=0.36</span> (standard deviation <span class="math inline">0.6</span>), and start, as in Figure 4, at <span class="math inline">x^{(0)}=(-2.5,\ 2.5)</span>.</p>
+<ul>
+<li>Update <span class="math inline">x_1</span> given <span class="math inline">x_2=2.5</span>: draw from <span class="math inline">\mathcal N(0.8\times2.5,\ 0.36)=\mathcal N(2.0,\ 0.36)</span>. Suppose the draw is <span class="math inline">1.7</span>.</li>
+<li>Update <span class="math inline">x_2</span> given the new <span class="math inline">x_1=1.7</span>: draw from <span class="math inline">\mathcal N(0.8\times1.7,\ 0.36)=\mathcal N(1.36,\ 0.36)</span>. Suppose the draw is <span class="math inline">1.2</span>.</li>
+</ul>
+<p>After one full iteration, <span class="math inline">x^{(1)}=(1.7,\ 1.2)</span>. The starting value <span class="math inline">x^{(0)}_1=-2.5</span> was never used: in a two-coordinate Gibbs sampler, only <span class="math inline">x_2^{(0)}</span> matters for the first update. Each conditional mean pulls the state toward the line <span class="math inline">x_1=x_2</span>, where this target’s mass lies, and the chain then moves along that line in steps of size roughly <span class="math inline">0.6</span>.</p>
+</div>
+</div>
+<p><strong>When Gibbs is slow.</strong> Each move is parallel to a coordinate axis, with conditional standard deviation <span class="math inline">\sqrt{1-\rho^2}</span>. The target, though, stretches along the diagonal with standard deviation 1 in each coordinate. With <span class="math inline">\rho=0.8</span> the steps are <span class="math inline">0.6</span>, which is fine. With <span class="math inline">\rho=0.99</span> they shrink to about <span class="math inline">0.14</span>, and the chain needs many small zig-zags to travel along the ridge. Strongly correlated coordinates are the typical failure case of Gibbs sampling, and they motivate the next method.</p>
+</section>
+<section id="sec-hmc" class="level2">
+<h2 class="anchored" data-anchor-id="sec-hmc">Hamiltonian Monte Carlo</h2>
+<p>A random-walk proposal picks a direction blindly. On a long, narrow ridge like the <span class="math inline">\rho=0.9</span> Gaussian of the tutorial, most random directions leave the ridge, so the step size must be small, and small steps crawl along it. Gibbs sampling, restricted to axis directions, has the same problem. Can we use the shape of <span class="math inline">\tilde p</span> to propose large moves that stay in high-probability regions?</p>
+<p><strong><a href="https://en.wikipedia.org/wiki/Hamiltonian_Monte_Carlo">Hamiltonian Monte Carlo</a> (HMC)</strong> is essentially a Metropolis-Hastings algorithm with a specific proposal mechanism inspired by physics.</p>
+<p><strong>Position and energy.</strong> Call the state <span class="math inline">x</span> the <strong>position</strong>, and define its <strong>potential energy</strong></p>
+<div class="boxed-eq">
+<p><span class="math display">E(x) = -\log\tilde p(x), \qquad\text{so that}\qquad p(x)\propto e^{-E(x)}.</span></p>
+</div>
+<p>Low energy means high probability. Here <span class="math inline">E(x)</span> is an energy function, not an expectation (which is always written <span class="math inline">\mathbb{E}</span>). For a posterior, <span class="math inline">E</span> is minus the log-likelihood minus the log-prior, the kind of loss function minimized in maximum likelihood or MAP estimation. The tutorial’s <span class="math inline">\rho=0.9</span> Gaussian has <span class="math inline">E(x)=\tfrac12x^\top\Sigma^{-1}x</span>, a quadratic bowl stretched along the diagonal.</p>
+<p><strong>Momentum and the Hamiltonian.</strong> Next, introduce an auxiliary variable <span class="math inline">v</span>, of the same dimension as <span class="math inline">x</span>, called the <strong>momentum</strong>. It carries the <strong>kinetic energy</strong></p>
+<p><span class="math display">K(v) = \tfrac12\|v\|^2 = \tfrac12v^\top v.</span></p>
+<p>This momentum has nothing to do with the damping “momentum” of loopy BP in Week 4 (<a href="week04.html#sec-loopy" class="quarto-xref"><span>Loopy belief propagation</span></a> in Week 4); it is a physical velocity-like variable.</p>
+<div class="definition-block">
+<p><strong>Definition.</strong> The <strong>Hamiltonian</strong>, or total energy, is <span class="math display">H(x,v) = E(x) + K(v).</span></p>
+</div>
+<p>The physical picture in the lecture: <span class="math inline">E</span> is a landscape, and <span class="math inline">(x,v)</span> describes a frictionless ball rolling on it. The ball speeds up going downhill, as potential energy turns into kinetic energy, and slows going uphill. Two properties of this motion matter.</p>
+<ul>
+<li><strong>Energy is preserved.</strong> If the ball moves from <span class="math inline">(x,v)</span> to <span class="math inline">(x',v')</span>, then <span class="math inline">H(x,v)=H(x',v')</span>.</li>
+<li><strong>The motion is reversible.</strong> Flip the momentum at the end and the ball retraces its path: starting from <span class="math inline">(x',-v')</span> it returns to <span class="math inline">(x,-v)</span>.</li>
+</ul>
+<p><strong>The joint distribution.</strong> Define a distribution over position and momentum together:</p>
+<p><span class="math display">p(x,v) \propto e^{-E(x)}\,e^{-K(v)} = e^{-E(x)-K(v)} = e^{-H(x,v)}.</span></p>
+<p>It factorizes, so <span class="math inline">x</span> and <span class="math inline">v</span> are <strong>independent</strong>. The <span class="math inline">x</span>-part is <span class="math inline">e^{-E(x)}=\tilde p(x)</span>, our target. The <span class="math inline">v</span>-part is <span class="math inline">e^{-\frac12\|v\|^2}</span>, the standard Gaussian <span class="math inline">\mathcal N(0,I)</span>. So if we can sample pairs <span class="math inline">(x,v)</span> from this joint, the <span class="math inline">x</span>’s are samples from <span class="math inline">p</span>, and we simply discard the <span class="math inline">v</span>’s.</p>
+<p><strong>Hamiltonian dynamics.</strong> The motion of the ball is governed by <strong><a href="https://en.wikipedia.org/wiki/Hamiltonian_mechanics">Hamilton’s equations</a></strong>:</p>
+<div class="boxed-eq">
+<p><span class="math display">\frac{dx}{dt} = \frac{\partial H}{\partial v} = \frac{\partial K}{\partial v} = v,</span> <span class="math display">\frac{dv}{dt} = -\frac{\partial H}{\partial x} = -\frac{\partial E}{\partial x}.</span></p>
+</div>
+<p>Here <span class="math inline">t</span> is a continuous “physical” time inside one HMC proposal, not the iteration counter of the chain. Position changes in the direction of the momentum, and momentum changes in the direction of steepest descent of the energy, the negative <strong><a href="https://en.wikipedia.org/wiki/Gradient">gradient</a></strong> <span class="math inline">-\nabla E(x)=\nabla\log\tilde p(x)</span>. That is how the shape of <span class="math inline">\tilde p</span> steers the proposal.</p>
+<p>The lecture says one can show these dynamics conserve energy. The check is one line with the chain rule:</p>
+<p><span class="math display">\frac{dH}{dt} = \nabla E(x)^\top\frac{dx}{dt} + v^\top\frac{dv}{dt} = \nabla E(x)^\top v + v^\top\big(-\nabla E(x)\big) = 0.</span></p>
+<p><strong>The MCMC procedure, in outline.</strong> One iteration does three things.</p>
+<ol type="1">
+<li>Sample a fresh momentum from the standard Gaussian. This is an exact draw from the <span class="math inline">v</span>-part of the joint.</li>
+<li>Simulate Hamiltonian dynamics from <span class="math inline">(x,v)</span> for a while, then flip the sign of the momentum. Flipping makes the proposal time-reversible: applying the same procedure to the end point leads back to the start.</li>
+<li>Accept or reject with the MH rule. With exact dynamics, energy is constant, so <span class="math inline">p(x,v)=p(x',v')=p(x',-v')</span> (flipping <span class="math inline">v'</span> does not change <span class="math inline">K</span>), and the acceptance probability would be 1.</li>
+</ol>
+<p>In practice the dynamics can only be simulated approximately, which is where the next section comes in.</p>
+</section>
+<section id="sec-leapfrog" class="level2">
+<h2 class="anchored" data-anchor-id="sec-leapfrog">The leapfrog integrator and the HMC algorithm</h2>
+<p>Hamilton’s equations rarely have a closed-form solution, so we approximate them in small time steps of size <span class="math inline">\epsilon</span>. The simplest scheme, <strong><a href="https://en.wikipedia.org/wiki/Euler_method">Euler’s method</a></strong>, updates both variables using their derivatives at the start of the step, <span class="math inline">x(t+\epsilon)\approx x(t)+\epsilon\,\frac{dx}{dt}(t)</span>. The lecture uses a standard alternative that is slightly more accurate.</p>
+<div class="definition-block">
+<p><strong>Definition.</strong> One step of the <strong><a href="https://en.wikipedia.org/wiki/Leapfrog_integration">leapfrog integrator</a></strong> with step size <span class="math inline">\epsilon</span> is a half step in momentum, a full step in position, and another half step in momentum: <span class="math display">v(t+\tfrac\epsilon2) = v(t) - \tfrac\epsilon2\,\nabla E\big(x(t)\big),</span> <span class="math display">x(t+\epsilon) = x(t) + \epsilon\,v(t+\tfrac\epsilon2),</span> <span class="math display">v(t+\epsilon) = v(t+\tfrac\epsilon2) - \tfrac\epsilon2\,\nabla E\big(x(t+\epsilon)\big).</span></p>
+</div>
+<p>The position update uses <span class="math inline">\partial K/\partial v=v</span>, evaluated at the half-step momentum; the momentum updates use <span class="math inline">\partial E/\partial x=\nabla E</span>. The lecture says there is no need to memorize these formulas. Two properties matter: HMC runs a fixed number <span class="math inline">L</span> of leapfrog steps per proposal, and the resulting map from <span class="math inline">(x,v)</span> to <span class="math inline">(x',v')</span> is still <strong>deterministic and reversible</strong>, like the exact dynamics. Unlike the exact dynamics, it does not conserve <span class="math inline">H</span> exactly; the small change in <span class="math inline">H</span> is the discretization error.</p>
+<p>Since <span class="math inline">-\nabla E=\nabla\log\tilde p</span>, the momentum updates can equally be written <span class="math inline">v\leftarrow v+\tfrac\epsilon2\nabla\log\tilde p(x)</span>. Code that works with the gradient of a log density, rather than of an energy, implements exactly the same step.</p>
+<div class="algorithm">
+<p><strong>Hamiltonian Monte Carlo</strong></p>
+<p>Run until the samples are “good enough” (see <a href="#sec-diagnostics" class="quarto-xref"><span>MCMC diagnostics</span></a>). In each iteration, with current position <span class="math inline">x^{(t-1)}</span>:</p>
+<ol type="1">
+<li>Sample a fresh momentum <span class="math inline">v^{(t)}\sim\mathcal N(0,I)</span>.</li>
+<li>Starting at <span class="math inline">(x,v)=(x^{(t-1)},v^{(t)})</span>, run the leapfrog integrator for <span class="math inline">L</span> steps, reaching <span class="math inline">(x',v')</span>.</li>
+<li>Propose <span class="math inline">(x',-v')</span> and accept it with probability <span class="math display">\min\Bigg\{1,\ \frac{\exp\big(-H(x',v')\big)}{\exp\big(-H(x^{(t-1)},v^{(t)})\big)}\Bigg\} = \min\Big\{1,\ \exp\big(H(x^{(t-1)},v^{(t)})-H(x',v')\big)\Big\}.</span></li>
+<li>If accepted, <span class="math inline">x^{(t)}=x'</span>; otherwise <span class="math inline">x^{(t)}=x^{(t-1)}</span>. Discard the momentum.</li>
+</ol>
+</div>
+<p>The slide writes the old momentum in the acceptance ratio as <span class="math inline">v^{(t-1)}</span>. The momentum that belongs there is the one the trajectory actually started from, the fresh draw <span class="math inline">v^{(t)}</span> of step 1, and that is what the tutorial’s code uses.</p>
+<p><strong>Why this acceptance rule.</strong> The proposal is deterministic given <span class="math inline">(x,v)</span> and, thanks to the momentum flip, reversible: proposing from <span class="math inline">(x',-v')</span> leads back to <span class="math inline">(x,v)</span>. The lecture notes that this makes HMC a Metropolis-Hastings algorithm with a symmetric proposal, <span class="math inline">q(x'\mid x)=q(x\mid x')</span>, so only the target ratio <span class="math inline">p(x',-v')/p(x,v)=e^{-H(x',v')}/e^{-H(x,v)}</span> remains. If leapfrog conserved <span class="math inline">H</span> exactly, the ratio would be 1. The accept step corrects for its small errors. Moves that end at lower total energy are always accepted (the lecture: low energy points are favoured), and moves that gain energy are accepted with probability <span class="math inline">e^{-\Delta H}</span>.</p>
+<div class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+Note
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p><strong>Worked example: one HMC acceptance.</strong> The tutorial runs one trajectory on its <span class="math inline">\rho=0.9</span> Gaussian with <span class="math inline">\epsilon=0.2</span> and <span class="math inline">L=25</span>, starting from a typical point. Along the trajectory, potential and kinetic energy trade off as the ball rolls across the narrow direction of the ridge, while the total stays nearly constant: <span class="math inline">H=4.12</span> at the start and <span class="math inline">H=4.17</span> at the end. The acceptance probability is <span class="math display">\min\{1,\ e^{4.12-4.17}\} = e^{-0.05} \approx 0.95.</span> The end point is far from the start along the ridge, yet it is accepted with high probability, which is the combination a random walk cannot achieve.</p>
+</div>
+</div>
+<div style="overflow-x:auto; margin:1.5rem 0;">
+<svg viewbox="0 0 560 300" width="100%" style="max-width:560px;display:block;margin:auto;font-family:Helvetica,'Helvetica Neue',Arial,sans-serif;" role="img" aria-label="Two copies of a narrow diagonal ridge. On the left, a random walk takes many tiny steps near the lower-left end. On the right, one HMC trajectory curves across the ridge and travels to the upper-right end.">
+  <defs>
+    <marker id="arrW5d" markerwidth="7" markerheight="7" refx="6" refy="3.5" orient="auto">
+      <path d="M0,0 L0,7 L7,3.5 z" fill="#5795C7"></path>
+    </marker>
+  </defs>
+  <text x="280" y="30" text-anchor="middle" font-size="24" font-weight="600" fill="#333">Random walk versus HMC</text>
+  <ellipse cx="140" cy="170" rx="120" ry="25" transform="rotate(-45 140 170)" fill="#F2C6DE" stroke="#C75794" stroke-width="1.2" opacity="0.8"></ellipse>
+  <polyline points="76,234 84,226 80,220 90,214 96,218 100,206 108,204 104,196 112,192" fill="none" stroke="#5795C7" stroke-width="1.8"></polyline>
+  <circle cx="112" cy="192" r="3" fill="#5795C7"></circle>
+  <circle cx="76" cy="234" r="6" fill="#fbc02d" stroke="#555" stroke-width="1"></circle>
+  <ellipse cx="420" cy="170" rx="120" ry="25" transform="rotate(-45 420 170)" fill="#F2C6DE" stroke="#C75794" stroke-width="1.2" opacity="0.8"></ellipse>
+  <path d="M356,234 C 400,232 378,196 416,180 C 456,164 432,134 470,122" fill="none" stroke="#5795C7" stroke-width="1.8" marker-end="url(#arrW5d)"></path>
+  <circle cx="356" cy="234" r="6" fill="#fbc02d" stroke="#555" stroke-width="1"></circle>
+  <circle cx="474" cy="118" r="5" fill="#2e7d32"></circle>
+  <text x="140" y="282" text-anchor="middle" font-size="15" fill="#333">random-walk MH: small steps</text>
+  <text x="420" y="282" text-anchor="middle" font-size="15" fill="#333">HMC: one long trajectory</text>
+</svg>
+</div>
+<p><strong>Figure 5.</strong> After the tutorial’s comparison on a <span class="math inline">\rho=0.9</span> Gaussian. Left: a random walk from the gold start point makes small, nearly cancelling moves. Right: one leapfrog trajectory from the same start oscillates across the narrow direction while travelling along the ridge, and its end point (green) is the proposal.</p>
+<p>The tutorial runs both samplers from the same corner for 300 iterations. Random-walk MH (step size 0.5) accepts about half its proposals, but each accepted move is small, so after 300 iterations it has explored only part of the ridge. HMC (<span class="math inline">\epsilon=0.2</span>, <span class="math inline">L=12</span>) accepts nearly every proposal, and each proposal lands far from the previous state, so its trace looks like noise around the centre: nearly independent samples.</p>
+<p><strong>What HMC costs, and its two knobs.</strong></p>
+<ul>
+<li><strong>Gradients.</strong> Each iteration evaluates <span class="math inline">\nabla E</span> once per leapfrog step, so <span class="math inline">L</span> gradient evaluations per sample, and the gradient must be available at all. The tutorial notes that in practice it comes from automatic differentiation of the log-posterior.</li>
+<li><strong>Step size <span class="math inline">\epsilon</span></strong> controls the integration error. In the tutorial, raising <span class="math inline">\epsilon</span> from <span class="math inline">0.2</span> to <span class="math inline">0.7</span> makes leapfrog unstable and the acceptance rate collapses.</li>
+<li><strong>Trajectory length <span class="math inline">L\epsilon</span></strong> controls how far the ball rolls. Too short, and HMC behaves like a random walk. It also should not match the period of the oscillation across the ridge: with <span class="math inline">L=10</span> in the tutorial, the ball returns to almost where it started across the ridge on every iteration, and that direction stops mixing. The tutorial notes that practical implementations randomize <span class="math inline">L</span> a little for this reason.</li>
+</ul>
+<div class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+Note
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p><strong>Homework-relevant.</strong> Assignment 2 (Q2.3 and Q2.4) samples TrueSkill posteriors with HMC, first for two players and then for a chess data set. The pieces to understand before starting it are in this section and the previous one: the energy is minus the log of the unnormalized posterior (log-prior plus log-likelihood), its gradient drives the leapfrog steps (the assignment’s code writes them with the gradient of the log density, which is <span class="math inline">-\nabla E</span>), and the accept step corrects for leapfrog error. Writing the posterior, choosing what to plot, and interpreting the samples are left to the assignment.</p>
+</div>
+</div>
+</section>
+<section id="sec-diagnostics" class="level2">
+<h2 class="anchored" data-anchor-id="sec-diagnostics">MCMC diagnostics</h2>
+<p>Every MCMC method above comes with the same practical questions, which the lecture lists:</p>
+<ul>
+<li>How do we know we have run the algorithm long enough, that the chain <strong>mixes</strong>, meaning it has converged to and moves freely around the target distribution?</li>
+<li>What if we started very far from where the distribution’s mass is?</li>
+<li>Consecutive samples are correlated (<strong><a href="https://en.wikipedia.org/wiki/Autocorrelation">autocorrelation</a></strong>, the correlation of a sequence with a shifted copy of itself). What is the “effective” number of samples?</li>
+</ul>
+<p>The lecture’s practical advice:</p>
+<ul>
+<li><strong>Run several chains.</strong> Parallel computation is cheap, so run multiple chains in parallel from different (preferably widely spread) starting points, as in the Gibbs figure of <a href="#sec-gibbs-gauss" class="quarto-xref"><span>Example: Gibbs sampling a bivariate Gaussian</span></a>.</li>
+<li><strong>Discard a burn-in.</strong> Throw away the initial stretch of each chain (<a href="#sec-whymcmc" class="quarto-xref"><span>Why MCMC</span></a>).</li>
+<li><strong>Check how well the chains have mixed.</strong> The next two sections give a statistic for this (<span class="math inline">\hat R</span>) and a measure of how much information the correlated samples carry (effective sample size). The lecture says there is no need to memorize their formulas.</li>
+</ul>
+</section>
+<section id="sec-rhat" class="level2">
+<h2 class="anchored" data-anchor-id="sec-rhat">The <span class="math inline">\hat R</span> statistic</h2>
+<p>The idea is to compare chains with each other. If the chains have all reached the target and mix well, each chain on its own should look like the whole collection. If one or more chains have not mixed, for example because they are stuck in different regions, the chains disagree with each other, and the variance of all the chains pooled together is larger than the variance within each one.</p>
+<p>Start with <span class="math inline">m</span> chains, each of length <span class="math inline">n</span> <strong>after</strong> a fixed burn-in, and write <span class="math inline">x_{ij}</span> for draw <span class="math inline">i</span> of chain <span class="math inline">j</span> (for a scalar quantity; with a vector, apply this to each coordinate or test function separately). Define the chain means and the overall mean</p>
+<p><span class="math display">\bar x_{\cdot j} = \frac1n\sum_{i=1}^n x_{ij}, \qquad \bar x_{\cdot\cdot} = \frac1m\sum_{j=1}^m\bar x_{\cdot j} = \frac{1}{mn}\sum_{i=1}^n\sum_{j=1}^m x_{ij}.</span></p>
+<div class="definition-block">
+<p><strong>Definition.</strong> The <strong>between-sequence variance</strong> <span class="math inline">B</span> and the <strong>within-sequence variance</strong> <span class="math inline">W</span> are <span class="math display">B = \frac{n}{m-1}\sum_{j=1}^m\big(\bar x_{\cdot j}-\bar x_{\cdot\cdot}\big)^2, \qquad W = \frac1m\sum_{j=1}^m s_j^2,</span> where <span class="math inline">s_j^2 = \frac{1}{n-1}\sum_{i=1}^n\big(x_{ij}-\bar x_{\cdot j}\big)^2</span> is the sample variance of chain <span class="math inline">j</span>.</p>
+</div>
+<p><span class="math inline">B</span> measures how much the chain means disagree (scaled by <span class="math inline">n</span>); <span class="math inline">W</span> is the average spread inside a chain. Combine them into an estimate of the target’s variance,</p>
+<p><span class="math display">\widehat{\mathrm{var}}^+(x) = \frac{n-1}{n}\,W + \frac1n\,B,</span></p>
+<p>and compare it with <span class="math inline">W</span>:</p>
+<div class="definition-block">
+<p><strong>Definition.</strong> The <strong><span class="math inline">\hat R</span> (“R-hat”) statistic</strong> is <span class="math display">\hat R = \sqrt{\frac{\widehat{\mathrm{var}}^+(x)}{W}}.</span></p>
+</div>
+<p>When the chains agree, <span class="math inline">B</span> is small, <span class="math inline">\widehat{\mathrm{var}}^+\approx W</span>, and <span class="math inline">\hat R</span> is near 1. <strong>If the chains have not mixed well, <span class="math inline">\hat R</span> is larger than 1</strong>, because the disagreement between chains inflates <span class="math inline">\widehat{\mathrm{var}}^+</span> but not <span class="math inline">W</span>.</p>
+<p><strong>Split-<span class="math inline">\hat R</span>.</strong> Two chains could agree with each other while each one is still drifting. To catch this, split every chain into its first and second halves and compute <span class="math inline">\hat R</span> treating the <span class="math inline">2m</span> halves as separate chains. A chain whose first half differs from its second half (non-stationarity within a single chain) then inflates <span class="math inline">\hat R</span> too.</p>
+<div style="overflow-x:auto; margin:1.5rem 0;">
+<svg viewbox="0 0 560 300" width="100%" style="max-width:560px;display:block;margin:auto;font-family:Helvetica,'Helvetica Neue',Arial,sans-serif;" role="img" aria-label="Two trace-plot panels. Left: two chains fluctuate around clearly different levels. Right: two chains fluctuate around the same level and overlap.">
+  <text x="280" y="30" text-anchor="middle" font-size="24" font-weight="600" fill="#333">Two chains, two outcomes</text>
+  <rect x="30" y="56" width="240" height="190" fill="none" stroke="#888" stroke-width="1"></rect>
+  <rect x="300" y="56" width="240" height="190" fill="none" stroke="#888" stroke-width="1"></rect>
+  <polyline points="40,110 52,100 64,118 76,105 88,95 100,112 112,104 124,120 136,108 148,98 160,114 172,106 184,96 196,110 208,118 220,102 232,108 244,98 256,112" fill="none" stroke="#5795C7" stroke-width="1.6"></polyline>
+  <polyline points="40,190 52,200 64,184 76,196 88,206 100,188 112,198 124,182 136,194 148,204 160,186 172,196 184,208 196,192 208,184 220,198 232,190 244,204 256,188" fill="none" stroke="#C78557" stroke-width="1.6"></polyline>
+  <polyline points="310,150 322,120 334,170 346,135 358,185 370,140 382,115 394,165 406,130 418,178 430,145 442,118 454,160 466,190 478,138 490,125 502,170 514,148 526,120" fill="none" stroke="#5795C7" stroke-width="1.6"></polyline>
+  <polyline points="310,170 322,190 334,130 346,160 358,118 370,175 382,150 394,125 406,182 418,140 430,165 442,192 454,128 466,150 478,175 490,160 502,122 514,180 526,145" fill="none" stroke="#C78557" stroke-width="1.6"></polyline>
+  <text x="150" y="272" text-anchor="middle" font-size="15" fill="#333">not mixed: R-hat well above 1</text>
+  <text x="420" y="272" text-anchor="middle" font-size="15" fill="#333">mixed: R-hat near 1</text>
+  <text x="150" y="292" text-anchor="middle" font-size="14" fill="#555">iteration →</text>
+  <text x="420" y="292" text-anchor="middle" font-size="14" fill="#555">iteration →</text>
+</svg>
+</div>
+<p><strong>Figure 6.</strong> Trace plots (sample value against iteration) of two chains. Left: each chain is internally steady, but they sit at different levels, so <span class="math inline">B</span> is large compared with <span class="math inline">W</span>. Right: the chains are indistinguishable.</p>
+<div class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+Note
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p><strong>Worked example: <span class="math inline">\hat R</span> by hand.</strong> Take <span class="math inline">m=2</span> chains of <span class="math inline">n=4</span> draws each. These are toy numbers chosen to make the arithmetic visible, not output from a real sampler.</p>
+<p><em>Not mixed.</em> Chain 1 is <span class="math inline">1,2,3,2</span> and chain 2 is <span class="math inline">5,6,7,6</span>. The chain means are <span class="math inline">2</span> and <span class="math inline">6</span>, the overall mean is <span class="math inline">4</span>, and each chain’s sample variance is <span class="math inline">\frac{1+0+1+0}{3}=\frac23</span>. So <span class="math display">W=\tfrac23, \qquad B=\frac{4}{1}\big[(2-4)^2+(6-4)^2\big]=32,</span> <span class="math display">\widehat{\mathrm{var}}^+ = \tfrac34\cdot\tfrac23+\tfrac14\cdot32 = 0.5+8 = 8.5, \qquad \hat R=\sqrt{8.5/(2/3)}\approx3.57.</span></p>
+<p><em>Mixed.</em> Keep chain 1 and replace chain 2 by <span class="math inline">2,3,3,2</span>, with mean <span class="math inline">2.5</span> and sample variance <span class="math inline">\frac{0.25\times4}{3}=\frac13</span>. Now <span class="math inline">W=\frac12\big(\frac23+\frac13\big)=0.5</span>, the overall mean is <span class="math inline">2.25</span>, and <span class="math display">B=4\big[(0.25)^2+(0.25)^2\big]=0.5, \qquad \widehat{\mathrm{var}}^+ = \tfrac34\cdot0.5+\tfrac14\cdot0.5 = 0.5, \qquad \hat R = 1.</span> The within-chain spreads are similar in both cases; what drives <span class="math inline">\hat R</span> is how far apart the chain means are.</p>
+</div>
+</div>
+</section>
+<section id="sec-ess" class="level2">
+<h2 class="anchored" data-anchor-id="sec-ess">Effective sample size</h2>
+<p>How much is a correlated sample worth? Start from i.i.d. draws. If <span class="math inline">x_1,\dots,x_n</span> are i.i.d. with variance <span class="math inline">\sigma^2</span>, their mean has <span class="math inline">\mathrm{var}(\bar x_n)=\sigma^2/n</span> (<a href="week04.html#sec-simplemc" class="quarto-xref"><span>Simple Monte Carlo</span></a> in Week 4). Without assuming independence, the variance of a sum is the sum of all pairwise covariances, so</p>
+<p><span class="math display">\mathrm{var}(\bar x) = \frac{1}{n^2}\sum_{i=1}^n\sum_{j=1}^n\mathrm{cov}(x_i,x_j) = \frac{\sigma^2}{n^2}\sum_{i=1}^n\sum_{j=1}^n\mathrm{corr}(x_i,x_j),</span></p>
+<p>where the second form assumes every <span class="math inline">x_i</span> has the same variance <span class="math inline">\sigma^2</span>. Compare with the i.i.d. formula <span class="math inline">\sigma^2/n_{\text{eff}}</span>: the correlated sample gives the same accuracy as</p>
+<p><span class="math display">n_{\text{eff}} = \frac{n^2}{\sum_{i=1}^n\sum_{j=1}^n\mathrm{corr}(x_i,x_j)}</span></p>
+<p>independent draws. With independent draws only the <span class="math inline">n</span> diagonal terms <span class="math inline">\mathrm{corr}(x_i,x_i)=1</span> survive and <span class="math inline">n_{\text{eff}}=n</span>; positive correlations make the denominator larger and <span class="math inline">n_{\text{eff}}</span> smaller.</p>
+<p>For a stationary chain, the correlation between two draws depends only on how far apart they are. Let <span class="math inline">\rho_t=\mathrm{corr}(x_0,x_t)</span> be the <strong>autocorrelation at lag <span class="math inline">t</span></strong>. (This <span class="math inline">\rho_t</span> is unrelated to the correlation <span class="math inline">\rho</span> of the bivariate Gaussian above.) For long chains, the double sum is then about <span class="math inline">n</span> times <span class="math inline">1+2\sum_{t\ge1}\rho_t</span>: the 1 from each draw with itself, and the 2 because each lag appears on both sides of the diagonal. For <span class="math inline">m</span> chains of length <span class="math inline">n</span> this leads to the lecture’s definition.</p>
+<div class="definition-block">
+<p><strong>Definition.</strong> The <strong>effective sample size</strong> of <span class="math inline">m</span> chains of length <span class="math inline">n</span> is <span class="math display">n_{\text{eff}} = \frac{mn}{1+2\sum_{t=1}^\infty\rho_t}.</span> In practice the <span class="math inline">\rho_t</span> are unknown and are themselves estimated from the chains, giving an estimate <span class="math inline">\hat n_{\text{eff}}</span>.</p>
+</div>
+<div class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+Note
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p><strong>Worked example: what a correlation of 0.9 costs.</strong> Suppose, for illustration, that the autocorrelation decays geometrically, <span class="math inline">\rho_t=\rho^t</span> (an assumption, not something the lecture claims about any particular sampler). Then <span class="math inline">\sum_{t\ge1}\rho^t=\frac{\rho}{1-\rho}</span> and <span class="math display">1+\frac{2\rho}{1-\rho} = \frac{1+\rho}{1-\rho}.</span> With lag-one correlation <span class="math inline">\rho=0.9</span>, as for the tutorial’s tiny-step chain (<span class="math inline">\sigma=0.03</span>), this factor is <span class="math inline">1.9/0.1=19</span>. So 5000 such samples would be worth only about <span class="math inline">5000/19\approx260</span> independent ones. This is the number behind the tutorial’s warning that a high acceptance rate with tiny steps is not efficient.</p>
+</div>
+</div>
+</section>
+<section id="sec-rule" class="level2">
+<h2 class="anchored" data-anchor-id="sec-rule">Diagnostics rule of thumb</h2>
+<p>The lecture’s practical rule: once <span class="math inline">\hat R</span> is near 1 <strong>and</strong> <span class="math inline">\hat n_{\text{eff}}</span> is more than 10 per chain, we can use all <span class="math inline">mn</span> simulations (excluding the burn-in) and draw inference from them, for example by the Monte Carlo averages of <a href="#sec-whymcmc" class="quarto-xref"><span>Why MCMC</span></a>.</p>
+<p>The lecture is candid about the limits of this rule. Even when the simulations appear to have converged and pass every test, they may still be far from convergence: all chains might, for example, have missed a region of high probability that none of them ever found. When we declare “convergence”, we mean only that all chains <strong>appear</strong> stationary and well mixed.</p>
+</section>
+<section id="sec-summary5" class="level2">
+<h2 class="anchored" data-anchor-id="sec-summary5">Summary</h2>
+<div class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+Note
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p><strong>Key takeaways from Week 5:</strong></p>
+<ul>
+<li><strong>Markov chains.</strong> A first-order chain assumes <span class="math inline">p(x_t\mid x_{1:t-1})=p(x_t\mid x_{t-1})</span>; a stationary (homogeneous) chain uses the same transition matrix <span class="math inline">A_{ij}=p(x_t=j\mid x_{t-1}=i)</span> at every step. Rows of <span class="math inline">A</span> sum to 1, and the <span class="math inline">n</span>-step transition matrix is <span class="math inline">A^n</span> (Chapman-Kolmogorov).</li>
+<li><strong>Language models.</strong> A bigram model is a Markov chain over words; the MLE of each transition probability is a ratio of bigram counts, <span class="math inline">\hat A_{jk}=N_{jk}/\sum_{k'}N_{jk'}</span>, the Multinomial MLE applied row by row.</li>
+<li><strong>Stationary distributions.</strong> <span class="math inline">\pi</span> is stationary if <span class="math inline">\pi=A^\top\pi</span>, an eigenvector of <span class="math inline">A^\top</span> with eigenvalue 1. A regular finite chain has a unique stationary distribution and converges to it from any start. Detailed balance, <span class="math inline">\pi_iA_{ij}=\pi_jA_{ji}</span>, is a simple sufficient condition for <span class="math inline">\pi</span> to be stationary.</li>
+<li><strong>Metropolis-Hastings.</strong> Propose <span class="math inline">x'\sim q(x'\mid x)</span> and accept with probability <span class="math inline">\min\{1,\ \tilde p(x')q(x\mid x')/(\tilde p(x)q(x'\mid x))\}</span>, recording the old state again on rejection. Only ratios of <span class="math inline">\tilde p</span> appear, so <span class="math inline">Z</span> is never needed, and detailed balance makes <span class="math inline">p</span> stationary. The proposal scale trades acceptance rate against step length.</li>
+<li><strong>Gibbs sampling.</strong> Resample each coordinate from its full conditional <span class="math inline">p(x_j\mid x_{-j})</span>, always accepting. It suits models with easy conditionals, such as the Ising model, and slows down when coordinates are strongly correlated.</li>
+<li><strong>Hamiltonian Monte Carlo.</strong> With energy <span class="math inline">E=-\log\tilde p</span>, momentum <span class="math inline">v\sim\mathcal N(0,I)</span>, and Hamiltonian <span class="math inline">H=E+\tfrac12\|v\|^2</span>, simulate the dynamics with <span class="math inline">L</span> leapfrog steps and accept with probability <span class="math inline">\min\{1,e^{H_{\text{start}}-H_{\text{end}}}\}</span>. Gradients let it make long moves that are still usually accepted.</li>
+<li><strong>Diagnostics.</strong> Run several chains from spread-out starts, discard burn-in, and check <span class="math inline">\hat R</span> (near 1 when chains agree) and the effective sample size <span class="math inline">mn/(1+2\sum_t\rho_t)</span>. Passing these checks shows the chains appear mixed, not that they have converged.</li>
+</ul>
+</div>
+</div>
+<p><strong>Next week:</strong> per the lecture’s closing slide, hidden Markov models, which put the Markov chains of this week’s first half underneath observed data (Week 2 previewed them, <a href="week02.html#sec-wilddgm" class="quarto-xref"><span>DGMs in the wild, briefly</span></a> in Week 2), and variational inference, a different approach to the intractable posteriors that MCMC samples.</p>
+</section>
+<section id="quick-self-check" class="level2">
+<h2 class="anchored" data-anchor-id="quick-self-check">Quick self-check</h2>
+<p>If you can explain why detailed balance makes a distribution stationary, why the Metropolis-Hastings acceptance rule satisfies detailed balance without ever needing <span class="math inline">Z</span>, and why a chain that accepts almost every proposal can still be a poor sampler, you have understood the core of Week 5.</p>
+
+
+</section>
+
+</main> <!-- /main -->
+<script id="quarto-html-after-body" type="application/javascript">
+  window.document.addEventListener("DOMContentLoaded", function (event) {
+    const icon = "";
+    const anchorJS = new window.AnchorJS();
+    anchorJS.options = {
+      placement: 'right',
+      icon: icon
+    };
+    anchorJS.add('.anchored');
+    const isCodeAnnotation = (el) => {
+      for (const clz of el.classList) {
+        if (clz.startsWith('code-annotation-')) {                     
+          return true;
+        }
+      }
+      return false;
+    }
+    const onCopySuccess = function(e) {
+      // button target
+      const button = e.trigger;
+      // don't keep focus
+      button.blur();
+      // flash "checked"
+      button.classList.add('code-copy-button-checked');
+      var currentTitle = button.getAttribute("title");
+      button.setAttribute("title", "Copied!");
+      let tooltip;
+      if (window.bootstrap) {
+        button.setAttribute("data-bs-toggle", "tooltip");
+        button.setAttribute("data-bs-placement", "left");
+        button.setAttribute("data-bs-title", "Copied!");
+        tooltip = new bootstrap.Tooltip(button, 
+          { trigger: "manual", 
+            customClass: "code-copy-button-tooltip",
+            offset: [0, -8]});
+        tooltip.show();    
+      }
+      setTimeout(function() {
+        if (tooltip) {
+          tooltip.hide();
+          button.removeAttribute("data-bs-title");
+          button.removeAttribute("data-bs-toggle");
+          button.removeAttribute("data-bs-placement");
+        }
+        button.setAttribute("title", currentTitle);
+        button.classList.remove('code-copy-button-checked');
+      }, 1000);
+      // clear code selection
+      e.clearSelection();
+    }
+    const getTextToCopy = function(trigger) {
+      const outerScaffold = trigger.parentElement.cloneNode(true);
+      const codeEl = outerScaffold.querySelector('code');
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+    }
+    const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
+      text: getTextToCopy
+    });
+    clipboard.on('success', onCopySuccess);
+    if (window.document.getElementById('quarto-embedded-source-code-modal')) {
+      const clipboardModal = new window.ClipboardJS('.code-copy-button[data-in-quarto-modal]', {
+        text: getTextToCopy,
+        container: window.document.getElementById('quarto-embedded-source-code-modal')
+      });
+      clipboardModal.on('success', onCopySuccess);
+    }
+      var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+      var mailtoRegex = new RegExp(/^mailto:/);
+        var filterRegex = new RegExp('/' + window.location.host + '/');
+      var isInternal = (href) => {
+          return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+      }
+      // Inspect non-navigation links and adorn them if external
+     var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+      for (var i=0; i<links.length; i++) {
+        const link = links[i];
+        if (!isInternal(link.href)) {
+          // undo the damage that might have been done by quarto-nav.js in the case of
+          // links that we want to consider external
+          if (link.dataset.originalHref !== undefined) {
+            link.href = link.dataset.originalHref;
+          }
+            // target, if specified
+            link.setAttribute("target", "_blank");
+            if (link.getAttribute("rel") === null) {
+              link.setAttribute("rel", "noopener");
+            }
+        }
+      }
+    function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+      const config = {
+        allowHTML: true,
+        maxWidth: 500,
+        delay: 100,
+        arrow: false,
+        appendTo: function(el) {
+            return el.parentElement;
+        },
+        interactive: true,
+        interactiveBorder: 10,
+        theme: 'quarto',
+        placement: 'bottom-start',
+      };
+      if (contentFn) {
+        config.content = contentFn;
+      }
+      if (onTriggerFn) {
+        config.onTrigger = onTriggerFn;
+      }
+      if (onUntriggerFn) {
+        config.onUntrigger = onUntriggerFn;
+      }
+      window.tippy(el, config); 
+    }
+    const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+    for (var i=0; i<noterefs.length; i++) {
+      const ref = noterefs[i];
+      tippyHover(ref, function() {
+        // use id or data attribute instead here
+        let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+        try { href = new URL(href).hash; } catch {}
+        const id = href.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note) {
+          return note.innerHTML;
+        } else {
+          return "";
+        }
+      });
+    }
+    const xrefs = window.document.querySelectorAll('a.quarto-xref');
+    const processXRef = (id, note) => {
+      // Strip column container classes
+      const stripColumnClz = (el) => {
+        el.classList.remove("page-full", "page-columns");
+        if (el.children) {
+          for (const child of el.children) {
+            stripColumnClz(child);
+          }
+        }
+      }
+      stripColumnClz(note)
+      if (id === null || id.startsWith('sec-')) {
+        // Special case sections, only their first couple elements
+        const container = document.createElement("div");
+        if (note.children && note.children.length > 2) {
+          container.appendChild(note.children[0].cloneNode(true));
+          for (let i = 1; i < note.children.length; i++) {
+            const child = note.children[i];
+            if (child.tagName === "P" && child.innerText === "") {
+              continue;
+            } else {
+              container.appendChild(child.cloneNode(true));
+              break;
+            }
+          }
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(container);
+          }
+          return container.innerHTML
+        } else {
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(note);
+          }
+          return note.innerHTML;
+        }
+      } else {
+        // Remove any anchor links if they are present
+        const anchorLink = note.querySelector('a.anchorjs-link');
+        if (anchorLink) {
+          anchorLink.remove();
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        if (note.classList.contains("callout")) {
+          return note.outerHTML;
+        } else {
+          return note.innerHTML;
+        }
+      }
+    }
+    for (var i=0; i<xrefs.length; i++) {
+      const xref = xrefs[i];
+      tippyHover(xref, undefined, function(instance) {
+        instance.disable();
+        let url = xref.getAttribute('href');
+        let hash = undefined; 
+        if (url.startsWith('#')) {
+          hash = url;
+        } else {
+          try { hash = new URL(url).hash; } catch {}
+        }
+        if (hash) {
+          const id = hash.replace(/^#\/?/, "");
+          const note = window.document.getElementById(id);
+          if (note !== null) {
+            try {
+              const html = processXRef(id, note.cloneNode(true));
+              instance.setContent(html);
+            } finally {
+              instance.enable();
+              instance.show();
+            }
+          } else {
+            // See if we can fetch this
+            fetch(url.split('#')[0])
+            .then(res => res.text())
+            .then(html => {
+              const parser = new DOMParser();
+              const htmlDoc = parser.parseFromString(html, "text/html");
+              const note = htmlDoc.getElementById(id);
+              if (note !== null) {
+                const html = processXRef(id, note);
+                instance.setContent(html);
+              } 
+            }).finally(() => {
+              instance.enable();
+              instance.show();
+            });
+          }
+        } else {
+          // See if we can fetch a full url (with no hash to target)
+          // This is a special case and we should probably do some content thinning / targeting
+          fetch(url)
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.querySelector('main.content');
+            if (note !== null) {
+              // This should only happen for chapter cross references
+              // (since there is no id in the URL)
+              // remove the first header
+              if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+                note.children[0].remove();
+              }
+              const html = processXRef(null, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      }, function(instance) {
+      });
+    }
+        let selectedAnnoteEl;
+        const selectorForAnnotation = ( cell, annotation) => {
+          let cellAttr = 'data-code-cell="' + cell + '"';
+          let lineAttr = 'data-code-annotation="' +  annotation + '"';
+          const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+          return selector;
+        }
+        const selectCodeLines = (annoteEl) => {
+          const doc = window.document;
+          const targetCell = annoteEl.getAttribute("data-target-cell");
+          const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+          const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+          const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+          const lineIds = lines.map((line) => {
+            return targetCell + "-" + line;
+          })
+          let top = null;
+          let height = null;
+          let parent = null;
+          if (lineIds.length > 0) {
+              //compute the position of the single el (top and bottom and make a div)
+              const el = window.document.getElementById(lineIds[0]);
+              top = el.offsetTop;
+              height = el.offsetHeight;
+              parent = el.parentElement.parentElement;
+            if (lineIds.length > 1) {
+              const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+              const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+              height = bottom - top;
+            }
+            if (top !== null && height !== null && parent !== null) {
+              // cook up a div (if necessary) and position it 
+              let div = window.document.getElementById("code-annotation-line-highlight");
+              if (div === null) {
+                div = window.document.createElement("div");
+                div.setAttribute("id", "code-annotation-line-highlight");
+                div.style.position = 'absolute';
+                parent.appendChild(div);
+              }
+              div.style.top = top - 2 + "px";
+              div.style.height = height + 4 + "px";
+              div.style.left = 0;
+              let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+              if (gutterDiv === null) {
+                gutterDiv = window.document.createElement("div");
+                gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+                gutterDiv.style.position = 'absolute';
+                const codeCell = window.document.getElementById(targetCell);
+                const gutter = codeCell.querySelector('.code-annotation-gutter');
+                gutter.appendChild(gutterDiv);
+              }
+              gutterDiv.style.top = top - 2 + "px";
+              gutterDiv.style.height = height + 4 + "px";
+            }
+            selectedAnnoteEl = annoteEl;
+          }
+        };
+        const unselectCodeLines = () => {
+          const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+          elementsIds.forEach((elId) => {
+            const div = window.document.getElementById(elId);
+            if (div) {
+              div.remove();
+            }
+          });
+          selectedAnnoteEl = undefined;
+        };
+          // Handle positioning of the toggle
+      window.addEventListener(
+        "resize",
+        throttle(() => {
+          elRect = undefined;
+          if (selectedAnnoteEl) {
+            selectCodeLines(selectedAnnoteEl);
+          }
+        }, 10)
+      );
+      function throttle(fn, ms) {
+      let throttle = false;
+      let timer;
+        return (...args) => {
+          if(!throttle) { // first call gets through
+              fn.apply(this, args);
+              throttle = true;
+          } else { // all the others get throttled
+              if(timer) clearTimeout(timer); // cancel #2
+              timer = setTimeout(() => {
+                fn.apply(this, args);
+                timer = throttle = false;
+              }, ms);
+          }
+        };
+      }
+        // Attach click handler to the DT
+        const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+        for (const annoteDlNode of annoteDls) {
+          annoteDlNode.addEventListener('click', (event) => {
+            const clickedEl = event.target;
+            if (clickedEl !== selectedAnnoteEl) {
+              unselectCodeLines();
+              const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+              if (activeEl) {
+                activeEl.classList.remove('code-annotation-active');
+              }
+              selectCodeLines(clickedEl);
+              clickedEl.classList.add('code-annotation-active');
+            } else {
+              // Unselect the line
+              unselectCodeLines();
+              clickedEl.classList.remove('code-annotation-active');
+            }
+          });
+        }
+    const findCites = (el) => {
+      const parentEl = el.parentElement;
+      if (parentEl) {
+        const cites = parentEl.dataset.cites;
+        if (cites) {
+          return {
+            el,
+            cites: cites.split(' ')
+          };
+        } else {
+          return findCites(el.parentElement)
+        }
+      } else {
+        return undefined;
+      }
+    };
+    var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+    for (var i=0; i<bibliorefs.length; i++) {
+      const ref = bibliorefs[i];
+      const citeInfo = findCites(ref);
+      if (citeInfo) {
+        tippyHover(citeInfo.el, function() {
+          var popup = window.document.createElement('div');
+          citeInfo.cites.forEach(function(cite) {
+            var citeDiv = window.document.createElement('div');
+            citeDiv.classList.add('hanging-indent');
+            citeDiv.classList.add('csl-entry');
+            var biblioDiv = window.document.getElementById('ref-' + cite);
+            if (biblioDiv) {
+              citeDiv.innerHTML = biblioDiv.innerHTML;
+            }
+            popup.appendChild(citeDiv);
+          });
+          return popup.innerHTML;
+        });
+      }
+    }
+  });
+  </script>
+<nav class="page-navigation">
+  <div class="nav-page nav-page-previous">
+      <a href="../lectures/week04.html" class="pagination-link" aria-label="Week 4: Message Passing and Monte Carlo">
+        <i class="bi bi-arrow-left-short"></i> <span class="nav-page-text"><span class="chapter-title">Week 4: Message Passing and Monte Carlo</span></span>
+      </a>          
+  </div>
+  <div class="nav-page nav-page-next">
+      <a href="../glossary.html" class="pagination-link" aria-label="Glossary">
+        <span class="nav-page-text"><span class="chapter-title">Glossary</span></span> <i class="bi bi-arrow-right-short"></i>
+      </a>
+  </div>
+</nav>
+</div> <!-- /content -->
+
+
+
+
+<script src="../site_libs/quarto-html/zenscroll-min.js"></script>
+</body></html>
