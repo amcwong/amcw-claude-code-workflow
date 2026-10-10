@@ -25,7 +25,7 @@ The user is a complete beginner to experimental high energy physics and accelera
 - **Title:** "Experimental Methods in High Energy Physics Notes"
 - **Expected week count:** 12 (assumed; edit when the syllabus is known)
 - **Chapters:** `lectures/weekNN.qmd` (source of truth). Do not keep a parallel week markdown file.
-- **Published URL:** `https://amcwong.github.io/claude-code-my-workflow/courses/PHY2405/` (after `/deploy-course-notes` + push + GitHub Pages enabled)
+- **Published URL:** `https://amcwong.github.io/amcw-claude-code-workflow/courses/PHY2405/` (after `/deploy-course-notes` + push + GitHub Pages enabled)
 
 ## Design system (book page)
 

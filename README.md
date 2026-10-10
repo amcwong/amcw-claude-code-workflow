@@ -16,7 +16,7 @@ I injected my usual course-note writing loop into this foundation: one chapter p
 
 ## Course notes (primary workflow)
 
-Live books: [CSC2506](https://amcwong.github.io/claude-code-my-workflow/courses/CSC2506/), [CSC2516](https://amcwong.github.io/claude-code-my-workflow/courses/CSC2516/), [CSC2529](https://amcwong.github.io/claude-code-my-workflow/courses/CSC2529/). Command-by-command: [docs/course-notes-workflow.html](docs/course-notes-workflow.html).
+Live books: [CSC2506](https://amcwong.github.io/amcw-claude-code-workflow/courses/CSC2506/), [CSC2516](https://amcwong.github.io/amcw-claude-code-workflow/courses/CSC2516/), [CSC2529](https://amcwong.github.io/amcw-claude-code-workflow/courses/CSC2529/). Command-by-command: [docs/course-notes-workflow.html](docs/course-notes-workflow.html).
 
 ```text
 /course-notes init <slug>              # first course only

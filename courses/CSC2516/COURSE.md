@@ -21,7 +21,7 @@ The user is a complete beginner to deep learning. Assume general math and progra
 - **Title:** "Neural Networks and Deep Learning"
 - **Expected week count:** 12 lecture weeks (fall reading week, Oct 28, has no lecture). Topics by week: 1 regression; 2 MLPs and backprop; 3 under/overfitting, regularization, numerical stability, autodiff; 4 gradient descent and adaptive methods; 5 CNNs, normalization, residual connections; 6 RNNs and seq2seq; 7 attention; 8 Transformers 1; 9 Transformers 2 and LLMs; 10 LoRA, GNNs, MoEs; 11 transposed convolution, UNet, autoencoders, VAEs; 12 engineering, fairness, accountability, transparency.
 - **Chapters:** `lectures/weekNN.qmd` (source of truth). Do not keep a parallel week markdown file.
-- **Published URL:** `https://amcwong.github.io/claude-code-my-workflow/courses/CSC2516/` (after `/deploy-course-notes` + push + GitHub Pages enabled)
+- **Published URL:** `https://amcwong.github.io/amcw-claude-code-workflow/courses/CSC2516/` (after `/deploy-course-notes` + push + GitHub Pages enabled)
 
 ## Design system (book page)
 

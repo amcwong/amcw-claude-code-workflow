@@ -53,7 +53,7 @@ github_pages_repo() {
         echo "$repo"
         return
     fi
-    echo "claude-code-my-workflow"
+    echo "amcw-claude-code-workflow"
 }
 
 public_url() {
