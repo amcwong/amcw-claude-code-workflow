@@ -64,6 +64,51 @@ public_url() {
     echo "https://${user}.github.io/${repo}/courses/${slug}/"
 }
 
+hub_url() {
+    echo "https://$(github_pages_user).github.io/$(github_pages_repo)/"
+}
+
+# Ensure the book sidebar links back to the hub (docs/index.html). Idempotent:
+# skips any _quarto.yml that already mentions the hub URL. Edits the source
+# _quarto.yml in place so the link persists for future renders.
+ensure_hub_link() {
+    local yml="$1"
+    local url
+    url="$(hub_url)"
+    if grep -qF "$url" "$yml"; then
+        return 0
+    fi
+    echo "=== Adding hub link (${url}) to $(basename "$(dirname "$yml")")/_quarto.yml ==="
+    python3 - "$yml" "$url" <<'PY'
+import sys
+path, url = sys.argv[1], sys.argv[2]
+lines = open(path).read().split("\n")
+item = [
+    "      - icon: house-door",
+    f"        href: {url}",
+    '        text: "All course notes"',
+]
+book = next((i for i, l in enumerate(lines) if l.rstrip() == "book:"), None)
+if book is None:
+    sys.exit(f"Error: no top-level 'book:' key in {path}")
+# End of the book block: next line at column 0 that is not blank
+end = next((i for i in range(book + 1, len(lines))
+            if lines[i] and not lines[i][0].isspace()), len(lines))
+sidebar = next((i for i in range(book + 1, end) if lines[i].rstrip() == "  sidebar:"), None)
+if sidebar is None:
+    lines[end:end] = ["  sidebar:", "    tools:"] + item
+else:
+    s_end = next((i for i in range(sidebar + 1, end)
+                  if lines[i].strip() and len(lines[i]) - len(lines[i].lstrip()) <= 2), end)
+    tools = next((i for i in range(sidebar + 1, s_end) if lines[i].rstrip() == "    tools:"), None)
+    if tools is None:
+        lines[s_end:s_end] = ["    tools:"] + item
+    else:
+        lines[tools + 1:tools + 1] = item
+open(path, "w").write("\n".join(lines))
+PY
+}
+
 list_course_slugs() {
     local yml slug
     local -a slugs=()
@@ -127,6 +172,8 @@ deploy_one() {
     if ! score_course_chapters "$course_dir" "$slug"; then
         return 1
     fi
+
+    ensure_hub_link "$course_dir/_quarto.yml" || return 1
 
     echo "=== Rendering courses/${slug} ==="
     (cd "$course_dir" && quarto render)

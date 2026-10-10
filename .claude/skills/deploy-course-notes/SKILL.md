@@ -2,7 +2,7 @@
 name: deploy-course-notes
 description: Render course-notes Quarto books and sync to docs/courses/ for GitHub Pages. Use when user says "deploy course notes", "publish notes", "host notes on github", "ship CSC2506 notes", "deploy all course notes", or after course-notes edits that should go public. NOT for instructor RevealJS slides — use `/deploy`. NOT for writing week chapters — use `/course-notes`.
 argument-hint: "[slug | all]  (default: all)"
-allowed-tools: ["Read", "Bash"]
+allowed-tools: ["Read", "Bash", "Skill"]
 ---
 
 # Deploy Course Notes to GitHub Pages
@@ -23,6 +23,7 @@ GitHub **Settings → Pages → Source:** branch `main`, folder `/docs`. Without
 
 2. **What the script does (per course):**
    - Scores `index.qmd`, `glossary.qmd`, and every `lectures/week*.qmd` (must be ≥ 80)
+   - Ensures the book sidebar has a house-icon link ("All course notes") back to the hub (`docs/index.html`, i.e. `https://<user>.github.io/<repo>/`). If `_quarto.yml` does not already mention the hub URL, the script adds a `book.sidebar.tools` entry to the source file. This is idempotent, and the edit is part of what you commit.
    - `quarto render` from the course root
    - Rsync `_site/` → `docs/courses/<slug>/`
    - Prints the public URL (`https://<user>.github.io/<repo>/courses/<slug>/`)
@@ -36,9 +37,12 @@ GitHub **Settings → Pages → Source:** branch `main`, folder `/docs`. Without
    - After the user pushes, open the public URL on a phone or Chrome device mode (~390px)
    - Confirm sidebar, math scroll, and one inline SVG figure are usable
 
-5. **Remind the user:**
-   - `/deploy-course-notes` does **not** commit or push
-   - Run `/commit`, then push to `main`
+5. **Commit and push to `main` (default `nopr`):**
+   - If the sync script exited 0 for every course deployed, invoke the `commit` skill with args `nopr`. No flag is needed.
+   - If the sync script exited non-zero, do not commit. Report the failure.
+
+6. **Remind the user** (only if the commit did not run):
+   - Run `/commit nopr` manually to publish
    - Pages may take 1–5 minutes to update
    - Update `docs/index.html` course links if a newly published course is missing from the hub
 
