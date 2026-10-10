@@ -244,21 +244,99 @@ Named examples in this family (per the lecture): Bernoulli, (multivariate) Gauss
 
 **Figure 2.** The four pieces of an exponential family. All parameter-dependence routes through $\eta$ and $T(x)$ via a single inner product, which is what Fisher–Neyman requires for $T(x)$ to be sufficient.
 
+### Recipe: putting a distribution into exponential-family form
+
+How do we take a familiar density, written in terms of its usual parameter $\theta$, and recognise the four pieces? The target is
+
+$$p(x\mid\theta) = h(x)\exp\{\eta^\top T(x) - A(\eta)\},$$
+
+and the work is sorting every piece of $\log p(x\mid\theta)$ by *what it depends on*: the data $x$, the parameter $\theta$, or both.
+
+::: {.theorem-block}
+**Recipe.**
+
+1. **Get an exponential.** If the density has no obvious $\exp\{\cdot\}$, write it as $p = \exp\{\log p\}$. Then expand $\log p$ with the log rules ($\log ab = \log a + \log b$, $\log a^x = x\log a$) until it is a sum of simple terms.
+2. **Sort each term into one of three bins.**
+    - *Mixed:* depends on both $x$ and $\theta$.
+    - *Parameter-only:* depends on $\theta$ but not on $x$.
+    - *Data-only:* depends on $x$ but not on $\theta$ (pure constants can go here too).
+3. **Mixed bin gives $\eta$ and $T(x)$.** Factor each mixed term as (a function of $\theta$) times (a function of $x$). Group terms that share the same function of $x$. Each distinct function of $x$ is one entry of $T(x)$, and the function of $\theta$ multiplying it is the matching entry of $\eta$.
+4. **Parameter-only bin gives $A(\eta)$.** The sum of these terms equals $-A$ (note the minus sign in the template). It is first written in terms of $\theta$, so invert the map from step 3 (solve $\eta(\theta)$ for $\theta$) and substitute, to get $A$ as a function of $\eta$.
+5. **Data-only bin gives $h(x)$.** $h(x)$ is $\exp$ of the data-only terms, times any factor sitting outside the exponential that depends only on $x$.
+6. **Check $A$.** Because the density must sum (or integrate) to 1, $A(\eta) = \log\sum_x h(x)\exp\{\eta^\top T(x)\}$. Computing this sum directly should reproduce the $A$ from step 4.
+:::
+
+Two points refine the short version "the thing multiplying the data is $\eta$".
+
+- **"The data" means $T(x)$, which need not be $x$ itself.** It can be $x^2$, $\log x$, an indicator $\mathbb{1}[x=i]$, or a count. The Gaussian below has two entries, $x$ and $x^2$, so $\eta$ is a 2-vector.
+- **Not every term in the exponent belongs to $\eta$.** A term that does not multiply any function of $x$ (the parameter-only bin) carries no information about which $x$ was observed. Its only job is to make the probabilities sum to 1, which is exactly the role of the normalizer $A$.
+
+If a term cannot be split into (function of $\theta$) times (function of $x$), for example $\log(x+\theta)$, or if the set of possible $x$ values itself depends on $\theta$ (a uniform on $[0,\theta]$), the distribution is not in the exponential family.
+
+With $N$ i.i.d. draws the same recipe applies to the joint density $\prod_n p(x^{(n)}\mid\theta)$: the logs add, so $T$ becomes a sum over draws (a count of ones, a sum of $x$'s) and $A$ is multiplied by $N$. The Multinomial section below works in that form.
+
 ### Bernoulli as an exponential family
 
-Start from the single-trial [Bernoulli](https://en.wikipedia.org/wiki/Bernoulli_distribution) mass function $p(x\mid\theta) = \theta^x(1-\theta)^{1-x}$ for $x\in\{0,1\}$, and rewrite the powers as an exponential of logs:
+We now run the recipe on the single-trial [Bernoulli](https://en.wikipedia.org/wiki/Bernoulli_distribution) mass function
 
-$$p(x\mid\theta) = \exp\big\{x\log\theta + (1-x)\log(1-\theta)\big\}.$$
+$$p(x\mid\theta) = \theta^x(1-\theta)^{1-x}, \qquad x\in\{0,1\}.$$
 
-Collect terms that multiply $x$ versus terms that do not:
+**Step 1: get an exponential.** There is no $\exp$ yet, so take the log and exponentiate it back:
 
-$$x\log\theta + (1-x)\log(1-\theta) = x\log\frac{\theta}{1-\theta} + \log(1-\theta).$$
+$$p(x\mid\theta) = \exp\big\{\log\big[\theta^x(1-\theta)^{1-x}\big]\big\} = \exp\big\{x\log\theta + (1-x)\log(1-\theta)\big\}.$$
 
-Matching against $\eta\, T(x) - A(\eta)$:
+**Step 2: sort the terms.** The second term still mixes a pure-parameter part with a data part, so distribute $(1-x)$ first:
+
+$$x\log\theta + (1-x)\log(1-\theta) = x\log\theta - x\log(1-\theta) + \log(1-\theta).$$
+
+The first two terms are **mixed** (each contains both $x$ and $\theta$). The last term, $\log(1-\theta)$, is **parameter-only**. There are no data-only terms.
+
+**Step 3: read off $\eta$ and $T(x)$.** Both mixed terms multiply the same function of the data, $x$, so factor it out:
+
+$$x\log\theta - x\log(1-\theta) = x\,\big[\log\theta - \log(1-\theta)\big] = x\log\frac{\theta}{1-\theta}.$$
+
+Matching to $\eta\,T(x)$:
+
+$$T(x) = x, \qquad \eta = \log\frac{\theta}{1-\theta}.$$
+
+The quantity $\log\frac{\theta}{1-\theta}$ is the **log-odds** of heads versus tails.
+
+Why is $\log(1-\theta)$ not part of $\eta$? It does not multiply $x$. Whether we observe $x=0$ or $x=1$, this term contributes the same amount $\log(1-\theta)$ to the exponent, so it does not distinguish one outcome from the other. In the template, $\eta$ is defined only as the coefficient of $T(x)$; anything that is left over and depends only on $\theta$ is the normalizer.
+
+**Step 4: get $A(\eta)$.** The parameter-only term is $-A$:
+
+$$-A = \log(1-\theta) \quad\Longrightarrow\quad A = -\log(1-\theta).$$
+
+This is still in terms of $\theta$. To write it in terms of $\eta$, invert $\eta = \log\frac{\theta}{1-\theta}$:
+
+$$e^\eta = \frac{\theta}{1-\theta} \;\Longrightarrow\; e^\eta(1-\theta) = \theta \;\Longrightarrow\; \theta = \frac{e^\eta}{1+e^\eta}.$$
+
+This inverse is the [logistic sigmoid](https://en.wikipedia.org/wiki/Logistic_function). It follows that
+
+$$1-\theta = 1 - \frac{e^\eta}{1+e^\eta} = \frac{1}{1+e^\eta},$$
+
+and substituting into $A = -\log(1-\theta)$:
+
+$$A(\eta) = -\log\frac{1}{1+e^\eta} = \log(1+e^\eta).$$
+
+**Step 5: get $h(x)$.** No data-only terms and no factor outside the exponential, so $h(x) = 1$.
+
+**Step 6: check $A$ by normalizing.** Summing $h(x)\exp\{\eta x\}$ over the two outcomes:
+
+$$\sum_{x\in\{0,1\}} e^{\eta x} = e^{0} + e^{\eta} = 1+e^\eta, \qquad \log(1+e^\eta) = A(\eta). \checkmark$$
+
+Collecting the pieces:
 
 $$T(x) = x \qquad \eta = \log\frac{\theta}{1-\theta} \qquad A(\eta) = \log(1+e^{\eta}) \qquad h(x) = 1.$$
 
-(Solving $\eta = \log\frac{\theta}{1-\theta}$ for $\theta$ gives $\theta = e^\eta/(1+e^\eta)$; substituting recovers $A(\eta)$.) The quantity $\log\frac{\theta}{1-\theta}$ is the **log-odds** of heads versus tails. The $K$-class Multinomial below uses the same shape, $\eta_i = \log(q_i/q_K)$, with Bernoulli as the $K=2$ case.
+| Piece | Bernoulli value | Came from |
+| --- | --- | --- |
+| $T(x)$ | $x$ | the function of the data in the mixed terms |
+| $\eta$ | $\log\frac{\theta}{1-\theta}$ | the coefficient of $T(x)$ |
+| $A(\eta)$ | $\log(1+e^\eta)$ | minus the parameter-only term, rewritten via $\theta = e^\eta/(1+e^\eta)$ |
+| $h(x)$ | $1$ | no data-only terms |
+
+The $K$-class Multinomial below uses the same shape, $\eta_i = \log(q_i/q_K)$, with Bernoulli as the $K=2$ case.
 
 A check against the general fact $\mathbb{E}[T(X)] = A'(\eta)$ proved later: $A(\eta) = \log(1+e^\eta)$ has $A'(\eta) = e^\eta/(1+e^\eta) = \theta = \mathbb{E}[X]$, and $A''(\eta) = \theta(1-\theta)$, the Bernoulli variance.
 

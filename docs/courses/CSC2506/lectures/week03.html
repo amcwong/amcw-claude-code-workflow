@@ -152,6 +152,9 @@ window.Quarto = {
     <div class="pt-lg-2 mt-2 text-left sidebar-header">
     <div class="sidebar-title mb-0 py-0">
       <a href="../">CSC412/2506: Probabilistic Machine Learning notes</a> 
+        <div class="sidebar-tools-main">
+    <a href="https://amcwong.github.io/claude-code-my-workflow/" title="All course notes" class="quarto-navigation-tool px-1" aria-label="All course notes"><i class="bi bi-house-door"></i></a>
+</div>
     </div>
       </div>
         <div class="mt-2 flex-shrink-0 align-items-center">
@@ -598,6 +601,80 @@ Note
 </div>
 </div>
 <p>Consider the parametric family <span class="math display">p(\boldsymbol{x}\mid\theta) = \frac{1}{Z(\theta)}\prod_{C\in\mathcal{C}} \psi_C(x_C\mid\theta_C), \qquad \theta = (\theta_C)_{C\in\mathcal{C}}.</span> Taking the log of the product turns it into a sum, exactly as in Week 1’s move from likelihood to log-likelihood: <span class="math display">p(\boldsymbol{x}\mid\theta) = \exp\Big\{\sum_{C\in\mathcal{C}} \log\psi_C(x_C\mid\theta_C) - \underbrace{\log Z(\theta)}_{=A(\theta)}\Big\}.</span> If each potential has a <strong>log-linear form</strong>, <span class="math inline">\log\psi_C(x_C\mid\theta_C) = \theta_C^\top \phi_C(x_C)</span>, this becomes exactly Week 1’s exponential family, with natural parameter <span class="math inline">\theta</span>, sufficient statistic <span class="math inline">\phi = (\phi_C)_{C\in\mathcal{C}}</span>, and log-partition function <span class="math inline">A(\theta) = \log Z(\theta)</span>: <span class="math display">p(\boldsymbol{x}\mid\theta) = \exp\Big\{\sum_{C\in\mathcal{C}} \theta_C^\top \phi_C(x_C) - A(\theta)\Big\}.</span></p>
+<div class="clarification callout callout-style-default callout-tip callout-titled" title="Question: Where does the log-linear form come from, and why do we want an exponential family at all?">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-5-contents" aria-controls="callout-5" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Question: Where does the log-linear form come from, and why do we want an exponential family at all?
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-5" class="callout-5-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p><strong>The core idea.</strong> We choose the potentials so that the <em>log</em> of each one is a weighted sum of features of its clique’s variables: <span class="math display">\log\psi_C(x_C\mid\theta_C) = \theta_C^\top\phi_C(x_C) \quad\Longleftrightarrow\quad \psi_C(x_C\mid\theta_C) = \exp\{\theta_C^\top\phi_C(x_C)\}.</span> So <span class="math inline">\psi_C</span> is not <span class="math inline">\theta</span> times a function of <span class="math inline">x</span>. Its log is, and <span class="math inline">\psi_C</span> is the exponential of that (which also keeps it positive). This is a modelling choice, not something derived from the MRF definition. We make it because it is exactly what Week 1’s template needs.</p>
+<p><strong>What each object is.</strong> For a clique <span class="math inline">C</span> with <span class="math inline">|C|</span> variables and <span class="math inline">d_C</span> chosen features:</p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 33%">
+<col style="width: 33%">
+<col style="width: 33%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Object</th>
+<th>Input</th>
+<th>Output</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><span class="math inline">x_C</span></td>
+<td>(none)</td>
+<td>the values of the clique’s <span class="math inline">\lvert C\rvert</span> variables, e.g.&nbsp;<span class="math inline">(x_1,x_2)\in\{0,1\}^2</span></td>
+</tr>
+<tr class="even">
+<td><span class="math inline">\phi_C</span> (feature map)</td>
+<td><span class="math inline">x_C</span></td>
+<td>a vector in <span class="math inline">\mathbb{R}^{d_C}</span></td>
+</tr>
+<tr class="odd">
+<td><span class="math inline">\theta_C</span> (weights)</td>
+<td>(none)</td>
+<td>a vector in <span class="math inline">\mathbb{R}^{d_C}</span>, one weight per feature</td>
+</tr>
+<tr class="even">
+<td><span class="math inline">\psi_C</span> (potential)</td>
+<td><span class="math inline">x_C</span></td>
+<td>a positive number</td>
+</tr>
+<tr class="odd">
+<td><span class="math inline">\log\psi_C</span></td>
+<td><span class="math inline">x_C</span></td>
+<td>a real number</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Why the transpose.</strong> Both <span class="math inline">\theta_C</span> and <span class="math inline">\phi_C(x_C)</span> are column vectors of length <span class="math inline">d_C</span>. <span class="math inline">\log\psi_C</span> must be a single number, and <span class="math inline">\theta_C^\top\phi_C(x_C)</span>, a <span class="math inline">(1\times d_C)</span> row times a <span class="math inline">(d_C\times 1)</span> column, is the dot product <span class="math inline">\sum_{k=1}^{d_C}\theta_{C,k}\,\phi_{C,k}(x_C)</span>: each feature times its own weight, summed. Without the transpose, <span class="math inline">\theta_C\phi_C</span> would be a column times a column, which is undefined.</p>
+<p><strong>Why this makes an exponential family.</strong> Run Week 1’s recipe (<a href="week01.html#sec-expfam" class="quarto-xref"><span>Exponential families</span></a>):</p>
+<ul>
+<li><span class="math inline">\log Z(\theta)</span> sums over all <span class="math inline">\boldsymbol x</span>, so it depends only on <span class="math inline">\theta</span>. It plays the role of <span class="math inline">A(\theta)</span>.</li>
+<li>Each <span class="math inline">\log\psi_C</span> mixes data and parameters, so it must factor as (parameters)<span class="math inline">^\top</span>(function of data). The log-linear form is precisely that requirement, clique by clique. A potential like <span class="math inline">\psi_C = 1+\theta_C x_C</span> fails, since <span class="math inline">\log(1+\theta_C x_C)</span> does not split.</li>
+<li>A sum of dot products is one dot product of stacked vectors. With <span class="math inline">\theta\in\mathbb{R}^d</span> and <span class="math inline">\phi(\boldsymbol x)\in\mathbb{R}^d</span> the concatenations over cliques, <span class="math inline">d=\sum_C d_C</span>: <span class="math display">\sum_C\theta_C^\top\phi_C(x_C) = \theta^\top\phi(\boldsymbol x).</span></li>
+</ul>
+<p>This gives natural parameter <span class="math inline">\theta</span>, sufficient statistic <span class="math inline">\phi</span>, <span class="math inline">h=1</span>, and <span class="math inline">A(\theta)=\log Z(\theta)</span>, a map from <span class="math inline">\mathbb{R}^d</span> to <span class="math inline">\mathbb{R}</span>.</p>
+<p><strong>Examples.</strong> The Ising model (<a href="#sec-ising" class="quarto-xref"><span>The Ising model</span></a>) has <span class="math inline">d_{st}=1</span>: <span class="math inline">\phi_{st}=x_sx_t</span> and <span class="math inline">\theta_{st}=J_{st}</span>. For a discrete table, indicator features always work. A binary edge with invented values <span class="math inline">\psi(0,0)=2</span>, <span class="math inline">\psi(0,1)=1</span>, <span class="math inline">\psi(1,0)=1</span>, <span class="math inline">\psi(1,1)=4</span> has <span class="math inline">d_C=4</span>, <span class="math inline">\theta_C=(\log 2,0,0,\log 4)</span>, and <span class="math inline">\phi_C(1,1)=(0,0,0,1)</span>, so <span class="math inline">\theta_C^\top\phi_C(1,1)=\log 4</span>.</p>
+<p><strong>Why we want this.</strong> From Week 1:</p>
+<ul>
+<li>the data enter only through <span class="math inline">\sum_n\phi(\boldsymbol x^{(n)})</span> (clique counts, for indicator features);</li>
+<li><span class="math inline">\nabla A(\theta)=\mathbb{E}_\theta[\phi(\boldsymbol X)]</span> (<a href="week01.html#sec-mean" class="quarto-xref"><span>Mean of sufficient statistics</span></a>), so the MLE matches the model’s clique marginals to the data’s clique frequencies;</li>
+<li>the second derivative of <span class="math inline">A</span> is a covariance, so <span class="math inline">A</span> is convex and the log-likelihood is concave, with no spurious local maxima.</li>
+</ul>
+<p>The catch is that <span class="math inline">Z</span> and its gradient sum over every joint configuration, which is why inference keeps returning in later weeks.</p>
+</div>
+</div>
+</div>
 <p><strong>When does the log-linear form hold?</strong> For finite discrete <span class="math inline">x_C</span>, <span class="math inline">\log\psi_C</span> takes only finitely many values, one per setting of <span class="math inline">x_C</span>. Let <span class="math inline">\theta_C</span> list all those values, and let <span class="math inline">\phi_C(x_C)</span> be the indicator vector with a 1 in the entry matching <span class="math inline">x_C</span>’s current setting and 0 elsewhere: then <span class="math inline">\theta_C^\top \phi_C(x_C)</span> just selects out the one matching entry, which is <span class="math inline">\log\psi_C(x_C\mid\theta_C)</span> by construction. As in Week 1’s exponential-family facts, the log-partition function’s gradient recovers an expectation: <span class="math inline">\partial \log Z(\theta) / \partial \theta_C = \mathbb{E}[\phi_C(X_C)]</span>.</p>
 <p><strong>Worked example: minimal vs.&nbsp;non-minimal.</strong> Take the chain <span class="math inline">X_1 - X_2 - X_3</span> with binary variables, so <span class="math inline">p(x_1,x_2,x_3\mid\theta) = \frac{1}{Z(\theta)}\psi_{1,2}(x_1,x_2\mid\theta_{1,2})\,\psi_{2,3}(x_2,x_3\mid\theta_{2,3})</span>. Following the finite-discrete construction, index <span class="math inline">\theta_{1,2}</span> by the four settings of <span class="math inline">(x_1,x_2)</span>: <span class="math display">\theta_{1,2} := \begin{bmatrix}\log\psi_{1,2}(0,0)\\ \log\psi_{1,2}(0,1)\\ \log\psi_{1,2}(1,0)\\ \log\psi_{1,2}(1,1)\end{bmatrix} \in \mathbb{R}^4,</span> with <span class="math inline">\phi_{1,2}(x_1,x_2)</span> the corresponding indicator vector, e.g.&nbsp;<span class="math inline">\phi_{1,2}(0,1) = (0,1,0,0)^\top</span>. This reproduces <span class="math inline">\log\psi_{1,2}(x_1,x_2\mid\theta_{1,2}) = \theta_{1,2}^\top \phi_{1,2}(x_1,x_2)</span> exactly. If the potentials are taken to be normalized already (as the tutorial does), <span class="math inline">Z(\theta)=1</span>; in general <span class="math inline">Z(\theta)=\sum_{\boldsymbol x}\exp\{\theta^\top\phi(\boldsymbol x)\}</span>.</p>
 <p>But this representation is <strong>not minimal</strong>: every setting of <span class="math inline">\phi_{1,2}(x_1,x_2)</span> has entries summing to exactly 1 (only one indicator is ever “on”), so all four possible values of <span class="math inline">\phi_{1,2}</span> lie on the hyperplane <span class="math inline">\{v : v^\top(1,1,1,1)^\top = 1\}</span> rather than spanning <span class="math inline">\mathbb{R}^4</span>. The tutorial says a non-minimal family fails the gradient identity <span class="math inline">\nabla A(\theta) = \mathbb{E}_\theta[\phi(X)]</span>. More precisely, the identity still holds for the true log-partition function <span class="math inline">A(\theta)=\log Z(\theta)</span>; what fails is identifiability (different <span class="math inline">\theta</span> give the same distribution, and <span class="math inline">A</span> is not strictly convex). The identity only appears to fail if <span class="math inline">\theta</span> is restricted to the set where <span class="math inline">Z(\theta)=1</span>, because then <span class="math inline">A=0</span> there and the coordinates of <span class="math inline">\theta</span> cannot vary independently. The fix is to drop the redundant first coordinate and re-express the other three relative to it: <span class="math display">\bar\theta_{1,2} = \big(\theta^{(1)},\,\theta^{(2)},\,\theta^{(3)}\big), \quad \text{where}</span> <span class="math display">\theta^{(1)} = \log\psi_{1,2}(0,1)-\log\psi_{1,2}(0,0),</span> <span class="math display">\theta^{(2)} = \log\psi_{1,2}(1,0)-\log\psi_{1,2}(0,0),</span> <span class="math display">\theta^{(3)} = \log\psi_{1,2}(1,1)-\log\psi_{1,2}(0,0),</span> <span class="math display">\bar\phi_{1,2}(x_1,x_2) = \begin{bmatrix}(1-x_1)x_2\\ x_1(1-x_2)\\ x_1 x_2\end{bmatrix},</span> and analogously for <span class="math inline">\bar\theta_{2,3}, \bar\phi_{2,3}</span>. This three-dimensional-per-edge parameterization is minimal, and its log-partition function, <span class="math inline">A(\bar\theta) = \log Z - \log\big(\psi_{1,2}(0,0)\,\psi_{2,3}(0,0)\big)</span>, which is <span class="math inline">-\log\big(\psi_{1,2}(0,0)\,\psi_{2,3}(0,0)\big)</span> under the <span class="math inline">Z=1</span> convention, is no longer identically zero. The general lesson: writing every table entry as its own parameter is always possible but wastes one degree of freedom per clique to the normalization constraint; a minimal representation fixes a reference setting (here, <span class="math inline">(0,0)</span>) and parameterizes only the <em>contrast</em> with it.</p>

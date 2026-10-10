@@ -349,6 +349,43 @@ $$p(\boldsymbol{x}\mid\theta) = \exp\Big\{\sum_{C\in\mathcal{C}} \log\psi_C(x_C\
 If each potential has a **log-linear form**, $\log\psi_C(x_C\mid\theta_C) = \theta_C^\top \phi_C(x_C)$, this becomes exactly Week 1's exponential family, with natural parameter $\theta$, sufficient statistic $\phi = (\phi_C)_{C\in\mathcal{C}}$, and log-partition function $A(\theta) = \log Z(\theta)$:
 $$p(\boldsymbol{x}\mid\theta) = \exp\Big\{\sum_{C\in\mathcal{C}} \theta_C^\top \phi_C(x_C) - A(\theta)\Big\}.$$
 
+::: {.callout-tip collapse="true" .clarification title="Question: Where does the log-linear form come from, and why do we want an exponential family at all?"}
+**The core idea.** We choose the potentials so that the *log* of each one is a weighted sum of features of its clique's variables:
+$$\log\psi_C(x_C\mid\theta_C) = \theta_C^\top\phi_C(x_C) \quad\Longleftrightarrow\quad \psi_C(x_C\mid\theta_C) = \exp\{\theta_C^\top\phi_C(x_C)\}.$$
+So $\psi_C$ is not $\theta$ times a function of $x$. Its log is, and $\psi_C$ is the exponential of that (which also keeps it positive). This is a modelling choice, not something derived from the MRF definition. We make it because it is exactly what Week 1's template needs.
+
+**What each object is.** For a clique $C$ with $|C|$ variables and $d_C$ chosen features:
+
+| Object | Input | Output |
+| --- | --- | --- |
+| $x_C$ | (none) | the values of the clique's $\lvert C\rvert$ variables, e.g. $(x_1,x_2)\in\{0,1\}^2$ |
+| $\phi_C$ (feature map) | $x_C$ | a vector in $\mathbb{R}^{d_C}$ |
+| $\theta_C$ (weights) | (none) | a vector in $\mathbb{R}^{d_C}$, one weight per feature |
+| $\psi_C$ (potential) | $x_C$ | a positive number |
+| $\log\psi_C$ | $x_C$ | a real number |
+
+**Why the transpose.** Both $\theta_C$ and $\phi_C(x_C)$ are column vectors of length $d_C$. $\log\psi_C$ must be a single number, and $\theta_C^\top\phi_C(x_C)$, a $(1\times d_C)$ row times a $(d_C\times 1)$ column, is the dot product $\sum_{k=1}^{d_C}\theta_{C,k}\,\phi_{C,k}(x_C)$: each feature times its own weight, summed. Without the transpose, $\theta_C\phi_C$ would be a column times a column, which is undefined.
+
+**Why this makes an exponential family.** Run Week 1's recipe (@sec-expfam):
+
+- $\log Z(\theta)$ sums over all $\boldsymbol x$, so it depends only on $\theta$. It plays the role of $A(\theta)$.
+- Each $\log\psi_C$ mixes data and parameters, so it must factor as (parameters)$^\top$(function of data). The log-linear form is precisely that requirement, clique by clique. A potential like $\psi_C = 1+\theta_C x_C$ fails, since $\log(1+\theta_C x_C)$ does not split.
+- A sum of dot products is one dot product of stacked vectors. With $\theta\in\mathbb{R}^d$ and $\phi(\boldsymbol x)\in\mathbb{R}^d$ the concatenations over cliques, $d=\sum_C d_C$:
+$$\sum_C\theta_C^\top\phi_C(x_C) = \theta^\top\phi(\boldsymbol x).$$
+
+This gives natural parameter $\theta$, sufficient statistic $\phi$, $h=1$, and $A(\theta)=\log Z(\theta)$, a map from $\mathbb{R}^d$ to $\mathbb{R}$.
+
+**Examples.** The Ising model (@sec-ising) has $d_{st}=1$: $\phi_{st}=x_sx_t$ and $\theta_{st}=J_{st}$. For a discrete table, indicator features always work. A binary edge with invented values $\psi(0,0)=2$, $\psi(0,1)=1$, $\psi(1,0)=1$, $\psi(1,1)=4$ has $d_C=4$, $\theta_C=(\log 2,0,0,\log 4)$, and $\phi_C(1,1)=(0,0,0,1)$, so $\theta_C^\top\phi_C(1,1)=\log 4$.
+
+**Why we want this.** From Week 1:
+
+- the data enter only through $\sum_n\phi(\boldsymbol x^{(n)})$ (clique counts, for indicator features);
+- $\nabla A(\theta)=\mathbb{E}_\theta[\phi(\boldsymbol X)]$ (@sec-mean), so the MLE matches the model's clique marginals to the data's clique frequencies;
+- the second derivative of $A$ is a covariance, so $A$ is convex and the log-likelihood is concave, with no spurious local maxima.
+
+The catch is that $Z$ and its gradient sum over every joint configuration, which is why inference keeps returning in later weeks.
+:::
+
 **When does the log-linear form hold?** For finite discrete $x_C$, $\log\psi_C$ takes only finitely many values, one per setting of $x_C$. Let $\theta_C$ list all those values, and let $\phi_C(x_C)$ be the indicator vector with a 1 in the entry matching $x_C$'s current setting and 0 elsewhere: then $\theta_C^\top \phi_C(x_C)$ just selects out the one matching entry, which is $\log\psi_C(x_C\mid\theta_C)$ by construction. As in Week 1's exponential-family facts, the log-partition function's gradient recovers an expectation: $\partial \log Z(\theta) / \partial \theta_C = \mathbb{E}[\phi_C(X_C)]$.
 
 **Worked example: minimal vs. non-minimal.** Take the chain $X_1 - X_2 - X_3$ with binary variables, so $p(x_1,x_2,x_3\mid\theta) = \frac{1}{Z(\theta)}\psi_{1,2}(x_1,x_2\mid\theta_{1,2})\,\psi_{2,3}(x_2,x_3\mid\theta_{2,3})$. Following the finite-discrete construction, index $\theta_{1,2}$ by the four settings of $(x_1,x_2)$:

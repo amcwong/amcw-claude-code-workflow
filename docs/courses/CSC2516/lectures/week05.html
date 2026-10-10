@@ -1,0 +1,1925 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.10.18">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+<meta name="description" content="The convolution layer derived from a dense layer, its output size, receptive field, padding, stride, channels, and pooling; convolution as a matrix; batch normalization; residual connections; and the ResNet.">
+
+<title>Week 5: Convolutional Networks, Normalization, and Residual Connections – Neural Networks and Deep Learning</title>
+<style>
+/* Default styles provided by pandoc.
+** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
+*/
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: 1.5em;}
+div.column{flex: auto;}
+@media screen {
+div.columns{gap: min(4vw, 1.5em);}
+div.column{overflow-x: auto;}
+}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+</style>
+
+
+<script src="../site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="../site_libs/quarto-nav/headroom.min.js"></script>
+<script src="../site_libs/clipboard/clipboard.min.js"></script>
+<script src="../site_libs/quarto-search/autocomplete.umd.js"></script>
+<script src="../site_libs/quarto-search/fuse.min.js"></script>
+<script src="../site_libs/quarto-search/quarto-search.js"></script>
+<meta name="quarto:offset" content="../">
+<link href="../glossary.html" rel="next">
+<link href="../lectures/week04-practice.html" rel="prev">
+<script src="../site_libs/quarto-html/quarto.js" type="module"></script>
+<script src="../site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
+<script src="../site_libs/quarto-html/popper.min.js"></script>
+<script src="../site_libs/quarto-html/tippy.umd.min.js"></script>
+<script src="../site_libs/quarto-html/anchor.min.js"></script>
+<link href="../site_libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="../site_libs/quarto-html/quarto-syntax-highlighting-bb62276ab45c84d9efd712f51ff97b5a.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<script src="../site_libs/bootstrap/bootstrap.min.js"></script>
+<link href="../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="../site_libs/bootstrap/bootstrap-ce0958bf53307a1b0bb60f85d87db72f.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
+<script id="quarto-search-options" type="application/json">{
+  "location": "sidebar",
+  "copy-button": false,
+  "collapse-after": 3,
+  "panel-placement": "start",
+  "type": "textbox",
+  "limit": 50,
+  "keyboard-shortcut": [
+    "f",
+    "/",
+    "s"
+  ],
+  "show-item-context": false,
+  "language": {
+    "search-no-results-text": "No results",
+    "search-matching-documents-text": "matching documents",
+    "search-copy-link-title": "Copy link to search",
+    "search-hide-matches-text": "Hide additional matches",
+    "search-more-match-text": "more match in this document",
+    "search-more-matches-text": "more matches in this document",
+    "search-clear-button-title": "Clear",
+    "search-text-placeholder": "",
+    "search-detached-cancel-button-title": "Cancel",
+    "search-submit-button-title": "Submit",
+    "search-label": "Search"
+  }
+}</script>
+<style>html{ scroll-behavior: smooth; }</style>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+<link href="https://fonts.googleapis.com/css2?family=Source+Code+Pro:wght@400;600&amp;family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&amp;display=swap" rel="stylesheet">
+
+  <script>window.backupDefine = window.define; window.define = undefined;</script><script src="https://cdn.jsdelivr.net/npm/katex@latest/dist/katex.min.js"></script>
+  <script>document.addEventListener("DOMContentLoaded", function () {
+ var mathElements = document.getElementsByClassName("math");
+ var macros = [];
+ for (var i = 0; i < mathElements.length; i++) {
+  var texText = mathElements[i].firstChild;
+  if (mathElements[i].tagName == "SPAN") {
+   katex.render(texText.data, mathElements[i], {
+    displayMode: mathElements[i].classList.contains('display'),
+    throwOnError: false,
+    macros: macros,
+    fleqn: false
+   });
+}}});
+  </script>
+  <script>window.define = window.backupDefine; window.backupDefine = undefined;</script><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@latest/dist/katex.min.css">
+
+<script type="text/javascript">
+const typesetMath = (el) => {
+  if (window.MathJax) {
+    // MathJax Typeset
+    window.MathJax.typeset([el]);
+  } else if (window.katex) {
+    // KaTeX Render
+    var mathElements = el.getElementsByClassName("math");
+    var macros = [];
+    for (var i = 0; i < mathElements.length; i++) {
+      var texText = mathElements[i].firstChild;
+      if (mathElements[i].tagName == "SPAN" && texText && texText.data) {
+        window.katex.render(texText.data, mathElements[i], {
+          displayMode: mathElements[i].classList.contains('display'),
+          throwOnError: false,
+          macros: macros,
+          fleqn: false
+        });
+      }
+    }
+  }
+}
+window.Quarto = {
+  typesetMath
+};
+</script>
+
+<link rel="stylesheet" href="../styles/custom.css">
+</head>
+
+<body class="nav-sidebar floating quarto-light">
+
+<div id="quarto-search-results"></div>
+  <header id="quarto-header" class="headroom fixed-top">
+  <nav class="quarto-secondary-nav">
+    <div class="container-fluid d-flex">
+      <button type="button" class="quarto-btn-toggle btn" data-bs-toggle="collapse" role="button" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+        <i class="bi bi-layout-text-sidebar-reverse"></i>
+      </button>
+        <nav class="quarto-page-breadcrumbs" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../lectures/week05.html"><span class="chapter-title">Week 5: Convolutional Networks, Normalization, and Residual Connections</span></a></li></ol></nav>
+        <a class="flex-grow-1" role="navigation" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">      
+        </a>
+      <button type="button" class="btn quarto-search-button" aria-label="Search" onclick="window.quartoOpenSearch();">
+        <i class="bi bi-search"></i>
+      </button>
+    </div>
+  </nav>
+</header>
+<!-- content -->
+<div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-article">
+<!-- sidebar -->
+  <nav id="quarto-sidebar" class="sidebar collapse collapse-horizontal quarto-sidebar-collapse-item sidebar-navigation floating overflow-auto">
+    <div class="pt-lg-2 mt-2 text-left sidebar-header">
+    <div class="sidebar-title mb-0 py-0">
+      <a href="../">Neural Networks and Deep Learning</a> 
+        <div class="sidebar-tools-main">
+    <a href="https://amcwong.github.io/claude-code-my-workflow/" title="All course notes" class="quarto-navigation-tool px-1" aria-label="All course notes"><i class="bi bi-house-door"></i></a>
+</div>
+    </div>
+      </div>
+        <div class="mt-2 flex-shrink-0 align-items-center">
+        <div class="sidebar-search">
+        <div id="quarto-search" class="" title="Search"></div>
+        </div>
+        </div>
+    <div class="sidebar-menu-container"> 
+    <ul class="list-unstyled mt-1">
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../index.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">CSC413/2516 Neural Networks and Deep Learning</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../lectures/week01.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Week 1: Introduction, Linear &amp; Logistic Regression</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../lectures/week02.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Week 2: Multi-Layer Perceptrons &amp; Backpropagation</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../lectures/week03.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Week 3: Initialization, Autodiff, Overfitting &amp; Regularization</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../lectures/week03-practice.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Week 3 practice: Variance, Autodiff, and Regularization</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../lectures/week04.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Week 4: Gradient Descent and Adaptive Methods</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../lectures/week04-practice.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Week 4 practice: Gradient Descent, SGD, Momentum, and Adam</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../lectures/week05.html" class="sidebar-item-text sidebar-link active"><span class="chapter-title">Week 5: Convolutional Networks, Normalization, and Residual Connections</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../glossary.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Glossary</span></a>
+  </div>
+</li>
+    </ul>
+    </div>
+</nav>
+<div id="quarto-sidebar-glass" class="quarto-sidebar-collapse-item" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item"></div>
+<!-- margin-sidebar -->
+    <div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
+        <nav id="TOC" role="doc-toc" class="toc-active">
+    <h2 id="toc-title">On this page</h2>
+   
+  <ul>
+  <li><a href="#sec-cnn" id="toc-sec-cnn" class="nav-link active" data-scroll-target="#sec-cnn">Convolutional Neural Networks</a>
+  <ul class="collapse">
+  <li><a href="#sec-derive-conv" id="toc-sec-derive-conv" class="nav-link" data-scroll-target="#sec-derive-conv">From a dense layer to a convolution</a></li>
+  <li><a href="#sec-flip" id="toc-sec-flip" class="nav-link" data-scroll-target="#sec-flip">Convolution or cross-correlation?</a></li>
+  <li><a href="#sec-conv-example" id="toc-sec-conv-example" class="nav-link" data-scroll-target="#sec-conv-example">A worked example</a></li>
+  <li><a href="#sec-template" id="toc-sec-template" class="nav-link" data-scroll-target="#sec-template">Reading the kernel as a template</a></li>
+  <li><a href="#sec-output-size" id="toc-sec-output-size" class="nav-link" data-scroll-target="#sec-output-size">The output size</a></li>
+  <li><a href="#sec-receptive-field" id="toc-sec-receptive-field" class="nav-link" data-scroll-target="#sec-receptive-field">Receptive field</a></li>
+  <li><a href="#sec-padding" id="toc-sec-padding" class="nav-link" data-scroll-target="#sec-padding">Padding</a></li>
+  <li><a href="#sec-stride" id="toc-sec-stride" class="nav-link" data-scroll-target="#sec-stride">Stride</a></li>
+  <li><a href="#sec-general-size" id="toc-sec-general-size" class="nav-link" data-scroll-target="#sec-general-size">The general output-size rule</a></li>
+  <li><a href="#sec-conv-matrix" id="toc-sec-conv-matrix" class="nav-link" data-scroll-target="#sec-conv-matrix">Convolution as a matrix</a></li>
+  <li><a href="#sec-rf-stack" id="toc-sec-rf-stack" class="nav-link" data-scroll-target="#sec-rf-stack">Receptive fields of stacked layers</a></li>
+  <li><a href="#sec-channels" id="toc-sec-channels" class="nav-link" data-scroll-target="#sec-channels">Channels</a></li>
+  <li><a href="#sec-param-count" id="toc-sec-param-count" class="nav-link" data-scroll-target="#sec-param-count">Counting parameters</a></li>
+  <li><a href="#sec-pooling" id="toc-sec-pooling" class="nav-link" data-scroll-target="#sec-pooling">Pooling</a></li>
+  <li><a href="#sec-equivariance" id="toc-sec-equivariance" class="nav-link" data-scroll-target="#sec-equivariance">Invariance and equivariance</a></li>
+  <li><a href="#sec-simple-convnet" id="toc-sec-simple-convnet" class="nav-link" data-scroll-target="#sec-simple-convnet">Building a simple convolutional network</a></li>
+  </ul></li>
+  <li><a href="#sec-batchnorm" id="toc-sec-batchnorm" class="nav-link" data-scroll-target="#sec-batchnorm">Batch Normalization</a>
+  <ul class="collapse">
+  <li><a href="#sec-batchnorm-how" id="toc-sec-batchnorm-how" class="nav-link" data-scroll-target="#sec-batchnorm-how">How it works</a></li>
+  <li><a href="#sec-batchnorm-why" id="toc-sec-batchnorm-why" class="nav-link" data-scroll-target="#sec-batchnorm-why">Why it might help</a></li>
+  <li><a href="#sec-batchnorm-trouble" id="toc-sec-batchnorm-trouble" class="nav-link" data-scroll-target="#sec-batchnorm-trouble">The trouble with batch normalization</a></li>
+  </ul></li>
+  <li><a href="#sec-residual" id="toc-sec-residual" class="nav-link" data-scroll-target="#sec-residual">Residual Connections</a>
+  <ul class="collapse">
+  <li><a href="#sec-residual-shapes" id="toc-sec-residual-shapes" class="nav-link" data-scroll-target="#sec-residual-shapes">Matching shapes</a></li>
+  </ul></li>
+  <li><a href="#sec-resnet" id="toc-sec-resnet" class="nav-link" data-scroll-target="#sec-resnet">Modern ConvNets: The ResNet</a></li>
+  <li><a href="#sec-data-prep" id="toc-sec-data-prep" class="nav-link" data-scroll-target="#sec-data-prep">Aside: Preparing Image Data</a></li>
+  <li><a href="#sec-summary" id="toc-sec-summary" class="nav-link" data-scroll-target="#sec-summary">Summary</a></li>
+  <li><a href="#quick-self-check" id="toc-quick-self-check" class="nav-link" data-scroll-target="#quick-self-check">Quick self-check</a></li>
+  </ul>
+</nav>
+    </div>
+<!-- main -->
+<main class="content" id="quarto-document-content">
+
+<header id="title-block-header" class="quarto-title-block default">
+<div class="quarto-title">
+<h1 class="title"><span class="chapter-title">Week 5: Convolutional Networks, Normalization, and Residual Connections</span></h1>
+</div>
+
+
+
+<div class="quarto-title-meta">
+
+    
+  
+    
+  </div>
+  
+
+
+</header>
+
+
+<style>#title-block-header { display: none; }</style>
+<div class="lecture-header">
+  <h1>Week 5: Convolutional Networks, Normalization, and Residual Connections</h1>
+</div>
+<p><strong>Overview.</strong> Until now every network in the course has been generic: the multi-layer perceptron of <a href="../lectures/week02.html#sec-mlp">Week 2</a> takes a vector of features and makes no assumptions about how those features relate to each other. This week we start studying architectures built for data with structure, beginning with images. We derive the <strong>convolution</strong> layer by starting from a dense layer (Week 2’s linear layer, written for a single input vector as <span class="math inline">\bm{h} = \bm{W}\bm{x} + \bm{b}</span>) and imposing two assumptions about images. We then work through the practical ingredients of a convolutional network: how big its output is, what part of the input each output sees, padding, stride, channels, and pooling. Two additions make deeper networks easier to train. <strong>Batch normalization</strong> applies the standardization idea from <a href="../lectures/week04.html#sec-one-eta">Week 4</a> to the activations inside a network, and <strong>residual connections</strong> give gradients a path around each layer, which addresses the vanishing gradients of <a href="../lectures/week03.html#sec-vanishing">Week 3</a>. We close by combining everything into the ResNet.</p>
+<section id="sec-cnn" class="level2">
+<h2 class="anchored" data-anchor-id="sec-cnn">Convolutional Neural Networks</h2>
+<p>A dense layer treats its input as an unordered collection of features. Shuffle the features (and the matching weights) and the output does not change. Many kinds of data are not like that. An <a href="https://en.wikipedia.org/wiki/Digital_image">image</a> on a computer is a two-dimensional grid of <a href="https://en.wikipedia.org/wiki/Pixel">pixels</a>, and the order of that grid means something: things on the right of the grid appear on the right of the picture, and nearby pixels tend to be similar. Can we design a layer whose assumptions match this structure?</p>
+<div class="definition-block">
+<p><strong>Definition.</strong> The <strong>inductive bias</strong> of a model is the set of assumptions built into its design that make it prefer some solutions over others before it sees any data. See <a href="https://en.wikipedia.org/wiki/Inductive_bias">inductive bias</a>.</p>
+</div>
+<p>“Bias” here means a built-in preference, not the bias parameter <span class="math inline">\bm{b}</span> of a layer. When an architecture’s inductive bias matches the structure of the data, it tends to reach good solutions from less data.</p>
+<p>The lecture’s running example is an image of a cat sitting on a dresser next to a lamp, and the question “does this image contain a cat?” Two assumptions seem reasonable for the processing such a question needs:</p>
+<ul>
+<li><strong>Translation invariance:</strong> the operation should respond in the same way everywhere in the image. A cat’s ear is a cat’s ear whether it is in the top-left or the bottom-right.</li>
+<li><strong>Locality:</strong> the operation should look at only a small region at a time.</li>
+</ul>
+<p>Together they describe an operation that looks at a small window of the input and applies the same processing to that window wherever it sits. That operation is the convolution layer, the building block of a <a href="https://en.wikipedia.org/wiki/Convolutional_neural_network">convolutional neural network</a> (CNN).</p>
+<section id="sec-derive-conv" class="level3">
+<h3 class="anchored" data-anchor-id="sec-derive-conv">From a dense layer to a convolution</h3>
+<p>We start from a dense layer and change it until it satisfies both assumptions. Write the dense layer with bias <span class="math inline">\bm{u}</span> (the lecture writes <span class="math inline">\bm{u}</span> instead of Week 2’s <span class="math inline">\bm{b}</span> so that its two-dimensional version can be a capital <span class="math inline">\bm{U}</span>):</p>
+<p><span class="math display">\bm{h} = \bm{u} + \bm{W}\bm{x}, \qquad h_m = u_m + \sum_n W_{m,n}\, x_n.</span></p>
+<p>The second form spells out the matrix-vector product: output <span class="math inline">m</span> is its bias plus a weighted sum of every input <span class="math inline">n</span>.</p>
+<p><strong>Step 1: turn vectors back into grids.</strong> An image is a grid, but we can make it a vector by laying its rows end to end (<a href="https://en.wikipedia.org/wiki/Row-_and_column-major_order">row-major order</a>), and turn the vector back into the grid by cutting it into rows again. For a <span class="math inline">2\times2</span> image the correspondence is</p>
+<p><span class="math display">\begin{bmatrix} X_{1,1} &amp; X_{1,2} \\ X_{2,1} &amp; X_{2,2} \end{bmatrix} \longleftrightarrow \bm{x} = (X_{1,1},\ X_{1,2},\ X_{2,1},\ X_{2,2}).</span></p>
+<p>So a single index <span class="math inline">n</span> over the input vector is the same information as a pair <span class="math inline">(k, l)</span> of row and column. Doing the same to the output, <span class="math inline">m</span> becomes a pair <span class="math inline">(i, j)</span>, and the dense layer becomes</p>
+<p><span class="math display">\bm{H}_{i,j} = \bm{U}_{i,j} + \sum_k \sum_l \bm{W}_{i,j,k,l}\, \bm{X}_{k,l}.</span></p>
+<p>Nothing has changed except bookkeeping: <span class="math inline">\bm{W}</span> is now a four-dimensional array, with one weight for every (output pixel, input pixel) pair.</p>
+<p><strong>Step 2: index the input by offsets.</strong> Instead of naming an input pixel by its absolute position <span class="math inline">(k, l)</span>, name it by its offset <span class="math inline">(a, b)</span> from the output position, so <span class="math inline">k = i + a</span> and <span class="math inline">l = j + b</span>. Renaming the weights to <span class="math inline">\bm{V}</span> to signal the new indexing:</p>
+<p><span class="math display">\bm{H}_{i,j} = \bm{U}_{i,j} + \sum_a \sum_b \bm{V}_{i,j,a,b}\, \bm{X}_{i+a,\, j+b}.</span></p>
+<p>The offsets can be negative or positive, so this still reaches every input pixel. Every output still depends on every input, and every output position still has its own bias and its own set of weights.</p>
+<p><strong>Step 3: translation invariance.</strong> To apply the same operation at every output position, drop the dependence on <span class="math inline">(i, j)</span>: one shared bias <span class="math inline">u</span> and one shared set of weights <span class="math inline">\bm{V}_{a,b}</span>.</p>
+<p><span class="math display">\bm{H}_{i,j} = u + \sum_a \sum_b \bm{V}_{a,b}\, \bm{X}_{i+a,\, j+b}.</span></p>
+<p><strong>Step 4: locality.</strong> Restrict the offsets to a small window, from <span class="math inline">-\Delta</span> to <span class="math inline">\Delta</span> in each direction:</p>
+<div class="boxed-eq">
+<p><span class="math display">\bm{H}_{i,j} = u + \sum_{a=-\Delta}^{\Delta} \sum_{b=-\Delta}^{\Delta} \bm{V}_{a,b}\, \bm{X}_{i+a,\, j+b}.</span></p>
+</div>
+<p>Each output is a bias plus a weighted sum over a <span class="math inline">(2\Delta+1)\times(2\Delta+1)</span> window centred on the matching input position, with the same weights everywhere. This is the convolution.</p>
+<div class="definition-block">
+<p><strong>Definition.</strong> A <strong>convolution layer</strong> computes each output entry by placing a shared grid of weights, the <strong>kernel</strong> (or <strong>filter</strong>) <span class="math inline">\bm{V}</span>, over the corresponding window of the input, taking the dot product of the kernel with that window, and adding a bias. Sharing one kernel across positions gives translation invariance; making the kernel small gives locality. See <a href="https://en.wikipedia.org/wiki/Kernel_(image_processing)">kernel (image processing)</a>.</p>
+</div>
+<div class="clarification callout callout-style-default callout-tip callout-titled" title="Question: What do H, X, V, u, and Delta stand for, and what are i, j, a, and b iterating over?">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-1-contents" aria-controls="callout-1" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Question: What do H, X, V, u, and Delta stand for, and what are i, j, a, and b iterating over?
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-1" class="callout-1-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>The boxed equation has three grids and one number. Rows always come first, then columns.</p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 25%">
+<col style="width: 25%">
+<col style="width: 25%">
+<col style="width: 25%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Symbol</th>
+<th>What it is</th>
+<th>Shape</th>
+<th>Indexed by</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><span class="math inline">\bm{X}</span></td>
+<td>the input image (one channel for now)</td>
+<td><span class="math inline">n_h \times n_w</span> (height by width)</td>
+<td>absolute position: <span class="math inline">\bm{X}_{k,l}</span> is row <span class="math inline">k</span>, column <span class="math inline">l</span></td>
+</tr>
+<tr class="even">
+<td><span class="math inline">\bm{V}</span></td>
+<td>the kernel, the learned weights</td>
+<td><span class="math inline">(2\Delta+1) \times (2\Delta+1)</span>, e.g.&nbsp;<span class="math inline">3\times3</span> when <span class="math inline">\Delta = 1</span></td>
+<td>offset from the centre: <span class="math inline">\bm{V}_{a,b}</span>, with <span class="math inline">a, b \in \{-\Delta, \ldots, \Delta\}</span></td>
+</tr>
+<tr class="odd">
+<td><span class="math inline">u</span></td>
+<td>the bias, one learned number shared by all positions</td>
+<td>a scalar</td>
+<td>not indexed</td>
+</tr>
+<tr class="even">
+<td><span class="math inline">\bm{H}</span></td>
+<td>the output, the feature map</td>
+<td><span class="math inline">(n_h - 2\Delta) \times (n_w - 2\Delta)</span> without padding</td>
+<td>output position: <span class="math inline">\bm{H}_{i,j}</span> is row <span class="math inline">i</span>, column <span class="math inline">j</span></td>
+</tr>
+</tbody>
+</table>
+<p><strong>What <span class="math inline">\Delta</span> is.</strong> <span class="math inline">\Delta</span> is how far the kernel reaches from its centre pixel in each direction, counted in pixels. The window covers the centre, <span class="math inline">\Delta</span> pixels above it, and <span class="math inline">\Delta</span> below, so it is <span class="math inline">\Delta + 1 + \Delta = 2\Delta + 1</span> pixels tall, and likewise wide. With <span class="math inline">\Delta = 1</span> the kernel is <span class="math inline">3\times3</span>; with <span class="math inline">\Delta = 2</span> it is <span class="math inline">5\times5</span>. <span class="math inline">\Delta</span> is chosen when the layer is designed and stays fixed; it is not learned and does not change from one output position to the next.</p>
+<p><strong>What an offset is.</strong> An offset says where a pixel sits <em>relative to the centre of the window</em>, rather than where it sits in the whole image. It is a pair (rows, columns) of signed distances: <span class="math inline">(0, 0)</span> is the centre itself, <span class="math inline">(-1, 0)</span> is one row up, <span class="math inline">(0, 1)</span> is one column to the right, and <span class="math inline">(1, -1)</span> is one row down and one column to the left. The same offset names a different image pixel depending on where the window is centred, which is exactly why one kernel indexed by offsets can be reused at every position.</p>
+<p><strong>A concrete example.</strong> Take a <span class="math inline">5\times5</span> input image and a <span class="math inline">3\times3</span> kernel, and compute the output entry centred on input row 2, column 3. The variables take these values:</p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 33%">
+<col style="width: 33%">
+<col style="width: 33%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Variable</th>
+<th>Value in this example</th>
+<th>Why</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><span class="math inline">n_h,\ n_w</span></td>
+<td><span class="math inline">5,\ 5</span></td>
+<td>the image is 5 rows by 5 columns</td>
+</tr>
+<tr class="even">
+<td><span class="math inline">\Delta</span></td>
+<td><span class="math inline">1</span></td>
+<td>a <span class="math inline">3\times3</span> kernel reaches 1 pixel from its centre</td>
+</tr>
+<tr class="odd">
+<td><span class="math inline">\bm{V}</span></td>
+<td>9 weights, <span class="math inline">V_{-1,-1}</span> to <span class="math inline">V_{1,1}</span></td>
+<td><span class="math inline">a</span> and <span class="math inline">b</span> each take the values <span class="math inline">-1, 0, 1</span></td>
+</tr>
+<tr class="even">
+<td><span class="math inline">\bm{H}</span></td>
+<td><span class="math inline">3\times3</span></td>
+<td><span class="math inline">5 - 2\cdot1 = 3</span> rows and columns</td>
+</tr>
+<tr class="odd">
+<td><span class="math inline">(i, j)</span></td>
+<td><span class="math inline">(2, 3)</span></td>
+<td>the output entry we chose; the window is centred on <span class="math inline">\bm{X}_{2,3}</span></td>
+</tr>
+<tr class="even">
+<td><span class="math inline">(a, b)</span></td>
+<td>each of the 9 offsets in turn</td>
+<td>the sum visits every kernel entry</td>
+</tr>
+</tbody>
+</table>
+<p>For this one <span class="math inline">(i, j)</span>, each offset <span class="math inline">(a, b)</span> picks out one input pixel <span class="math inline">\bm{X}_{2+a,\, 3+b}</span>:</p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 25%">
+<col style="width: 25%">
+<col style="width: 25%">
+<col style="width: 25%">
+</colgroup>
+<thead>
+<tr class="header">
+<th></th>
+<th><span class="math inline">b = -1</span> (left)</th>
+<th><span class="math inline">b = 0</span></th>
+<th><span class="math inline">b = 1</span> (right)</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><span class="math inline">a = -1</span> (up)</td>
+<td><span class="math inline">V_{-1,-1} \cdot X_{1,2}</span></td>
+<td><span class="math inline">V_{-1,0} \cdot X_{1,3}</span></td>
+<td><span class="math inline">V_{-1,1} \cdot X_{1,4}</span></td>
+</tr>
+<tr class="even">
+<td><span class="math inline">a = 0</span></td>
+<td><span class="math inline">V_{0,-1} \cdot X_{2,2}</span></td>
+<td><span class="math inline">V_{0,0} \cdot X_{2,3}</span></td>
+<td><span class="math inline">V_{0,1} \cdot X_{2,4}</span></td>
+</tr>
+<tr class="odd">
+<td><span class="math inline">a = 1</span> (down)</td>
+<td><span class="math inline">V_{1,-1} \cdot X_{3,2}</span></td>
+<td><span class="math inline">V_{1,0} \cdot X_{3,3}</span></td>
+<td><span class="math inline">V_{1,1} \cdot X_{3,4}</span></td>
+</tr>
+</tbody>
+</table>
+<p>So <span class="math inline">\bm{H}_{2,3}</span> is <span class="math inline">u</span> plus the sum of these nine products: the window covers input rows 1 to 3 and columns 2 to 4. To compute <span class="math inline">\bm{H}_{2,4}</span> instead, only <span class="math inline">j</span> changes. The window slides one column right, to columns 3 to 5, and the <em>same</em> nine weights now pair with different pixels; for example <span class="math inline">V_{-1,1}</span> now multiplies <span class="math inline">X_{1,5}</span>.</p>
+<p>The four indices split into two pairs with different jobs.</p>
+<ul>
+<li><strong><span class="math inline">i</span> and <span class="math inline">j</span> choose which output entry we are computing.</strong> <span class="math inline">i</span> runs over the rows of <span class="math inline">\bm{H}</span> and <span class="math inline">j</span> over its columns. Each choice of <span class="math inline">(i, j)</span> is one separate application of the formula, and it also fixes where the kernel is centred on the input: at <span class="math inline">\bm{X}_{i,j}</span>.</li>
+<li><strong><span class="math inline">a</span> and <span class="math inline">b</span> run over the kernel, inside the sum, for one fixed <span class="math inline">(i, j)</span>.</strong> <span class="math inline">a</span> is the vertical offset (how many rows up or down from the centre, negative meaning up) and <span class="math inline">b</span> the horizontal offset (how many columns left or right, negative meaning left). Both go from <span class="math inline">-\Delta</span> to <span class="math inline">\Delta</span>, so the sum has <span class="math inline">(2\Delta+1)^2</span> terms, one per kernel entry.</li>
+</ul>
+<p>The input index is the output position plus the offset: kernel entry <span class="math inline">\bm{V}_{a,b}</span> is multiplied by input pixel <span class="math inline">\bm{X}_{i+a,\, j+b}</span>. This is the <span class="math inline">k = i + a</span>, <span class="math inline">l = j + b</span> substitution from Step 2.</p>
+<p><strong>Why the output is smaller.</strong> For the kernel to fit, the centre must be at least <span class="math inline">\Delta</span> pixels from every edge, so <span class="math inline">i</span> can only run from <span class="math inline">1 + \Delta</span> to <span class="math inline">n_h - \Delta</span>. That is <span class="math inline">n_h - 2\Delta</span> positions, which equals the <span class="math inline">n - k + 1</span> of <a href="#sec-output-size">The output size</a> because the kernel size is <span class="math inline">k = 2\Delta + 1</span>. Numbering the outputs from 1 is a relabelling of these positions; padding (later in the chapter) is what lets the centre sit on the edge pixels too.</p>
+<p><strong>A note on even kernels.</strong> The centred offsets only work for odd kernel sizes, since an even-sized kernel has no centre pixel. The <a href="#sec-conv-example">worked example</a> uses a <span class="math inline">2\times2</span> kernel, so there the window is described by its top-left corner instead of its centre. The arithmetic (multiply matching entries and sum) is the same.</p>
+<p><strong>What comes later.</strong> <a href="#sec-channels">Channels</a> adds two more indices: <span class="math inline">c</span> over input channels (summed, like <span class="math inline">a</span> and <span class="math inline">b</span>) and <span class="math inline">d</span> over output channels (chosen, like <span class="math inline">i</span> and <span class="math inline">j</span>).</p>
+</div>
+</div>
+</div>
+<div class="clarification callout callout-style-default callout-tip callout-titled" title="Question: What does computing one output entry look like with actual numbers?">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-2-contents" aria-controls="callout-2" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Question: What does computing one output entry look like with actual numbers?
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-2" class="callout-2-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>Take the lecture’s <span class="math inline">3\times3</span> input, numbering rows and columns from 1, and a <span class="math inline">3\times3</span> kernel (<span class="math inline">\Delta = 1</span>) of our own, with bias <span class="math inline">u = 0.5</span>:</p>
+<p><span class="math display">\bm{X} = \begin{bmatrix} 0 &amp; 1 &amp; 2 \\ 3 &amp; 4 &amp; 5 \\ 6 &amp; 7 &amp; 8 \end{bmatrix}</span></p>
+<p><span class="math display">
+\bm{V} = \begin{bmatrix}
+V_{-1,-1} &amp; V_{-1,0} &amp; V_{-1,1} \\
+V_{0,-1} &amp; V_{0,0} &amp; V_{0,1} \\
+V_{1,-1} &amp; V_{1,0} &amp; V_{1,1}
+\end{bmatrix} = \begin{bmatrix}
+1 &amp; 0 &amp; -1 \\
+2 &amp; 0 &amp; -2 \\
+1 &amp; 0 &amp; -1
+\end{bmatrix}
+</span></p>
+<p>The middle entry of <span class="math inline">\bm{V}</span> is <span class="math inline">V_{0,0}</span>, the centre; the top-left is <span class="math inline">V_{-1,-1}</span>, one row up and one column left.</p>
+<p>We compute <span class="math inline">\bm{H}_{2,2}</span>, so the kernel is centred on <span class="math inline">\bm{X}_{2,2} = 4</span>. With <span class="math inline">i = j = 2</span> fixed, the sum runs over all nine <span class="math inline">(a, b)</span> pairs, pairing <span class="math inline">V_{a,b}</span> with <span class="math inline">X_{2+a,\, 2+b}</span>:</p>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th><span class="math inline">a</span></th>
+<th><span class="math inline">b</span></th>
+<th><span class="math inline">V_{a,b}</span></th>
+<th>input pixel</th>
+<th>its value</th>
+<th>product</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><span class="math inline">-1</span></td>
+<td><span class="math inline">-1</span></td>
+<td><span class="math inline">1</span></td>
+<td><span class="math inline">X_{1,1}</span></td>
+<td><span class="math inline">0</span></td>
+<td><span class="math inline">0</span></td>
+</tr>
+<tr class="even">
+<td><span class="math inline">-1</span></td>
+<td><span class="math inline">0</span></td>
+<td><span class="math inline">0</span></td>
+<td><span class="math inline">X_{1,2}</span></td>
+<td><span class="math inline">1</span></td>
+<td><span class="math inline">0</span></td>
+</tr>
+<tr class="odd">
+<td><span class="math inline">-1</span></td>
+<td><span class="math inline">1</span></td>
+<td><span class="math inline">-1</span></td>
+<td><span class="math inline">X_{1,3}</span></td>
+<td><span class="math inline">2</span></td>
+<td><span class="math inline">-2</span></td>
+</tr>
+<tr class="even">
+<td><span class="math inline">0</span></td>
+<td><span class="math inline">-1</span></td>
+<td><span class="math inline">2</span></td>
+<td><span class="math inline">X_{2,1}</span></td>
+<td><span class="math inline">3</span></td>
+<td><span class="math inline">6</span></td>
+</tr>
+<tr class="odd">
+<td><span class="math inline">0</span></td>
+<td><span class="math inline">0</span></td>
+<td><span class="math inline">0</span></td>
+<td><span class="math inline">X_{2,2}</span></td>
+<td><span class="math inline">4</span></td>
+<td><span class="math inline">0</span></td>
+</tr>
+<tr class="even">
+<td><span class="math inline">0</span></td>
+<td><span class="math inline">1</span></td>
+<td><span class="math inline">-2</span></td>
+<td><span class="math inline">X_{2,3}</span></td>
+<td><span class="math inline">5</span></td>
+<td><span class="math inline">-10</span></td>
+</tr>
+<tr class="odd">
+<td><span class="math inline">1</span></td>
+<td><span class="math inline">-1</span></td>
+<td><span class="math inline">1</span></td>
+<td><span class="math inline">X_{3,1}</span></td>
+<td><span class="math inline">6</span></td>
+<td><span class="math inline">6</span></td>
+</tr>
+<tr class="even">
+<td><span class="math inline">1</span></td>
+<td><span class="math inline">0</span></td>
+<td><span class="math inline">0</span></td>
+<td><span class="math inline">X_{3,2}</span></td>
+<td><span class="math inline">7</span></td>
+<td><span class="math inline">0</span></td>
+</tr>
+<tr class="odd">
+<td><span class="math inline">1</span></td>
+<td><span class="math inline">1</span></td>
+<td><span class="math inline">-1</span></td>
+<td><span class="math inline">X_{3,3}</span></td>
+<td><span class="math inline">8</span></td>
+<td><span class="math inline">-8</span></td>
+</tr>
+</tbody>
+</table>
+<p>The products sum to <span class="math inline">0 + 0 - 2 + 6 + 0 - 10 + 6 + 0 - 8 = -8</span>, and adding the bias gives</p>
+<p><span class="math display">\bm{H}_{2,2} = u + \sum_{a=-1}^{1} \sum_{b=-1}^{1} V_{a,b}\, X_{2+a,\, 2+b} = 0.5 + (-8) = -7.5.</span></p>
+<p>Reading the result: this kernel weights the left column positively and the right column negatively, so it measures “left side brighter than right side”. In this image brightness increases to the right, so the output is negative.</p>
+<p>This <span class="math inline">\bm{H}_{2,2}</span> is the only output this kernel can produce without padding. Any other centre, such as <span class="math inline">\bm{X}_{1,1}</span>, would need <span class="math inline">X_{0,0}</span>, a pixel outside the image. That is the <span class="math inline">(n_h - 2\Delta) \times (n_w - 2\Delta) = 1 \times 1</span> output size, and the reason for <a href="#sec-padding">padding</a>.</p>
+</div>
+</div>
+</div>
+<p>The dot product measures how well the input window agrees with the kernel’s pattern: informally, how much of <span class="math inline">\bm{V}</span> is present at position <span class="math inline">(i, j)</span>. The output grid <span class="math inline">\bm{H}</span> is called a <strong>feature map</strong>, since it records where in the image that pattern was found.</p>
+<div class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+Note
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p><strong>Parameter sharing.</strong> Translation invariance is what lets one kernel replace a separate weight array for every output position. Without sharing, a <span class="math inline">200\times200</span> output would need <span class="math inline">200\times200</span> separate sets of weights. If applying the same operation everywhere is a good assumption, an unshared model would at best learn the same filter at every position anyway, so sharing removes redundant parameters without removing good solutions.</p>
+</div>
+</div>
+<div class="clarification callout callout-style-default callout-tip callout-titled" title="Question: What does a layer look like before and after parameter sharing?">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-4-contents" aria-controls="callout-4" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Question: What does a layer look like before and after parameter sharing?
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-4" class="callout-4-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>Take a <span class="math inline">4\times4</span> input <span class="math inline">\bm{X}</span> and a <span class="math inline">3\times3</span> window (<span class="math inline">\Delta = 1</span>). Without padding the window centre can sit at rows 2 to 3 and columns 2 to 3, so there are four output entries: <span class="math inline">\bm{H}_{2,2}</span>, <span class="math inline">\bm{H}_{2,3}</span>, <span class="math inline">\bm{H}_{3,2}</span> and <span class="math inline">\bm{H}_{3,3}</span>. Both versions below keep locality (each output only looks at its <span class="math inline">3\times3</span> window). The only difference is whether the weights depend on the output position.</p>
+<p><strong>Before sharing.</strong> This is Step 2’s formula with the window restricted to <span class="math inline">\pm\Delta</span>, but without Step 3: every output position keeps its own bias <span class="math inline">\bm{U}_{i,j}</span> and its own <span class="math inline">3\times3</span> grid of weights <span class="math inline">\bm{V}_{i,j,a,b}</span>. Writing out two neighbouring outputs:</p>
+<p><span class="math display">\bm{H}_{2,2} = \bm{U}_{2,2} + \sum_{a=-1}^{1} \sum_{b=-1}^{1} \bm{V}_{2,2,a,b}\, \bm{X}_{2+a,\, 2+b}</span></p>
+<p><span class="math display">\bm{H}_{2,3} = \bm{U}_{2,3} + \sum_{a=-1}^{1} \sum_{b=-1}^{1} \bm{V}_{2,3,a,b}\, \bm{X}_{2+a,\, 3+b}</span></p>
+<p>The top-left pixel of the first window, <span class="math inline">\bm{X}_{1,1}</span>, is multiplied by <span class="math inline">\bm{V}_{2,2,-1,-1}</span>. The top-left pixel of the second window, <span class="math inline">\bm{X}_{1,2}</span>, is multiplied by <span class="math inline">\bm{V}_{2,3,-1,-1}</span>. These are two separate numbers, learned separately, even though they play the same role (the top-left corner of a window). The layer stores four kernels, one per output position:</p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 33%">
+<col style="width: 33%">
+<col style="width: 33%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Output</th>
+<th>Kernel it uses</th>
+<th>Bias it uses</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><span class="math inline">\bm{H}_{2,2}</span></td>
+<td><span class="math inline">\bm{V}_{2,2,\cdot,\cdot}</span> (9 weights)</td>
+<td><span class="math inline">\bm{U}_{2,2}</span></td>
+</tr>
+<tr class="even">
+<td><span class="math inline">\bm{H}_{2,3}</span></td>
+<td><span class="math inline">\bm{V}_{2,3,\cdot,\cdot}</span> (9 weights)</td>
+<td><span class="math inline">\bm{U}_{2,3}</span></td>
+</tr>
+<tr class="odd">
+<td><span class="math inline">\bm{H}_{3,2}</span></td>
+<td><span class="math inline">\bm{V}_{3,2,\cdot,\cdot}</span> (9 weights)</td>
+<td><span class="math inline">\bm{U}_{3,2}</span></td>
+</tr>
+<tr class="even">
+<td><span class="math inline">\bm{H}_{3,3}</span></td>
+<td><span class="math inline">\bm{V}_{3,3,\cdot,\cdot}</span> (9 weights)</td>
+<td><span class="math inline">\bm{U}_{3,3}</span></td>
+</tr>
+</tbody>
+</table>
+<p>That is <span class="math inline">4 \times 9 = 36</span> weights plus <span class="math inline">4</span> biases, <span class="math inline">40</span> parameters.</p>
+<p><strong>After sharing.</strong> Step 3 drops the <span class="math inline">(i, j)</span> from the weights and the bias, leaving one kernel <span class="math inline">\bm{V}_{a,b}</span> and one bias <span class="math inline">u</span>:</p>
+<p><span class="math display">\bm{H}_{2,2} = u + \sum_{a=-1}^{1} \sum_{b=-1}^{1} \bm{V}_{a,b}\, \bm{X}_{2+a,\, 2+b}</span></p>
+<p><span class="math display">\bm{H}_{2,3} = u + \sum_{a=-1}^{1} \sum_{b=-1}^{1} \bm{V}_{a,b}\, \bm{X}_{2+a,\, 3+b}</span></p>
+<p>Now the same weight <span class="math inline">\bm{V}_{-1,-1}</span> multiplies <span class="math inline">\bm{X}_{1,1}</span> for <span class="math inline">\bm{H}_{2,2}</span> and <span class="math inline">\bm{X}_{1,2}</span> for <span class="math inline">\bm{H}_{2,3}</span>. The windows still differ; the weights applied to them do not. All four outputs use the same 9 weights and the same bias, <span class="math inline">10</span> parameters in total.</p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 33%">
+<col style="width: 33%">
+<col style="width: 33%">
+</colgroup>
+<thead>
+<tr class="header">
+<th></th>
+<th>Before sharing</th>
+<th>After sharing</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>Weights</td>
+<td><span class="math inline">\bm{V}_{i,j,a,b}</span>: one <span class="math inline">3\times3</span> kernel per output position</td>
+<td><span class="math inline">\bm{V}_{a,b}</span>: one <span class="math inline">3\times3</span> kernel for all positions</td>
+</tr>
+<tr class="even">
+<td>Bias</td>
+<td><span class="math inline">\bm{U}_{i,j}</span>: one per output position</td>
+<td><span class="math inline">u</span>: one number</td>
+</tr>
+<tr class="odd">
+<td>Parameters, <span class="math inline">4\times4</span> input</td>
+<td><span class="math inline">36 + 4 = 40</span></td>
+<td><span class="math inline">9 + 1 = 10</span></td>
+</tr>
+<tr class="even">
+<td>Parameters, <span class="math inline">200\times200</span> output</td>
+<td><span class="math inline">40{,}000 \times 9 + 40{,}000 = 400{,}000</span></td>
+<td><span class="math inline">9 + 1 = 10</span></td>
+</tr>
+</tbody>
+</table>
+<p>The before count grows with the number of output positions; the after count depends only on the kernel size. A pattern detector learned at one position is also, automatically, the detector used at every other position.</p>
+</div>
+</div>
+</div>
+</section>
+<section id="sec-flip" class="level3">
+<h3 class="anchored" data-anchor-id="sec-flip">Convolution or cross-correlation?</h3>
+<p>The operation in the boxed equation is what signal processing calls a <a href="https://en.wikipedia.org/wiki/Cross-correlation">cross-correlation</a>: the kernel is laid over the window as it is. A <a href="https://en.wikipedia.org/wiki/Convolution">convolution</a> in the mathematical sense first <strong>flips</strong> the kernel, top-to-bottom and left-to-right, and then slides it:</p>
+<p><span class="math display">\text{cross-correlation: } \sum_{a,b} \bm{V}_{a,b}\, \bm{X}_{i+a,\, j+b}, \qquad \text{convolution: } \sum_{a,b} \bm{V}_{a,b}\, \bm{X}_{i-a,\, j-b}.</span></p>
+<p>The only difference is the sign of the offsets. Pairing <span class="math inline">\bm{V}_{a,b}</span> with <span class="math inline">\bm{X}_{i-a,j-b}</span> is the same as pairing the flipped kernel entry <span class="math inline">\bm{V}_{-a,-b}</span> with <span class="math inline">\bm{X}_{i+a,j+b}</span>, which is why “flip, then cross-correlate” computes a convolution.</p>
+<p>For a network the distinction does not matter: the kernel is learned, so a network trained with one operation would simply learn the flipped kernel under the other. Deep learning therefore calls both “convolution”, and PyTorch’s <code>Conv2d</code> actually computes the cross-correlation. When a task asks for the <em>traditional</em> convolution, though, the flip changes the numbers, as the worked example below shows. A kernel that looks the same after flipping both ways (symmetric about its centre) gives the same output under either definition.</p>
+</section>
+<section id="sec-conv-example" class="level3">
+<h3 class="anchored" data-anchor-id="sec-conv-example">A worked example</h3>
+<p>Take the lecture’s <span class="math inline">3\times3</span> input with entries <span class="math inline">0</span> through <span class="math inline">8</span> and its <span class="math inline">2\times2</span> kernel with entries <span class="math inline">0, 1, 2, 3</span>:</p>
+<p><span class="math display">\bm{X} = \begin{bmatrix} 0 &amp; 1 &amp; 2 \\ 3 &amp; 4 &amp; 5 \\ 6 &amp; 7 &amp; 8 \end{bmatrix}, \qquad \bm{V} = \begin{bmatrix} 0 &amp; 1 \\ 2 &amp; 3 \end{bmatrix}.</span></p>
+<p>We place the kernel at every position where it fits entirely inside the input. There are four such positions. At the top-left, the window is <span class="math inline">\begin{bmatrix} 0 &amp; 1 \\ 3 &amp; 4 \end{bmatrix}</span> and the cross-correlation multiplies matching entries and sums:</p>
+<p><span class="math display">0\cdot0 + 1\cdot1 + 2\cdot3 + 3\cdot4 = 19.</span></p>
+<p>Sliding one pixel right, then down, then down-right gives <span class="math inline">25</span>, <span class="math inline">37</span>, and <span class="math inline">43</span>.</p>
+<p>For the traditional convolution we first flip <span class="math inline">\bm{V}</span> both ways, which gives <span class="math inline">\begin{bmatrix} 3 &amp; 2 \\ 1 &amp; 0 \end{bmatrix}</span>, and then do the same sliding dot products. At the top-left:</p>
+<p><span class="math display">3\cdot0 + 2\cdot1 + 1\cdot3 + 0\cdot4 = 5,</span></p>
+<p>and the other three positions give <span class="math inline">11</span>, <span class="math inline">23</span>, and <span class="math inline">29</span>.</p>
+<div style="overflow-x:auto; margin:1.5rem 0;">
+<svg viewbox="0 0 700 360" width="100%" style="max-width:700px;display:block;margin:auto;font-family:Helvetica,'Helvetica Neue',Arial,sans-serif;">
+<text x="20" y="32" font-size="24" font-weight="600" fill="#333">Cross-correlation versus convolution</text>
+<rect x="20" y="80" width="44" height="44" fill="#C6DEF1" stroke="#5795C7" stroke-width="1.5"></rect>
+<text x="42" y="109" text-anchor="middle" font-size="18" font-weight="600" fill="#205279">0</text>
+<rect x="64" y="80" width="44" height="44" fill="#C6DEF1" stroke="#5795C7" stroke-width="1.5"></rect>
+<text x="86" y="109" text-anchor="middle" font-size="18" font-weight="600" fill="#205279">1</text>
+<rect x="108" y="80" width="44" height="44" fill="#C6DEF1" stroke="#5795C7" stroke-width="1.5"></rect>
+<text x="130" y="109" text-anchor="middle" font-size="18" font-weight="600" fill="#205279">2</text>
+<rect x="20" y="124" width="44" height="44" fill="#C6DEF1" stroke="#5795C7" stroke-width="1.5"></rect>
+<text x="42" y="153" text-anchor="middle" font-size="18" font-weight="600" fill="#205279">3</text>
+<rect x="64" y="124" width="44" height="44" fill="#C6DEF1" stroke="#5795C7" stroke-width="1.5"></rect>
+<text x="86" y="153" text-anchor="middle" font-size="18" font-weight="600" fill="#205279">4</text>
+<rect x="108" y="124" width="44" height="44" fill="#C6DEF1" stroke="#5795C7" stroke-width="1.5"></rect>
+<text x="130" y="153" text-anchor="middle" font-size="18" font-weight="600" fill="#205279">5</text>
+<rect x="20" y="168" width="44" height="44" fill="#C6DEF1" stroke="#5795C7" stroke-width="1.5"></rect>
+<text x="42" y="197" text-anchor="middle" font-size="18" font-weight="600" fill="#205279">6</text>
+<rect x="64" y="168" width="44" height="44" fill="#C6DEF1" stroke="#5795C7" stroke-width="1.5"></rect>
+<text x="86" y="197" text-anchor="middle" font-size="18" font-weight="600" fill="#205279">7</text>
+<rect x="108" y="168" width="44" height="44" fill="#C6DEF1" stroke="#5795C7" stroke-width="1.5"></rect>
+<text x="130" y="197" text-anchor="middle" font-size="18" font-weight="600" fill="#205279">8</text>
+<rect x="20" y="80" width="88" height="88" fill="none" stroke="#e53935" stroke-width="2.5"></rect>
+<text x="86" y="236" text-anchor="middle" font-size="15" fill="#666">input X</text>
+<text x="190" y="80" font-size="16" font-weight="600" fill="#333">kernel as given</text>
+<rect x="200" y="92" width="40" height="40" fill="#DBCDF0" stroke="#8457C7" stroke-width="1.5"></rect>
+<text x="220" y="118" text-anchor="middle" font-size="17" font-weight="600" fill="#442079">0</text>
+<rect x="240" y="92" width="40" height="40" fill="#DBCDF0" stroke="#8457C7" stroke-width="1.5"></rect>
+<text x="260" y="118" text-anchor="middle" font-size="17" font-weight="600" fill="#442079">1</text>
+<rect x="200" y="132" width="40" height="40" fill="#DBCDF0" stroke="#8457C7" stroke-width="1.5"></rect>
+<text x="220" y="158" text-anchor="middle" font-size="17" font-weight="600" fill="#442079">2</text>
+<rect x="240" y="132" width="40" height="40" fill="#DBCDF0" stroke="#8457C7" stroke-width="1.5"></rect>
+<text x="260" y="158" text-anchor="middle" font-size="17" font-weight="600" fill="#442079">3</text>
+<line x1="296" y1="132" x2="356" y2="132" stroke="#888" stroke-width="1.5"></line>
+<path d="M350,127 L358,132 L350,137 z" fill="#888"></path>
+<rect x="372" y="92" width="40" height="40" fill="#C9E4DE" stroke="#57C7AE" stroke-width="1.5"></rect>
+<text x="392" y="118" text-anchor="middle" font-size="17" font-weight="600" fill="#207965">19</text>
+<rect x="412" y="92" width="40" height="40" fill="#C9E4DE" stroke="#57C7AE" stroke-width="1.5"></rect>
+<text x="432" y="118" text-anchor="middle" font-size="17" font-weight="600" fill="#207965">25</text>
+<rect x="372" y="132" width="40" height="40" fill="#C9E4DE" stroke="#57C7AE" stroke-width="1.5"></rect>
+<text x="392" y="158" text-anchor="middle" font-size="17" font-weight="600" fill="#207965">37</text>
+<rect x="412" y="132" width="40" height="40" fill="#C9E4DE" stroke="#57C7AE" stroke-width="1.5"></rect>
+<text x="432" y="158" text-anchor="middle" font-size="17" font-weight="600" fill="#207965">43</text>
+<text x="472" y="128" font-size="15" fill="#207965">cross-correlation</text>
+<text x="472" y="148" font-size="14" fill="#666">(PyTorch Conv2d)</text>
+<text x="190" y="226" font-size="16" font-weight="600" fill="#333">kernel flipped</text>
+<rect x="200" y="238" width="40" height="40" fill="#DBCDF0" stroke="#8457C7" stroke-width="1.5"></rect>
+<text x="220" y="264" text-anchor="middle" font-size="17" font-weight="600" fill="#442079">3</text>
+<rect x="240" y="238" width="40" height="40" fill="#DBCDF0" stroke="#8457C7" stroke-width="1.5"></rect>
+<text x="260" y="264" text-anchor="middle" font-size="17" font-weight="600" fill="#442079">2</text>
+<rect x="200" y="278" width="40" height="40" fill="#DBCDF0" stroke="#8457C7" stroke-width="1.5"></rect>
+<text x="220" y="304" text-anchor="middle" font-size="17" font-weight="600" fill="#442079">1</text>
+<rect x="240" y="278" width="40" height="40" fill="#DBCDF0" stroke="#8457C7" stroke-width="1.5"></rect>
+<text x="260" y="304" text-anchor="middle" font-size="17" font-weight="600" fill="#442079">0</text>
+<line x1="296" y1="278" x2="356" y2="278" stroke="#888" stroke-width="1.5"></line>
+<path d="M350,273 L358,278 L350,283 z" fill="#888"></path>
+<rect x="372" y="238" width="40" height="40" fill="#F7D9C4" stroke="#C78557" stroke-width="1.5"></rect>
+<text x="392" y="264" text-anchor="middle" font-size="17" font-weight="600" fill="#794520">5</text>
+<rect x="412" y="238" width="40" height="40" fill="#F7D9C4" stroke="#C78557" stroke-width="1.5"></rect>
+<text x="432" y="264" text-anchor="middle" font-size="17" font-weight="600" fill="#794520">11</text>
+<rect x="372" y="278" width="40" height="40" fill="#F7D9C4" stroke="#C78557" stroke-width="1.5"></rect>
+<text x="392" y="304" text-anchor="middle" font-size="17" font-weight="600" fill="#794520">23</text>
+<rect x="412" y="278" width="40" height="40" fill="#F7D9C4" stroke="#C78557" stroke-width="1.5"></rect>
+<text x="432" y="304" text-anchor="middle" font-size="17" font-weight="600" fill="#794520">29</text>
+<text x="472" y="274" font-size="15" fill="#794520">convolution</text>
+<text x="472" y="294" font-size="14" fill="#666">(flip, then slide)</text>
+<text x="20" y="346" font-size="14" fill="#666">The red square is the top-left window. Both rows use the same input; only the kernel orientation differs.</text>
+</svg></div>
+<div class="clarification callout callout-style-default callout-tip callout-titled" title="Question: Why does the kernel look like the red window but hold different numbers?">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-5-contents" aria-controls="callout-5" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Question: Why does the kernel look like the red window but hold different numbers?
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-5" class="callout-5-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>The kernel <span class="math inline">\bm{V}</span> is the layer’s learned weights, not a piece of the input. Its values (here <span class="math inline">0, 1, 2, 3</span>) come from training and stay fixed while it slides. The red window holds input pixels (here <span class="math inline">0, 1, 3, 4</span>), and those change at every position. The numbers overlap in this example only because the lecture fills both grids with small integers.</p>
+<p>They have the same shape because the window is <em>defined</em> by the kernel: it is the patch of input the kernel covers when placed at one position. Each output entry is a dot product that pairs every kernel weight with exactly one pixel underneath it, so a <span class="math inline">2\times2</span> kernel always covers a <span class="math inline">2\times2</span> window, and a <span class="math inline">(2\Delta+1)\times(2\Delta+1)</span> kernel covers a <span class="math inline">(2\Delta+1)\times(2\Delta+1)</span> window. At the top-left position the pairs are <span class="math inline">0\cdot0</span>, <span class="math inline">1\cdot1</span>, <span class="math inline">2\cdot3</span> and <span class="math inline">3\cdot4</span>, which sum to <span class="math inline">19</span>.</p>
+</div>
+</div>
+</div>
+<p>Two observations follow, and the rest of this section builds on both.</p>
+<ol type="1">
+<li><strong>The output is smaller than the input</strong>, because the kernel can be placed only where it fits. Here a <span class="math inline">3\times3</span> input and a <span class="math inline">2\times2</span> kernel give a <span class="math inline">2\times2</span> output.</li>
+<li><strong>Each output entry depends on only a small region of the input</strong>, a consequence of locality.</li>
+</ol>
+</section>
+<section id="sec-template" class="level3">
+<h3 class="anchored" data-anchor-id="sec-template">Reading the kernel as a template</h3>
+<p>Because each output is a dot product, a kernel responds most strongly to windows that look like it. Positive weights reward brightness where they sit, negative weights penalize it, and zero weights ignore those pixels. To see this, take a <span class="math inline">3\times3</span> kernel meant to respond to a bright horizontal bar on a dark background (our example, not the lecture’s):</p>
+<p><span class="math display">\bm{V} = \begin{bmatrix} -1 &amp; -1 &amp; -1 \\ 1 &amp; 1 &amp; 1 \\ -1 &amp; -1 &amp; -1 \end{bmatrix}.</span></p>
+<p>Its dot product with a few <span class="math inline">3\times3</span> windows of 0s (dark) and 1s (bright), in the sense of the <a href="https://en.wikipedia.org/wiki/Frobenius_inner_product">Frobenius inner product</a> <span class="math inline">\langle \bm{V}, \text{window} \rangle_F</span> (multiply matching entries, then sum), with the bias set to <span class="math inline">0</span>:</p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 33%">
+<col style="width: 33%">
+<col style="width: 33%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Window</th>
+<th>What it shows</th>
+<th>Frobenius inner product <span class="math inline">\langle \bm{V}, \text{window} \rangle_F</span></th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><span class="math inline">\begin{bmatrix} 0&amp;0&amp;0 \\ 1&amp;1&amp;1 \\ 0&amp;0&amp;0 \end{bmatrix}</span></td>
+<td>the full bar</td>
+<td><span class="math inline">3</span></td>
+</tr>
+<tr class="even">
+<td><span class="math inline">\begin{bmatrix} 0&amp;0&amp;0 \\ 1&amp;1&amp;0 \\ 0&amp;0&amp;0 \end{bmatrix}</span></td>
+<td>two-thirds of the bar</td>
+<td><span class="math inline">2</span></td>
+</tr>
+<tr class="odd">
+<td><span class="math inline">\begin{bmatrix} 0&amp;1&amp;0 \\ 0&amp;1&amp;0 \\ 0&amp;1&amp;0 \end{bmatrix}</span></td>
+<td>a vertical bar</td>
+<td><span class="math inline">-1</span></td>
+</tr>
+<tr class="even">
+<td><span class="math inline">\begin{bmatrix} 1&amp;1&amp;1 \\ 0&amp;0&amp;0 \\ 0&amp;0&amp;0 \end{bmatrix}</span></td>
+<td>the bar one row too high</td>
+<td><span class="math inline">-3</span></td>
+</tr>
+<tr class="odd">
+<td>all 1s</td>
+<td>a bright patch, no bar</td>
+<td><span class="math inline">-3</span></td>
+</tr>
+<tr class="even">
+<td>all 0s</td>
+<td>nothing</td>
+<td><span class="math inline">0</span></td>
+</tr>
+</tbody>
+</table>
+<div class="clarification callout callout-style-default callout-tip callout-titled" title="Question: Is this a dot product, a Frobenius inner product, or a matrix product, and what is the output here?">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-6-contents" aria-controls="callout-6" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Question: Is this a dot product, a Frobenius inner product, or a matrix product, and what is the output here?
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-6" class="callout-6-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p><strong>What “output” means.</strong> Each output is one entry <span class="math inline">\bm{H}_{i,j}</span> of the feature map: the kernel sits at one position, covers one window, and produces one number. The full entry adds the bias,</p>
+<p><span class="math display">\bm{H}_{i,j} = u + \langle \bm{V},\ \text{window at } (i, j) \rangle_F,</span></p>
+<p>so “each output is a dot product” is exact only when <span class="math inline">u = 0</span>. The scores in the table are <span class="math inline">\bm{H}_{i,j}</span> with <span class="math inline">u = 0</span>; the paragraph below brings <span class="math inline">u</span> back as what shifts the threshold.</p>
+<p><strong>Dot product or Frobenius?</strong> Both, because they give the same number. For two grids of the same shape, the Frobenius inner product multiplies matching entries and sums them all:</p>
+<p><span class="math display">\langle \bm{V}, \bm{W} \rangle_F = \sum_a \sum_b V_{a,b}\, W_{a,b} = \operatorname{tr}(\bm{V}^\top \bm{W}).</span></p>
+<p>Flattening both grids into vectors in the same (row-major) order and taking an ordinary dot product adds up the same products. The lecture and most deep-learning texts say “dot product” in this flattened sense; “Frobenius inner product” is the precise name when <span class="math inline">\bm{V}</span> and the window stay as grids. It is the inner product behind Week 3’s <a href="../lectures/week03.html#sec-regularization">Frobenius norm</a>: <span class="math inline">\langle \bm{W}, \bm{W} \rangle_F = \lVert \bm{W} \rVert_F^2</span>.</p>
+<p><strong>Not a matrix product.</strong> Each <span class="math inline">\bm{H}_{i,j}</span> is a single number, so the operation must reduce two same-shape grids to one scalar. Matrix multiplication does not. With the <a href="#sec-conv-example">worked example</a>’s kernel and top-left window:</p>
+<p><span class="math display">\bm{V} = \begin{bmatrix} 0 &amp; 1 \\ 2 &amp; 3 \end{bmatrix}, \qquad \text{window} = \begin{bmatrix} 0 &amp; 1 \\ 3 &amp; 4 \end{bmatrix}.</span></p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 50%">
+<col style="width: 50%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Operation</th>
+<th>Result</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>Frobenius inner product (or dot product of the flattened grids)</td>
+<td><span class="math inline">0\cdot0 + 1\cdot1 + 2\cdot3 + 3\cdot4 = 19</span>, one number: the top-left output with <span class="math inline">u = 0</span></td>
+</tr>
+<tr class="even">
+<td>Matrix product <span class="math inline">\bm{V} \times \text{window}</span></td>
+<td><span class="math inline">\begin{bmatrix} 3 &amp; 4 \\ 9 &amp; 14 \end{bmatrix}</span>, a matrix, not a convolution output</td>
+</tr>
+</tbody>
+</table>
+<p>Once <a href="#sec-channels">channels</a> arrive, the window and kernel become three-dimensional (rows by columns by input channels), and the operation is still the same match-and-sum over every entry, plus <span class="math inline">u</span>.</p>
+</div>
+</div>
+</div>
+<p>The full bar scores highest, a partial bar next, and bright pixels in the wrong places push the score down. The negative weights are what stop a uniformly bright patch from scoring well. To turn scores into a yes/no decision we compare against a threshold, here anything between <span class="math inline">2</span> and <span class="math inline">3</span> separates the full bar from everything else. Adding a bias <span class="math inline">u</span>, or rescaling the kernel, moves where that threshold falls. This kernel is symmetric under the flip from the previous section, so it gives the same scores under convolution and cross-correlation. In a trained network nobody designs these templates; gradient descent learns them.</p>
+</section>
+<section id="sec-output-size" class="level3">
+<h3 class="anchored" data-anchor-id="sec-output-size">The output size</h3>
+<p>How big is the output? Work along one axis at a time. An input of length <span class="math inline">n</span> and a kernel of length <span class="math inline">k</span> admit kernel positions starting at <span class="math inline">0, 1, \ldots, n - k</span>, so there are <span class="math inline">n - k + 1</span> of them. In two dimensions this gives</p>
+<p><span class="math display">(n_h - k_h + 1) \times (n_w - k_w + 1)</span></p>
+<p>for input height <span class="math inline">n_h</span> and width <span class="math inline">n_w</span> and kernel height <span class="math inline">k_h</span> and width <span class="math inline">k_w</span>. In the worked example <span class="math inline">3 - 2 + 1 = 2</span> along each axis. The padding and stride sections below each change this count, and we combine them in <a href="#sec-general-size">The general output-size rule</a>.</p>
+</section>
+<section id="sec-receptive-field" class="level3">
+<h3 class="anchored" data-anchor-id="sec-receptive-field">Receptive field</h3>
+<div class="definition-block">
+<p><strong>Definition.</strong> The <strong>receptive field</strong> of an output entry is the region of the input that it depends on. See <a href="https://en.wikipedia.org/wiki/Receptive_field">receptive field</a>.</p>
+</div>
+<p>For a single convolution the receptive field is the size of the kernel: in the worked example each output sees a <span class="math inline">2\times2</span> patch. For a stack of layers it grows with depth, because each entry of layer 2 sees several entries of layer 1, each of which already sees several input pixels. We return to stacks in <a href="#sec-rf-stack">Receptive fields of stacked layers</a>, once stride is defined.</p>
+</section>
+<section id="sec-padding" class="level3">
+<h3 class="anchored" data-anchor-id="sec-padding">Padding</h3>
+<p>That the output shrinks is inconvenient: after a few layers there would be little left. The standard remedy is padding.</p>
+<div class="definition-block">
+<p><strong>Definition.</strong> <strong>Padding</strong> adds a border of zeros around the input before the convolution, usually just enough that the output has the same height and width as the input.</p>
+</div>
+<p>For a <span class="math inline">K\times K</span> kernel the output loses <span class="math inline">K - 1</span> positions along each axis, so we add <span class="math inline">K - 1</span> zeros in total along each axis, split between the two edges:</p>
+<p><span class="math display">\frac{K-1}{2} \text{ rows or columns of zeros on each edge.}</span></p>
+<p>For a <span class="math inline">3\times3</span> kernel that is one zero on each edge. Padding the lecture’s <span class="math inline">3\times3</span> input with one zero on every side makes it <span class="math inline">5\times5</span>, and a <span class="math inline">3\times3</span> kernel then fits at <span class="math inline">5 - 3 + 1 = 3</span> positions along each axis: the output is <span class="math inline">3\times3</span>, the same as the input. Splitting <span class="math inline">K - 1</span> evenly needs <span class="math inline">K</span> to be odd, which is one reason kernels are almost always odd (a window from <span class="math inline">-\Delta</span> to <span class="math inline">\Delta</span> has <span class="math inline">2\Delta+1</span> entries, always odd). Neither convention is mandatory, and padding by a different amount gives a larger or smaller output.</p>
+<p>Padding does not change the receptive field’s size. It only means that, near the border, part of a receptive field covers the added zeros instead of real pixels.</p>
+</section>
+<section id="sec-stride" class="level3">
+<h3 class="anchored" data-anchor-id="sec-stride">Stride</h3>
+<p>Ordinarily the kernel moves one pixel at a time. With a <strong>stride</strong> greater than one, it moves further between neighbouring outputs.</p>
+<div class="definition-block">
+<p><strong>Definition.</strong> The <strong>stride</strong> of a convolution (or pooling) layer is the number of pixels the window moves between consecutive output positions. It can differ between height and width; PyTorch writes <code>stride=(s_h, s_w)</code>, the step down the rows first and the step across the columns second.</p>
+</div>
+<p>The lecture’s example is a stride of <span class="math inline">2\times3</span>, which it describes as moving two pixels horizontally and three vertically. In PyTorch’s (height, width) order, <code>stride=(2, 3)</code> means the opposite: two rows down and three columns across. These notes use the (height, width) order throughout, because that is how code reads it.</p>
+<p>Striding has two effects. The output gets smaller, since we skip positions we could have computed: a form of downsampling. And the computation gets cheaper, since the cost of a convolution is roughly the number of output positions times the size of the kernel. Striding is reasonable when nearby positions would give nearly the same output anyway.</p>
+<div style="overflow-x:auto; margin:1.5rem 0;">
+<svg viewbox="0 0 660 290" width="100%" style="max-width:660px;display:block;margin:auto;font-family:Helvetica,'Helvetica Neue',Arial,sans-serif;">
+<text x="20" y="32" font-size="24" font-weight="600" fill="#333">Stride 2: where the kernel can start</text>
+<text x="20" y="64" font-size="15" fill="#666">One axis, n = 7 inputs, kernel k = 3, stride s = 2, no padding</text>
+<path d="M40,118 L40,108 L228,108 L228,118" fill="none" stroke="#57C7AE" stroke-width="2.5"></path>
+<text x="134" y="100" text-anchor="middle" font-size="15" fill="#207965">start 0</text>
+<path d="M296,118 L296,108 L484,108 L484,118" fill="none" stroke="#57C7AE" stroke-width="2.5"></path>
+<text x="390" y="100" text-anchor="middle" font-size="15" fill="#207965">start 4</text>
+<rect x="40" y="124" width="60" height="50" fill="#C6DEF1" stroke="#5795C7" stroke-width="1.5"></rect>
+<text x="70" y="155" text-anchor="middle" font-size="16" fill="#205279">0</text>
+<rect x="104" y="124" width="60" height="50" fill="#C6DEF1" stroke="#5795C7" stroke-width="1.5"></rect>
+<text x="134" y="155" text-anchor="middle" font-size="16" fill="#205279">1</text>
+<rect x="168" y="124" width="60" height="50" fill="#C6DEF1" stroke="#5795C7" stroke-width="1.5"></rect>
+<text x="198" y="155" text-anchor="middle" font-size="16" fill="#205279">2</text>
+<rect x="232" y="124" width="60" height="50" fill="#C6DEF1" stroke="#5795C7" stroke-width="1.5"></rect>
+<text x="262" y="155" text-anchor="middle" font-size="16" fill="#205279">3</text>
+<rect x="296" y="124" width="60" height="50" fill="#C6DEF1" stroke="#5795C7" stroke-width="1.5"></rect>
+<text x="326" y="155" text-anchor="middle" font-size="16" fill="#205279">4</text>
+<rect x="360" y="124" width="60" height="50" fill="#C6DEF1" stroke="#5795C7" stroke-width="1.5"></rect>
+<text x="390" y="155" text-anchor="middle" font-size="16" fill="#205279">5</text>
+<rect x="424" y="124" width="60" height="50" fill="#C6DEF1" stroke="#5795C7" stroke-width="1.5"></rect>
+<text x="454" y="155" text-anchor="middle" font-size="16" fill="#205279">6</text>
+<path d="M168,180 L168,190 L356,190 L356,180" fill="none" stroke="#C7A857" stroke-width="2.5"></path>
+<text x="262" y="210" text-anchor="middle" font-size="15" fill="#796020">start 2</text>
+<path d="M424,180 L424,190 L612,190 L612,180" fill="none" stroke="#e53935" stroke-width="2" stroke-dasharray="6,4"></path>
+<text x="518" y="210" text-anchor="middle" font-size="15" fill="#e53935">start 6: runs off the end</text>
+<text x="20" y="252" font-size="16" fill="#333">Valid starts 0, 2, 4: the last start can be at most n − k = 4,</text>
+<text x="20" y="274" font-size="16" fill="#333">so there are floor(4 / 2) + 1 = 3 outputs.</text>
+</svg></div>
+</section>
+<section id="sec-general-size" class="level3">
+<h3 class="anchored" data-anchor-id="sec-general-size">The general output-size rule</h3>
+<p>We can now count output positions with padding and stride together. Work along one axis, with input length <span class="math inline">n</span>, kernel length <span class="math inline">k</span>, padding <span class="math inline">p</span> zeros on <strong>each</strong> edge, and stride <span class="math inline">s</span>.</p>
+<ol type="1">
+<li>After padding, the axis has length <span class="math inline">n + 2p</span>.</li>
+<li>A kernel starting at position <span class="math inline">t</span> (counting from <span class="math inline">0</span>) covers positions <span class="math inline">t</span> to <span class="math inline">t + k - 1</span>, so it fits when <span class="math inline">t \le n + 2p - k</span>.</li>
+<li>With stride <span class="math inline">s</span> the starts are <span class="math inline">0, s, 2s, \ldots</span>. The number of multiples of <span class="math inline">s</span> from <span class="math inline">0</span> up to <span class="math inline">n + 2p - k</span> is that limit divided by <span class="math inline">s</span>, rounded down, plus one for the start at <span class="math inline">0</span>.</li>
+</ol>
+<div class="boxed-eq">
+<p><span class="math display">n_\text{out} = \left\lfloor \frac{n + 2p - k}{s} \right\rfloor + 1</span></p>
+</div>
+<p>Here <span class="math inline">\lfloor\cdot\rfloor</span> is the <a href="https://en.wikipedia.org/wiki/Floor_and_ceiling_functions">floor function</a>, rounding down to an integer. The rounding is what discards a final window that would run off the end, as in the figure. Apply the rule to the height and the width separately, each with its own <span class="math inline">k</span>, <span class="math inline">p</span>, and <span class="math inline">s</span>.</p>
+<p>Checking it against cases we already know:</p>
+<ul>
+<li>No padding, stride 1 (the worked example): <span class="math inline">\lfloor (3 + 0 - 2)/1 \rfloor + 1 = 2</span>. With <span class="math inline">p = 0</span> and <span class="math inline">s = 1</span> the rule is the earlier <span class="math inline">n - k + 1</span>.</li>
+<li>“Same” padding (the padding section): <span class="math inline">n = 3</span>, <span class="math inline">k = 3</span>, <span class="math inline">p = 1</span>, <span class="math inline">s = 1</span> gives <span class="math inline">\lfloor 2/1 \rfloor + 1 = 3</span>.</li>
+<li>Stride 2 on the worked example: <span class="math inline">n = 3</span>, <span class="math inline">k = 2</span>, <span class="math inline">p = 0</span>, <span class="math inline">s = 2</span> gives <span class="math inline">\lfloor 1/2 \rfloor + 1 = 1</span>. Only the top-left window (the <span class="math inline">19</span>) is computed, since a start at position <span class="math inline">2</span> would need a third column.</li>
+</ul>
+<p>This rule is also what decides the size of each layer when we trace shapes through a network in <a href="#sec-simple-convnet">Building a simple convolutional network</a>.</p>
+</section>
+<section id="sec-conv-matrix" class="level3">
+<h3 class="anchored" data-anchor-id="sec-conv-matrix">Convolution as a matrix</h3>
+<p>The derivation started from a dense layer <span class="math inline">\bm{h} = \bm{W}\bm{x}</span> and then restricted <span class="math inline">\bm{W}</span>. We can run that backwards: any convolution is a dense layer with a particular, very structured weight matrix. Flatten the lecture’s <span class="math inline">3\times3</span> input in row-major order,</p>
+<p><span class="math display">\bm{x} = (0, 1, 2, 3, 4, 5, 6, 7, 8),</span></p>
+<p>and list the four outputs in the same order, <span class="math inline">\bm{h} = (H_{1,1}, H_{1,2}, H_{2,1}, H_{2,2})</span>. For this section we index kernel entries by row and column from 1, so <span class="math inline">V_{1,1}</span> is the top-left entry. Output <span class="math inline">H_{1,1}</span> uses input positions <span class="math inline">1, 2, 4, 5</span> of <span class="math inline">\bm{x}</span> (the values <span class="math inline">0, 1, 3, 4</span>) with kernel weights <span class="math inline">V_{1,1}, V_{1,2}, V_{2,1}, V_{2,2}</span>, and every other input gets weight <span class="math inline">0</span>. Writing one row per output:</p>
+<p><span class="math display">\bm{W} = \begin{bmatrix}
+V_{1,1} &amp; V_{1,2} &amp; 0 &amp; V_{2,1} &amp; V_{2,2} &amp; 0 &amp; 0 &amp; 0 &amp; 0 \\
+0 &amp; V_{1,1} &amp; V_{1,2} &amp; 0 &amp; V_{2,1} &amp; V_{2,2} &amp; 0 &amp; 0 &amp; 0 \\
+0 &amp; 0 &amp; 0 &amp; V_{1,1} &amp; V_{1,2} &amp; 0 &amp; V_{2,1} &amp; V_{2,2} &amp; 0 \\
+0 &amp; 0 &amp; 0 &amp; 0 &amp; V_{1,1} &amp; V_{1,2} &amp; 0 &amp; V_{2,1} &amp; V_{2,2}
+\end{bmatrix}</span></p>
+<p>Each row is the kernel, unrolled and placed where its window sits in the flattened image; moving to the next output position slides the same four weights along. With the lecture’s kernel (<span class="math inline">V_{1,1} = 0</span>, <span class="math inline">V_{1,2} = 1</span>, <span class="math inline">V_{2,1} = 2</span>, <span class="math inline">V_{2,2} = 3</span>) the first row is <span class="math inline">(0, 1, 0, 2, 3, 0, 0, 0, 0)</span>, and its dot product with <span class="math inline">\bm{x}</span> is <span class="math inline">1\cdot1 + 2\cdot3 + 3\cdot4 = 19</span>, the same top-left output as before. The other rows give <span class="math inline">25</span>, <span class="math inline">37</span>, <span class="math inline">43</span>.</p>
+<p>Three things are visible in this matrix:</p>
+<ul>
+<li><strong>Locality is the zeros.</strong> Each row has at most <span class="math inline">4</span> nonzero entries out of <span class="math inline">9</span>, since each output sees only its window. The matrix is <a href="https://en.wikipedia.org/wiki/Sparse_matrix">sparse</a>: of its <span class="math inline">4 \times 9 = 36</span> entries, at most <span class="math inline">16</span> can be nonzero.</li>
+<li><strong>Translation invariance is the repetition.</strong> Every row holds the same four weights, shifted. A dense layer would have <span class="math inline">36</span> independent weights here; the convolution has <span class="math inline">4</span>. Matrices whose diagonals are constant like this are close relatives of <a href="https://en.wikipedia.org/wiki/Toeplitz_matrix">Toeplitz matrices</a>, and in two dimensions the pattern is block-Toeplitz.</li>
+<li><strong>Stride and the flip are just different rows.</strong> A stride keeps only some of the rows (those for the computed positions), and the traditional convolution places the flipped kernel’s entries in each row instead.</li>
+</ul>
+<p>Libraries do not build this matrix in practice, since storing all those zeros wastes memory, but it is a useful way to see that a convolution is a linear map, so the same matrix calculus and backpropagation from <a href="../lectures/week02.html#sec-backprop">Week 2</a> apply to it unchanged.</p>
+</section>
+<section id="sec-rf-stack" class="level3">
+<h3 class="anchored" data-anchor-id="sec-rf-stack">Receptive fields of stacked layers</h3>
+<p>When we stack layers, how much of the input does one deep output see? Work along one axis. Two quantities are tracked layer by layer:</p>
+<ul>
+<li><span class="math inline">r</span>: the receptive field size of one entry of the current layer, measured in input pixels.</li>
+<li><span class="math inline">j</span>: the <strong>jump</strong>, the distance in input pixels between two neighbouring entries of the current layer.</li>
+</ul>
+<p>The input itself has <span class="math inline">r = 1</span> (a pixel sees itself) and <span class="math inline">j = 1</span>. A layer with kernel size <span class="math inline">k</span> and stride <span class="math inline">s</span> looks at <span class="math inline">k</span> neighbouring entries of the layer below. Those are <span class="math inline">j</span> input pixels apart, so the first and last are <span class="math inline">(k-1)j</span> pixels apart, and each of them sees <span class="math inline">r</span> pixels:</p>
+<div class="boxed-eq">
+<p><span class="math display">r_\text{new} = r + (k - 1)\, j, \qquad j_\text{new} = j \cdot s.</span></p>
+</div>
+<p>In words: each layer widens the receptive field by <span class="math inline">k - 1</span> steps of the current jump, and a stride spreads later layers’ entries further apart, so later layers widen it faster. The jump after a layer is the product of all strides so far. Padding does not enter (see <a href="#sec-padding">Padding</a>), and neither do nonlinearities or batch normalization, since they act on each entry by itself. Pooling layers do enter, as a layer with their own window size and stride.</p>
+<p>Here is an example of our own along one axis, with three layers: kernel 2 and stride 2, then kernel 2 and stride 1, then kernel 3 and stride 1.</p>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th>After</th>
+<th><span class="math inline">k</span></th>
+<th><span class="math inline">s</span></th>
+<th><span class="math inline">r = r + (k-1)j</span></th>
+<th><span class="math inline">j = j \cdot s</span></th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>input</td>
+<td></td>
+<td></td>
+<td><span class="math inline">1</span></td>
+<td><span class="math inline">1</span></td>
+</tr>
+<tr class="even">
+<td>layer 1</td>
+<td><span class="math inline">2</span></td>
+<td><span class="math inline">2</span></td>
+<td><span class="math inline">1 + 1\cdot1 = 2</span></td>
+<td><span class="math inline">2</span></td>
+</tr>
+<tr class="odd">
+<td>layer 2</td>
+<td><span class="math inline">2</span></td>
+<td><span class="math inline">1</span></td>
+<td><span class="math inline">2 + 1\cdot2 = 4</span></td>
+<td><span class="math inline">2</span></td>
+</tr>
+<tr class="even">
+<td>layer 3</td>
+<td><span class="math inline">3</span></td>
+<td><span class="math inline">1</span></td>
+<td><span class="math inline">4 + 2\cdot2 = 8</span></td>
+<td><span class="math inline">2</span></td>
+</tr>
+</tbody>
+</table>
+<div style="overflow-x:auto; margin:1.5rem 0;">
+<svg viewbox="0 0 860 400" width="100%" style="max-width:860px;display:block;margin:auto;font-family:Helvetica,'Helvetica Neue',Arial,sans-serif;">
+<text x="20" y="32" font-size="24" font-weight="600" fill="#333">Receptive field through a stack of layers</text>
+<line x1="258" y1="114" x2="146" y2="150" stroke="#8457C7" stroke-width="1.5"></line>
+<line x1="258" y1="114" x2="258" y2="150" stroke="#8457C7" stroke-width="1.5"></line>
+<line x1="258" y1="114" x2="370" y2="150" stroke="#8457C7" stroke-width="1.5"></line>
+<line x1="146" y1="194" x2="90" y2="230" stroke="#8457C7" stroke-width="1.5"></line>
+<line x1="146" y1="194" x2="202" y2="230" stroke="#8457C7" stroke-width="1.5"></line>
+<line x1="258" y1="194" x2="202" y2="230" stroke="#8457C7" stroke-width="1.5"></line>
+<line x1="258" y1="194" x2="314" y2="230" stroke="#8457C7" stroke-width="1.5"></line>
+<line x1="370" y1="194" x2="314" y2="230" stroke="#8457C7" stroke-width="1.5"></line>
+<line x1="370" y1="194" x2="426" y2="230" stroke="#8457C7" stroke-width="1.5"></line>
+<line x1="90" y1="274" x2="62" y2="310" stroke="#8457C7" stroke-width="1.5"></line>
+<line x1="90" y1="274" x2="118" y2="310" stroke="#8457C7" stroke-width="1.5"></line>
+<line x1="202" y1="274" x2="174" y2="310" stroke="#8457C7" stroke-width="1.5"></line>
+<line x1="202" y1="274" x2="230" y2="310" stroke="#8457C7" stroke-width="1.5"></line>
+<line x1="314" y1="274" x2="286" y2="310" stroke="#8457C7" stroke-width="1.5"></line>
+<line x1="314" y1="274" x2="342" y2="310" stroke="#8457C7" stroke-width="1.5"></line>
+<line x1="426" y1="274" x2="398" y2="310" stroke="#8457C7" stroke-width="1.5"></line>
+<line x1="426" y1="274" x2="454" y2="310" stroke="#8457C7" stroke-width="1.5"></line>
+<rect x="236" y="70" width="44" height="44" rx="6" fill="#F7D9C4" stroke="#C78557" stroke-width="1.5"></rect>
+<rect x="124" y="150" width="44" height="44" rx="6" fill="#C9E4DE" stroke="#57C7AE" stroke-width="1.5"></rect>
+<rect x="236" y="150" width="44" height="44" rx="6" fill="#C9E4DE" stroke="#57C7AE" stroke-width="1.5"></rect>
+<rect x="348" y="150" width="44" height="44" rx="6" fill="#C9E4DE" stroke="#57C7AE" stroke-width="1.5"></rect>
+<rect x="68" y="230" width="44" height="44" rx="6" fill="#C9E4DE" stroke="#57C7AE" stroke-width="1.5"></rect>
+<rect x="180" y="230" width="44" height="44" rx="6" fill="#C9E4DE" stroke="#57C7AE" stroke-width="1.5"></rect>
+<rect x="292" y="230" width="44" height="44" rx="6" fill="#C9E4DE" stroke="#57C7AE" stroke-width="1.5"></rect>
+<rect x="404" y="230" width="44" height="44" rx="6" fill="#C9E4DE" stroke="#57C7AE" stroke-width="1.5"></rect>
+<rect x="40" y="310" width="44" height="44" fill="#C6DEF1" stroke="#5795C7" stroke-width="1.5"></rect>
+<rect x="96" y="310" width="44" height="44" fill="#C6DEF1" stroke="#5795C7" stroke-width="1.5"></rect>
+<rect x="152" y="310" width="44" height="44" fill="#C6DEF1" stroke="#5795C7" stroke-width="1.5"></rect>
+<rect x="208" y="310" width="44" height="44" fill="#C6DEF1" stroke="#5795C7" stroke-width="1.5"></rect>
+<rect x="264" y="310" width="44" height="44" fill="#C6DEF1" stroke="#5795C7" stroke-width="1.5"></rect>
+<rect x="320" y="310" width="44" height="44" fill="#C6DEF1" stroke="#5795C7" stroke-width="1.5"></rect>
+<rect x="376" y="310" width="44" height="44" fill="#C6DEF1" stroke="#5795C7" stroke-width="1.5"></rect>
+<rect x="432" y="310" width="44" height="44" fill="#C6DEF1" stroke="#5795C7" stroke-width="1.5"></rect>
+<text x="510" y="97" font-size="15" fill="#794520">layer 3 (k = 3, s = 1): r = 8</text>
+<text x="510" y="177" font-size="15" fill="#207965">layer 2 (k = 2, s = 1): r = 4</text>
+<text x="510" y="257" font-size="15" fill="#207965">layer 1 (k = 2, s = 2): r = 2, jump 2</text>
+<text x="510" y="337" font-size="15" fill="#205279">input pixels: r = 1</text>
+<text x="20" y="386" font-size="14" fill="#666">Follow the lines down from the top entry: it reaches all 8 input pixels.</text>
+</svg></div>
+<p>For a two-dimensional layer, run the recursion twice, once for the height (with each layer’s <span class="math inline">k_h</span> and <span class="math inline">s_h</span>) and once for the width (with <span class="math inline">k_w</span> and <span class="math inline">s_w</span>). With a non-square stride the two jumps grow at different rates. For example (again our own numbers), a layer with a <span class="math inline">2\times2</span> kernel and stride <span class="math inline">(1, 3)</span> followed by another <span class="math inline">2\times2</span> kernel gives a height of <span class="math inline">2 + 1\cdot1 = 3</span> and a width of <span class="math inline">2 + 1\cdot3 = 5</span>: a <span class="math inline">3\times5</span> receptive field. The receptive fields of the networks in the homework are left to the assignment.</p>
+</section>
+<section id="sec-channels" class="level3">
+<h3 class="anchored" data-anchor-id="sec-channels">Channels</h3>
+<p>So far an image has been a single grid. Most images are not.</p>
+<div class="definition-block">
+<p><strong>Definition.</strong> A <strong>channel</strong> is one grid of values in a stack of grids that share the same height and width. A colour image has three channels (red, green, and blue in the <a href="https://en.wikipedia.org/wiki/RGB_color_model">RGB model</a>), each a grid of brightness values; a <a href="https://en.wikipedia.org/wiki/Grayscale">grayscale</a> image has one. The feature maps a convolution produces also form channels, and their number is a hyperparameter, much like the width of a dense layer.</p>
+</div>
+<p>With channels, the output at position <span class="math inline">(i, j)</span> in output channel <span class="math inline">d</span> is</p>
+<div class="boxed-eq">
+<p><span class="math display">\bm{H}_{i,j,d} = u_d + \sum_{a=-\Delta}^{\Delta} \sum_{b=-\Delta}^{\Delta} \sum_c \bm{V}_{a,b,c,d}\, \bm{X}_{i+a,\, j+b,\, c},</span></p>
+</div>
+<p>where <span class="math inline">c</span> runs over input channels and <span class="math inline">d</span> over output channels. Read it from the inside: for output channel <span class="math inline">d</span>, convolve each input channel <span class="math inline">c</span> with its own kernel <span class="math inline">\bm{V}_{\cdot,\cdot,c,d}</span>, add the results over all input channels, then add the bias <span class="math inline">u_d</span>.</p>
+<ul>
+<li>There is <strong>one kernel for every (input channel, output channel) pair</strong>. With <span class="math inline">20</span> input channels and <span class="math inline">10</span> output channels, the lecture’s example, there are <span class="math inline">20 \times 10 = 200</span> kernels.</li>
+<li>There is <strong>one bias per output channel</strong>, shared over all positions. A bias per position would break translation invariance.</li>
+</ul>
+<p>This mirrors the dense layer, where one weight connects each input feature to each output feature; here one kernel connects each input channel to each output channel, mixing channels while it convolves over space.</p>
+<div style="overflow-x:auto; margin:1.5rem 0;">
+<svg viewbox="0 0 680 320" width="100%" style="max-width:680px;display:block;margin:auto;font-family:Helvetica,'Helvetica Neue',Arial,sans-serif;">
+<text x="20" y="32" font-size="24" font-weight="600" fill="#333">One output channel from three input channels</text>
+<rect x="20" y="64" width="70" height="56" fill="#F2C6DE" stroke="#C75794" stroke-width="1.5"></rect>
+<text x="55" y="97" text-anchor="middle" font-size="15" fill="#792051">channel 1</text>
+<rect x="20" y="140" width="70" height="56" fill="#C9E4DE" stroke="#57C7AE" stroke-width="1.5"></rect>
+<text x="55" y="173" text-anchor="middle" font-size="15" fill="#207965">channel 2</text>
+<rect x="20" y="216" width="70" height="56" fill="#C6DEF1" stroke="#5795C7" stroke-width="1.5"></rect>
+<text x="55" y="249" text-anchor="middle" font-size="15" fill="#205279">channel 3</text>
+<line x1="94" y1="92" x2="150" y2="92" stroke="#888" stroke-width="1.5"></line>
+<line x1="94" y1="168" x2="150" y2="168" stroke="#888" stroke-width="1.5"></line>
+<line x1="94" y1="244" x2="150" y2="244" stroke="#888" stroke-width="1.5"></line>
+<rect x="150" y="70" width="110" height="44" rx="6" fill="#DBCDF0" stroke="#8457C7" stroke-width="1.5"></rect>
+<text x="205" y="97" text-anchor="middle" font-size="15" fill="#442079">kernel (1, d)</text>
+<rect x="150" y="146" width="110" height="44" rx="6" fill="#DBCDF0" stroke="#8457C7" stroke-width="1.5"></rect>
+<text x="205" y="173" text-anchor="middle" font-size="15" fill="#442079">kernel (2, d)</text>
+<rect x="150" y="222" width="110" height="44" rx="6" fill="#DBCDF0" stroke="#8457C7" stroke-width="1.5"></rect>
+<text x="205" y="249" text-anchor="middle" font-size="15" fill="#442079">kernel (3, d)</text>
+<line x1="260" y1="92" x2="340" y2="160" stroke="#888" stroke-width="1.5"></line>
+<line x1="260" y1="168" x2="336" y2="168" stroke="#888" stroke-width="1.5"></line>
+<line x1="260" y1="244" x2="340" y2="176" stroke="#888" stroke-width="1.5"></line>
+<circle cx="356" cy="168" r="18" fill="#FAEDCB" stroke="#C7A857" stroke-width="1.5"></circle>
+<text x="356" y="175" text-anchor="middle" font-size="20" font-weight="600" fill="#796020">+</text>
+<line x1="374" y1="168" x2="420" y2="168" stroke="#888" stroke-width="1.5"></line>
+<text x="397" y="156" text-anchor="middle" font-size="15" fill="#666">+ u_d</text>
+<rect x="420" y="140" width="80" height="56" fill="#F7D9C4" stroke="#C78557" stroke-width="1.5"></rect>
+<text x="460" y="166" text-anchor="middle" font-size="15" fill="#794520">output</text>
+<text x="460" y="184" text-anchor="middle" font-size="15" fill="#794520">channel d</text>
+<text x="20" y="300" font-size="15" fill="#666">Repeat with a fresh set of kernels and bias for every output channel d.</text>
+</svg></div>
+</section>
+<section id="sec-param-count" class="level3">
+<h3 class="anchored" data-anchor-id="sec-param-count">Counting parameters</h3>
+<p>The channel formula tells us exactly how many numbers a convolution layer learns. Each kernel has <span class="math inline">k_h \times k_w</span> weights, and there is one kernel per (input channel, output channel) pair, plus one bias per output channel:</p>
+<p><span class="math display">\text{weights} = k_h \cdot k_w \cdot C_\text{in} \cdot C_\text{out}, \qquad \text{biases} = C_\text{out}.</span></p>
+<p>For the lecture’s 20-to-10-channel layer with <span class="math inline">3\times3</span> kernels, that is <span class="math inline">3 \cdot 3 \cdot 20 \cdot 10 = 1800</span> weights and <span class="math inline">10</span> biases. Two things are absent from the count: the height and width of the image (the same kernel is reused at every position, which is the point of parameter sharing), and the stride and padding (they change where the kernel is applied, not how many weights it has).</p>
+<p>Other layers in a convolutional network contribute as follows:</p>
+<ul>
+<li><strong>Nonlinearities</strong> such as ReLU and <strong>pooling</strong> have no parameters.</li>
+<li><strong>Batch normalization</strong> (below) has a learned scale <span class="math inline">\gamma</span> and shift <span class="math inline">\beta</span> for each channel it normalizes, so <span class="math inline">2C</span> parameters for <span class="math inline">C</span> channels. Its running averages are stored but not learned, and are not counted as parameters.</li>
+<li>A <strong>dense layer</strong> from <span class="math inline">n_\text{in}</span> features to <span class="math inline">n_\text{out}</span> has <span class="math inline">n_\text{in}\, n_\text{out}</span> weights and <span class="math inline">n_\text{out}</span> biases, as in Week 2.</li>
+</ul>
+<p>The parameter counts for the networks in the homework are left to the assignment.</p>
+</section>
+<section id="sec-pooling" class="level3">
+<h3 class="anchored" data-anchor-id="sec-pooling">Pooling</h3>
+<p>The last ingredient is a way to aggregate spatial information without learning anything.</p>
+<div class="definition-block">
+<p><strong>Definition.</strong> A <strong>pooling</strong> layer slides a small window over each channel and replaces the window with a single number computed by a fixed <strong>reduction</strong>, an operation that maps a set of values to one value. <strong>Max pooling</strong> takes the maximum; <strong>average pooling</strong> takes the mean. Pooling acts on each channel separately and has no parameters. See <a href="https://en.wikipedia.org/wiki/Pooling_layer">pooling layer</a>.</p>
+</div>
+<p>Applying <span class="math inline">2\times2</span> max pooling with stride 1 to the lecture’s <span class="math inline">0</span>-through-<span class="math inline">8</span> grid takes the maximum of each <span class="math inline">2\times2</span> window:</p>
+<p><span class="math display">\begin{bmatrix} 0 &amp; 1 &amp; 2 \\ 3 &amp; 4 &amp; 5 \\ 6 &amp; 7 &amp; 8 \end{bmatrix} \;\xrightarrow{\;2\times2 \text{ max}\;}\; \begin{bmatrix} 4 &amp; 5 \\ 7 &amp; 8 \end{bmatrix}.</span></p>
+<p>In practice pooling is almost always used with a stride equal to its window size, so the windows do not overlap and the height and width shrink by that factor: <span class="math inline">2\times2</span> pooling with stride 2 halves them. The output-size rule from <a href="#sec-general-size">The general output-size rule</a> applies to pooling windows as well. For the cat question, the intuition is that if some filter responds to a cat’s face, we care about the strongest response in a region (how much cat face was found nearby) more than its exact position. Pooling also makes the network cheaper, since every later layer works on a smaller grid.</p>
+</section>
+<section id="sec-equivariance" class="level3">
+<h3 class="anchored" data-anchor-id="sec-equivariance">Invariance and equivariance</h3>
+<p>The lecture calls the first assumption “translation invariance”. A stricter vocabulary separates two properties, and the distinction will come up in readings and in the homework’s reflection questions.</p>
+<div class="definition-block">
+<p><strong>Definition.</strong> A function is <strong>translation equivariant</strong> if shifting its input shifts its output by the same amount. It is <strong>translation invariant</strong> if shifting its input leaves its output unchanged. See <a href="https://en.wikipedia.org/wiki/Equivariant_map">equivariant map</a>.</p>
+</div>
+<p>In the strict sense, a convolution layer is <em>equivariant</em>. If the input is shifted one pixel to the right, <span class="math inline">\bm{X}'_{k,l} = \bm{X}_{k,l-1}</span>, then plugging into the boxed convolution gives</p>
+<p><span class="math display">\bm{H}'_{i,j} = u + \sum_{a,b} \bm{V}_{a,b}\, \bm{X}_{i+a,\, j+b-1} = \bm{H}_{i,j-1},</span></p>
+<p>so the feature map shifts one pixel to the right as well (away from the borders). This is a direct consequence of sharing one kernel across positions, which is what the lecture’s “translation invariance” assumption asked for: the <em>operation</em> is the same everywhere. Pooling then adds a degree of <em>invariance</em>: a small shift that keeps the strongest response inside the same pooling window leaves the max-pooled output unchanged. When these notes say “translation invariance” for the convolution’s assumption, they mean the lecture’s sense, “the same operation at every position”.</p>
+</section>
+<section id="sec-simple-convnet" class="level3">
+<h3 class="anchored" data-anchor-id="sec-simple-convnet">Building a simple convolutional network</h3>
+<p>With convolution, pooling, and the dense layers from earlier weeks we can build a complete classifier, of the kind sometimes called a <a href="https://en.wikipedia.org/wiki/LeNet">LeNet</a> after Yann LeCun, an early proponent of these models. Its basic block is</p>
+<p><span class="math display">\text{convolution} \;\to\; \text{nonlinearity} \;\to\; \text{pooling},</span></p>
+<p>repeated several times. The nonlinearity, such as ReLU from <a href="../lectures/week02.html#sec-activations">Week 2</a>, acts on each entry separately, so it does not care that its input is a three-dimensional volume rather than a vector.</p>
+<p>If each pooling layer halves the height and width, each block shrinks the grid. A common convention is to increase the number of channels as the grid shrinks, so that the cost and parameter count of each layer stay roughly constant.</p>
+<p>To classify, we eventually need a vector. Suppose the last block produces a <span class="math inline">7\times7\times100</span> volume (height, width, channels), and we want to classify into ten classes. We <strong>flatten</strong> the volume into a vector of <span class="math inline">7 \cdot 7 \cdot 100 = 4900</span> entries (a <code>reshape(-1)</code> in NumPy), then apply one or more dense layers ending in a <a href="https://en.wikipedia.org/wiki/Softmax_function">softmax</a>, exactly as in an MLP. The order in which we flatten does not matter, because a dense layer has no notion of order among its inputs. That absence of order is exactly why we introduced convolutions in the first place.</p>
+<p><strong>Tracing shapes.</strong> The size of that first dense layer depends on every layer before it, so we compute it by walking the shape through the network with the output-size rule. Here is one way the lecture’s <span class="math inline">7\times7\times100</span> volume could arise (our choice of earlier layer):</p>
+<div style="overflow-x:auto; margin:1.5rem 0;">
+<svg viewbox="0 0 860 250" width="100%" style="max-width:860px;display:block;margin:auto;font-family:Helvetica,'Helvetica Neue',Arial,sans-serif;">
+<text x="20" y="32" font-size="24" font-weight="600" fill="#333">Tracing the shape through a block</text>
+<rect x="20" y="70" width="110" height="56" rx="7" fill="#C6DEF1" stroke="#5795C7" stroke-width="1.5"></rect>
+<text x="75" y="104" text-anchor="middle" font-size="16" font-weight="600" fill="#205279">14×14×50</text>
+<line x1="130" y1="98" x2="190" y2="98" stroke="#888" stroke-width="1.5"></line>
+<path d="M184,93 L192,98 L184,103 z" fill="#888"></path>
+<text x="160" y="150" text-anchor="middle" font-size="14" fill="#666">conv 3×3,</text>
+<text x="160" y="168" text-anchor="middle" font-size="14" fill="#666">100 out, p = 1</text>
+<rect x="194" y="70" width="120" height="56" rx="7" fill="#C9E4DE" stroke="#57C7AE" stroke-width="1.5"></rect>
+<text x="254" y="104" text-anchor="middle" font-size="16" font-weight="600" fill="#207965">14×14×100</text>
+<line x1="314" y1="98" x2="374" y2="98" stroke="#888" stroke-width="1.5"></line>
+<path d="M368,93 L376,98 L368,103 z" fill="#888"></path>
+<text x="344" y="150" text-anchor="middle" font-size="14" fill="#666">max pool</text>
+<text x="344" y="168" text-anchor="middle" font-size="14" fill="#666">2×2, s = 2</text>
+<rect x="378" y="70" width="110" height="56" rx="7" fill="#C9E4DE" stroke="#57C7AE" stroke-width="1.5"></rect>
+<text x="433" y="104" text-anchor="middle" font-size="16" font-weight="600" fill="#207965">7×7×100</text>
+<line x1="488" y1="98" x2="548" y2="98" stroke="#888" stroke-width="1.5"></line>
+<path d="M542,93 L550,98 L542,103 z" fill="#888"></path>
+<text x="518" y="150" text-anchor="middle" font-size="14" fill="#666">flatten</text>
+<rect x="552" y="70" width="90" height="56" rx="7" fill="#FAEDCB" stroke="#C7A857" stroke-width="1.5"></rect>
+<text x="597" y="104" text-anchor="middle" font-size="16" font-weight="600" fill="#796020">4900</text>
+<line x1="642" y1="98" x2="702" y2="98" stroke="#888" stroke-width="1.5"></line>
+<path d="M696,93 L704,98 L696,103 z" fill="#888"></path>
+<text x="672" y="150" text-anchor="middle" font-size="14" fill="#666">dense</text>
+<rect x="706" y="70" width="120" height="56" rx="7" fill="#F2C6DE" stroke="#C75794" stroke-width="1.5"></rect>
+<text x="766" y="96" text-anchor="middle" font-size="15" font-weight="600" fill="#792051">10 classes</text>
+<text x="766" y="114" text-anchor="middle" font-size="14" fill="#792051">(softmax)</text>
+<text x="20" y="214" font-size="15" fill="#666">Height and width follow the output-size rule; the channel count is the number of output channels.</text>
+</svg></div>
+<p>Step by step:</p>
+<ol type="1">
+<li><strong>Convolution</strong>, <span class="math inline">3\times3</span>, padding 1, stride 1, 100 output channels: each spatial axis is <span class="math inline">\lfloor (14 + 2 - 3)/1 \rfloor + 1 = 14</span>, and the channel count becomes the number of output channels, <span class="math inline">100</span>.</li>
+<li><strong>Max pooling</strong>, <span class="math inline">2\times2</span>, stride 2: <span class="math inline">\lfloor (14 - 2)/2 \rfloor + 1 = 7</span> per axis; channels are unchanged.</li>
+<li><strong>Flatten</strong>: <span class="math inline">7 \cdot 7 \cdot 100 = 4900</span>.</li>
+<li><strong>Dense</strong> to 10 classes: <span class="math inline">4900 \cdot 10 = 49{,}000</span> weights and <span class="math inline">10</span> biases.</li>
+</ol>
+<p>The same walk-through gives the input size of the final dense layer for any network; the specific size for the homework’s network is left to the assignment.</p>
+<div class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+Note
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p><strong>The same network in PyTorch.</strong> The lecture writes a batch of images as <span class="math inline">B \times H \times W \times C</span> (channels last). PyTorch stores them <strong>channels first</strong>, as <code>(N, C, H, W)</code>: batch size, channels, height, width. A <span class="math inline">32\times32</span> RGB batch is <code>(N, 3, 32, 32)</code>. The layers above correspond to <code>nn.Conv2d(in_channels, out_channels, kernel_size, stride, padding)</code>, <code>nn.MaxPool2d(kernel_size, stride)</code>, <code>nn.BatchNorm2d(num_channels)</code>, <code>nn.Flatten()</code>, and <code>nn.Linear(in_features, out_features)</code>. A <code>Conv2d</code> stores its weights as a tensor of shape <code>(C_out, C_in, k_h, k_w)</code>, whose number of entries is the weight count from <a href="#sec-param-count">Counting parameters</a>.</p>
+</div>
+</div>
+<p>This network is enough to classify images. Two later additions make convolutional networks easier to train, and we turn to them next.</p>
+<hr>
+</section>
+</section>
+<section id="sec-batchnorm" class="level2">
+<h2 class="anchored" data-anchor-id="sec-batchnorm">Batch Normalization</h2>
+<p>In <a href="../lectures/week04.html#sec-one-eta">Week 4</a> we saw that when input features have very different scales, the gradients of their weights have very different scales, and no single learning rate suits them all. For a linear model the fix was to standardize the inputs: subtract each feature’s mean and divide by its standard deviation, so every feature has mean <span class="math inline">0</span> and variance <span class="math inline">1</span>. Inside a network, though, the inputs to most layers are hidden activations that we do not control directly. Can we standardize those too?</p>
+<div class="definition-block">
+<p><strong>Definition.</strong> <strong>Batch normalization</strong> (batch norm, BN) is a layer that standardizes each activation using the mean and variance computed over the current mini-batch, then applies a learned per-feature scale <span class="math inline">\bm{\gamma}</span> and shift <span class="math inline">\bm{\beta}</span>. See <a href="https://en.wikipedia.org/wiki/Batch_normalization">batch normalization</a>.</p>
+</div>
+<p>“Batch” here means the current mini-batch of training examples from <a href="../lectures/week04.html#sec-minibatch">Week 4</a>, not the full training set of full-batch gradient descent.</p>
+<section id="sec-batchnorm-how" class="level3">
+<h3 class="anchored" data-anchor-id="sec-batchnorm-how">How it works</h3>
+<p>Take activations to be vectors for now. Given a batch <span class="math inline">B</span> of activations, compute the batch mean and variance of each feature:</p>
+<p><span class="math display">\bm{\mu}_B = \frac{1}{|B|} \sum_{\bm{x}\in B} \bm{x}, \qquad \bm{\sigma}_B^2 = \frac{1}{|B|} \sum_{\bm{x}\in B} (\bm{x} - \bm{\mu}_B)^2.</span></p>
+<p>Both are vectors with one entry per feature; the square is taken entry by entry. Then normalize each activation and apply the learned scale and shift:</p>
+<div class="boxed-eq">
+<p><span class="math display">\operatorname{BN}(\bm{x}) = \bm{\gamma} \odot \frac{\bm{x} - \bm{\mu}_B}{\bm{\sigma}_B + \epsilon} + \bm{\beta}</span></p>
+</div>
+<p>Here <span class="math inline">\odot</span> is the elementwise (Hadamard) product from Week 2, the division is also elementwise, <span class="math inline">\epsilon</span> is a small constant that avoids dividing by (nearly) zero, and <span class="math inline">\bm{\gamma}</span>, <span class="math inline">\bm{\beta}</span> are learned like a weight and a bias. The fraction is the standardization; <span class="math inline">\bm{\gamma}</span> and <span class="math inline">\bm{\beta}</span> exist because there is no reason to believe every activation everywhere should have mean <span class="math inline">0</span> and variance <span class="math inline">1</span>, so the network can learn to rescale and shift it back if that helps.</p>
+<p>The lecture writes the denominator as <span class="math inline">\bm{\sigma}_B + \epsilon</span>. The paper that introduced batch norm (Ioffe and Szegedy, 2015) and PyTorch’s <code>BatchNorm2d</code> both use <span class="math inline">\sqrt{\bm{\sigma}_B^2 + \epsilon}</span> instead. The two differ only when the standard deviation is about as small as <span class="math inline">\epsilon</span>; for ordinary activations they give essentially the same result.</p>
+<div class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+Note
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p><strong>Worked example.</strong> (Our numbers.) A batch of three activations with two features on very different scales, as in Week 4’s linear model:</p>
+<p><span class="math display">\bm{x}_1 = (1, 10), \qquad \bm{x}_2 = (2, 20), \qquad \bm{x}_3 = (3, 30).</span></p>
+<ol type="1">
+<li><strong>Mean:</strong> <span class="math inline">\bm{\mu}_B = (2, 20)</span>.</li>
+<li><strong>Variance:</strong> for feature 1, <span class="math inline">\big((1-2)^2 + 0^2 + (3-2)^2\big)/3 = 2/3</span>; for feature 2, <span class="math inline">(100 + 0 + 100)/3 = 200/3</span>. So <span class="math inline">\bm{\sigma}_B \approx (0.816,\ 8.165)</span>.</li>
+<li><strong>Normalize</strong> (ignoring the tiny <span class="math inline">\epsilon</span>): feature 1 becomes <span class="math inline">(-1, 0, 1)/0.816 \approx (-1.22,\ 0,\ 1.22)</span>, and feature 2 becomes <span class="math inline">(-10, 0, 10)/8.165 \approx (-1.22,\ 0,\ 1.22)</span>.</li>
+<li><strong>Scale and shift:</strong> with <span class="math inline">\bm{\gamma} = (1, 1)</span> and <span class="math inline">\bm{\beta} = (0, 0)</span>, as they usually start, the output is the normalized values.</li>
+</ol>
+<p>Two features that differed by a factor of ten now have the same scale, which is what Week 4 wanted for the inputs.</p>
+</div>
+</div>
+<p><strong>At inference time</strong> we may have a single example, or want each prediction not to depend on what else is being processed. The standard approach keeps an <a href="../lectures/week04.html#sec-adam">exponential moving average</a> (Week 4) of the <span class="math inline">\bm{\mu}_B</span> and <span class="math inline">\bm{\sigma}_B</span> seen during training, called the <strong>running statistics</strong>, and uses those fixed values at inference.</p>
+<p>In PyTorch the two behaviours are switched by the model’s mode. <code>model.train()</code> makes batch norm use the current batch’s statistics and update the running averages; <code>model.eval()</code> makes it use the stored running averages instead. Forgetting to call <code>model.eval()</code> before evaluating means predictions are still normalized with whatever batch they happen to be in. PyTorch’s running average puts weight <code>momentum = 0.1</code> on the newest batch by default, which is a <span class="math inline">\beta = 0.9</span> moving average in Week 4’s notation.</p>
+<p><strong>For images</strong>, an activation is a volume, and a batch has shape <span class="math inline">B\times H\times W\times C</span>. We normalize <strong>per channel</strong>, computing each channel’s statistics over the batch <em>and</em> over all spatial positions:</p>
+<p><span class="math display">\bm{\mu}_B = \operatorname{mean}\big(\bm{X},\ \text{axis}=(0,1,2)\big) \in \mathbb{R}^C,</span></p>
+<p>and similarly for <span class="math inline">\bm{\sigma}_B</span>. In PyTorch’s channels-first layout <code>(N, C, H, W)</code> the same statistics are over axes <span class="math inline">(0, 2, 3)</span>. So <span class="math inline">\bm{\gamma}</span> and <span class="math inline">\bm{\beta}</span> have one entry per channel, matching the <span class="math inline">2C</span> parameters from <a href="#sec-param-count">Counting parameters</a>. Normalizing per channel rather than per pixel keeps translation invariance: every position in a channel is treated the same way.</p>
+</section>
+<section id="sec-batchnorm-why" class="level3">
+<h3 class="anchored" data-anchor-id="sec-batchnorm-why">Why it might help</h3>
+<p>Batch norm is a good example of how many deep learning methods are developed: an intuition, an empirical success, and explanations that came later and are still debated. Several reasons have been offered.</p>
+<ul>
+<li><strong>Reducing internal covariate shift.</strong> The original paper argued that as training updates earlier layers, the mean and variance of each layer’s inputs drift, and normalization counteracts this. Later work found that batch norm does not necessarily reduce this drift in practice, so this explanation is on uncertain ground.</li>
+<li><strong>Keeping activations out of saturation.</strong> A ReLU outputs zero, with zero gradient, for negative inputs; if a layer’s pre-activations drift negative, it stops passing gradient. A sigmoid saturates for large-magnitude inputs, where its gradient is nearly zero (<a href="../lectures/week03.html#sec-vanishing">Week 3</a>). Re-centring the activations, then adjusting them with <span class="math inline">\bm{\beta}</span>, keeps them where the nonlinearity passes a gradient. The batch norm paper showed that a sigmoid network could be trained when batch norm was included.</li>
+<li><strong>A smoother loss landscape.</strong> Batch norm has been observed to make the loss, as a function of the parameters, less jagged and so easier to optimize.</li>
+<li><strong>An unintended regularization effect.</strong> The batch mean and variance are noisy estimates that change from batch to batch, which adds noise to training, somewhat like dropout (<a href="../lectures/week03.html#sec-regularization">Week 3</a>).</li>
+</ul>
+<p>Neither of the last two is guaranteed; both are observations from trying the method and then studying why it helped.</p>
+</section>
+<section id="sec-batchnorm-trouble" class="level3">
+<h3 class="anchored" data-anchor-id="sec-batchnorm-trouble">The trouble with batch normalization</h3>
+<p>Our usual picture of batching is that each example’s output does not depend on the others: we process the batch in parallel only for speed, and a given input always produces the same output. Batch norm breaks that picture during training, because <span class="math inline">\bm{\mu}_B</span> and <span class="math inline">\bm{\sigma}_B</span> are computed across the batch.</p>
+<p>Using the worked example’s first feature: in the batch <span class="math inline">\{1, 2, 3\}</span>, the value <span class="math inline">1</span> normalizes to <span class="math inline">-1.22</span>. Replace the third example by an outlier, giving the batch <span class="math inline">\{1, 2, 12\}</span>. The mean becomes <span class="math inline">5</span>, the standard deviation <span class="math inline">\sqrt{74/3} \approx 4.97</span>, and the same input <span class="math inline">1</span> now normalizes to <span class="math inline">(1 - 5)/4.97 \approx -0.81</span>. Nothing about the first example changed, but its activation did.</p>
+<p>With a large batch this effect may be small; with a small batch, or one containing an outlier, the other examples’ predictions can be thrown off. This dependence made many practitioners uneasy, and batch norm is now rarely used in new architectures. Models instead tend to use <strong>layer normalization</strong>, which normalizes across the features of a single example rather than across the batch, so each example is normalized on its own. We meet it properly with the transformer later in the course; see <a href="https://en.wikipedia.org/wiki/Normalization_(machine_learning)">normalization (machine learning)</a>.</p>
+<hr>
+</section>
+</section>
+<section id="sec-residual" class="level2">
+<h2 class="anchored" data-anchor-id="sec-residual">Residual Connections</h2>
+<p>Suppose we have a network that already works well and we want to make it deeper by adding a layer. Ideally the new layer would not undo what the earlier layers can learn. Put in terms of training: a layer learns only if gradients reach it, so we would like to add a layer and still have gradients reach the earlier layers as if the new one were not there.</p>
+<p>To see how badly an added layer can go wrong, consider a layer that always outputs zeros. Its output does not change when its input changes, so the gradient of its output with respect to its input is zero everywhere, and by the chain rule every earlier layer receives a zero gradient and stops learning. This is the extreme version of the vanishing gradients of <a href="../lectures/week03.html#sec-vanishing">Week 3</a>.</p>
+<div class="definition-block">
+<p><strong>Definition.</strong> A <strong>residual connection</strong> (or skip connection) adds a layer’s input back to its output: for a layer <span class="math inline">f</span> with input <span class="math inline">\bm{x}</span>, the block outputs <span class="math inline">f(\bm{x}) + \bm{x}</span> instead of <span class="math inline">f(\bm{x})</span>. See <a href="https://en.wikipedia.org/wiki/Residual_neural_network">residual neural network</a>.</p>
+</div>
+<div class="boxed-eq">
+<p><span class="math display">\bm{y} = f(\bm{x}) + \bm{x}</span></p>
+</div>
+<p>The block computes a change to its input, <span class="math inline">f(\bm{x})</span>, and adds it on, rather than replacing the input with a new representation.</p>
+<div style="overflow-x:auto; margin:1.5rem 0;">
+<svg viewbox="0 0 600 240" width="100%" style="max-width:600px;display:block;margin:auto;font-family:Helvetica,'Helvetica Neue',Arial,sans-serif;">
+<text x="20" y="32" font-size="24" font-weight="600" fill="#333">A residual connection</text>
+<text x="28" y="112" font-size="18" font-weight="600" fill="#205279">x</text>
+<line x1="46" y1="106" x2="146" y2="106" stroke="#888" stroke-width="1.5"></line>
+<path d="M140,101 L148,106 L140,111 z" fill="#888"></path>
+<rect x="150" y="78" width="130" height="56" rx="7" fill="#C9E4DE" stroke="#57C7AE" stroke-width="1.5"></rect>
+<text x="215" y="111" text-anchor="middle" font-size="16" font-weight="600" fill="#207965">layer f</text>
+<line x1="280" y1="106" x2="336" y2="106" stroke="#888" stroke-width="1.5"></line>
+<path d="M330,101 L338,106 L330,111 z" fill="#888"></path>
+<circle cx="356" cy="106" r="18" fill="#FAEDCB" stroke="#C7A857" stroke-width="1.5"></circle>
+<text x="356" y="113" text-anchor="middle" font-size="20" font-weight="600" fill="#796020">+</text>
+<line x1="374" y1="106" x2="424" y2="106" stroke="#888" stroke-width="1.5"></line>
+<path d="M418,101 L426,106 L418,111 z" fill="#888"></path>
+<text x="434" y="112" font-size="18" font-weight="600" fill="#794520">y = f(x) + x</text>
+<path d="M90,106 L90,170 L356,170 L356,128" fill="none" stroke="#8457C7" stroke-width="2"></path>
+<path d="M351,134 L356,126 L361,134 z" fill="#8457C7"></path>
+<text x="223" y="194" text-anchor="middle" font-size="15" fill="#442079">identity path: x passes through unchanged</text>
+<text x="20" y="226" font-size="14" fill="#666">On the backward pass, the gradient arriving at y flows down both paths and the two are added.</text>
+</svg></div>
+<p>Return to the layer that always outputs zeros. With a residual connection the block outputs <span class="math inline">0 + \bm{x} = \bm{x}</span>: the input passes through untouched, and so does the gradient. In general, differentiating <span class="math inline">\bm{y} = f(\bm{x}) + \bm{x}</span> with the chain rule gives one term per path:</p>
+<p><span class="math display">\frac{\partial \mathcal{L}}{\partial \bm{x}} = \bm{J}_f^{\top}\, \frac{\partial \mathcal{L}}{\partial \bm{y}} + \frac{\partial \mathcal{L}}{\partial \bm{y}},</span></p>
+<p>where <span class="math inline">\bm{J}_f</span> is the <a href="https://en.wikipedia.org/wiki/Jacobian_matrix_and_determinant">Jacobian</a> of <span class="math inline">f</span> (Week 2). The first term is the gradient through the layer, which may be small or zero. The second is the gradient through the skip path, which is the incoming gradient unchanged. Because that second term is always there, gradients reach earlier layers whatever <span class="math inline">f</span> does.</p>
+<p>Empirically, residual connections help, and in particular they make it possible to train much deeper networks, which tend to work well. Plausible reasons are that gradients propagate well through the residual paths and that the addition smooths the loss landscape. Residual connections were introduced to make deep convolutional networks trainable, but they are now used almost everywhere, including in the transformer. A network built from residual blocks starts from its input and repeatedly adds to it, and the running sum carried through the blocks is sometimes called the <strong>residual stream</strong>.</p>
+<section id="sec-residual-shapes" class="level3">
+<h3 class="anchored" data-anchor-id="sec-residual-shapes">Matching shapes</h3>
+<p>There is a complication. Many layers change the shape of their input: a dense layer can map 16 features to 32, and a convolution can change the number of channels or (with a stride) the height and width. Then <span class="math inline">f(\bm{x})</span> and <span class="math inline">\bm{x}</span> have different shapes and cannot be added. The fix is a simple transformation on the skip path that produces the right shape.</p>
+<ul>
+<li>For a dense layer from 16 to 32 features, use a linear projection from 16 to 32 on the skip path.</li>
+<li>For a convolutional network, use a <strong><span class="math inline">1\times1</span> convolution</strong>.</li>
+</ul>
+<div class="definition-block">
+<p><strong>Definition.</strong> A <strong><span class="math inline">1\times1</span> convolution</strong> is a convolution whose kernel covers a single position. It does nothing spatially, but it can change the number of channels (each output channel is a learned weighted sum of the input channels at that position) and, with a stride, downsample.</p>
+</div>
+<p>So a <span class="math inline">1\times1</span> convolution with the right number of output channels and the right stride can match whatever shape the main path produced. It is a small linear map, so gradients still pass through it without much trouble. When the main path does not change the shape at all, as is typical in a transformer, the residual connection is simply <span class="math inline">f(\bm{x}) + \bm{x}</span>.</p>
+<hr>
+</section>
+</section>
+<section id="sec-resnet" class="level2">
+<h2 class="anchored" data-anchor-id="sec-resnet">Modern ConvNets: The ResNet</h2>
+<p>With convolution, nonlinearities, pooling, batch normalization, and residual connections, we can describe the modern convolutional network, the <strong>residual network</strong> or <strong>ResNet</strong> (He et al., 2016). As with the simple network, we define a block and repeat it.</p>
+<p>A <strong>ResNet block</strong> applies a <span class="math inline">3\times3</span> convolution, batch norm, a ReLU, another <span class="math inline">3\times3</span> convolution, and another batch norm; a residual connection is added around that whole sequence, and a final ReLU is applied after the addition. When the convolutions change the number of channels (or, if strided, the height and width), the skip path includes a <span class="math inline">1\times1</span> convolution to match.</p>
+<div style="overflow-x:auto; margin:1.5rem 0;">
+<svg viewbox="0 0 760 420" width="100%" style="max-width:760px;display:block;margin:auto;font-family:Helvetica,'Helvetica Neue',Arial,sans-serif;">
+<text x="20" y="32" font-size="24" font-weight="600" fill="#333">A ResNet block and a ResNet</text>
+<text x="20" y="66" font-size="16" font-weight="600" fill="#555">Block</text>
+<rect x="44" y="82" width="70" height="48" rx="7" fill="#C9E4DE" stroke="#57C7AE" stroke-width="1.5"></rect>
+<text x="79" y="103" text-anchor="middle" font-size="14" font-weight="600" fill="#207965">3×3</text>
+<text x="79" y="121" text-anchor="middle" font-size="14" font-weight="600" fill="#207965">conv</text>
+<line x1="114" y1="106" x2="130" y2="106" stroke="#888" stroke-width="1.5"></line>
+<rect x="130" y="82" width="70" height="48" rx="7" fill="#FAEDCB" stroke="#C7A857" stroke-width="1.5"></rect>
+<text x="165" y="103" text-anchor="middle" font-size="14" font-weight="600" fill="#796020">batch</text>
+<text x="165" y="121" text-anchor="middle" font-size="14" font-weight="600" fill="#796020">norm</text>
+<line x1="200" y1="106" x2="216" y2="106" stroke="#888" stroke-width="1.5"></line>
+<rect x="216" y="82" width="60" height="48" rx="7" fill="#FAEDCB" stroke="#C7A857" stroke-width="1.5"></rect>
+<text x="246" y="111" text-anchor="middle" font-size="14" font-weight="600" fill="#796020">ReLU</text>
+<line x1="276" y1="106" x2="292" y2="106" stroke="#888" stroke-width="1.5"></line>
+<rect x="292" y="82" width="70" height="48" rx="7" fill="#C9E4DE" stroke="#57C7AE" stroke-width="1.5"></rect>
+<text x="327" y="103" text-anchor="middle" font-size="14" font-weight="600" fill="#207965">3×3</text>
+<text x="327" y="121" text-anchor="middle" font-size="14" font-weight="600" fill="#207965">conv</text>
+<line x1="362" y1="106" x2="378" y2="106" stroke="#888" stroke-width="1.5"></line>
+<rect x="378" y="82" width="70" height="48" rx="7" fill="#FAEDCB" stroke="#C7A857" stroke-width="1.5"></rect>
+<text x="413" y="103" text-anchor="middle" font-size="14" font-weight="600" fill="#796020">batch</text>
+<text x="413" y="121" text-anchor="middle" font-size="14" font-weight="600" fill="#796020">norm</text>
+<line x1="448" y1="106" x2="464" y2="106" stroke="#888" stroke-width="1.5"></line>
+<circle cx="482" cy="106" r="17" fill="#F7D9C4" stroke="#C78557" stroke-width="1.5"></circle>
+<text x="482" y="113" text-anchor="middle" font-size="19" font-weight="600" fill="#794520">+</text>
+<line x1="499" y1="106" x2="516" y2="106" stroke="#888" stroke-width="1.5"></line>
+<rect x="516" y="82" width="60" height="48" rx="7" fill="#FAEDCB" stroke="#C7A857" stroke-width="1.5"></rect>
+<text x="546" y="111" text-anchor="middle" font-size="14" font-weight="600" fill="#796020">ReLU</text>
+<line x1="576" y1="106" x2="600" y2="106" stroke="#888" stroke-width="1.5"></line>
+<path d="M594,101 L602,106 L594,111 z" fill="#888"></path>
+<path d="M30,106 L44,106" fill="none" stroke="#888" stroke-width="1.5"></path>
+<path d="M30,106 L30,176 L482,176 L482,125" fill="none" stroke="#8457C7" stroke-width="2"></path>
+<path d="M477,131 L482,123 L487,131 z" fill="#8457C7"></path>
+<rect x="210" y="160" width="100" height="32" rx="7" fill="#DBCDF0" stroke="#8457C7" stroke-width="1.5"></rect>
+<text x="260" y="181" text-anchor="middle" font-size="14" font-weight="600" fill="#442079">1×1 conv</text>
+<text x="210" y="214" font-size="14" fill="#666">(only when the shape changes)</text>
+<text x="20" y="262" font-size="16" font-weight="600" fill="#555">Network</text>
+<rect x="20" y="278" width="76" height="52" rx="7" fill="#C9E4DE" stroke="#57C7AE" stroke-width="1.5"></rect>
+<text x="58" y="300" text-anchor="middle" font-size="14" font-weight="600" fill="#207965">7×7</text>
+<text x="58" y="318" text-anchor="middle" font-size="14" font-weight="600" fill="#207965">conv</text>
+<line x1="96" y1="304" x2="112" y2="304" stroke="#888" stroke-width="1.5"></line>
+<rect x="112" y="278" width="70" height="52" rx="7" fill="#FAEDCB" stroke="#C7A857" stroke-width="1.5"></rect>
+<text x="147" y="300" text-anchor="middle" font-size="14" font-weight="600" fill="#796020">batch</text>
+<text x="147" y="318" text-anchor="middle" font-size="14" font-weight="600" fill="#796020">norm</text>
+<line x1="182" y1="304" x2="198" y2="304" stroke="#888" stroke-width="1.5"></line>
+<rect x="198" y="278" width="66" height="52" rx="7" fill="#C6DEF1" stroke="#5795C7" stroke-width="1.5"></rect>
+<text x="231" y="300" text-anchor="middle" font-size="14" font-weight="600" fill="#205279">max</text>
+<text x="231" y="318" text-anchor="middle" font-size="14" font-weight="600" fill="#205279">pool</text>
+<line x1="264" y1="304" x2="280" y2="304" stroke="#888" stroke-width="1.5"></line>
+<rect x="288" y="270" width="130" height="52" rx="7" fill="#C9E4DE" stroke="#57C7AE" stroke-width="1.5"></rect>
+<rect x="284" y="274" width="130" height="52" rx="7" fill="#C9E4DE" stroke="#57C7AE" stroke-width="1.5"></rect>
+<rect x="280" y="278" width="130" height="52" rx="7" fill="#C9E4DE" stroke="#57C7AE" stroke-width="1.5"></rect>
+<text x="345" y="300" text-anchor="middle" font-size="14" font-weight="600" fill="#207965">many ResNet</text>
+<text x="345" y="318" text-anchor="middle" font-size="14" font-weight="600" fill="#207965">blocks</text>
+<line x1="418" y1="304" x2="434" y2="304" stroke="#888" stroke-width="1.5"></line>
+<rect x="434" y="278" width="92" height="52" rx="7" fill="#C6DEF1" stroke="#5795C7" stroke-width="1.5"></rect>
+<text x="480" y="300" text-anchor="middle" font-size="14" font-weight="600" fill="#205279">global</text>
+<text x="480" y="318" text-anchor="middle" font-size="14" font-weight="600" fill="#205279">avg pool</text>
+<line x1="526" y1="304" x2="542" y2="304" stroke="#888" stroke-width="1.5"></line>
+<rect x="542" y="278" width="96" height="52" rx="7" fill="#F2C6DE" stroke="#C75794" stroke-width="1.5"></rect>
+<text x="590" y="300" text-anchor="middle" font-size="14" font-weight="600" fill="#792051">dense +</text>
+<text x="590" y="318" text-anchor="middle" font-size="14" font-weight="600" fill="#792051">softmax</text>
+<text x="20" y="372" font-size="14" fill="#666">Global average pooling averages each channel over its whole height and width,</text>
+<text x="20" y="392" font-size="14" fill="#666">turning an H×W×C volume into a vector of C numbers.</text>
+</svg></div>
+<p>To build a ResNet we stack many blocks, with a few extra layers at each end.</p>
+<ul>
+<li><strong>A larger first convolution.</strong> A ResNet usually starts with a <span class="math inline">7\times7</span> convolution on the input rather than a <span class="math inline">3\times3</span>. A <span class="math inline">3\times3</span> patch of a raw, high-resolution image contains very little, and capturing meaningful structure with small kernels alone would require downsampling the image so much that information is lost. One larger convolution, applied once where it is affordable, lets the input stay at high resolution. Max pooling then brings the resolution down before the residual blocks.</li>
+<li><strong>Global average pooling instead of flattening.</strong> To get a vector for the classifier, ResNets usually average each channel over its entire height and width. A <span class="math inline">7\times7\times100</span> volume becomes a vector of <span class="math inline">100</span> numbers, rather than the <span class="math inline">4900</span> that flattening gave. This vector feeds a small classifier: a dense layer and a softmax.</li>
+</ul>
+<p>That is the ResNet: a large input convolution, pooling, a stack of residual blocks, global average pooling, and a classifier. Convolutional networks remain useful for some problems, but they have largely been replaced by the <a href="https://en.wikipedia.org/wiki/Transformer_(deep_learning)">transformer</a>, which works well on images as well as sequences. We turn to sequences next, and to the transformer over several weeks after that.</p>
+<hr>
+</section>
+<section id="sec-data-prep" class="level2">
+<h2 class="anchored" data-anchor-id="sec-data-prep">Aside: Preparing Image Data</h2>
+<p>The lecture does not cover this, but training any convolutional network, including the one in the homework, involves two preprocessing steps worth understanding.</p>
+<p><strong>Normalizing the input per channel.</strong> Week 4 standardized each input feature. For images the natural unit is the channel: for each of the red, green, and blue channels we subtract that channel’s mean pixel value over the training set and divide by its standard deviation,</p>
+<p><span class="math display">x' = \frac{x - m_c}{s_c} \quad \text{for every pixel } x \text{ in channel } c,</span></p>
+<p>so the network’s inputs are centred around zero with similar scales. This is the same per-channel idea as batch norm for images, but with fixed statistics computed once from the dataset rather than learned or computed per batch. In PyTorch it is <code>transforms.Normalize(means, stds)</code>, with one mean and one standard deviation per channel. The same normalization is applied to training and test images.</p>
+<p><strong>Data augmentation.</strong> A model sees each training image many times over the epochs. Data augmentation shows it a randomly altered version each time, so it cannot simply memorize the exact pixels.</p>
+<div class="definition-block">
+<p><strong>Definition.</strong> <strong>Data augmentation</strong> creates modified copies of training examples, such as mirrored or slightly shifted images, that should have the same label, and trains on them in place of the originals. It is a form of regularization (<a href="../lectures/week03.html#sec-regularization">Week 3</a>). See <a href="https://en.wikipedia.org/wiki/Data_augmentation">data augmentation</a>.</p>
+</div>
+<p>Two common image augmentations:</p>
+<ul>
+<li><strong>Random horizontal flip:</strong> mirror the image left-to-right with probability one half. A mirrored airplane is still an airplane.</li>
+<li><strong>Random crop with padding:</strong> pad the image with a border of zeros, then cut out a window of the original size at a random location. The result is the original image shifted by a few pixels in a random direction, which connects to translation invariance: the label should not depend on exactly where the object sits.</li>
+</ul>
+<p>Augmentation is applied only to the training data. Evaluation images are left unchanged (apart from normalization), so that the validation accuracy measures the model on the same kind of images every time.</p>
+<hr>
+</section>
+<section id="sec-summary" class="level2">
+<h2 class="anchored" data-anchor-id="sec-summary">Summary</h2>
+<div class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+Note
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p><strong>Key takeaways from Week 5:</strong></p>
+<ul>
+<li><strong>Inductive bias.</strong> Architectures whose built-in assumptions match the data’s structure reach good solutions from less data. For images, the convolution layer follows from a dense layer plus <strong>translation invariance</strong> (one shared kernel) and <strong>locality</strong> (a small window).</li>
+<li><strong>Convolution.</strong> A kernel slides over the input and takes a dot product at each position; the dot product measures how much the window looks like the kernel. Deep learning’s “convolution” is a cross-correlation; the traditional convolution flips the kernel first, which changes the numbers unless the kernel is symmetric.</li>
+<li><strong>Output size.</strong> Along each axis, <span class="math inline">\lfloor (n + 2p - k)/s \rfloor + 1</span>. Padding with <span class="math inline">\tfrac{K-1}{2}</span> zeros per edge keeps the size for odd <span class="math inline">K</span>; a stride downsamples and saves computation.</li>
+<li><strong>Convolution is a linear map.</strong> Written as a matrix it is sparse (locality) and repeats the same few weights along each row (sharing).</li>
+<li><strong>Receptive field.</strong> The input region an output depends on. Through a stack, <span class="math inline">r \leftarrow r + (k - 1)j</span> and <span class="math inline">j \leftarrow js</span>, per axis; padding does not change it.</li>
+<li><strong>Channels and parameters.</strong> One kernel per input-output channel pair, one bias per output channel: <span class="math inline">k_h k_w C_\text{in} C_\text{out}</span> weights and <span class="math inline">C_\text{out}</span> biases. <strong>Pooling</strong> reduces each window to one number with no parameters, most often max pooling with stride equal to the window.</li>
+<li><strong>A simple CNN</strong> repeats convolution, nonlinearity, and pooling, then flattens and classifies with dense layers; tracing shapes with the output-size rule gives each layer’s size.</li>
+<li><strong>Batch normalization</strong> standardizes activations with batch statistics, then applies learned <span class="math inline">\bm{\gamma}</span> and <span class="math inline">\bm{\beta}</span> (per channel for images), and uses running averages at inference (<code>model.eval()</code>). It can keep activations out of saturation, smooth the landscape, and regularize, but it makes each example’s output depend on its batch, which is why <strong>layer normalization</strong> is now preferred.</li>
+<li><strong>Residual connections</strong> compute <span class="math inline">f(\bm{x}) + \bm{x}</span>, giving gradients a path that skips the layer, which makes much deeper networks trainable; a <span class="math inline">1\times1</span> convolution on the skip path matches shapes.</li>
+<li><strong>ResNet:</strong> a <span class="math inline">7\times7</span> input convolution and pooling, many residual blocks (conv, BN, ReLU, conv, BN, add, ReLU), global average pooling, and a classifier.</li>
+</ul>
+</div>
+</div>
+<p><strong>Next week:</strong> recurrent neural networks, architectures with an inductive bias for sequential data, where the structure to exploit is order in time rather than space (Week 6).</p>
+</section>
+<section id="quick-self-check" class="level2">
+<h2 class="anchored" data-anchor-id="quick-self-check">Quick self-check</h2>
+<p>If you can explain, using only “shared kernel,” “small window,” “output-size rule,” “receptive field,” “batch statistics,” and “skip path,” how a convolution follows from a dense layer, how big its output is and what it sees, why batch norm helps but couples examples in a batch, and why residual connections let gradients reach early layers, you have understood the core of Week 5.</p>
+
+
+</section>
+
+</main> <!-- /main -->
+<script id="quarto-html-after-body" type="application/javascript">
+  window.document.addEventListener("DOMContentLoaded", function (event) {
+    const icon = "";
+    const anchorJS = new window.AnchorJS();
+    anchorJS.options = {
+      placement: 'right',
+      icon: icon
+    };
+    anchorJS.add('.anchored');
+    const isCodeAnnotation = (el) => {
+      for (const clz of el.classList) {
+        if (clz.startsWith('code-annotation-')) {                     
+          return true;
+        }
+      }
+      return false;
+    }
+    const onCopySuccess = function(e) {
+      // button target
+      const button = e.trigger;
+      // don't keep focus
+      button.blur();
+      // flash "checked"
+      button.classList.add('code-copy-button-checked');
+      var currentTitle = button.getAttribute("title");
+      button.setAttribute("title", "Copied!");
+      let tooltip;
+      if (window.bootstrap) {
+        button.setAttribute("data-bs-toggle", "tooltip");
+        button.setAttribute("data-bs-placement", "left");
+        button.setAttribute("data-bs-title", "Copied!");
+        tooltip = new bootstrap.Tooltip(button, 
+          { trigger: "manual", 
+            customClass: "code-copy-button-tooltip",
+            offset: [0, -8]});
+        tooltip.show();    
+      }
+      setTimeout(function() {
+        if (tooltip) {
+          tooltip.hide();
+          button.removeAttribute("data-bs-title");
+          button.removeAttribute("data-bs-toggle");
+          button.removeAttribute("data-bs-placement");
+        }
+        button.setAttribute("title", currentTitle);
+        button.classList.remove('code-copy-button-checked');
+      }, 1000);
+      // clear code selection
+      e.clearSelection();
+    }
+    const getTextToCopy = function(trigger) {
+      const outerScaffold = trigger.parentElement.cloneNode(true);
+      const codeEl = outerScaffold.querySelector('code');
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+    }
+    const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
+      text: getTextToCopy
+    });
+    clipboard.on('success', onCopySuccess);
+    if (window.document.getElementById('quarto-embedded-source-code-modal')) {
+      const clipboardModal = new window.ClipboardJS('.code-copy-button[data-in-quarto-modal]', {
+        text: getTextToCopy,
+        container: window.document.getElementById('quarto-embedded-source-code-modal')
+      });
+      clipboardModal.on('success', onCopySuccess);
+    }
+      var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+      var mailtoRegex = new RegExp(/^mailto:/);
+        var filterRegex = new RegExp('/' + window.location.host + '/');
+      var isInternal = (href) => {
+          return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+      }
+      // Inspect non-navigation links and adorn them if external
+     var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+      for (var i=0; i<links.length; i++) {
+        const link = links[i];
+        if (!isInternal(link.href)) {
+          // undo the damage that might have been done by quarto-nav.js in the case of
+          // links that we want to consider external
+          if (link.dataset.originalHref !== undefined) {
+            link.href = link.dataset.originalHref;
+          }
+            // target, if specified
+            link.setAttribute("target", "_blank");
+            if (link.getAttribute("rel") === null) {
+              link.setAttribute("rel", "noopener");
+            }
+        }
+      }
+    function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+      const config = {
+        allowHTML: true,
+        maxWidth: 500,
+        delay: 100,
+        arrow: false,
+        appendTo: function(el) {
+            return el.parentElement;
+        },
+        interactive: true,
+        interactiveBorder: 10,
+        theme: 'quarto',
+        placement: 'bottom-start',
+      };
+      if (contentFn) {
+        config.content = contentFn;
+      }
+      if (onTriggerFn) {
+        config.onTrigger = onTriggerFn;
+      }
+      if (onUntriggerFn) {
+        config.onUntrigger = onUntriggerFn;
+      }
+      window.tippy(el, config); 
+    }
+    const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+    for (var i=0; i<noterefs.length; i++) {
+      const ref = noterefs[i];
+      tippyHover(ref, function() {
+        // use id or data attribute instead here
+        let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+        try { href = new URL(href).hash; } catch {}
+        const id = href.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note) {
+          return note.innerHTML;
+        } else {
+          return "";
+        }
+      });
+    }
+    const xrefs = window.document.querySelectorAll('a.quarto-xref');
+    const processXRef = (id, note) => {
+      // Strip column container classes
+      const stripColumnClz = (el) => {
+        el.classList.remove("page-full", "page-columns");
+        if (el.children) {
+          for (const child of el.children) {
+            stripColumnClz(child);
+          }
+        }
+      }
+      stripColumnClz(note)
+      if (id === null || id.startsWith('sec-')) {
+        // Special case sections, only their first couple elements
+        const container = document.createElement("div");
+        if (note.children && note.children.length > 2) {
+          container.appendChild(note.children[0].cloneNode(true));
+          for (let i = 1; i < note.children.length; i++) {
+            const child = note.children[i];
+            if (child.tagName === "P" && child.innerText === "") {
+              continue;
+            } else {
+              container.appendChild(child.cloneNode(true));
+              break;
+            }
+          }
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(container);
+          }
+          return container.innerHTML
+        } else {
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(note);
+          }
+          return note.innerHTML;
+        }
+      } else {
+        // Remove any anchor links if they are present
+        const anchorLink = note.querySelector('a.anchorjs-link');
+        if (anchorLink) {
+          anchorLink.remove();
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        if (note.classList.contains("callout")) {
+          return note.outerHTML;
+        } else {
+          return note.innerHTML;
+        }
+      }
+    }
+    for (var i=0; i<xrefs.length; i++) {
+      const xref = xrefs[i];
+      tippyHover(xref, undefined, function(instance) {
+        instance.disable();
+        let url = xref.getAttribute('href');
+        let hash = undefined; 
+        if (url.startsWith('#')) {
+          hash = url;
+        } else {
+          try { hash = new URL(url).hash; } catch {}
+        }
+        if (hash) {
+          const id = hash.replace(/^#\/?/, "");
+          const note = window.document.getElementById(id);
+          if (note !== null) {
+            try {
+              const html = processXRef(id, note.cloneNode(true));
+              instance.setContent(html);
+            } finally {
+              instance.enable();
+              instance.show();
+            }
+          } else {
+            // See if we can fetch this
+            fetch(url.split('#')[0])
+            .then(res => res.text())
+            .then(html => {
+              const parser = new DOMParser();
+              const htmlDoc = parser.parseFromString(html, "text/html");
+              const note = htmlDoc.getElementById(id);
+              if (note !== null) {
+                const html = processXRef(id, note);
+                instance.setContent(html);
+              } 
+            }).finally(() => {
+              instance.enable();
+              instance.show();
+            });
+          }
+        } else {
+          // See if we can fetch a full url (with no hash to target)
+          // This is a special case and we should probably do some content thinning / targeting
+          fetch(url)
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.querySelector('main.content');
+            if (note !== null) {
+              // This should only happen for chapter cross references
+              // (since there is no id in the URL)
+              // remove the first header
+              if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+                note.children[0].remove();
+              }
+              const html = processXRef(null, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      }, function(instance) {
+      });
+    }
+        let selectedAnnoteEl;
+        const selectorForAnnotation = ( cell, annotation) => {
+          let cellAttr = 'data-code-cell="' + cell + '"';
+          let lineAttr = 'data-code-annotation="' +  annotation + '"';
+          const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+          return selector;
+        }
+        const selectCodeLines = (annoteEl) => {
+          const doc = window.document;
+          const targetCell = annoteEl.getAttribute("data-target-cell");
+          const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+          const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+          const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+          const lineIds = lines.map((line) => {
+            return targetCell + "-" + line;
+          })
+          let top = null;
+          let height = null;
+          let parent = null;
+          if (lineIds.length > 0) {
+              //compute the position of the single el (top and bottom and make a div)
+              const el = window.document.getElementById(lineIds[0]);
+              top = el.offsetTop;
+              height = el.offsetHeight;
+              parent = el.parentElement.parentElement;
+            if (lineIds.length > 1) {
+              const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+              const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+              height = bottom - top;
+            }
+            if (top !== null && height !== null && parent !== null) {
+              // cook up a div (if necessary) and position it 
+              let div = window.document.getElementById("code-annotation-line-highlight");
+              if (div === null) {
+                div = window.document.createElement("div");
+                div.setAttribute("id", "code-annotation-line-highlight");
+                div.style.position = 'absolute';
+                parent.appendChild(div);
+              }
+              div.style.top = top - 2 + "px";
+              div.style.height = height + 4 + "px";
+              div.style.left = 0;
+              let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+              if (gutterDiv === null) {
+                gutterDiv = window.document.createElement("div");
+                gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+                gutterDiv.style.position = 'absolute';
+                const codeCell = window.document.getElementById(targetCell);
+                const gutter = codeCell.querySelector('.code-annotation-gutter');
+                gutter.appendChild(gutterDiv);
+              }
+              gutterDiv.style.top = top - 2 + "px";
+              gutterDiv.style.height = height + 4 + "px";
+            }
+            selectedAnnoteEl = annoteEl;
+          }
+        };
+        const unselectCodeLines = () => {
+          const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+          elementsIds.forEach((elId) => {
+            const div = window.document.getElementById(elId);
+            if (div) {
+              div.remove();
+            }
+          });
+          selectedAnnoteEl = undefined;
+        };
+          // Handle positioning of the toggle
+      window.addEventListener(
+        "resize",
+        throttle(() => {
+          elRect = undefined;
+          if (selectedAnnoteEl) {
+            selectCodeLines(selectedAnnoteEl);
+          }
+        }, 10)
+      );
+      function throttle(fn, ms) {
+      let throttle = false;
+      let timer;
+        return (...args) => {
+          if(!throttle) { // first call gets through
+              fn.apply(this, args);
+              throttle = true;
+          } else { // all the others get throttled
+              if(timer) clearTimeout(timer); // cancel #2
+              timer = setTimeout(() => {
+                fn.apply(this, args);
+                timer = throttle = false;
+              }, ms);
+          }
+        };
+      }
+        // Attach click handler to the DT
+        const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+        for (const annoteDlNode of annoteDls) {
+          annoteDlNode.addEventListener('click', (event) => {
+            const clickedEl = event.target;
+            if (clickedEl !== selectedAnnoteEl) {
+              unselectCodeLines();
+              const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+              if (activeEl) {
+                activeEl.classList.remove('code-annotation-active');
+              }
+              selectCodeLines(clickedEl);
+              clickedEl.classList.add('code-annotation-active');
+            } else {
+              // Unselect the line
+              unselectCodeLines();
+              clickedEl.classList.remove('code-annotation-active');
+            }
+          });
+        }
+    const findCites = (el) => {
+      const parentEl = el.parentElement;
+      if (parentEl) {
+        const cites = parentEl.dataset.cites;
+        if (cites) {
+          return {
+            el,
+            cites: cites.split(' ')
+          };
+        } else {
+          return findCites(el.parentElement)
+        }
+      } else {
+        return undefined;
+      }
+    };
+    var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+    for (var i=0; i<bibliorefs.length; i++) {
+      const ref = bibliorefs[i];
+      const citeInfo = findCites(ref);
+      if (citeInfo) {
+        tippyHover(citeInfo.el, function() {
+          var popup = window.document.createElement('div');
+          citeInfo.cites.forEach(function(cite) {
+            var citeDiv = window.document.createElement('div');
+            citeDiv.classList.add('hanging-indent');
+            citeDiv.classList.add('csl-entry');
+            var biblioDiv = window.document.getElementById('ref-' + cite);
+            if (biblioDiv) {
+              citeDiv.innerHTML = biblioDiv.innerHTML;
+            }
+            popup.appendChild(citeDiv);
+          });
+          return popup.innerHTML;
+        });
+      }
+    }
+  });
+  </script>
+<nav class="page-navigation">
+  <div class="nav-page nav-page-previous">
+      <a href="../lectures/week04-practice.html" class="pagination-link" aria-label="Week 4 practice: Gradient Descent, SGD, Momentum, and Adam">
+        <i class="bi bi-arrow-left-short"></i> <span class="nav-page-text"><span class="chapter-title">Week 4 practice: Gradient Descent, SGD, Momentum, and Adam</span></span>
+      </a>          
+  </div>
+  <div class="nav-page nav-page-next">
+      <a href="../glossary.html" class="pagination-link" aria-label="Glossary">
+        <span class="nav-page-text"><span class="chapter-title">Glossary</span></span> <i class="bi bi-arrow-right-short"></i>
+      </a>
+  </div>
+</nav>
+</div> <!-- /content -->
+
+
+
+
+<script src="../site_libs/quarto-html/zenscroll-min.js"></script>
+</body></html>

@@ -152,6 +152,9 @@ window.Quarto = {
     <div class="pt-lg-2 mt-2 text-left sidebar-header">
     <div class="sidebar-title mb-0 py-0">
       <a href="../">CSC412/2506: Probabilistic Machine Learning notes</a> 
+        <div class="sidebar-tools-main">
+    <a href="https://amcwong.github.io/claude-code-my-workflow/" title="All course notes" class="quarto-navigation-tool px-1" aria-label="All course notes"><i class="bi bi-house-door"></i></a>
+</div>
     </div>
       </div>
         <div class="mt-2 flex-shrink-0 align-items-center">
@@ -234,6 +237,7 @@ window.Quarto = {
   <ul class="collapse">
   <li><a href="#which-family" id="toc-which-family" class="nav-link" data-scroll-target="#which-family">Which “family”?</a></li>
   <li><a href="#the-general-form" id="toc-the-general-form" class="nav-link" data-scroll-target="#the-general-form">The general form</a></li>
+  <li><a href="#recipe-putting-a-distribution-into-exponential-family-form" id="toc-recipe-putting-a-distribution-into-exponential-family-form" class="nav-link" data-scroll-target="#recipe-putting-a-distribution-into-exponential-family-form">Recipe: putting a distribution into exponential-family form</a></li>
   <li><a href="#bernoulli-as-an-exponential-family" id="toc-bernoulli-as-an-exponential-family" class="nav-link" data-scroll-target="#bernoulli-as-an-exponential-family">Bernoulli as an exponential family</a></li>
   </ul></li>
   <li><a href="#sec-multinomial" id="toc-sec-multinomial" class="nav-link" data-scroll-target="#sec-multinomial">Multinomial as an exponential family</a></li>
@@ -509,15 +513,100 @@ Note
 </div>
 <p><strong>Figure 2.</strong> The four pieces of an exponential family. All parameter-dependence routes through <span class="math inline">\eta</span> and <span class="math inline">T(x)</span> via a single inner product, which is what Fisher–Neyman requires for <span class="math inline">T(x)</span> to be sufficient.</p>
 </section>
+<section id="recipe-putting-a-distribution-into-exponential-family-form" class="level3">
+<h3 class="anchored" data-anchor-id="recipe-putting-a-distribution-into-exponential-family-form">Recipe: putting a distribution into exponential-family form</h3>
+<p>How do we take a familiar density, written in terms of its usual parameter <span class="math inline">\theta</span>, and recognise the four pieces? The target is</p>
+<p><span class="math display">p(x\mid\theta) = h(x)\exp\{\eta^\top T(x) - A(\eta)\},</span></p>
+<p>and the work is sorting every piece of <span class="math inline">\log p(x\mid\theta)</span> by <em>what it depends on</em>: the data <span class="math inline">x</span>, the parameter <span class="math inline">\theta</span>, or both.</p>
+<div class="theorem-block">
+<p><strong>Recipe.</strong></p>
+<ol type="1">
+<li><strong>Get an exponential.</strong> If the density has no obvious <span class="math inline">\exp\{\cdot\}</span>, write it as <span class="math inline">p = \exp\{\log p\}</span>. Then expand <span class="math inline">\log p</span> with the log rules (<span class="math inline">\log ab = \log a + \log b</span>, <span class="math inline">\log a^x = x\log a</span>) until it is a sum of simple terms.</li>
+<li><strong>Sort each term into one of three bins.</strong>
+<ul>
+<li><em>Mixed:</em> depends on both <span class="math inline">x</span> and <span class="math inline">\theta</span>.</li>
+<li><em>Parameter-only:</em> depends on <span class="math inline">\theta</span> but not on <span class="math inline">x</span>.</li>
+<li><em>Data-only:</em> depends on <span class="math inline">x</span> but not on <span class="math inline">\theta</span> (pure constants can go here too).</li>
+</ul></li>
+<li><strong>Mixed bin gives <span class="math inline">\eta</span> and <span class="math inline">T(x)</span>.</strong> Factor each mixed term as (a function of <span class="math inline">\theta</span>) times (a function of <span class="math inline">x</span>). Group terms that share the same function of <span class="math inline">x</span>. Each distinct function of <span class="math inline">x</span> is one entry of <span class="math inline">T(x)</span>, and the function of <span class="math inline">\theta</span> multiplying it is the matching entry of <span class="math inline">\eta</span>.</li>
+<li><strong>Parameter-only bin gives <span class="math inline">A(\eta)</span>.</strong> The sum of these terms equals <span class="math inline">-A</span> (note the minus sign in the template). It is first written in terms of <span class="math inline">\theta</span>, so invert the map from step 3 (solve <span class="math inline">\eta(\theta)</span> for <span class="math inline">\theta</span>) and substitute, to get <span class="math inline">A</span> as a function of <span class="math inline">\eta</span>.</li>
+<li><strong>Data-only bin gives <span class="math inline">h(x)</span>.</strong> <span class="math inline">h(x)</span> is <span class="math inline">\exp</span> of the data-only terms, times any factor sitting outside the exponential that depends only on <span class="math inline">x</span>.</li>
+<li><strong>Check <span class="math inline">A</span>.</strong> Because the density must sum (or integrate) to 1, <span class="math inline">A(\eta) = \log\sum_x h(x)\exp\{\eta^\top T(x)\}</span>. Computing this sum directly should reproduce the <span class="math inline">A</span> from step 4.</li>
+</ol>
+</div>
+<p>Two points refine the short version “the thing multiplying the data is <span class="math inline">\eta</span>”.</p>
+<ul>
+<li><strong>“The data” means <span class="math inline">T(x)</span>, which need not be <span class="math inline">x</span> itself.</strong> It can be <span class="math inline">x^2</span>, <span class="math inline">\log x</span>, an indicator <span class="math inline">\mathbb{1}[x=i]</span>, or a count. The Gaussian below has two entries, <span class="math inline">x</span> and <span class="math inline">x^2</span>, so <span class="math inline">\eta</span> is a 2-vector.</li>
+<li><strong>Not every term in the exponent belongs to <span class="math inline">\eta</span>.</strong> A term that does not multiply any function of <span class="math inline">x</span> (the parameter-only bin) carries no information about which <span class="math inline">x</span> was observed. Its only job is to make the probabilities sum to 1, which is exactly the role of the normalizer <span class="math inline">A</span>.</li>
+</ul>
+<p>If a term cannot be split into (function of <span class="math inline">\theta</span>) times (function of <span class="math inline">x</span>), for example <span class="math inline">\log(x+\theta)</span>, or if the set of possible <span class="math inline">x</span> values itself depends on <span class="math inline">\theta</span> (a uniform on <span class="math inline">[0,\theta]</span>), the distribution is not in the exponential family.</p>
+<p>With <span class="math inline">N</span> i.i.d. draws the same recipe applies to the joint density <span class="math inline">\prod_n p(x^{(n)}\mid\theta)</span>: the logs add, so <span class="math inline">T</span> becomes a sum over draws (a count of ones, a sum of <span class="math inline">x</span>’s) and <span class="math inline">A</span> is multiplied by <span class="math inline">N</span>. The Multinomial section below works in that form.</p>
+</section>
 <section id="bernoulli-as-an-exponential-family" class="level3">
 <h3 class="anchored" data-anchor-id="bernoulli-as-an-exponential-family">Bernoulli as an exponential family</h3>
-<p>Start from the single-trial <a href="https://en.wikipedia.org/wiki/Bernoulli_distribution">Bernoulli</a> mass function <span class="math inline">p(x\mid\theta) = \theta^x(1-\theta)^{1-x}</span> for <span class="math inline">x\in\{0,1\}</span>, and rewrite the powers as an exponential of logs:</p>
-<p><span class="math display">p(x\mid\theta) = \exp\big\{x\log\theta + (1-x)\log(1-\theta)\big\}.</span></p>
-<p>Collect terms that multiply <span class="math inline">x</span> versus terms that do not:</p>
-<p><span class="math display">x\log\theta + (1-x)\log(1-\theta) = x\log\frac{\theta}{1-\theta} + \log(1-\theta).</span></p>
-<p>Matching against <span class="math inline">\eta\, T(x) - A(\eta)</span>:</p>
+<p>We now run the recipe on the single-trial <a href="https://en.wikipedia.org/wiki/Bernoulli_distribution">Bernoulli</a> mass function</p>
+<p><span class="math display">p(x\mid\theta) = \theta^x(1-\theta)^{1-x}, \qquad x\in\{0,1\}.</span></p>
+<p><strong>Step 1: get an exponential.</strong> There is no <span class="math inline">\exp</span> yet, so take the log and exponentiate it back:</p>
+<p><span class="math display">p(x\mid\theta) = \exp\big\{\log\big[\theta^x(1-\theta)^{1-x}\big]\big\} = \exp\big\{x\log\theta + (1-x)\log(1-\theta)\big\}.</span></p>
+<p><strong>Step 2: sort the terms.</strong> The second term still mixes a pure-parameter part with a data part, so distribute <span class="math inline">(1-x)</span> first:</p>
+<p><span class="math display">x\log\theta + (1-x)\log(1-\theta) = x\log\theta - x\log(1-\theta) + \log(1-\theta).</span></p>
+<p>The first two terms are <strong>mixed</strong> (each contains both <span class="math inline">x</span> and <span class="math inline">\theta</span>). The last term, <span class="math inline">\log(1-\theta)</span>, is <strong>parameter-only</strong>. There are no data-only terms.</p>
+<p><strong>Step 3: read off <span class="math inline">\eta</span> and <span class="math inline">T(x)</span>.</strong> Both mixed terms multiply the same function of the data, <span class="math inline">x</span>, so factor it out:</p>
+<p><span class="math display">x\log\theta - x\log(1-\theta) = x\,\big[\log\theta - \log(1-\theta)\big] = x\log\frac{\theta}{1-\theta}.</span></p>
+<p>Matching to <span class="math inline">\eta\,T(x)</span>:</p>
+<p><span class="math display">T(x) = x, \qquad \eta = \log\frac{\theta}{1-\theta}.</span></p>
+<p>The quantity <span class="math inline">\log\frac{\theta}{1-\theta}</span> is the <strong>log-odds</strong> of heads versus tails.</p>
+<p>Why is <span class="math inline">\log(1-\theta)</span> not part of <span class="math inline">\eta</span>? It does not multiply <span class="math inline">x</span>. Whether we observe <span class="math inline">x=0</span> or <span class="math inline">x=1</span>, this term contributes the same amount <span class="math inline">\log(1-\theta)</span> to the exponent, so it does not distinguish one outcome from the other. In the template, <span class="math inline">\eta</span> is defined only as the coefficient of <span class="math inline">T(x)</span>; anything that is left over and depends only on <span class="math inline">\theta</span> is the normalizer.</p>
+<p><strong>Step 4: get <span class="math inline">A(\eta)</span>.</strong> The parameter-only term is <span class="math inline">-A</span>:</p>
+<p><span class="math display">-A = \log(1-\theta) \quad\Longrightarrow\quad A = -\log(1-\theta).</span></p>
+<p>This is still in terms of <span class="math inline">\theta</span>. To write it in terms of <span class="math inline">\eta</span>, invert <span class="math inline">\eta = \log\frac{\theta}{1-\theta}</span>:</p>
+<p><span class="math display">e^\eta = \frac{\theta}{1-\theta} \;\Longrightarrow\; e^\eta(1-\theta) = \theta \;\Longrightarrow\; \theta = \frac{e^\eta}{1+e^\eta}.</span></p>
+<p>This inverse is the <a href="https://en.wikipedia.org/wiki/Logistic_function">logistic sigmoid</a>. It follows that</p>
+<p><span class="math display">1-\theta = 1 - \frac{e^\eta}{1+e^\eta} = \frac{1}{1+e^\eta},</span></p>
+<p>and substituting into <span class="math inline">A = -\log(1-\theta)</span>:</p>
+<p><span class="math display">A(\eta) = -\log\frac{1}{1+e^\eta} = \log(1+e^\eta).</span></p>
+<p><strong>Step 5: get <span class="math inline">h(x)</span>.</strong> No data-only terms and no factor outside the exponential, so <span class="math inline">h(x) = 1</span>.</p>
+<p><strong>Step 6: check <span class="math inline">A</span> by normalizing.</strong> Summing <span class="math inline">h(x)\exp\{\eta x\}</span> over the two outcomes:</p>
+<p><span class="math display">\sum_{x\in\{0,1\}} e^{\eta x} = e^{0} + e^{\eta} = 1+e^\eta, \qquad \log(1+e^\eta) = A(\eta). \checkmark</span></p>
+<p>Collecting the pieces:</p>
 <p><span class="math display">T(x) = x \qquad \eta = \log\frac{\theta}{1-\theta} \qquad A(\eta) = \log(1+e^{\eta}) \qquad h(x) = 1.</span></p>
-<p>(Solving <span class="math inline">\eta = \log\frac{\theta}{1-\theta}</span> for <span class="math inline">\theta</span> gives <span class="math inline">\theta = e^\eta/(1+e^\eta)</span>; substituting recovers <span class="math inline">A(\eta)</span>.) The quantity <span class="math inline">\log\frac{\theta}{1-\theta}</span> is the <strong>log-odds</strong> of heads versus tails. The <span class="math inline">K</span>-class Multinomial below uses the same shape, <span class="math inline">\eta_i = \log(q_i/q_K)</span>, with Bernoulli as the <span class="math inline">K=2</span> case.</p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 33%">
+<col style="width: 33%">
+<col style="width: 33%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Piece</th>
+<th>Bernoulli value</th>
+<th>Came from</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><span class="math inline">T(x)</span></td>
+<td><span class="math inline">x</span></td>
+<td>the function of the data in the mixed terms</td>
+</tr>
+<tr class="even">
+<td><span class="math inline">\eta</span></td>
+<td><span class="math inline">\log\frac{\theta}{1-\theta}</span></td>
+<td>the coefficient of <span class="math inline">T(x)</span></td>
+</tr>
+<tr class="odd">
+<td><span class="math inline">A(\eta)</span></td>
+<td><span class="math inline">\log(1+e^\eta)</span></td>
+<td>minus the parameter-only term, rewritten via <span class="math inline">\theta = e^\eta/(1+e^\eta)</span></td>
+</tr>
+<tr class="even">
+<td><span class="math inline">h(x)</span></td>
+<td><span class="math inline">1</span></td>
+<td>no data-only terms</td>
+</tr>
+</tbody>
+</table>
+<p>The <span class="math inline">K</span>-class Multinomial below uses the same shape, <span class="math inline">\eta_i = \log(q_i/q_K)</span>, with Bernoulli as the <span class="math inline">K=2</span> case.</p>
 <p>A check against the general fact <span class="math inline">\mathbb{E}[T(X)] = A'(\eta)</span> proved later: <span class="math inline">A(\eta) = \log(1+e^\eta)</span> has <span class="math inline">A'(\eta) = e^\eta/(1+e^\eta) = \theta = \mathbb{E}[X]</span>, and <span class="math inline">A''(\eta) = \theta(1-\theta)</span>, the Bernoulli variance.</p>
 </section>
 </section>

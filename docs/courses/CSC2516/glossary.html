@@ -36,7 +36,7 @@ ul.task-list li input[type="checkbox"] {
 <script src="site_libs/quarto-search/fuse.min.js"></script>
 <script src="site_libs/quarto-search/quarto-search.js"></script>
 <meta name="quarto:offset" content="./">
-<link href="./lectures/week04-practice.html" rel="prev">
+<link href="./lectures/week05.html" rel="prev">
 <script src="site_libs/quarto-html/quarto.js" type="module"></script>
 <script src="site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
 <script src="site_libs/quarto-html/popper.min.js"></script>
@@ -151,6 +151,9 @@ window.Quarto = {
     <div class="pt-lg-2 mt-2 text-left sidebar-header">
     <div class="sidebar-title mb-0 py-0">
       <a href="./">Neural Networks and Deep Learning</a> 
+        <div class="sidebar-tools-main">
+    <a href="https://amcwong.github.io/claude-code-my-workflow/" title="All course notes" class="quarto-navigation-tool px-1" aria-label="All course notes"><i class="bi bi-house-door"></i></a>
+</div>
     </div>
       </div>
         <div class="mt-2 flex-shrink-0 align-items-center">
@@ -197,6 +200,11 @@ window.Quarto = {
 </li>
         <li class="sidebar-item">
   <div class="sidebar-item-container"> 
+  <a href="./lectures/week05.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Week 5: Convolutional Networks, Normalization, and Residual Connections</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
   <a href="./glossary.html" class="sidebar-item-text sidebar-link active"><span class="chapter-title">Glossary</span></a>
   </div>
 </li>
@@ -214,6 +222,7 @@ window.Quarto = {
   <li><a href="#week-2" id="toc-week-2" class="nav-link" data-scroll-target="#week-2">Week 2</a></li>
   <li><a href="#week-3" id="toc-week-3" class="nav-link" data-scroll-target="#week-3">Week 3</a></li>
   <li><a href="#week-4" id="toc-week-4" class="nav-link" data-scroll-target="#week-4">Week 4</a></li>
+  <li><a href="#week-5" id="toc-week-5" class="nav-link" data-scroll-target="#week-5">Week 5</a></li>
   </ul>
 </nav>
     </div>
@@ -322,6 +331,40 @@ window.Quarto = {
 <li><strong>Bias correction.</strong> Dividing Adam’s accumulators by <span class="math inline">1-\beta_1^t</span> and <span class="math inline">1-\beta_2^t</span> to undo their pull toward zero from starting at zero; “bias” here means systematic error in an estimate, not a bias parameter. See <a href="./lectures/week04.html#sec-bias-correction">The bias toward zero</a>.</li>
 <li><strong>Adam.</strong> The default optimizer for neural networks: it steps along the bias-corrected average gradient divided by the square root of the bias-corrected average squared gradient, with defaults <span class="math inline">\beta_1 = 0.9</span>, <span class="math inline">\beta_2 = 0.999</span>, <span class="math inline">\eta = 0.001</span>, <span class="math inline">\epsilon = 10^{-8}</span>. See <a href="./lectures/week04.html#sec-adam-algorithm">The full algorithm</a>.</li>
 <li><strong>RMSProp.</strong> An earlier adaptive optimizer resembling Adam, but using the raw gradient in the numerator and no bias correction. See <a href="./lectures/week04.html#sec-adam">Other optimizers</a>.</li>
+</ul>
+</section>
+<section id="week-5" class="level2">
+<h2 class="anchored" data-anchor-id="week-5">Week 5</h2>
+<ul>
+<li><strong>Inductive bias.</strong> The assumptions built into a model’s design that make it prefer some solutions before seeing data; “bias” here is a preference, not a bias parameter. See <a href="./lectures/week05.html#sec-cnn">Convolutional Neural Networks</a>.</li>
+<li><strong>Translation invariance (lecture sense) and locality.</strong> The two assumptions behind the convolution: apply the same operation at every position, and look at only a small window. See <a href="./lectures/week05.html#sec-derive-conv">From a dense layer to a convolution</a>.</li>
+<li><strong>Convolution layer.</strong> A layer that slides a shared kernel over the input and adds a bias to the dot product at each position; it is a dense layer with sparse, shared weights. See <a href="./lectures/week05.html#sec-derive-conv">From a dense layer to a convolution</a>.</li>
+<li><strong>Kernel (filter).</strong> The small grid of shared weights a convolution slides over its input; its dot product with a window measures how much the window looks like the kernel. See <a href="./lectures/week05.html#sec-template">Reading the kernel as a template</a>.</li>
+<li><strong>Frobenius inner product.</strong> For two matrices of the same shape, the sum of the products of matching entries, <span class="math inline">\langle \bm{V}, \bm{W} \rangle_F = \sum_{a,b} V_{a,b} W_{a,b}</span>; equal to the ordinary dot product of the two matrices flattened into vectors. A convolution output is the bias plus this inner product of the kernel with a window. See <a href="./lectures/week05.html#sec-template">Reading the kernel as a template</a>.</li>
+<li><strong>Feature map.</strong> The output grid of a convolution for one kernel, recording where the kernel’s pattern was found. See <a href="./lectures/week05.html#sec-derive-conv">From a dense layer to a convolution</a>.</li>
+<li><strong>Parameter sharing.</strong> Reusing one kernel at every position instead of learning separate weights per position. See <a href="./lectures/week05.html#sec-derive-conv">From a dense layer to a convolution</a>.</li>
+<li><strong>Cross-correlation versus convolution.</strong> Deep learning’s “convolution” lays the kernel over the window as is (cross-correlation); the traditional convolution flips the kernel top-to-bottom and left-to-right first. See <a href="./lectures/week05.html#sec-flip">Convolution or cross-correlation?</a>.</li>
+<li><strong>Output-size rule.</strong> Along each axis, <span class="math inline">\lfloor (n + 2p - k)/s \rfloor + 1</span> outputs for input length <span class="math inline">n</span>, kernel <span class="math inline">k</span>, padding <span class="math inline">p</span> per edge, and stride <span class="math inline">s</span>. See <a href="./lectures/week05.html#sec-general-size">The general output-size rule</a>.</li>
+<li><strong>Receptive field.</strong> The region of the input an output entry depends on; through a stack of layers it grows as <span class="math inline">r \leftarrow r + (k-1)j</span>, with jump <span class="math inline">j \leftarrow js</span>. See <a href="./lectures/week05.html#sec-rf-stack">Receptive fields of stacked layers</a>.</li>
+<li><strong>Padding.</strong> A border of zeros added before a convolution, usually <span class="math inline">\tfrac{K-1}{2}</span> per edge so the output keeps the input’s size. See <a href="./lectures/week05.html#sec-padding">Padding</a>.</li>
+<li><strong>Stride.</strong> How many pixels the window moves between consecutive outputs; PyTorch writes it as (height, width). See <a href="./lectures/week05.html#sec-stride">Stride</a>.</li>
+<li><strong>Convolution as a matrix.</strong> Writing a convolution as <span class="math inline">\bm{W}\bm{x}</span> on the flattened image, where <span class="math inline">\bm{W}</span> is sparse and repeats the kernel’s weights along each row (a Toeplitz-like structure). See <a href="./lectures/week05.html#sec-conv-matrix">Convolution as a matrix</a>.</li>
+<li><strong>Channel.</strong> One grid in a stack of same-sized grids, such as the red, green, and blue of a colour image, or one feature map of a layer. See <a href="./lectures/week05.html#sec-channels">Channels</a>.</li>
+<li><strong>Convolution parameter count.</strong> <span class="math inline">k_h k_w C_\text{in} C_\text{out}</span> weights and <span class="math inline">C_\text{out}</span> biases, independent of the image size. See <a href="./lectures/week05.html#sec-param-count">Counting parameters</a>.</li>
+<li><strong>Pooling (max, average).</strong> A parameter-free layer that reduces each window of each channel to one number, usually with stride equal to the window. See <a href="./lectures/week05.html#sec-pooling">Pooling</a>.</li>
+<li><strong>Translation equivariance (strict sense).</strong> Shifting the input shifts the output by the same amount, which a convolution satisfies; strict translation <em>invariance</em> means the output does not change at all, which pooling provides approximately. See <a href="./lectures/week05.html#sec-equivariance">Invariance and equivariance</a>.</li>
+<li><strong>Flatten.</strong> Reshaping an <span class="math inline">H\times W\times C</span> volume into a vector of <span class="math inline">HWC</span> entries for a dense layer. See <a href="./lectures/week05.html#sec-simple-convnet">Building a simple convolutional network</a>.</li>
+<li><strong>Channels-first layout.</strong> PyTorch’s <code>(N, C, H, W)</code> ordering of an image batch, versus the lecture’s <span class="math inline">B\times H\times W\times C</span>. See <a href="./lectures/week05.html#sec-simple-convnet">Building a simple convolutional network</a>.</li>
+<li><strong>Batch normalization.</strong> A layer that standardizes activations with the current mini-batch’s mean and variance (per channel for images), then applies a learned scale <span class="math inline">\bm{\gamma}</span> and shift <span class="math inline">\bm{\beta}</span>. See <a href="./lectures/week05.html#sec-batchnorm">Batch Normalization</a>.</li>
+<li><strong>Running statistics.</strong> Batch norm’s moving averages of the batch mean and variance, used in place of batch statistics at inference (<code>model.eval()</code> in PyTorch). See <a href="./lectures/week05.html#sec-batchnorm-how">How it works</a>.</li>
+<li><strong>Internal covariate shift.</strong> The drift in a layer’s input distribution as earlier layers train; the original motivation for batch norm, now on uncertain ground. See <a href="./lectures/week05.html#sec-batchnorm-why">Why it might help</a>.</li>
+<li><strong>Layer normalization (preview).</strong> Normalizing across the features of a single example rather than across the batch, so each example’s output does not depend on the others. See <a href="./lectures/week05.html#sec-batchnorm-trouble">The trouble with batch normalization</a>.</li>
+<li><strong>Residual (skip) connection.</strong> Computing <span class="math inline">f(\bm{x}) + \bm{x}</span> instead of <span class="math inline">f(\bm{x})</span>, giving gradients a path that skips the layer. See <a href="./lectures/week05.html#sec-residual">Residual Connections</a>.</li>
+<li><strong>Residual stream.</strong> The running sum carried through a sequence of residual blocks, each adding to it. See <a href="./lectures/week05.html#sec-residual">Residual Connections</a>.</li>
+<li><strong>1×1 convolution.</strong> A convolution with a single-position kernel; it changes the number of channels (and, with a stride, downsamples) without looking at neighbours. See <a href="./lectures/week05.html#sec-residual-shapes">Matching shapes</a>.</li>
+<li><strong>ResNet.</strong> A convolutional network of stacked residual blocks (conv, BN, ReLU, conv, BN, add, ReLU) between a large input convolution and a global-average-pooling classifier. See <a href="./lectures/week05.html#sec-resnet">Modern ConvNets: The ResNet</a>.</li>
+<li><strong>Global average pooling.</strong> Averaging each channel over its whole height and width, turning an <span class="math inline">H\times W\times C</span> volume into <span class="math inline">C</span> numbers. See <a href="./lectures/week05.html#sec-resnet">Modern ConvNets: The ResNet</a>.</li>
+<li><strong>Data augmentation.</strong> Training on randomly altered copies of examples that keep the same label, such as flips and shifted crops; a form of regularization. See <a href="./lectures/week05.html#sec-data-prep">Preparing Image Data</a>.</li>
 </ul>
 
 
@@ -735,8 +778,8 @@ window.Quarto = {
   </script>
 <nav class="page-navigation">
   <div class="nav-page nav-page-previous">
-      <a href="./lectures/week04-practice.html" class="pagination-link" aria-label="Week 4 practice: Gradient Descent, SGD, Momentum, and Adam">
-        <i class="bi bi-arrow-left-short"></i> <span class="nav-page-text"><span class="chapter-title">Week 4 practice: Gradient Descent, SGD, Momentum, and Adam</span></span>
+      <a href="./lectures/week05.html" class="pagination-link" aria-label="Week 5: Convolutional Networks, Normalization, and Residual Connections">
+        <i class="bi bi-arrow-left-short"></i> <span class="nav-page-text"><span class="chapter-title">Week 5: Convolutional Networks, Normalization, and Residual Connections</span></span>
       </a>          
   </div>
   <div class="nav-page nav-page-next">
