@@ -54,7 +54,7 @@ Hand-placed image files (plots, photos) go in `lectures/figures/weekNN/` and are
 
 ## Clarification dropdowns
 
-Parked during `/course-notes revise`, not during `add`. Only on sections the user asked to park. Closed by default.
+Parked during `/course-notes revise` (when the user says park) or `/course-notes park-ingest` (after placement approval), not during `add`. Same shape either way. Closed by default.
 
 ```markdown
 ::: {.callout-tip collapse="true" .clarification title="Question: [the question a reader would ask at this point]"}

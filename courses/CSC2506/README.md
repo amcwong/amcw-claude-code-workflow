@@ -10,5 +10,6 @@ Index of this course's note files.
 - **Glossary:** `glossary.qmd` (cumulative, grouped by week)
 - **Audit:** `FACT_AUDIT.md` (written only by `/course-notes audit`)
 - **Sources:** `sources/weekN/` (slides and readings; binaries gitignored)
+- **Personal notes:** `sources/personal_notes/unparked/` → `/course-notes park-ingest CSC2506` (park clarifications; archive to `parked/`)
 
 Add a week with `/course-notes add CSC2506 <N>`. Do not commit or push from that skill; use `/commit`.

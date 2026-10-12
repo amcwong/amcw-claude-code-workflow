@@ -1,7 +1,7 @@
 ---
 name: course-notes
-description: Write beginner-facing course notes for one lecture week under courses/<slug>/ — a Quarto book chapter, optional practice chapter, cumulative glossary, and local render. Use when the user says "add week N", "write course notes", "init course notes", "audit the course notes", "revise course notes", "park that", "promote that", "clarification dropdown", "course-notes practice", or "practice problems for week N" of a course under courses/. NOT for instructor Beamer/Quarto decks (use `/create-lecture` / `/teach-from-paper`), NOT for literature or paper notes (use `/lit-review`), NOT for manuscript fact-checking (use `/verify-claims`), NOT for generic "study notes" or "add notes." NOT for a graded student set plus separate answer key (use `/scaffold-exercises`).
-argument-hint: "[init <slug> | add <slug> <N> | practice <slug> <N> | revise <slug> [N] | audit <slug>] [--no-render] [--no-audit]"
+description: Write beginner-facing course notes for one lecture week under courses/<slug>/ — a Quarto book chapter, optional practice chapter, cumulative glossary, and local render. Use when the user says "add week N", "write course notes", "init course notes", "audit the course notes", "revise course notes", "park that", "promote that", "clarification dropdown", "park-ingest", "park the unparked folder", "process personal_notes/unparked", "course-notes practice", or "practice problems for week N" of a course under courses/. NOT for instructor Beamer/Quarto decks (use `/create-lecture` / `/teach-from-paper`), NOT for literature or paper notes (use `/lit-review`), NOT for manuscript fact-checking (use `/verify-claims`), NOT for generic "study notes" or "add notes." NOT for a graded student set plus separate answer key (use `/scaffold-exercises`).
+argument-hint: "[init <slug> | add <slug> <N> | practice <slug> <N> | revise <slug> [N] | park-ingest <slug> | audit <slug>] [--path <dir-or-file>] [--no-render] [--no-audit]"
 allowed-tools: ["Read", "Write", "Edit", "Grep", "Glob", "Bash", "Agent", "Task"]
 disable-model-invocation: true
 effort: high
@@ -9,7 +9,7 @@ effort: high
 
 # /course-notes — Weekly Course Notes
 
-Produce beginner-facing notes for one lecture week of a course under `courses/<slug>/`: a Quarto book chapter (`lectures/weekNN.qmd`, source of truth), an optional self-study practice chapter (`lectures/weekNN-practice.qmd`), a cumulative glossary chapter, and a local `_site/` render. `revise` is the human pass between writing and audit. Fact-audit is a separate mode of this same skill.
+Produce beginner-facing notes for one lecture week of a course under `courses/<slug>/`: a Quarto book chapter (`lectures/weekNN.qmd`, source of truth), an optional self-study practice chapter (`lectures/weekNN-practice.qmd`), a cumulative glossary chapter, and a local `_site/` render. `revise` is the human pass between writing and audit. `park-ingest` batch-parks offline personal notes from `sources/personal_notes/unparked/`. Fact-audit is a separate mode of this same skill.
 
 **Core principle:** the week `.qmd` is source of truth; HTML is only `quarto render` output. Nothing in this skill commits or pushes — that is [`/commit`](../commit/SKILL.md).
 
@@ -35,6 +35,7 @@ Parse `$ARGUMENTS`:
 - `add <slug> <N>` — add week `N` (integer). Filename is `lectures/weekNN.qmd` with `N` zero-padded to two digits (`1` → `week01`).
 - `practice <slug> <N>` — self-study practice chapter for week `N`. Requires `lectures/weekNN.qmd`. Filename is `lectures/weekNN-practice.qmd`.
 - `revise <slug> [N]` — pre-audit edit pass on week `N` (or the week under discussion). Also fire on “park that”, “promote that”, or “clarification dropdown” when a week is already in context. Names the practice chapter if the user says so.
+- `park-ingest <slug>` — batch-read personal notes from `sources/personal_notes/unparked/` (or `--path`), propose **park-only** clarification placements across week chapters, stop for placement approval, then park and archive. Also fire on “park the unparked folder” / “process personal_notes/unparked”.
 - `audit <slug>` — fork `fact-auditor` over that course tree.
 
 Slug must be kebab-case (`imaging-2026`). Reject path separators or `..`.
@@ -44,7 +45,7 @@ Slug must be kebab-case (`imaging-2026`). Reject path separators or `..`.
 ### `init` — scaffold a course
 
 1. Confirm `courses/<slug>/` does not already exist. If it does, stop.
-2. Create the directory, `sources/` (empty), `lectures/figures/` (empty except `.gitkeep`), and `styles/`. Copy:
+2. Create the directory, `sources/` (empty), `sources/personal_notes/unparked/` and `sources/personal_notes/parked/` (each with `.gitkeep`), `lectures/figures/` (empty except `.gitkeep`), and `styles/`. Copy:
    - `templates/course.md` → `COURSE.md`
    - `templates/course-notes-readme.md` → `README.md`
    - `templates/course-notes-book/_quarto.yml` → `_quarto.yml`
@@ -54,6 +55,7 @@ Slug must be kebab-case (`imaging-2026`). Reject path separators or `..`.
    - `templates/course-notes-book/styles/custom-dark.css` → `styles/custom-dark.css`
    - `templates/course-notes-book/lectures/figures/.gitkeep` → `lectures/figures/.gitkeep`
    - `templates/fact-audit.md` → `FACT_AUDIT.md` (placeholder until the first audit)
+   - `templates/course-notes-personal-notes-readme.md` → `sources/personal_notes/README.md`
 3. Do **not** copy a week chapter or a practice chapter. Stop and tell the user to fill `[BRACKETED]` placeholders in `COURSE.md` and `index.qmd` / `_quarto.yml` (audience, course URL, expected week count, book title) and drop Week 1 slides into `sources/week1/`. Do not write week notes.
 
 ### `add` — one week (plan-first)
@@ -196,6 +198,87 @@ Honor [`.claude/rules/course-notes.md`](../../rules/course-notes.md) and [`cours
 
 Once per **pause** (the user seems done asking, not after every question), you may mention that promote / park / discard / audit / commit are available. Never treat silence or a follow-up as park.
 
+### `park-ingest` — batch park from personal notes (plan-first, park only)
+
+Confirm `courses/<slug>/` exists. If missing, tell the user to `init` first.
+
+**Inbox path.** Default `courses/<slug>/sources/personal_notes/unparked/`. Override with `--path <dir-or-file>` (a directory of `*.md` or a single `.md`). Reject paths outside `courses/<slug>/` or containing `..`.
+
+**Lazy scaffold.** If `sources/personal_notes/` is missing, create `unparked/`, `parked/` (each with `.gitkeep`), and copy `templates/course-notes-personal-notes-readme.md` → `sources/personal_notes/README.md`, then continue.
+
+**v1 disposition:** **park only**. Do not propose promote. Do not ask park vs promote. If material looks spine-worthy, a one-line non-blocking aside (“consider `/course-notes revise` → promote later”) is allowed in the report; never a choice to approve. Interactive promote stays on `revise`.
+
+Multi-week placements in one invoke are allowed.
+
+#### Phase 0 — Pre-flight (blocking)
+
+1. List inbox: all `*.md` under the inbox path (if a file was passed, that file only). If empty, stop with “drop notes into `sources/personal_notes/unparked/`”.
+2. Read each inbox file; read `COURSE.md` and every relevant `lectures/weekNN.qmd` (from note tags, week mentions, and section cues; broaden if anchors are unclear). Note existing `.clarification` boxes for dedup.
+3. For each inbox file, propose **one or more park items** (split fat notes across anchors). Emit:
+
+```markdown
+## Pre-Flight Report — Course-notes park-ingest
+
+**Course:** <slug>
+**Inbox:** N files under <path>
+**Mode:** park only
+
+### File: <basename>.md
+| ID | Target | Anchor | Proposed title | Rewrite brief | Dedup / risks |
+| --- | --- | --- | --- | --- | --- |
+| A1 | week03.qmd #sec-hc | after <passage> | Question: … | 2–4 bullets of what the box will say | overlaps clarification at … → propose skip |
+
+**Suggested skips:** [self-check Q&A → practice later; exact dup of existing box]
+**Totals:** park proposals=K, suggested skips=S
+**Weeks touched:** week01, week02, …
+```
+
+4. **Stop and wait for approval.** User may approve all, approve by ID, redirect anchors/titles, or drop items. Do **not** ask whether to promote.
+
+**Do not write week files in Phase 0.**
+
+**Decision defaults while proposing:**
+
+| Situation | Default |
+| --- | --- |
+| Clarification / why / how / don’t confuse | park proposal |
+| Looks like missing spine definition | still park; optional revise-promote aside |
+| Already covered by an existing `.clarification` | suggest skip (or rewrite old box if user redirects) |
+| One file spans several misconceptions | split into multiple IDs |
+| Off-domain analogy in source | strip; lecture domain or drop |
+| Mostly self-check Q&A | suggest skip → `practice` later |
+| Target `lectures/weekNN.qmd` missing | stop that item: “run `add` first” |
+
+#### Phase 1 — Apply (park only)
+
+After approval, for each approved item insert a collapsed clarification at the approved anchor, rewritten concise/precise in lecture voice:
+
+```markdown
+::: {.callout-tip collapse="true" .clarification title="Question: [the question a reader would ask at this point]"}
+[The answer: extra derivation or distinction. No bold "Clarification." label.]
+:::
+```
+
+Same placement rules as `revise` park: after the passage that raises the question; never inside a `.definition-block`, algorithm block, list, table, or display math. Never dump a whole personal file into one box. Honor [`.claude/rules/course-notes.md`](../../rules/course-notes.md) and [`course-notes-voice.md`](../../references/course-notes-voice.md). Dropped / skipped items: no write.
+
+#### Phase 2 — Archive
+
+Move each **fully processed** inbox file `unparked/X.md` → `parked/X.md` when every kept item from that file was applied or explicitly skipped-as-dup. If any item was deferred, leave the file in `unparked/` and say so in the closing report.
+
+#### Phase 3 — Render (skip if `--no-render`)
+
+From `courses/<slug>/`, run `quarto render`. Score each touched `lectures/weekNN.qmd`:
+
+```bash
+python3 scripts/quality_score.py courses/<slug>/lectures/weekNN.qmd
+```
+
+Fix scores below 80 before calling the run ready.
+
+#### Phase 4 — Stop
+
+Point to `revise` for follow-ups (including any promote by hand), then `audit` / `/commit`. Never commit inside the skill.
+
 ### `audit` — cold factual pass (skip if `--no-audit` on an `add`)
 
 1. Confirm `courses/<slug>/` exists and has at least one `lectures/week*.qmd`.
@@ -216,21 +299,24 @@ Once per **pause** (the user seems done asking, not after every question), you m
 - `add`: pre-flight block (before writes); then paths written + render status + “not committed” + pointer to `revise`.
 - `practice`: pre-flight block (before writes); then path + counts by type + render status + score + “not committed” + pointer to `revise`.
 - `revise`: for questions, the explanation only; for park/promote, path + section id + render status + score; for discard/audit/commit, the action taken. Never “not committed” as a substitute for `/commit`.
+- `park-ingest`: pre-flight placement report (before writes); then parked IDs + anchors + files moved to `parked/` + render status + scores on touched weeks + pointer to `revise` / `audit`.
 - `audit`: `FACT_AUDIT.md` + the short summary above.
 
 ## Exit behavior
 
-- **Pre-flight not yet approved:** write nothing (`add` and `practice`).
+- **Pre-flight not yet approved:** write nothing (`add`, `practice`, and `park-ingest`).
 - **Slug missing or invalid / week number missing on `add` or `practice`:** stop with the expected invocation.
-- **`courses/<slug>/` missing on `add`/`practice`/`revise`/`audit`:** tell the user to `init` first.
+- **`courses/<slug>/` missing on `add`/`practice`/`revise`/`park-ingest`/`audit`:** tell the user to `init` first.
 - **`lectures/weekNN.qmd` missing on `practice`:** tell the user to `add` first.
+- **Inbox empty on `park-ingest`:** stop; tell the user to drop notes into `unparked/`.
 - **Question during `revise`:** write nothing.
 - **Never commit or push.**
 
 ## Flags
 
-- `--no-render` — skip Phase 3 on `add` and `practice`, and skip `quarto render` + quality score after a `revise` park or promote.
+- `--no-render` — skip Phase 3 on `add`, `practice`, and `park-ingest`, and skip `quarto render` + quality score after a `revise` park or promote.
 - `--no-audit` — do not run `audit` after `add` or `practice` even if the user bundled the request. Does not block an explicit **audit** cue during `revise`.
+- `--path <dir-or-file>` — (`park-ingest` only) inbox override; default `sources/personal_notes/unparked/`.
 - `--count N` — (`practice` only) total number of problems; default 5–8 covering takeaways.
 
 ## Cross-references
@@ -241,6 +327,7 @@ Once per **pause** (the user seems done asking, not after every question), you m
 - [`.claude/references/course-notes-workflow.md`](../../references/course-notes-workflow.md) — why the four layers exist.
 - [`templates/course-notes-book/lectures/week.md`](../../../templates/course-notes-book/lectures/week.md) — week chapter shape.
 - [`templates/course-notes-book/lectures/week-practice.md`](../../../templates/course-notes-book/lectures/week-practice.md) — practice chapter shape.
+- [`templates/course-notes-personal-notes-readme.md`](../../../templates/course-notes-personal-notes-readme.md) — personal-notes inbox README copied on `init` / lazy `park-ingest`.
 - [`/scaffold-exercises`](../scaffold-exercises/SKILL.md) — graded student set + separate key; not this mode.
 - [`/commit`](../commit/SKILL.md) — shipping source. This skill does not.
 - [`/deploy-course-notes`](../deploy-course-notes/SKILL.md) — render book to `docs/courses/<slug>/` for GitHub Pages after `/commit`. Parked dropdowns and practice solutions ship with that HTML.
@@ -254,5 +341,7 @@ Once per **pause** (the user seems done asking, not after every question), you m
 - **Graded problem sets with a separate key** — [`/scaffold-exercises`](../scaffold-exercises/SKILL.md). Self-study dropdowns in the book are `practice`.
 - **Commit, push, or publish** — use [`/commit`](../commit/SKILL.md) then [`/deploy-course-notes`](../deploy-course-notes/SKILL.md); not this skill.
 - **A parent `/study-notes` dispatcher** — not until a second note type exists.
-- **Auto-park after every question** — park only when the user says park.
+- **Auto-park after every question** — park only when the user says park (revise) or after placement approval (`park-ingest`).
+- **Promote from `park-ingest`** — v1 parks only; spine edits stay on `revise` → promote.
 - **Auto-practice after `add`** — `practice` is an explicit later step.
+- **Treat `sources/personal_notes/` as source of truth** — inbox and `parked/` are provenance; only `lectures/` counts.

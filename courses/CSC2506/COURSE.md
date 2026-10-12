@@ -12,6 +12,7 @@ The user is a beginner to probabilistic machine learning. Assume undergrad-level
 
 - Course site: https://ohadshamir2.github.io/csc412_f26/
 - Lecture slides and readings live in `sources/weekN/` (gitignored binaries).
+- Offline clarifications ready to park: `sources/personal_notes/unparked/` (`/course-notes park-ingest CSC2506`).
 - Three homework assignments (pen-and-paper + coding, Python) draw directly on the probabilistic-modelling material (exponential families, MLE, sufficient statistics); flag these as homework-relevant wherever they appear.
 
 ## Book

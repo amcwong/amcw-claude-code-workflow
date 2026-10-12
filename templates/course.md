@@ -16,6 +16,7 @@ The user is a complete beginner to [SUBJECT AREA]. Assume nothing beyond [genera
 
 - Course site: [COURSE URL]
 - Lecture slides and readings live in `sources/weekN/` (gitignored binaries).
+- Offline clarifications ready to park: `sources/personal_notes/unparked/` (`/course-notes park-ingest <slug>`).
 - [Optional: homework topics, exam scope, "the professor said skip X"]
 
 ## Book

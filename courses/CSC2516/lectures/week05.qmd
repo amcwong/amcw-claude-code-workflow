@@ -313,6 +313,8 @@ Two observations follow, and the rest of this section builds on both.
 1. **The output is smaller than the input**, because the kernel can be placed only where it fits. Here a $3\times3$ input and a $2\times2$ kernel give a $2\times2$ output.
 2. **Each output entry depends on only a small region of the input**, a consequence of locality.
 
+To watch a kernel slide across an input one output at a time, see the animated "Convolution Demo" in the [CS231n notes on convolutional layers](https://cs231n.github.io/convolutional-networks/#conv) (scroll down the section to the demo). It also uses padding, stride, and several channels, which the sections below introduce; we come back to its numbers in [The general output-size rule](#sec-general-size) and [Channels](#sec-channels).
+
 ### Reading the kernel as a template {#sec-template}
 
 Because each output is a dot product, a kernel responds most strongly to windows that look like it. Positive weights reward brightness where they sit, negative weights penalize it, and zero weights ignore those pixels. To see this, take a $3\times3$ kernel meant to respond to a bright horizontal bar on a dark background (our example, not the lecture's):
@@ -375,7 +377,7 @@ For a single convolution the receptive field is the size of the kernel: in the w
 
 ### Padding {#sec-padding}
 
-That the output shrinks is inconvenient: after a few layers there would be little left. The standard remedy is padding.
+Without padding, each convolution shrinks the output, which is inconvenient: after a few layers there would be little left. The standard remedy is padding.
 
 ::: {.definition-block}
 **Definition.** **Padding** adds a border of zeros around the input before the convolution, usually just enough that the output has the same height and width as the input.
@@ -388,6 +390,20 @@ $$\frac{K-1}{2} \text{ rows or columns of zeros on each edge.}$$
 For a $3\times3$ kernel that is one zero on each edge. Padding the lecture's $3\times3$ input with one zero on every side makes it $5\times5$, and a $3\times3$ kernel then fits at $5 - 3 + 1 = 3$ positions along each axis: the output is $3\times3$, the same as the input. Splitting $K - 1$ evenly needs $K$ to be odd, which is one reason kernels are almost always odd (a window from $-\Delta$ to $\Delta$ has $2\Delta+1$ entries, always odd). Neither convention is mandatory, and padding by a different amount gives a larger or smaller output.
 
 Padding does not change the receptive field's size. It only means that, near the border, part of a receptive field covers the added zeros instead of real pixels.
+
+::: {.callout-tip collapse="true" .clarification title="Question: What does padding do to an actual signal?"}
+Take a row of five values, $x = (1, 2, 3, 4, 5)$, and a one-dimensional kernel of width $3$ with weights $w = (1, 0, -1)$ and bias $0$. The row is one-dimensional so the arithmetic stays short; the same idea applies along each axis of a grid.
+
+Without padding, the kernel fits at $5 - 3 + 1 = 3$ positions, and each output is a weighted sum of one window:
+
+$$\big(1\cdot1 + 0\cdot2 + (-1)\cdot3,\ \ 1\cdot2 + 0\cdot3 + (-1)\cdot4,\ \ 1\cdot3 + 0\cdot4 + (-1)\cdot5\big) = (-2,\ -2,\ -2).$$
+
+Now add one zero on each edge, giving $(0, 1, 2, 3, 4, 5, 0)$. The kernel fits at five positions, so the output has length $5$, the same as the input:
+
+$$(-2,\ -2,\ -2,\ -2,\ 4).$$
+
+The three middle outputs match the unpadded result. The two edge outputs are new: the first window is $(0, 1, 2)$, and the last is $(4, 5, 0)$, so each sees a zero where a real value would be. That is the trade-off in one line: padding keeps the length, and the border entries are computed from the zeros we added.
+:::
 
 ### Stride {#sec-stride}
 
@@ -452,6 +468,7 @@ Checking it against cases we already know:
 - No padding, stride 1 (the worked example): $\lfloor (3 + 0 - 2)/1 \rfloor + 1 = 2$. With $p = 0$ and $s = 1$ the rule is the earlier $n - k + 1$.
 - "Same" padding (the padding section): $n = 3$, $k = 3$, $p = 1$, $s = 1$ gives $\lfloor 2/1 \rfloor + 1 = 3$.
 - Stride 2 on the worked example: $n = 3$, $k = 2$, $p = 0$, $s = 2$ gives $\lfloor 1/2 \rfloor + 1 = 1$. Only the top-left window (the $19$) is computed, since a start at position $2$ would need a third column.
+- The [CS231n convolution demo](https://cs231n.github.io/convolutional-networks/#conv): $n = 5$, $k = 3$, $p = 1$, $s = 2$ gives $\lfloor 4/2 \rfloor + 1 = 3$. The animation shows the padded $7\times7$ input (the border of zeros) and the kernel jumping two pixels at a time to fill a $3\times3$ output.
 
 This rule is also what decides the size of each layer when we trace shapes through a network in [Building a simple convolutional network](#sec-simple-convnet).
 
@@ -471,6 +488,47 @@ V_{1,1} & V_{1,2} & 0 & V_{2,1} & V_{2,2} & 0 & 0 & 0 & 0 \\
 \end{bmatrix}$$
 
 Each row is the kernel, unrolled and placed where its window sits in the flattened image; moving to the next output position slides the same four weights along. With the lecture's kernel ($V_{1,1} = 0$, $V_{1,2} = 1$, $V_{2,1} = 2$, $V_{2,2} = 3$) the first row is $(0, 1, 0, 2, 3, 0, 0, 0, 0)$, and its dot product with $\bm{x}$ is $1\cdot1 + 2\cdot3 + 3\cdot4 = 19$, the same top-left output as before. The other rows give $25$, $37$, $43$.
+
+::: {.callout-tip collapse="true" .clarification title="Question: What do the four h calculations look like on the grid, without flattening?"}
+**What $\bm{V}$ is.** $\bm{V}$ is the kernel: the layer's $2\times2$ grid of learned weights, the same four numbers at every position. Here it is the lecture's kernel,
+
+$$\bm{V} = \begin{bmatrix} V_{1,1} & V_{1,2} \\ V_{2,1} & V_{2,2} \end{bmatrix} = \begin{bmatrix} 0 & 1 \\ 2 & 3 \end{bmatrix},$$
+
+and it slides over the input
+
+$$\bm{X} = \begin{bmatrix} X_{1,1} & X_{1,2} & X_{1,3} \\ X_{2,1} & X_{2,2} & X_{2,3} \\ X_{3,1} & X_{3,2} & X_{3,3} \end{bmatrix}$$
+
+$$= \begin{bmatrix} 0 & 1 & 2 \\ 3 & 4 & 5 \\ 6 & 7 & 8 \end{bmatrix}.$$
+
+**Which input pixels each weight meets.** A $2\times2$ kernel has no centre pixel (see the note on even kernels in [From a dense layer to a convolution](#sec-derive-conv)), so we place it by its top-left corner. For output $H_{i,j}$ the window's top-left pixel is $X_{i,j}$, and kernel entry $V_{a,b}$ meets the pixel $a - 1$ rows down and $b - 1$ columns right of it:
+
+$$H_{i,j} = \sum_{a=1}^{2} \sum_{b=1}^{2} V_{a,b}\, X_{i+a-1,\ j+b-1}.$$
+
+So $V_{1,1}$ always meets the window's top-left pixel, $V_{1,2}$ its top-right, $V_{2,1}$ its bottom-left, and $V_{2,2}$ its bottom-right. The bias is $0$ here, as in the worked example.
+
+**The four outputs, written on the grid.**
+
+$$H_{1,1} = V_{1,1} X_{1,1} + V_{1,2} X_{1,2} + V_{2,1} X_{2,1} + V_{2,2} X_{2,2} = 0\cdot0 + 1\cdot1 + 2\cdot3 + 3\cdot4 = 19$$
+
+$$H_{1,2} = V_{1,1} X_{1,2} + V_{1,2} X_{1,3} + V_{2,1} X_{2,2} + V_{2,2} X_{2,3} = 0\cdot1 + 1\cdot2 + 2\cdot4 + 3\cdot5 = 25$$
+
+$$H_{2,1} = V_{1,1} X_{2,1} + V_{1,2} X_{2,2} + V_{2,1} X_{3,1} + V_{2,2} X_{3,2} = 0\cdot3 + 1\cdot4 + 2\cdot6 + 3\cdot7 = 37$$
+
+$$H_{2,2} = V_{1,1} X_{2,2} + V_{1,2} X_{2,3} + V_{2,1} X_{3,2} + V_{2,2} X_{3,3} = 0\cdot4 + 1\cdot5 + 2\cdot7 + 3\cdot8 = 43$$
+
+The weights appear in the same order in every line; only the pixels change. Moving one column right ($H_{1,1}$ to $H_{1,2}$) adds $1$ to every pixel's column index, and moving one row down ($H_{1,1}$ to $H_{2,1}$) adds $1$ to every row index.
+
+**Matching each line to a row of $\bm{W}$.** Row-major flattening puts pixel $X_{k,l}$ at position $3(k-1) + l$ of $\bm{x}$.
+
+| Output | Pixels its window covers | Their positions in $\bm{x}$ | Nonzero columns of that row of $\bm{W}$ |
+|---|---|---|---|
+| $H_{1,1}$ | $X_{1,1}, X_{1,2}, X_{2,1}, X_{2,2}$ | $1, 2, 4, 5$ | $1, 2, 4, 5$ |
+| $H_{1,2}$ | $X_{1,2}, X_{1,3}, X_{2,2}, X_{2,3}$ | $2, 3, 5, 6$ | $2, 3, 5, 6$ |
+| $H_{2,1}$ | $X_{2,1}, X_{2,2}, X_{3,1}, X_{3,2}$ | $4, 5, 7, 8$ | $4, 5, 7, 8$ |
+| $H_{2,2}$ | $X_{2,2}, X_{2,3}, X_{3,2}, X_{3,3}$ | $5, 6, 8, 9$ | $5, 6, 8, 9$ |
+
+The grid version and the matrix version add up the same four products for each output. The matrix just writes the pairing as "which column of $\bm{W}$ holds which $V_{a,b}$", and fills every column the window does not cover with a zero.
+:::
 
 Three things are visible in this matrix:
 
@@ -569,6 +627,8 @@ where $c$ runs over input channels and $d$ over output channels. Read it from th
 
 - There is **one kernel for every (input channel, output channel) pair**. With $20$ input channels and $10$ output channels, the lecture's example, there are $20 \times 10 = 200$ kernels.
 - There is **one bias per output channel**, shared over all positions. A bias per position would break translation invariance.
+
+The [CS231n convolution demo](https://cs231n.github.io/convolutional-networks/#conv) animates this formula with $3$ input channels and $2$ output channels: $3 \times 2 = 6$ kernels of size $3\times3$, and $2$ biases. Each output entry is the sum over all three input channels plus that output channel's bias. CS231n uses "filter" for the whole $3\times3\times3$ stack that produces one output channel, so its "two filters" are our six kernels grouped by output channel $d$.
 
 This mirrors the dense layer, where one weight connects each input feature to each output feature; here one kernel connects each input channel to each output channel, mixing channels while it convolves over space.
 

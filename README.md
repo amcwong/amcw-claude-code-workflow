@@ -22,6 +22,7 @@ Live books: [CSC2506](https://amcwong.github.io/amcw-claude-code-workflow/course
 /course-notes init <slug>              # first course only
 /course-notes add <slug> <N>           # write one week (approve pre-flight first)
 /course-notes revise <slug> [N]        # questions in chat; promote or park
+/course-notes park-ingest <slug>       # batch-park personal notes from unparked/ (approve placements first)
 /course-notes practice <slug> <N>      # self-study problems (approve pre-flight first)
 /course-notes audit <slug>             # fact-audit the whole course
 /commit
@@ -29,7 +30,7 @@ Live books: [CSC2506](https://amcwong.github.io/amcw-claude-code-workflow/course
 /commit                                # then push; Pages serves docs/
 ```
 
-Source of truth is `courses/<slug>/lectures/weekNN.qmd`. `/course-notes` never commits or publishes. During **revise**, use Claude Code plan mode to ask questions; say **promote**, **park**, **discard**, **audit**, or **commit** when you want a write or an exit. Follow-up questions stay teaching.
+Source of truth is `courses/<slug>/lectures/weekNN.qmd`. `/course-notes` never commits or publishes. During **revise**, use Claude Code plan mode to ask questions; say **promote**, **park**, **discard**, **audit**, or **commit** when you want a write or an exit. Follow-up questions stay teaching. Drop offline clarifications in `sources/personal_notes/unparked/`, then `/course-notes park-ingest <slug>` (park only; placement approval like `add`).
 
 The sections below are the original template: fork/setup, contractor mode, slides, papers, gates. Use them when this repo is doing that kind of work, not when you are only adding a week of notes.
 
@@ -198,7 +199,7 @@ The guide covers Claude Code's latest capabilities:
 
 | Academic Task | How This Workflow Helps |
 |---------------|----------------------|
-| **Learner course notes (this fork)** | Weekly Quarto books under `courses/` — `/course-notes` (`init` / `add` / `revise` / `practice` / `audit`) then `/deploy-course-notes`. [Workflow page](docs/course-notes-workflow.html). |
+| **Learner course notes (this fork)** | Weekly Quarto books under `courses/` — `/course-notes` (`init` / `add` / `revise` / `park-ingest` / `practice` / `audit`) then `/deploy-course-notes`. [Workflow page](docs/course-notes-workflow.html). |
 | Lecture slides (Beamer/Quarto) | Full creation, translation, multi-agent review, deployment (upstream template) |
 | Research papers | Literature review, manuscript review, simulated peer review (`/review-paper --peer [journal]`), reviewer-disposition variance reporting (`--variance N`) |
 | Data analysis | End-to-end R pipelines (`/data-analysis`) or Stata pipelines via `stata-mcp` (`/stata-replication`, v1.9.0), replication verification, publication-ready output |
@@ -311,7 +312,7 @@ This **fork** is first a place to write and publish course notes. It is still a 
 | `/submission-disclosures` (v2.1) | The submission-time disclosure block: AI-use disclosure matched to the target journal's verified-current policy, CRediT contributor roles, conflict-of-interest, and data-availability statements (NOT statistical disclosure — that's `/disclosure-check`) |
 | `/syllabus` (v2.0) | Build/restructure a course syllabus from a topic or reading list — course description + prerequisites, week-by-week schedule (topic→readings→deliverables), measurable learning objectives, assessment scheme + rubric, standard policies (late work / AI use / integrity / accessibility), and a per-week work-list mapping weeks to `/create-lecture` decks; economics-aware (PhD metrics/micro/macro sequences, undergrad) |
 | `/teach-from-paper` (v2.0) | Reads a paper end-to-end and pitches it to a stated audience level — lecture outline (motivation → setup → key result → method → takeaways), the 3-5 results worth presenting with intuition, a slide skeleton for `/create-lecture`, discussion questions, and a problem-set brief for `/scaffold-exercises` |
-| `/course-notes` | Learner course notes for one lecture week under `courses/<slug>/` — Quarto book chapter (`lectures/weekNN.qmd`), optional practice chapter (`lectures/weekNN-practice.qmd`), cumulative glossary, local `_site/` render; `init` / `add` / `revise` / `practice` / `audit`. Revise: questions stay in chat; **promote** into the spine or **park** a collapsed clarification dropdown. Practice: questions with collapsed worked solutions that reteach the week. NOT instructor decks (`/create-lecture`) or a graded student set + key (`/scaffold-exercises`) |
+| `/course-notes` | Learner course notes for one lecture week under `courses/<slug>/` — Quarto book chapter (`lectures/weekNN.qmd`), optional practice chapter (`lectures/weekNN-practice.qmd`), cumulative glossary, local `_site/` render; `init` / `add` / `revise` / `park-ingest` / `practice` / `audit`. Revise: questions stay in chat; **promote** into the spine or **park** a collapsed clarification dropdown. `park-ingest`: batch-park offline notes from `sources/personal_notes/unparked/` after placement approval (park only). Practice: questions with collapsed worked solutions that reteach the week. NOT instructor decks (`/create-lecture`) or a graded student set + key (`/scaffold-exercises`) |
 | `/respond-to-eval` (v2.0) | Teaching analogue of `/respond-to-referees` — clusters course-eval comments into themes, weights by frequency (signal vs noise), classifies Keep / Change / Investigate / Out-of-scope, and drafts concrete changes mapped to the syllabus + slide decks; saves the plan to `quality_reports/teaching/` |
 | `/scaffold-exercises` (v2.0) | Scaffold a graded problem set across analytical/empirical/coding types, with worked solutions and "why this matters" explainers emitted to a separate solution key. NOT course-notes self-study (`/course-notes practice`) |
 | `/new-skill` (v2.0) | Scaffold a new skill that follows this repo's conventions — interviews for purpose, triggers, and tools, writes `.claude/skills/<name>/SKILL.md` from the template with frontmatter/body that pass `check-skill-integrity.py` first try, then reminds to add the surface-table rows |
@@ -403,6 +404,7 @@ Rules use path-scoped loading: **always-on** rules load every session; **path-sc
 | `course.md` | Per-course rulebook placeholders copied to `courses/<slug>/COURSE.md` |
 | `glossary.md` | Pointer; glossary chapter stub is `templates/course-notes-book/glossary.qmd` |
 | `course-notes-readme.md` | Index stub for a course notes directory |
+| `course-notes-personal-notes-readme.md` | Inbox README for `sources/personal_notes/` (`/course-notes park-ingest`) |
 | `course-notes-book/` | Quarto book skeleton (`_quarto.yml`, `index.qmd`, `glossary.qmd`, `styles/`, week chapter) |
 | `fact-audit.md` | `FACT_AUDIT.md` shape for `/course-notes audit` |
 
