@@ -214,6 +214,32 @@ The only difference is the sign of the offsets. Pairing $\bm{V}_{a,b}$ with $\bm
 
 For a network the distinction does not matter: the kernel is learned, so a network trained with one operation would simply learn the flipped kernel under the other. Deep learning therefore calls both "convolution", and PyTorch's `Conv2d` actually computes the cross-correlation. When a task asks for the *traditional* convolution, though, the flip changes the numbers, as the worked example below shows. A kernel that looks the same after flipping both ways (symmetric about its centre) gives the same output under either definition.
 
+::: {.callout-tip collapse="true" .clarification title="Question: If a network does not care, what does flipping the kernel actually buy?"}
+The flip pays off when the kernel is designed by hand, as in signal and image processing, rather than learned. Two one-dimensional examples of our own show what it buys; the same holds along each axis of a grid.
+
+**1. The output of a single bright pixel is the kernel itself.** Take an input that is zero except for one $1$, $x = (0, 0, 1, 0, 0)$, a kernel $w = (1, 2, 3)$, and one zero of padding on each edge, so the slid-over row is $(0, 0, 0, 1, 0, 0, 0)$ and the output has length $5$.
+
+| Operation | Kernel laid over each window | Output |
+|---|---|---|
+| Cross-correlation | $(1, 2, 3)$ as given | $(0,\ 3,\ 2,\ 1,\ 0)$ |
+| Convolution | flipped to $(3, 2, 1)$ | $(0,\ 1,\ 2,\ 3,\ 0)$ |
+
+Cross-correlation stamps a *reversed* copy of the kernel where the bright pixel was. Convolution stamps the kernel the right way round. This response to a single spike is called the [impulse response](https://en.wikipedia.org/wiki/Impulse_response). Every input is a sum of scaled, shifted spikes, so under convolution every output is the same sum of scaled, shifted copies of the kernel. A designer can read what a convolution kernel will do straight off it, with no mental flip.
+
+**2. Two filters in a row combine into one, in either order.** Apply $w_1 = (1, 1)$, which adds neighbours, and then $w_2 = (1, -1)$, which takes differences, to $x = (1, 2, 4, 7)$ with no padding, using convolution both times:
+
+- With $w_1$ (flipped: $(1, 1)$): $(1 + 2,\ 2 + 4,\ 4 + 7) = (3, 6, 11)$.
+- Then with $w_2$ (flipped: $(-1, 1)$): $(-3 + 6,\ -6 + 11) = (3, 5)$.
+
+Now combine the two kernels first, by convolving one with the other. Pad $w_1$ with a zero on each edge so every overlap counts, $(0, 1, 1, 0)$, and convolve with $w_2$ (flipped: $(-1, 1)$): $(0 + 1,\ -1 + 1,\ -1 + 0) = (1, 0, -1)$. A single convolution of $x$ with this combined kernel (flipped: $(-1, 0, 1)$) gives
+
+$$(-1 + 4,\ -2 + 7) = (3, 5),$$
+
+the same result in one pass. Swapping the roles, padding $w_2$ to $(0, 1, -1, 0)$ and convolving with $w_1$, gives $(1, 0, -1)$ again. In symbols, convolution is [associative](https://en.wikipedia.org/wiki/Associative_property) and [commutative](https://en.wikipedia.org/wiki/Commutative_property): $(x * w_1) * w_2 = x * (w_1 * w_2)$ and $w_1 * w_2 = w_2 * w_1$, where $*$ is convolution. A chain of hand-designed filters can be pre-combined into one kernel and reordered freely. Cross-correlation does not have these properties: swapping its two arguments reverses the result instead of leaving it unchanged. The flip is what puts the input and the kernel on an equal footing.
+
+For a network, none of this changes what can be learned. A layer trained with cross-correlation learns the flipped kernel, and its impulse response is still whatever the learned weights make it.
+:::
+
 ### A worked example {#sec-conv-example}
 
 Take the lecture's $3\times3$ input with entries $0$ through $8$ and its $2\times2$ kernel with entries $0, 1, 2, 3$:
@@ -609,6 +635,31 @@ Here is an example of our own along one axis, with three layers: kernel 2 and st
 
 For a two-dimensional layer, run the recursion twice, once for the height (with each layer's $k_h$ and $s_h$) and once for the width (with $k_w$ and $s_w$). With a non-square stride the two jumps grow at different rates. For example (again our own numbers), a layer with a $2\times2$ kernel and stride $(1, 3)$ followed by another $2\times2$ kernel gives a height of $2 + 1\cdot1 = 3$ and a width of $2 + 1\cdot3 = 5$: a $3\times5$ receptive field. The receptive fields of the networks in the homework are left to the assignment.
 
+::: {.callout-tip collapse="true" .clarification title="Question: What do r and j look like on a stack, one convolution at a time?"}
+The receptive field of an output is the set of input pixels it depends on. The formulas track its size $r$ and the spacing $j$ between neighbouring entries, both measured in input pixels. Here is the calculation on a one-dimensional input of $n = 7$ pixels, numbered $0$ to $6$, followed by two convolutions with no padding:
+
+- **Layer 1:** kernel $k = 3$, stride $s = 2$. This gives $\lfloor (7 - 3)/2 \rfloor + 1 = 3$ outputs, which we call $A$, $B$, $C$.
+- **Layer 2:** kernel $k = 3$, stride $s = 1$. Its input is the 3-entry output of layer 1, namely $A$, $B$, $C$, not the 7 raw pixels. This gives $\lfloor (3 - 3)/1 \rfloor + 1 = 1$ output, which we call $D$.
+
+**Start: the input.** A pixel sees only itself, so $r = 1$. Neighbouring pixels are $1$ apart, so $j = 1$.
+
+**Step 1: layer 1.** Each entry is the kernel placed on three neighbouring pixels, and the kernel moves two pixels between entries:
+
+| Entry | Input pixels it covers |
+|---|---|
+| $A$ | $0, 1, 2$ |
+| $B$ | $2, 3, 4$ |
+| $C$ | $4, 5, 6$ |
+
+The kernel spans three entries of the input, which are $j = 1$ apart, so the field grows by $(k-1)j = 2$ pixels: $r_\text{new} = 1 + 2 \cdot 1 = 3$. The stride spreads the entries out, so $j_\text{new} = 1 \cdot 2 = 2$. This matches the table, since $A$ and $B$ start two pixels apart.
+
+**Step 2: layer 2.** Layer 2 takes the 3-pixel output of layer 1 as its input, a row of three entries $A$, $B$, $C$. The kernel sits on all three of them. Those entries are $j = 2$ input pixels apart, so the field grows by $(k-1)j = 4$ pixels: $r_\text{new} = 3 + 2 \cdot 2 = 7$. The stride is $1$, so $j_\text{new} = 2 \cdot 1 = 2$.
+
+The output $D$ covers $A$, $B$, $C$, and together they reach from pixel $0$ (the left edge of $A$) to pixel $6$ (the right edge of $C$). That is $7$ input pixels, which is the $r = 7$ from the formula. The formula gives the same number from the edges: the field of $D$ is the first entry's field, $r = 3$, plus the distance $(k-1)j = 4$ from $A$ to $C$.
+
+**What $r$ and $j$ tell you.** Suppose input pixel $3$ changes. In layer 1 only $B$ sees it, since $B$ covers $2, 3, 4$. $B$ feeds $D$, and $D$'s field covers all seven pixels, so the change can reach the output. The receptive field $r$ answers "which input pixels can change this output?", and $j$ tells us how far apart the entries being combined are.
+:::
+
 ### Channels {#sec-channels}
 
 So far an image has been a single grid. Most images are not.
@@ -680,6 +731,27 @@ Other layers in a convolutional network contribute as follows:
 - A **dense layer** from $n_\text{in}$ features to $n_\text{out}$ has $n_\text{in}\, n_\text{out}$ weights and $n_\text{out}$ biases, as in Week 2.
 
 The parameter counts for the networks in the homework are left to the assignment.
+
+::: {.callout-tip collapse="true" .clarification title="Question: Why is the count $k_h k_w C_\text{in} C_\text{out}$, and what would change without parameter sharing?"}
+**The symbols.** $C_\text{in}$ is the number of channels the layer receives: $3$ for an RGB image, or the number of feature maps from the layer before. $C_\text{out}$ is the number of channels it produces, which you choose as a hyperparameter. A kernel has height $k_h$ and width $k_w$.
+
+**Why one kernel per channel pair.** Each output channel $d$ is built from *all* the input channels. For a single output channel, the layer convolves each input channel $c$ with its own $k_h \times k_w$ kernel, and adds the $C_\text{in}$ results together with the bias. So one output channel needs $C_\text{in}$ kernels, and that gives one kernel for each (input channel, output channel) pair. A kernel is never shared across channels, because a red-channel edge detector and a blue-channel edge detector are different functions. Each kernel has $k_h k_w$ weights, so the total is $C_\text{in} C_\text{out}$ kernels of $k_h k_w$ weights each. The bias adds one number per output channel.
+
+**A small example.** Take the CS231n demo's layer: a $5 \times 5$ input with $C_\text{in} = 3$ channels, $C_\text{out} = 2$ filters of $3 \times 3$ size, and stride $2$ with padding $1$. Its output is $3 \times 3 \times 2$.
+
+- Kernels: $C_\text{in} C_\text{out} = 3 \cdot 2 = 6$, one $3 \times 3$ kernel per (input channel, output channel) pair.
+- Weights: $3 \cdot 3 \cdot 3 \cdot 2 = 54$.
+- Biases: $C_\text{out} = 2$.
+- Total: $54 + 2 = 56$.
+
+**What parameter sharing saves.** The count $56$ uses sharing across positions: the same six kernels slide over all nine output positions. Without sharing, every output position $(i, j)$ would have its own copy of every kernel, the way the before-sharing example in [From a dense layer to a convolution](#sec-derive-conv) stores four kernels for four positions. There are $3 \times 3 = 9$ output positions, so the count would be
+
+- weights: $9 \cdot 54 = 486$,
+- biases: $9 \cdot 2 = 18$,
+- total: $504$.
+
+The sharing count does not depend on the height and width at all. Doubling the image would double the output positions but leave the layer at 56 parameters. A dense layer from the same input to the same output would instead need $(5 \cdot 5 \cdot 3)(3 \cdot 3 \cdot 2) = 75 \cdot 18 = 1350$ weights and $18$ biases, for $1368$ parameters. The convolution's gain comes from the two assumptions of the derivation: translation invariance (sharing across positions) and locality (each kernel covers only $3 \times 3$ pixels across channels).
+:::
 
 ### Pooling {#sec-pooling}
 

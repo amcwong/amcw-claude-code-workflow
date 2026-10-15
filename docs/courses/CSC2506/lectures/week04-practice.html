@@ -1,0 +1,1467 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.10.18">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+
+<title>Week 4 practice: Message passing and Monte Carlo – CSC412/2506: Probabilistic Machine Learning notes</title>
+<style>
+/* Default styles provided by pandoc.
+** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
+*/
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: 1.5em;}
+div.column{flex: auto;}
+@media screen {
+div.columns{gap: min(4vw, 1.5em);}
+div.column{overflow-x: auto;}
+}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+/* CSS for syntax highlighting */
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+</style>
+
+
+<script src="../site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="../site_libs/quarto-nav/headroom.min.js"></script>
+<script src="../site_libs/clipboard/clipboard.min.js"></script>
+<script src="../site_libs/quarto-search/autocomplete.umd.js"></script>
+<script src="../site_libs/quarto-search/fuse.min.js"></script>
+<script src="../site_libs/quarto-search/quarto-search.js"></script>
+<meta name="quarto:offset" content="../">
+<link href="../lectures/week05.html" rel="next">
+<link href="../lectures/week04.html" rel="prev">
+<script src="../site_libs/quarto-html/quarto.js" type="module"></script>
+<script src="../site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
+<script src="../site_libs/quarto-html/popper.min.js"></script>
+<script src="../site_libs/quarto-html/tippy.umd.min.js"></script>
+<script src="../site_libs/quarto-html/anchor.min.js"></script>
+<link href="../site_libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="../site_libs/quarto-html/quarto-syntax-highlighting-bb62276ab45c84d9efd712f51ff97b5a.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<script src="../site_libs/bootstrap/bootstrap.min.js"></script>
+<link href="../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="../site_libs/bootstrap/bootstrap-ce0958bf53307a1b0bb60f85d87db72f.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
+<script id="quarto-search-options" type="application/json">{
+  "location": "sidebar",
+  "copy-button": false,
+  "collapse-after": 3,
+  "panel-placement": "start",
+  "type": "textbox",
+  "limit": 50,
+  "keyboard-shortcut": [
+    "f",
+    "/",
+    "s"
+  ],
+  "show-item-context": false,
+  "language": {
+    "search-no-results-text": "No results",
+    "search-matching-documents-text": "matching documents",
+    "search-copy-link-title": "Copy link to search",
+    "search-hide-matches-text": "Hide additional matches",
+    "search-more-match-text": "more match in this document",
+    "search-more-matches-text": "more matches in this document",
+    "search-clear-button-title": "Clear",
+    "search-text-placeholder": "",
+    "search-detached-cancel-button-title": "Cancel",
+    "search-submit-button-title": "Submit",
+    "search-label": "Search"
+  }
+}</script>
+<style>html{ scroll-behavior: smooth; }</style>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+<link href="https://fonts.googleapis.com/css2?family=Source+Code+Pro:wght@400;600&amp;family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&amp;display=swap" rel="stylesheet">
+
+  <script>window.backupDefine = window.define; window.define = undefined;</script><script src="https://cdn.jsdelivr.net/npm/katex@latest/dist/katex.min.js"></script>
+  <script>document.addEventListener("DOMContentLoaded", function () {
+ var mathElements = document.getElementsByClassName("math");
+ var macros = [];
+ for (var i = 0; i < mathElements.length; i++) {
+  var texText = mathElements[i].firstChild;
+  if (mathElements[i].tagName == "SPAN") {
+   katex.render(texText.data, mathElements[i], {
+    displayMode: mathElements[i].classList.contains('display'),
+    throwOnError: false,
+    macros: macros,
+    fleqn: false
+   });
+}}});
+  </script>
+  <script>window.define = window.backupDefine; window.backupDefine = undefined;</script><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@latest/dist/katex.min.css">
+
+<script type="text/javascript">
+const typesetMath = (el) => {
+  if (window.MathJax) {
+    // MathJax Typeset
+    window.MathJax.typeset([el]);
+  } else if (window.katex) {
+    // KaTeX Render
+    var mathElements = el.getElementsByClassName("math");
+    var macros = [];
+    for (var i = 0; i < mathElements.length; i++) {
+      var texText = mathElements[i].firstChild;
+      if (mathElements[i].tagName == "SPAN" && texText && texText.data) {
+        window.katex.render(texText.data, mathElements[i], {
+          displayMode: mathElements[i].classList.contains('display'),
+          throwOnError: false,
+          macros: macros,
+          fleqn: false
+        });
+      }
+    }
+  }
+}
+window.Quarto = {
+  typesetMath
+};
+</script>
+
+<link rel="stylesheet" href="../styles/custom.css">
+</head>
+
+<body class="nav-sidebar floating quarto-light">
+
+<div id="quarto-search-results"></div>
+  <header id="quarto-header" class="headroom fixed-top">
+  <nav class="quarto-secondary-nav">
+    <div class="container-fluid d-flex">
+      <button type="button" class="quarto-btn-toggle btn" data-bs-toggle="collapse" role="button" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+        <i class="bi bi-layout-text-sidebar-reverse"></i>
+      </button>
+        <nav class="quarto-page-breadcrumbs" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../lectures/week04-practice.html"><span class="chapter-title">Week 4 practice: Message passing and Monte Carlo</span></a></li></ol></nav>
+        <a class="flex-grow-1" role="navigation" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">      
+        </a>
+      <button type="button" class="btn quarto-search-button" aria-label="Search" onclick="window.quartoOpenSearch();">
+        <i class="bi bi-search"></i>
+      </button>
+    </div>
+  </nav>
+</header>
+<!-- content -->
+<div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-article">
+<!-- sidebar -->
+  <nav id="quarto-sidebar" class="sidebar collapse collapse-horizontal quarto-sidebar-collapse-item sidebar-navigation floating overflow-auto">
+    <div class="pt-lg-2 mt-2 text-left sidebar-header">
+    <div class="sidebar-title mb-0 py-0">
+      <a href="../">CSC412/2506: Probabilistic Machine Learning notes</a> 
+        <div class="sidebar-tools-main">
+    <a href="https://amcwong.github.io/amcw-claude-code-workflow/" title="All course notes" class="quarto-navigation-tool px-1" aria-label="All course notes"><i class="bi bi-house-door"></i></a>
+</div>
+    </div>
+      </div>
+        <div class="mt-2 flex-shrink-0 align-items-center">
+        <div class="sidebar-search">
+        <div id="quarto-search" class="" title="Search"></div>
+        </div>
+        </div>
+    <div class="sidebar-menu-container"> 
+    <ul class="list-unstyled mt-1">
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../index.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">CSC412/2506 Probabilistic Machine Learning</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../lectures/week01.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Week 1: Introduction and Probabilistic Models</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../lectures/week01-practice.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Week 1 practice: Introduction and probabilistic models</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../lectures/week02.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Week 2: Decision Theory and Graphical Models</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../lectures/week02-practice.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Week 2 practice: Decision theory and graphical models</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../lectures/week03.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Week 3: Markov Random Fields and Exact Inference</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../lectures/week03-practice.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Week 3 practice: Markov random fields and exact inference</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../lectures/week04.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Week 4: Message Passing and Monte Carlo</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../lectures/week04-practice.html" class="sidebar-item-text sidebar-link active"><span class="chapter-title">Week 4 practice: Message passing and Monte Carlo</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../lectures/week05.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Week 5: Sampling with MCMC</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../lectures/week05-practice.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Week 5 practice: Sampling with MCMC</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../glossary.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Glossary</span></a>
+  </div>
+</li>
+    </ul>
+    </div>
+</nav>
+<div id="quarto-sidebar-glass" class="quarto-sidebar-collapse-item" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item"></div>
+<!-- margin-sidebar -->
+    <div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
+        <nav id="TOC" role="doc-toc" class="toc-active">
+    <h2 id="toc-title">On this page</h2>
+   
+  <ul>
+  <li><a href="#prb-1" id="toc-prb-1" class="nav-link active" data-scroll-target="#prb-1">Problem 1: Scheduling messages on a tree</a></li>
+  <li><a href="#prb-2" id="toc-prb-2" class="nav-link" data-scroll-target="#prb-2">Problem 2: Sum-product on a three-node star</a></li>
+  <li><a href="#prb-3" id="toc-prb-3" class="nav-link" data-scroll-target="#prb-3">Problem 3: Max-product against the most likely state of each node</a></li>
+  <li><a href="#prb-4" id="toc-prb-4" class="nav-link" data-scroll-target="#prb-4">Problem 4: True or false on loopy BP</a></li>
+  <li><a href="#prb-5" id="toc-prb-5" class="nav-link" data-scroll-target="#prb-5">Problem 5: Ancestral sampling by hand</a></li>
+  <li><a href="#prb-6" id="toc-prb-6" class="nav-link" data-scroll-target="#prb-6">Problem 6: How many samples?</a></li>
+  <li><a href="#prb-7" id="toc-prb-7" class="nav-link" data-scroll-target="#prb-7">Problem 7: Importance sampling with an unnormalized target</a></li>
+  <li><a href="#prb-8" id="toc-prb-8" class="nav-link" data-scroll-target="#prb-8">Problem 8: Rejection sampling, and what dimension does to it</a></li>
+  <li><a href="#sec-w4p-hw2" id="toc-sec-w4p-hw2" class="nav-link" data-scroll-target="#sec-w4p-hw2">Homework 2 practice</a>
+  <ul class="collapse">
+  <li><a href="#prb-9" id="toc-prb-9" class="nav-link" data-scroll-target="#prb-9">Problem 9: Who talks to whom on a 3×3 grid</a></li>
+  <li><a href="#prb-10" id="toc-prb-10" class="nav-link" data-scroll-target="#prb-10">Problem 10: One message, by hand</a></li>
+  <li><a href="#prb-11" id="toc-prb-11" class="nav-link" data-scroll-target="#prb-11">Problem 11: From messages to a pixel decision</a></li>
+  <li><a href="#prb-12" id="toc-prb-12" class="nav-link" data-scroll-target="#prb-12">Problem 12: What the step size does</a></li>
+  <li><a href="#prb-13" id="toc-prb-13" class="nav-link" data-scroll-target="#prb-13">Problem 13: Observation strength against coupling</a></li>
+  <li><a href="#prb-14" id="toc-prb-14" class="nav-link" data-scroll-target="#prb-14">Problem 14: The log-prior of independent skills</a></li>
+  <li><a href="#prb-15" id="toc-prb-15" class="nav-link" data-scroll-target="#prb-15">Problem 15: Logs of sums without overflow</a></li>
+  <li><a href="#prb-16" id="toc-prb-16" class="nav-link" data-scroll-target="#prb-16">Problem 16: A two-player posterior up to a constant</a></li>
+  <li><a href="#prb-17" id="toc-prb-17" class="nav-link" data-scroll-target="#prb-17">Problem 17: Looking up skills game by game</a></li>
+  <li><a href="#prb-18" id="toc-prb-18" class="nav-link" data-scroll-target="#prb-18">Problem 18: A probability from posterior samples</a></li>
+  </ul></li>
+  </ul>
+</nav>
+    </div>
+<!-- main -->
+<main class="content" id="quarto-document-content">
+
+<header id="title-block-header" class="quarto-title-block default">
+<div class="quarto-title">
+<h1 class="title"><span class="chapter-title">Week 4 practice: Message passing and Monte Carlo</span></h1>
+</div>
+
+
+
+<div class="quarto-title-meta">
+
+    
+  
+    
+  </div>
+  
+
+
+</header>
+
+
+<style>#title-block-header { display: none; }</style>
+<div class="lecture-header">
+  <h1>Week 4 practice: Message passing and Monte Carlo</h1>
+</div>
+<p><strong>Overview.</strong> These problems drill <a href="../lectures/week04.html">Week 4</a>. Problems 1–8 follow the lecture in order: message passing on trees, max-product, loopy BP, ancestral sampling, simple Monte Carlo, importance sampling, and rejection sampling. Problems 9–18, under <a href="#sec-w4p-hw2">Homework 2 practice</a>, go deeper on two techniques: loopy BP on a pixel grid and TrueSkill log-joints. Try each stem before opening the worked solution. Every graph, potential table, image, game record, and sample here is invented for practice. Notation matches the week chapter.</p>
+<section id="prb-1" class="level2">
+<h2 class="anchored" data-anchor-id="prb-1">Problem 1: Scheduling messages on a tree</h2>
+<p>An undirected graph has six nodes and the edges <span class="math display">1\text{-}2,\quad 2\text{-}3,\quad 2\text{-}4,\quad 4\text{-}5,\quad 4\text{-}6.</span></p>
+<ol type="1">
+<li>Check that the graph is a <a href="https://en.wikipedia.org/wiki/Tree_(graph_theory)">tree</a> and list its leaves. Would it still be a tree if we added the edge <span class="math inline">1\text{-}3</span>?</li>
+<li>How many messages does <a href="https://en.wikipedia.org/wiki/Belief_propagation">belief propagation</a> send in total?</li>
+<li>Which messages can be computed before any other message exists?</li>
+<li>Which incoming messages must node 4 hold before it can send <span class="math inline">m_{4\to2}</span>? Which must node 2 hold before it can send <span class="math inline">m_{2\to1}</span>?</li>
+<li>With node 2 as the root, list the messages of the inward pass and of the outward pass.</li>
+</ol>
+<div class="practice-answer callout callout-style-default callout-tip callout-titled" title="Worked solution">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-1-contents" aria-controls="callout-1" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Worked solution
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-1" class="callout-1-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>This uses the tree definition in <a href="../lectures/week04.html#sec-trees">Week 4, Trees and elimination order</a> and the two-pass schedule in <a href="../lectures/week04.html#sec-bp">Belief propagation on trees</a>.</p>
+<ol type="1">
+<li>Every node is reachable from node 2 (1, 3, 4 directly; 5, 6 through 4), so the graph is connected. A connected graph on 6 nodes with no cycles has exactly 5 edges, and this one has 5, so it has no cycles and is a tree. The leaves, the nodes with exactly one neighbour, are 1, 3, 5, and 6. Adding <span class="math inline">1\text{-}3</span> closes the cycle <span class="math inline">1\text{-}2\text{-}3\text{-}1</span>, so the graph would no longer be a tree.</li>
+<li>One message in each direction along each edge: <span class="math inline">2|\mathcal E|=2\cdot5=10</span>.</li>
+<li>A node can send to <span class="math inline">i</span> once it has heard from every neighbour other than <span class="math inline">i</span>. A leaf has no other neighbours, so the product in the message formula is empty and it can send right away: <span class="math inline">m_{1\to2}</span>, <span class="math inline">m_{3\to2}</span>, <span class="math inline">m_{5\to4}</span>, <span class="math inline">m_{6\to4}</span>. Nodes 2 and 4 each have at least two neighbours they have not yet heard from, so they must wait.</li>
+<li><span class="math inline">N(4)\setminus\{2\}=\{5,6\}</span>, so node 4 needs <span class="math inline">m_{5\to4}</span> and <span class="math inline">m_{6\to4}</span>. <span class="math inline">N(2)\setminus\{1\}=\{3,4\}</span>, so node 2 needs <span class="math inline">m_{3\to2}</span> and <span class="math inline">m_{4\to2}</span>. The second of these itself waited on nodes 5 and 6, which is how <span class="math inline">m_{2\to1}</span> ends up summarizing the whole subtree on node 2’s side.</li>
+<li>Inward: <span class="math inline">m_{1\to2}</span>, <span class="math inline">m_{3\to2}</span>, <span class="math inline">m_{5\to4}</span>, <span class="math inline">m_{6\to4}</span>, then <span class="math inline">m_{4\to2}</span>. Outward: <span class="math inline">m_{2\to1}</span>, <span class="math inline">m_{2\to3}</span>, <span class="math inline">m_{2\to4}</span>, then <span class="math inline">m_{4\to5}</span>, <span class="math inline">m_{4\to6}</span>. That is <span class="math inline">5+5=10</span> messages, matching part 2.</li>
+</ol>
+<p><strong>Answer.</strong> (1) A tree with leaves 1, 3, 5, 6; adding <span class="math inline">1\text{-}3</span> makes a cycle. (2) 10. (3) The four leaf messages. (4) Node 4 needs messages from 5 and 6; node 2 needs messages from 3 and 4. (5) As listed above.</p>
+</div>
+</div>
+</div>
+</section>
+<section id="prb-2" class="level2">
+<h2 class="anchored" data-anchor-id="prb-2">Problem 2: Sum-product on a three-node star</h2>
+<p>Three binary spins <span class="math inline">x_1,x_2,x_3\in\{+1,-1\}</span> form a star with centre <span class="math inline">x_2</span>: the edges are <span class="math inline">1\text{-}2</span> and <span class="math inline">2\text{-}3</span>. The potentials are</p>
+<ul>
+<li><span class="math inline">\psi_1(+1)=1</span>, <span class="math inline">\psi_1(-1)=2</span>, and <span class="math inline">\psi_2=\psi_3=1</span>;</li>
+<li><span class="math inline">\psi_{12}(x_1,x_2)=3</span> if <span class="math inline">x_1=x_2</span> and <span class="math inline">1</span> otherwise;</li>
+<li><span class="math inline">\psi_{23}(x_2,x_3)=2</span> if <span class="math inline">x_2=x_3</span> and <span class="math inline">1</span> otherwise.</li>
+</ul>
+<p>We observe <span class="math inline">\bar x_3=+1</span>.</p>
+<ol type="1">
+<li>Compute <span class="math inline">m_{1\to2}(x_2)</span> and <span class="math inline">m_{3\to2}(x_2)</span>, then the belief <span class="math inline">b(x_2)=p(x_2\mid\bar x_3)</span>.</li>
+<li>Check part 1 by writing out the unnormalized joint <span class="math inline">\tilde p(x_1,x_2,\bar x_3)</span> for all four settings of <span class="math inline">(x_1,x_2)</span>.</li>
+<li>To get <span class="math inline">b(x_1)</span>, which extra message is needed? Compute it and the belief.</li>
+</ol>
+<div class="practice-answer callout callout-style-default callout-tip callout-titled" title="Worked solution">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-2-contents" aria-controls="callout-2" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Worked solution
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-2" class="callout-2-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>This uses the message and belief definitions in <a href="../lectures/week04.html#sec-messages">Week 4, Messages and beliefs</a>, including the rule for an observed sender.</p>
+<ol type="1">
+<li><p>Node 1 is an unobserved leaf, so it sums over its own value: <span class="math display">m_{1\to2}(+1)=\psi_1(+1)\cdot3+\psi_1(-1)\cdot1=3+2=5,</span> <span class="math display">m_{1\to2}(-1)=\psi_1(+1)\cdot1+\psi_1(-1)\cdot3=1+6=7.</span> Node 3 is observed, so its value is plugged in rather than summed: <span class="math inline">m_{3\to2}(x_2)=\psi_3(+1)\,\psi_{23}(x_2,+1)</span>, which is <span class="math inline">2</span> at <span class="math inline">x_2=+1</span> and <span class="math inline">1</span> at <span class="math inline">x_2=-1</span>. The belief multiplies both in with <span class="math inline">\psi_2=1</span>: <span class="math display">\tilde b(x_2)=(5\cdot2,\ 7\cdot1)=(10,\ 7),\qquad b(x_2)=\big(\tfrac{10}{17},\ \tfrac{7}{17}\big)\approx(0.588,\ 0.412).</span> The observation <span class="math inline">x_3=+1</span> pulls <span class="math inline">x_2</span> toward <span class="math inline">+1</span>, while node 1’s preference for <span class="math inline">-1</span> pulls the other way through a stronger edge. The observation wins, narrowly.</p></li>
+<li><p><span class="math inline">\tilde p(x_1,x_2,\bar x_3)=\psi_1(x_1)\,\psi_{12}(x_1,x_2)\,\psi_{23}(x_2,+1)</span>:</p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 20%">
+<col style="width: 20%">
+<col style="width: 20%">
+<col style="width: 20%">
+<col style="width: 20%">
+</colgroup>
+<thead>
+<tr class="header">
+<th><span class="math inline">(x_1,x_2)</span></th>
+<th><span class="math inline">(+1,+1)</span></th>
+<th><span class="math inline">(-1,+1)</span></th>
+<th><span class="math inline">(+1,-1)</span></th>
+<th><span class="math inline">(-1,-1)</span></th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><span class="math inline">\tilde p</span></td>
+<td><span class="math inline">1\cdot3\cdot2=6</span></td>
+<td><span class="math inline">2\cdot1\cdot2=4</span></td>
+<td><span class="math inline">1\cdot1\cdot1=1</span></td>
+<td><span class="math inline">2\cdot3\cdot1=6</span></td>
+</tr>
+</tbody>
+</table>
+<p>Summing over <span class="math inline">x_1</span> gives <span class="math inline">10</span> at <span class="math inline">x_2=+1</span> and <span class="math inline">7</span> at <span class="math inline">x_2=-1</span>, the same as <span class="math inline">\tilde b(x_2)</span>. The messages did this sum in pieces.</p></li>
+<li><p>Node 1 has one neighbour, node 2, so it needs <span class="math inline">m_{2\to1}</span>. Node 2 multiplies in what it heard from its <em>other</em> neighbour, node 3, and sums out <span class="math inline">x_2</span>: <span class="math display">m_{2\to1}(+1)=3\cdot2+1\cdot1=7,\qquad m_{2\to1}(-1)=1\cdot2+3\cdot1=5.</span> Then <span class="math inline">\tilde b(x_1)=(\psi_1(+1)\cdot7,\ \psi_1(-1)\cdot5)=(7,\ 10)</span>, so <span class="math inline">b(x_1)\approx(0.412,\ 0.588)</span>. The table agrees: <span class="math inline">6+1=7</span> at <span class="math inline">x_1=+1</span> and <span class="math inline">4+6=10</span> at <span class="math inline">x_1=-1</span>.</p></li>
+</ol>
+<p><strong>Answer.</strong> (1) <span class="math inline">m_{1\to2}=(5,7)</span>, <span class="math inline">m_{3\to2}=(2,1)</span>, <span class="math inline">b(x_2)=(10/17,\ 7/17)</span>. (2) The table sums to the same <span class="math inline">(10,7)</span>. (3) <span class="math inline">m_{2\to1}=(7,5)</span>, <span class="math inline">b(x_1)=(7/17,\ 10/17)</span>.</p>
+</div>
+</div>
+</div>
+</section>
+<section id="prb-3" class="level2">
+<h2 class="anchored" data-anchor-id="prb-3">Problem 3: Max-product against the most likely state of each node</h2>
+<p>Two spins <span class="math inline">x_1,x_2\in\{+1,-1\}</span> share one edge, with node potentials equal to 1 and edge potential</p>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th></th>
+<th><span class="math inline">x_2=+1</span></th>
+<th><span class="math inline">x_2=-1</span></th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><span class="math inline">x_1=+1</span></td>
+<td>4</td>
+<td>1</td>
+</tr>
+<tr class="even">
+<td><span class="math inline">x_1=-1</span></td>
+<td>3</td>
+<td>3</td>
+</tr>
+</tbody>
+</table>
+<ol type="1">
+<li>Run sum-product: compute both messages, both beliefs, and the setting <span class="math inline">(\tilde x_1,\tilde x_2)</span> that picks the more likely state of each node separately. What is its probability?</li>
+<li>Run max-product and read off <span class="math inline">\hat x_i=\arg\max_{x_i}b(x_i)</span>. What is the probability of <span class="math inline">(\hat x_1,\hat x_2)</span>?</li>
+<li>Explain the difference in one or two sentences.</li>
+</ol>
+<div class="practice-answer callout callout-style-default callout-tip callout-titled" title="Worked solution">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-3-contents" aria-controls="callout-3" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Worked solution
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-3" class="callout-3-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>This uses <a href="../lectures/week04.html#sec-maxproduct">Week 4, Max-product BP and MAP inference</a>.</p>
+<p>The normalizer is <span class="math inline">Z=4+1+3+3=11</span>, so the joint probabilities are the table entries divided by 11.</p>
+<ol type="1">
+<li>Sum-product sums over the sender: <span class="math display">m_{2\to1}(+1)=4+1=5,\qquad m_{2\to1}(-1)=3+3=6,</span> <span class="math display">m_{1\to2}(+1)=4+3=7,\qquad m_{1\to2}(-1)=1+3=4.</span> So <span class="math inline">b(x_1)=(5/11,\ 6/11)</span> and <span class="math inline">b(x_2)=(7/11,\ 4/11)</span>. Node by node, <span class="math inline">\tilde x_1=-1</span> and <span class="math inline">\tilde x_2=+1</span>. The pair <span class="math inline">(-1,+1)</span> has probability <span class="math inline">3/11\approx0.273</span>.</li>
+<li>Max-product takes the largest term instead: <span class="math display">m_{2\to1}(+1)=\max(4,1)=4,\qquad m_{2\to1}(-1)=\max(3,3)=3,</span> <span class="math display">m_{1\to2}(+1)=\max(4,3)=4,\qquad m_{1\to2}(-1)=\max(1,3)=3.</span> Both beliefs favour <span class="math inline">+1</span>, so <span class="math inline">(\hat x_1,\hat x_2)=(+1,+1)</span>, with probability <span class="math inline">4/11\approx0.364</span>. This is the largest entry in the table, so it is the <a href="https://en.wikipedia.org/wiki/Maximum_a_posteriori_estimation">MAP</a> estimate.</li>
+<li>A sum-product belief adds up every configuration with <span class="math inline">x_1</span> in a given state. <span class="math inline">x_1=-1</span> wins that total (<span class="math inline">3+3</span> against <span class="math inline">4+1</span>) without containing the single best configuration. A max-product belief scores only the best configuration in each state, so reading those off node by node gives the best joint setting.</li>
+</ol>
+<p><strong>Answer.</strong> (1) <span class="math inline">b(x_1)=(5/11,6/11)</span>, <span class="math inline">b(x_2)=(7/11,4/11)</span>; the node-by-node choice is <span class="math inline">(-1,+1)</span>, probability <span class="math inline">3/11</span>. (2) Max-product gives <span class="math inline">(+1,+1)</span>, probability <span class="math inline">4/11</span>, the MAP estimate. (3) Summed totals and best single configurations can disagree.</p>
+</div>
+</div>
+</div>
+</section>
+<section id="prb-4" class="level2">
+<h2 class="anchored" data-anchor-id="prb-4">Problem 4: True or false on loopy BP</h2>
+<p>Say whether each statement is true or false, with a one-line reason.</p>
+<ol type="1">
+<li>On a tree, running the loopy BP updates until they stop changing gives the exact marginals.</li>
+<li>On a graph with cycles, loopy BP always converges if we run enough iterations.</li>
+<li>With plain updates (no momentum), rescaling each new message so that it sums to 1 does not change the normalized beliefs.</li>
+<li>On a graph with cycles, loopy BP beliefs are often more peaked than the true marginals.</li>
+<li>Setting <span class="math inline">\alpha=1</span> in the momentum update gives back the plain update.</li>
+<li>If a node’s message to <span class="math inline">i</span> also multiplied in the message <span class="math inline">i</span> had sent it, beliefs on a tree would still be exact.</li>
+</ol>
+<div class="practice-answer callout callout-style-default callout-tip callout-titled" title="Worked solution">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-4-contents" aria-controls="callout-4" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Worked solution
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-4" class="callout-4-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>This uses <a href="../lectures/week04.html#sec-loopy">Week 4, Loopy belief propagation</a> and the exclusion rule in <a href="../lectures/week04.html#sec-messages">Messages and beliefs</a>.</p>
+<ol type="1">
+<li><strong>True.</strong> On a tree the message updates are the same as BP, and the lecture states loopy BP is exact on trees.</li>
+<li><strong>False.</strong> The lecture says it may not converge at all, and messages can oscillate.</li>
+<li><strong>True.</strong> Each update is a sum of products that is linear in every incoming message, so a constant factor on one message passes through as a constant factor on later messages and beliefs. Normalizing the belief removes it, as in the three-node chain example. With momentum, scale does matter: blending <span class="math inline">(1-\alpha)\,m^{\text{old}}+\alpha\,[\text{update}]</span> weights the two vectors by their sizes as well as by <span class="math inline">\alpha</span>. That is one reason to normalize before blending.</li>
+<li><strong>True.</strong> Evidence that leaves a node along one edge of a cycle can return along another and be multiplied in again, like hearing your own rumour back.</li>
+<li><strong>True.</strong> <span class="math inline">(1-1)\,m^{\text{old}}+1\cdot[\text{update}]=[\text{update}]</span>.</li>
+<li><strong>False.</strong> Take the chain <span class="math inline">x_1\text{-}x_2</span>. Then <span class="math inline">m_{2\to1}</span> would include <span class="math inline">m_{1\to2}</span>, which already carries <span class="math inline">\psi_1</span>, so the belief at <span class="math inline">x_1</span> would contain <span class="math inline">\psi_1</span> twice. The exclusion <span class="math inline">k\ne i</span> is what stops a node’s own information from being counted twice.</li>
+</ol>
+<p><strong>Answer.</strong> True, false, true, true, true, false.</p>
+</div>
+</div>
+</div>
+</section>
+<section id="prb-5" class="level2">
+<h2 class="anchored" data-anchor-id="prb-5">Problem 5: Ancestral sampling by hand</h2>
+<p>A DAG over binary variables <span class="math inline">A,B,C,D\in\{0,1\}</span> has edges <span class="math inline">A\to B</span>, <span class="math inline">A\to C</span>, <span class="math inline">B\to D</span>, <span class="math inline">C\to D</span>, with</p>
+<ul>
+<li><span class="math inline">p(A=1)=0.3</span>;</li>
+<li><span class="math inline">p(B=1\mid A=0)=0.2</span>, <span class="math inline">p(B=1\mid A=1)=0.7</span>;</li>
+<li><span class="math inline">p(C=1\mid A=0)=0.6</span>, <span class="math inline">p(C=1\mid A=1)=0.1</span>;</li>
+<li><span class="math inline">p(D=1\mid B,C)=0.1,\ 0.5,\ 0.5,\ 0.9</span> for <span class="math inline">(B,C)=(0,0),(0,1),(1,0),(1,1)</span>.</li>
+</ul>
+<p>To sample a binary variable with <span class="math inline">p(\text{variable}=1)=\theta</span>, draw <span class="math inline">u</span> uniform on <span class="math inline">[0,1]</span> and set the variable to 1 if <span class="math inline">u&lt;\theta</span>.</p>
+<ol type="1">
+<li>Which of these are valid <a href="https://en.wikipedia.org/wiki/Topological_sorting">topological orders</a>? (a) <span class="math inline">A,B,C,D</span> (b) <span class="math inline">A,C,B,D</span> (c) <span class="math inline">B,A,C,D</span> (d) <span class="math inline">A,D,B,C</span>.</li>
+<li>Visit the nodes in order <span class="math inline">A,B,C,D</span> using the uniforms <span class="math inline">0.25,\ 0.81,\ 0.05,\ 0.47</span>. What sample do you get, and what is its probability under the joint?</li>
+<li>Can this procedure give a sample from <span class="math inline">p(A\mid D=1)</span> directly? Why or why not?</li>
+</ol>
+<div class="practice-answer callout callout-style-default callout-tip callout-titled" title="Worked solution">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-5-contents" aria-controls="callout-5" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Worked solution
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-5" class="callout-5-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>This uses <a href="../lectures/week04.html#sec-ancestral">Week 4, Ancestral sampling</a>.</p>
+<ol type="1">
+<li><ol type="a">
+<li>and (b) are valid: <span class="math inline">A</span> comes before both its children, and <span class="math inline">D</span> comes after both its parents. Swapping <span class="math inline">B</span> and <span class="math inline">C</span> is fine because neither is a parent of the other. (c) puts <span class="math inline">B</span> before its parent <span class="math inline">A</span>, and (d) puts <span class="math inline">D</span> before its parents <span class="math inline">B</span> and <span class="math inline">C</span>, so both are invalid.</li>
+</ol></li>
+<li>Each step uses the conditional with the parents set to values already drawn.
+<ul>
+<li><span class="math inline">A</span>: <span class="math inline">0.25&lt;0.3</span>, so <span class="math inline">A=1</span>.</li>
+<li><span class="math inline">B</span>: <span class="math inline">p(B=1\mid A=1)=0.7</span> and <span class="math inline">0.81\ge0.7</span>, so <span class="math inline">B=0</span>.</li>
+<li><span class="math inline">C</span>: <span class="math inline">p(C=1\mid A=1)=0.1</span> and <span class="math inline">0.05&lt;0.1</span>, so <span class="math inline">C=1</span>.</li>
+<li><span class="math inline">D</span>: <span class="math inline">p(D=1\mid B=0,C=1)=0.5</span> and <span class="math inline">0.47&lt;0.5</span>, so <span class="math inline">D=1</span>.</li>
+</ul>
+The sample is <span class="math inline">(A,B,C,D)=(1,0,1,1)</span>. Its probability is the product of the factors used: <span class="math inline">0.3\cdot0.3\cdot0.1\cdot0.5=0.0045</span>.</li>
+<li>No.&nbsp;<span class="math inline">D</span> is drawn last, from its parents, so its value is an output of the procedure, not something we can fix in advance. Nothing in the procedure sets <span class="math inline">D=1</span> and then updates <span class="math inline">A</span>. The lecture notes that ancestral sampling draws from the joint with nothing observed and does not directly give conditional samples.</li>
+</ol>
+<p><strong>Answer.</strong> (1) (a) and (b). (2) <span class="math inline">(1,0,1,1)</span>, probability <span class="math inline">0.0045</span>. (3) No: the observed variable is a child, drawn last.</p>
+</div>
+</div>
+</div>
+</section>
+<section id="prb-6" class="level2">
+<h2 class="anchored" data-anchor-id="prb-6">Problem 6: How many samples?</h2>
+<ol type="1">
+<li>A test function has <span class="math inline">\mathrm{var}[\phi(x)]=9</span> under <span class="math inline">p</span>. How many independent samples does simple <a href="https://en.wikipedia.org/wiki/Monte_Carlo_method">Monte Carlo</a> need for the standard deviation of <span class="math inline">\hat\Phi</span> to be at most <span class="math inline">0.1</span>? At most <span class="math inline">0.05</span>?</li>
+<li>We want <span class="math inline">\mathbb P(x\in A)</span> to within a standard deviation of <span class="math inline">0.01</span>, using the <a href="https://en.wikipedia.org/wiki/Indicator_function">indicator function</a> as the test function. Show that <span class="math inline">\mathrm{var}[\mathbf 1_{\{x\in A\}}]\le\tfrac14</span> and find an <span class="math inline">R</span> that is enough whatever the true probability is. How many would suffice if we knew the probability was about <span class="math inline">0.1</span>?</li>
+<li>A grid with 50 points per axis is used to approximate <span class="math inline">Z</span> instead. How many grid points are there for <span class="math inline">D=3</span> and for <span class="math inline">D=10</span>?</li>
+</ol>
+<div class="practice-answer callout callout-style-default callout-tip callout-titled" title="Worked solution">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-6-contents" aria-controls="callout-6" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Worked solution
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-6" class="callout-6-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>This uses the variance formula in <a href="../lectures/week04.html#sec-simplemc">Week 4, Simple Monte Carlo</a> and the grid example in <a href="../lectures/week04.html#sec-hardz">Why the normalizing constant is hard</a>.</p>
+<ol type="1">
+<li><span class="math inline">\mathrm{var}[\hat\Phi]=\mathrm{var}[\phi]/R=9/R</span>. A standard deviation of <span class="math inline">0.1</span> means variance <span class="math inline">0.01</span>, so <span class="math inline">R\ge900</span>. Halving the standard deviation to <span class="math inline">0.05</span> means variance <span class="math inline">0.0025</span>, so <span class="math inline">R\ge3600</span>. Halving the error costs four times the samples.</li>
+<li>The indicator is 1 with probability <span class="math inline">p</span> and 0 otherwise, so its variance is <span class="math inline">p(1-p)</span>, a parabola with its maximum <span class="math inline">\tfrac14</span> at <span class="math inline">p=\tfrac12</span>. We need <span class="math inline">p(1-p)/R\le0.01^2</span>. Using the bound, <span class="math inline">R\ge0.25/0.0001=2500</span> is enough whatever <span class="math inline">p</span> is. If <span class="math inline">p\approx0.1</span>, then <span class="math inline">p(1-p)=0.09</span> and <span class="math inline">R\ge900</span> suffices.</li>
+<li><span class="math inline">50^3=125{,}000</span> points for <span class="math inline">D=3</span> and <span class="math inline">50^{10}\approx9.8\times10^{16}</span> for <span class="math inline">D=10</span>. The grid grows exponentially with <span class="math inline">D</span> (the <a href="https://en.wikipedia.org/wiki/Curse_of_dimensionality">curse of dimensionality</a>). The sample counts in parts 1 and 2 do not mention <span class="math inline">D</span> at all. The catch is that they assume we can already draw samples from <span class="math inline">p</span>.</li>
+</ol>
+<p><strong>Answer.</strong> (1) <span class="math inline">900</span> and <span class="math inline">3600</span>. (2) <span class="math inline">p(1-p)\le\tfrac14</span>; <span class="math inline">R=2500</span> always suffices, <span class="math inline">R=900</span> if <span class="math inline">p\approx0.1</span>. (3) <span class="math inline">125{,}000</span> and about <span class="math inline">9.8\times10^{16}</span>.</p>
+</div>
+</div>
+</div>
+</section>
+<section id="prb-7" class="level2">
+<h2 class="anchored" data-anchor-id="prb-7">Problem 7: Importance sampling with an unnormalized target</h2>
+<p>A target on <span class="math inline">\{1,2,3,4\}</span> is known only up to a constant: <span class="math inline">\tilde p=(1,\ 2,\ 4,\ 1)</span>. The proposal is uniform, <span class="math inline">\tilde q(x)=1</span> for every <span class="math inline">x</span>. Five draws from <span class="math inline">q</span> come out as <span class="math display">1,\quad 3,\quad 3,\quad 2,\quad 4.</span></p>
+<ol type="1">
+<li>Compute the <a href="https://en.wikipedia.org/wiki/Importance_sampling">importance</a> weights <span class="math inline">\tilde w_r</span> and the normalized weights <span class="math inline">w_r</span>.</li>
+<li>Estimate <span class="math inline">\mathbb E_p[x]</span> and compare it with the exact value.</li>
+<li>Estimate <span class="math inline">Z_p/Z_q</span> and compare it with the exact value.</li>
+<li>Suppose instead <span class="math inline">\tilde q=(1,\ 1,\ 0.05,\ 1)</span>. What weight would a draw of <span class="math inline">x=3</span> get, and why is that a problem?</li>
+</ol>
+<div class="practice-answer callout callout-style-default callout-tip callout-titled" title="Worked solution">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-7-contents" aria-controls="callout-7" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Worked solution
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-7" class="callout-7-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>This uses <a href="../lectures/week04.html#sec-importance">Week 4, Importance sampling</a>.</p>
+<ol type="1">
+<li><span class="math inline">\tilde w_r=\tilde p(x^{(r)})/\tilde q(x^{(r)})=\tilde p(x^{(r)})</span> here, giving <span class="math inline">1,4,4,2,1</span>. They sum to <span class="math inline">12</span>, so <span class="math inline">w_r=\tfrac1{12},\tfrac4{12},\tfrac4{12},\tfrac2{12},\tfrac1{12}</span>.</li>
+<li>The self-normalized estimate is <span class="math inline">\sum_r x^{(r)}w_r=(1\cdot1+3\cdot4+3\cdot4+2\cdot2+4\cdot1)/12=33/12=2.75</span>. Exactly, <span class="math inline">Z_p=8</span> and <span class="math inline">\mathbb E_p[x]=(1\cdot1+2\cdot2+3\cdot4+4\cdot1)/8=21/8=2.625</span>. Five samples land fairly close.</li>
+<li>The average weight estimates <span class="math inline">Z_p/Z_q</span>: <span class="math inline">12/5=2.4</span>. Exactly, <span class="math inline">Z_p=8</span> and <span class="math inline">Z_q=4</span>, so the ratio is <span class="math inline">2</span>. Neither normalizer was needed to form the estimate in part 2; the ratio cancels in the self-normalized form.</li>
+<li><span class="math inline">\tilde w=4/0.05=80</span>, against at most <span class="math inline">2</span> for the other values. The proposal rarely visits <span class="math inline">x=3</span>, which holds half of <span class="math inline">p</span>’s mass, so a run either misses it (and underestimates <span class="math inline">\mathbb E_p[x]</span>) or hits it once and lets that one sample dominate the sum. This is the poor-coverage failure the week chapter warns about.</li>
+</ol>
+<p><strong>Answer.</strong> (1) <span class="math inline">\tilde w=(1,4,4,2,1)</span>, <span class="math inline">w=(1,4,4,2,1)/12</span>. (2) <span class="math inline">2.75</span> against <span class="math inline">2.625</span>. (3) <span class="math inline">2.4</span> against <span class="math inline">2</span>. (4) Weight <span class="math inline">80</span>: one rare draw dominates.</p>
+</div>
+</div>
+</div>
+</section>
+<section id="prb-8" class="level2">
+<h2 class="anchored" data-anchor-id="prb-8">Problem 8: Rejection sampling, and what dimension does to it</h2>
+<p>Take <span class="math inline">\tilde p(x)=x(1-x)</span> on <span class="math inline">[0,1]</span> and the uniform proposal <span class="math inline">q(x)=1</span> on <span class="math inline">[0,1]</span>, so <span class="math inline">\tilde q=q</span> and <span class="math inline">Z_q=1</span>.</p>
+<ol type="1">
+<li>Find <span class="math inline">Z_p</span> and the smallest valid <span class="math inline">c</span>. What is the acceptance rate?</li>
+<li>With that <span class="math inline">c</span>, decide accept or reject for these <span class="math inline">(x,u)</span> pairs, where <span class="math inline">u</span> was drawn uniform on <span class="math inline">[0,\ c\,\tilde q(x)]</span>: <span class="math inline">(0.2,\ 0.10)</span>, <span class="math inline">(0.9,\ 0.12)</span>, <span class="math inline">(0.5,\ 0.24)</span>, <span class="math inline">(0.05,\ 0.03)</span>, <span class="math inline">(0.7,\ 0.22)</span>.</li>
+<li>What happens to the acceptance rate with <span class="math inline">c=0.5</span>? What goes wrong with <span class="math inline">c=0.2</span>?</li>
+<li>Now take <span class="math inline">D</span> independent copies: <span class="math inline">\tilde p(\mathbf x)=\prod_{d=1}^Dx_d(1-x_d)</span> on the unit cube, with a uniform proposal on the cube. Find the acceptance rate for <span class="math inline">D=10</span> and <span class="math inline">D=100</span>, and the expected number of proposals per accepted sample.</li>
+</ol>
+<div class="practice-answer callout callout-style-default callout-tip callout-titled" title="Worked solution">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-8-contents" aria-controls="callout-8" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Worked solution
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-8" class="callout-8-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>This uses <a href="../lectures/week04.html#sec-rejection">Week 4, Rejection sampling</a>, including the acceptance-rate formula at the end of that section.</p>
+<ol type="1">
+<li><span class="math inline">Z_p=\int_0^1(x-x^2)\,dx=\tfrac12-\tfrac13=\tfrac16</span>. The envelope must satisfy <span class="math inline">c\cdot1\ge x(1-x)</span> everywhere. The maximum of <span class="math inline">x(1-x)</span> is <span class="math inline">\tfrac14</span> at <span class="math inline">x=\tfrac12</span>, so the smallest valid <span class="math inline">c</span> is <span class="math inline">\tfrac14</span>. The acceptance rate is <span class="math inline">Z_p/(cZ_q)=\tfrac16/\tfrac14=\tfrac23</span>.</li>
+<li>Accept when <span class="math inline">u\le\tilde p(x)</span>:
+<ul>
+<li><span class="math inline">\tilde p(0.2)=0.16\ge0.10</span>: accept.</li>
+<li><span class="math inline">\tilde p(0.9)=0.09&lt;0.12</span>: reject.</li>
+<li><span class="math inline">\tilde p(0.5)=0.25\ge0.24</span>: accept.</li>
+<li><span class="math inline">\tilde p(0.05)=0.0475\ge0.03</span>: accept.</li>
+<li><span class="math inline">\tilde p(0.7)=0.21&lt;0.22</span>: reject.</li>
+</ul>
+The accepted samples are <span class="math inline">0.2</span>, <span class="math inline">0.5</span>, <span class="math inline">0.05</span>.</li>
+<li><span class="math inline">c=0.5</span> is still a valid envelope, but the rate becomes <span class="math inline">\tfrac16/\tfrac12=\tfrac13</span>: half as many acceptances for the same work. <span class="math inline">c=0.2</span> is invalid because <span class="math inline">0.2&lt;\tilde p(x)</span> near <span class="math inline">x=\tfrac12</span>. There every <span class="math inline">u</span> is at most <span class="math inline">0.2</span>, so every proposal is accepted, and the accepted samples follow <span class="math inline">\min(\tilde p(x),\,0.2)</span> rather than <span class="math inline">\tilde p</span>. The peak is flattened and the samples are no longer from <span class="math inline">p</span>.</li>
+<li>The product’s maximum is <span class="math inline">(\tfrac14)^D</span>, so the smallest <span class="math inline">c</span> is <span class="math inline">(\tfrac14)^D</span>, while <span class="math inline">Z_p=(\tfrac16)^D</span> and <span class="math inline">Z_q=1</span>. The rate is <span class="math inline">(\tfrac23)^D</span>.
+<ul>
+<li><span class="math inline">D=10</span>: <span class="math inline">(\tfrac23)^{10}\approx0.0173</span>, about 58 proposals per accepted sample.</li>
+<li><span class="math inline">D=100</span>: <span class="math inline">(\tfrac23)^{100}\approx2.5\times10^{-18}</span>, about <span class="math inline">4\times10^{17}</span> proposals per accepted sample.</li>
+</ul>
+Each dimension multiplies the rate by <span class="math inline">\tfrac23</span>, so it decays exponentially with <span class="math inline">D</span>. This is the lecture’s reason for presenting rejection sampling as a one-dimensional tool.</li>
+</ol>
+<p><strong>Answer.</strong> (1) <span class="math inline">Z_p=\tfrac16</span>, <span class="math inline">c=\tfrac14</span>, rate <span class="math inline">\tfrac23</span>. (2) Accept, reject, accept, accept, reject. (3) Rate <span class="math inline">\tfrac13</span>; <span class="math inline">c=0.2</span> is not an envelope and gives samples from the wrong distribution. (4) <span class="math inline">(\tfrac23)^D</span>: about <span class="math inline">0.017</span> at <span class="math inline">D=10</span>, about <span class="math inline">2.5\times10^{-18}</span> at <span class="math inline">D=100</span>.</p>
+</div>
+</div>
+</div>
+</section>
+<section id="sec-w4p-hw2" class="level2">
+<h2 class="anchored" data-anchor-id="sec-w4p-hw2">Homework 2 practice</h2>
+<p>These problems go deeper on two Week 4 techniques. Problems 9–13 drill loopy BP messages and beliefs on a binary pixel grid. Problems 14–18 drill writing and evaluating a TrueSkill log-joint and reading quantities off posterior samples.</p>
+<section id="prb-9" class="level3">
+<h3 class="anchored" data-anchor-id="prb-9">Problem 9: Who talks to whom on a 3×3 grid</h3>
+<p>A <span class="math inline">3\times3</span> binary image is flattened into a vector of <span class="math inline">n=9</span> pixels in <a href="https://en.wikipedia.org/wiki/Row-_and_column-major_order">row-major order</a>, so node <span class="math inline">s</span> sits in row <span class="math inline">\lfloor s/3\rfloor</span> and column <span class="math inline">s \bmod 3</span>:</p>
+<p><span class="math display">\begin{matrix}0&amp;1&amp;2\\3&amp;4&amp;5\\6&amp;7&amp;8\end{matrix}</span></p>
+<p>Use the 4-neighbour rule: with <span class="math inline">m=3</span>, node <span class="math inline">s</span> has right neighbour <span class="math inline">s+1</span> unless <span class="math inline">(s+1)\bmod m=0</span>, left neighbour <span class="math inline">s-1</span> unless <span class="math inline">s\bmod m=0</span>, lower neighbour <span class="math inline">s+m</span> if <span class="math inline">s+m&lt;n</span>, and upper neighbour <span class="math inline">s-m</span> if <span class="math inline">s-m\ge0</span>.</p>
+<ol type="1">
+<li>List the neighbours of node 0 (a corner), node 1 (an edge), and node 4 (the centre).</li>
+<li>Messages are stored in an array <code>messages</code> of shape <code>(2, 9, 9)</code>, where <code>messages[:, j, i]</code> is the message from node <span class="math inline">j</span> to node <span class="math inline">i</span>, entry 0 is the value at <span class="math inline">x_i=+1</span> and entry 1 the value at <span class="math inline">x_i=-1</span>. Which slice holds <span class="math inline">m_{4\to1}</span>?</li>
+<li>When node 4 computes its message to node 1, which slices does it multiply together? Is the edge <span class="math inline">4\text{-}1</span> horizontal or vertical?</li>
+</ol>
+<div class="practice-answer callout callout-style-default callout-tip callout-titled" title="Worked solution">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-9-contents" aria-controls="callout-9" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Worked solution
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-9" class="callout-9-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>This uses the message definition in <a href="../lectures/week04.html#sec-messages">Week 4, Messages and beliefs</a> and the grid model of <a href="../lectures/week04.html#sec-denoise">the denoising example</a>.</p>
+<ol type="1">
+<li>Node 0: column 0 has no left neighbour and row 0 has no upper one, leaving <span class="math inline">\{1,3\}</span>. Node 1: right 2, left 0, lower 4, no upper, so <span class="math inline">\{0,2,4\}</span>. Node 4: all four exist, <span class="math inline">\{1,3,5,7\}</span>. Corners have 2 neighbours, edges 3, interior pixels 4.</li>
+<li>The sender is the middle index and the receiver the last, so <span class="math inline">m_{4\to1}</span> is <code>messages[:, 4, 1]</code>: <code>messages[0, 4, 1]</code> is <span class="math inline">m_{4\to1}(+1)</span> and <code>messages[1, 4, 1]</code> is <span class="math inline">m_{4\to1}(-1)</span>.</li>
+<li>The product runs over <span class="math inline">k\in N(4)\setminus\{1\}=\{3,5,7\}</span>, and each factor is a message <em>into</em> node 4: <code>messages[:, 3, 4]</code>, <code>messages[:, 5, 4]</code>, <code>messages[:, 7, 4]</code>. The message <code>messages[:, 1, 4]</code> is left out, because node 4 does not echo back what node 1 told it. Nodes 4 and 1 share column 1 and sit in adjacent rows, so the edge is vertical.</li>
+</ol>
+<p><strong>Answer.</strong> (1) <span class="math inline">N(0)=\{1,3\}</span>, <span class="math inline">N(1)=\{0,2,4\}</span>, <span class="math inline">N(4)=\{1,3,5,7\}</span>. (2) <code>messages[:, 4, 1]</code>. (3) The incoming messages from 3, 5, and 7 (second index = sender, third = 4); the edge is vertical.</p>
+</div>
+</div>
+</div>
+</section>
+<section id="prb-10" class="level3">
+<h3 class="anchored" data-anchor-id="prb-10">Problem 10: One message, by hand</h3>
+<p>In a denoising MRF with node potentials <span class="math inline">\psi_j(x_j)=e^{\beta y_jx_j}</span> and edge potentials <span class="math inline">\psi_{ij}(x_i,x_j)=e^{Jx_ix_j}</span>, take <span class="math inline">\beta=0.7</span> and an edge <span class="math inline">j\text{-}i</span> with coupling <span class="math inline">J=0.4</span>. Pixel <span class="math inline">j</span> is observed black, <span class="math inline">y_j=-1</span>. Its three <em>other</em> neighbours currently send it these messages, written <span class="math inline">\big(m(+1),\ m(-1)\big)</span>:</p>
+<p><span class="math display">(0.6,\ 0.4), \qquad (0.7,\ 0.3), \qquad (0.45,\ 0.55).</span></p>
+<ol type="1">
+<li>Compute the unnormalized message <span class="math inline">m_{j\to i}(x_i)</span> for <span class="math inline">x_i=+1</span> and <span class="math inline">x_i=-1</span>.</li>
+<li>Normalize it.</li>
+<li>The old message was <span class="math inline">(0.5,\ 0.5)</span>. Apply the momentum update with step size <span class="math inline">\alpha=0.6</span>.</li>
+</ol>
+<div class="practice-answer callout callout-style-default callout-tip callout-titled" title="Worked solution">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-10-contents" aria-controls="callout-10" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Worked solution
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-10" class="callout-10-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>This uses the update rule of <a href="../lectures/week04.html#sec-loopy">Week 4, Loopy belief propagation</a> with the potentials of <a href="../lectures/week04.html#sec-denoise">the denoising example</a>.</p>
+<p><strong>Step 1: product of incoming messages, one number per state of <span class="math inline">x_j</span>.</strong> <span class="math display">x_j=+1:\ 0.6\cdot0.7\cdot0.45=0.189, \qquad x_j=-1:\ 0.4\cdot0.3\cdot0.55=0.066.</span></p>
+<p><strong>Step 2: node potential.</strong> With <span class="math inline">y_j=-1</span>, <span class="math inline">\psi_j(+1)=e^{-0.7}</span> and <span class="math inline">\psi_j(-1)=e^{0.7}</span>. The observation pulls <span class="math inline">x_j</span> toward black.</p>
+<p><strong>Step 3: sum over <span class="math inline">x_j</span> for each <span class="math inline">x_i</span>.</strong> The edge potential is <span class="math inline">e^{0.4}</span> when <span class="math inline">x_i,x_j</span> agree and <span class="math inline">e^{-0.4}</span> when they disagree, and it combines with <span class="math inline">\psi_j</span> in the exponent: <span class="math display">m_{j\to i}(+1)=e^{-0.7+0.4}(0.189)+e^{0.7-0.4}(0.066)</span> <span class="math display">=0.7408(0.189)+1.3499(0.066)=0.1400+0.0891=0.2291,</span> <span class="math display">m_{j\to i}(-1)=e^{-0.7-0.4}(0.189)+e^{0.7+0.4}(0.066)</span> <span class="math display">=0.3329(0.189)+3.0042(0.066)=0.0629+0.1983=0.2612.</span></p>
+<p><strong>Normalize.</strong> The total is <span class="math inline">0.4903</span>, giving <span class="math inline">(0.4673,\ 0.5327)</span>.</p>
+<p><strong>Momentum.</strong> <span class="math inline">m^{\text{new}}=(1-\alpha)\,m^{\text{old}}+\alpha\,[\text{update}]</span>: <span class="math display">0.4\,(0.5,\ 0.5)+0.6\,(0.4673,\ 0.5327)=(0.4804,\ 0.5196).</span></p>
+<p>Notice the tug of war. Two of the three neighbours lean white, which shows up as the larger product at <span class="math inline">x_j=+1</span>, but the black observation multiplies the <span class="math inline">x_j=-1</span> branch by <span class="math inline">e^{0.7}/e^{-0.7}\approx4</span>. The message ends up leaning slightly black. In code, the same three steps are an elementwise product, a <span class="math inline">2\times2</span> table of edge-times-node potentials, and a sum over one axis, as in <a href="../lectures/week03-practice.html#prb-13">Week 3 practice, Problem 13</a>.</p>
+<p><strong>Answer.</strong> Unnormalized <span class="math inline">(0.2291,\ 0.2612)</span>; normalized <span class="math inline">(0.4673,\ 0.5327)</span>; after momentum <span class="math inline">(0.4804,\ 0.5196)</span>.</p>
+</div>
+</div>
+</div>
+</section>
+<section id="prb-11" class="level3">
+<h3 class="anchored" data-anchor-id="prb-11">Problem 11: From messages to a pixel decision</h3>
+<p>A pixel <span class="math inline">i</span> in the same model (<span class="math inline">\beta=0.7</span>) is observed white, <span class="math inline">y_i=+1</span>. After message passing, its four neighbours send</p>
+<p><span class="math display">(0.3,\ 0.7), \qquad (0.4,\ 0.6), \qquad (0.35,\ 0.65), \qquad (0.6,\ 0.4).</span></p>
+<ol type="1">
+<li>Compute the unnormalized belief <span class="math inline">\tilde b(x_i)</span> and the normalized belief <span class="math inline">b(x_i)</span>.</li>
+<li>Using the rule <span class="math inline">\hat x_i=\arg\max_{x_i}b(x_i)</span>, what colour is the denoised pixel?</li>
+<li>Suppose the last message had been stored unnormalized as <span class="math inline">(6,\ 4)</span>. Does anything in part 2 change?</li>
+</ol>
+<div class="practice-answer callout callout-style-default callout-tip callout-titled" title="Worked solution">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-11-contents" aria-controls="callout-11" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Worked solution
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-11" class="callout-11-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>This uses the belief formula of <a href="../lectures/week04.html#sec-messages">Week 4, Messages and beliefs</a> and the decision rule at the end of <a href="../lectures/week04.html#sec-denoise">the denoising example</a>.</p>
+<ol type="1">
+<li>The node potential is <span class="math inline">\psi_i(+1)=e^{0.7}=2.0138</span>, <span class="math inline">\psi_i(-1)=e^{-0.7}=0.4966</span>. Unlike a message, a belief multiplies in <em>every</em> neighbour’s message, with no exclusion: <span class="math display">\prod_jm_{j\to i}(+1)=0.3\cdot0.4\cdot0.35\cdot0.6=0.0252,</span> <span class="math display">\prod_jm_{j\to i}(-1)=0.7\cdot0.6\cdot0.65\cdot0.4=0.1092.</span> So <span class="math inline">\tilde b=(2.0138\cdot0.0252,\ 0.4966\cdot0.1092)=(0.0507,\ 0.0542)</span>, and dividing by the total <span class="math inline">0.1050</span> gives <span class="math inline">b=(0.483,\ 0.517)</span>.</li>
+<li><span class="math inline">b(-1)&gt;b(+1)</span>, so <span class="math inline">\hat x_i=-1</span>: black. Three of four neighbours lean black strongly enough to outvote the white observation, which is how the model removes an isolated flipped pixel.</li>
+<li>No.&nbsp;Multiplying one message by 10 multiplies both entries of <span class="math inline">\tilde b</span> by 10, and normalizing removes it. This is the scaling argument of the week chapter’s three-node chain example.</li>
+</ol>
+<p><strong>Answer.</strong> <span class="math inline">\tilde b\approx(0.0507,\ 0.0542)</span>, <span class="math inline">b\approx(0.483,\ 0.517)</span>; the pixel is set to black; rescaling a message changes nothing.</p>
+</div>
+</div>
+</div>
+</section>
+<section id="prb-12" class="level3">
+<h3 class="anchored" data-anchor-id="prb-12">Problem 12: What the step size does</h3>
+<p>Loopy BP on a cycle can oscillate. Take a toy version: a single message <span class="math inline">(p,\ 1-p)</span> whose freshly computed update is always the flipped vector <span class="math inline">(1-p,\ p)</span>. Start from <span class="math inline">p=0.8</span> and apply the momentum update <span class="math display">m^{\text{new}}=(1-\alpha)\,m^{\text{old}}+\alpha\,[\text{update}].</span></p>
+<ol type="1">
+<li>Trace <span class="math inline">p</span> for three iterations with <span class="math inline">\alpha=1</span>, <span class="math inline">\alpha=0.5</span>, and <span class="math inline">\alpha=0.25</span>.</li>
+<li>Write <span class="math inline">p^{\text{new}}-\tfrac12</span> in terms of <span class="math inline">p^{\text{old}}-\tfrac12</span> and explain the three behaviours.</li>
+</ol>
+<div class="practice-answer callout callout-style-default callout-tip callout-titled" title="Worked solution">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-12-contents" aria-controls="callout-12" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Worked solution
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-12" class="callout-12-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>This uses the momentum trick in <a href="../lectures/week04.html#sec-loopy">Week 4, Loopy belief propagation</a>.</p>
+<ol type="1">
+<li>The first entry updates as <span class="math inline">p^{\text{new}}=(1-\alpha)p+\alpha(1-p)</span>.
+<ul>
+<li><span class="math inline">\alpha=1</span> (plain replacement): <span class="math inline">0.8\to0.2\to0.8\to0.2</span>. It never settles.</li>
+<li><span class="math inline">\alpha=0.5</span>: <span class="math inline">0.5\,(0.8)+0.5\,(0.2)=0.5</span>, then <span class="math inline">0.5</span> forever.</li>
+<li><span class="math inline">\alpha=0.25</span>: <span class="math inline">0.75p+0.25(1-p)=0.25+0.5p</span>, so <span class="math inline">0.8\to0.65\to0.575\to0.5375</span>.</li>
+</ul></li>
+<li>Subtracting <span class="math inline">\tfrac12</span> from both sides, <span class="math display">p^{\text{new}}-\tfrac12=(1-2\alpha)\big(p^{\text{old}}-\tfrac12\big).</span> The distance from the fixed point <span class="math inline">\tfrac12</span> is multiplied by <span class="math inline">1-2\alpha</span> each iteration. At <span class="math inline">\alpha=1</span> the factor is <span class="math inline">-1</span>: same size, opposite sign, a permanent oscillation. At <span class="math inline">\alpha=0.5</span> it is <span class="math inline">0</span> and the oscillation dies in one step. At <span class="math inline">\alpha=0.25</span> it is <span class="math inline">\tfrac12</span>, so the distance halves each time with no sign flips.</li>
+</ol>
+<p>Real BP updates are not this simple map, so no single step size zeroes out oscillation in general. The general point survives: blending in the old message shrinks the jump each iteration, which damps oscillation. The price is that when the plain updates would have converged anyway, a small <span class="math inline">\alpha</span> makes each iteration move less.</p>
+<p><strong>Answer.</strong> <span class="math inline">\alpha=1</span>: <span class="math inline">0.2, 0.8, 0.2</span>. <span class="math inline">\alpha=0.5</span>: <span class="math inline">0.5, 0.5, 0.5</span>. <span class="math inline">\alpha=0.25</span>: <span class="math inline">0.65, 0.575, 0.5375</span>. The deviation from <span class="math inline">\tfrac12</span> scales by <span class="math inline">1-2\alpha</span> per step.</p>
+</div>
+</div>
+</div>
+</section>
+<section id="prb-13" class="level3">
+<h3 class="anchored" data-anchor-id="prb-13">Problem 13: Observation strength against coupling</h3>
+<ol type="1">
+<li>A binary symmetric channel flips each pixel with probability <span class="math inline">\epsilon</span>. Compute <span class="math inline">\beta=\tfrac12\log\frac{1-\epsilon}{\epsilon}</span> for <span class="math inline">\epsilon=0.1</span> and <span class="math inline">\epsilon=0.25</span>.</li>
+<li>An interior pixel <span class="math inline">i</span> is observed black (<span class="math inline">y_i=-1</span>). To isolate the trade-off, suppose its four neighbours are known to be white, so each sends the message <span class="math inline">m(x_i)=e^{Jx_i}</span> (one shared coupling <span class="math inline">J</span> on all four edges). Find the ratio <span class="math inline">b(+1)/b(-1)</span>, and the condition on <span class="math inline">J</span> under which the pixel’s belief favours white.</li>
+<li>Evaluate that threshold for both values of <span class="math inline">\epsilon</span> from part 1.</li>
+</ol>
+<div class="practice-answer callout callout-style-default callout-tip callout-titled" title="Worked solution">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-13-contents" aria-controls="callout-13" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Worked solution
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-13" class="callout-13-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>This uses the observation model and the posterior of <a href="../lectures/week04.html#sec-denoise">Week 4, Tutorial example: image denoising</a>.</p>
+<ol type="1">
+<li><span class="math inline">\epsilon=0.1</span>: <span class="math inline">\beta=\tfrac12\log9=\log3\approx1.099</span>. <span class="math inline">\epsilon=0.25</span>: <span class="math inline">\beta=\tfrac12\log3\approx0.549</span>. Noisier observations deserve less trust, and <span class="math inline">\beta</span> shrinks accordingly.</li>
+<li>The node potential gives <span class="math inline">e^{-\beta}</span> at <span class="math inline">x_i=+1</span> and <span class="math inline">e^{\beta}</span> at <span class="math inline">x_i=-1</span>. Each neighbour message gives <span class="math inline">e^{J}</span> versus <span class="math inline">e^{-J}</span>, four times over. So <span class="math display">\frac{b(+1)}{b(-1)}=\frac{e^{-\beta}\,e^{4J}}{e^{\beta}\,e^{-4J}}=e^{8J-2\beta}.</span> The belief favours white exactly when <span class="math inline">8J&gt;2\beta</span>, that is <span class="math inline">J&gt;\beta/4</span>.</li>
+<li><span class="math inline">\epsilon=0.1</span>: <span class="math inline">J&gt;0.275</span>. <span class="math inline">\epsilon=0.25</span>: <span class="math inline">J&gt;0.137</span>.</li>
+</ol>
+<p>The inequality is a vote. The observation contributes <span class="math inline">2\beta</span> toward black, and each agreeing neighbour contributes <span class="math inline">2J</span> toward white. With noisier data a weaker coupling is enough to outvote the observation. The inequality has no way of knowing whether the black pixel is noise or a genuine one-pixel detail of the image: it treats both the same.</p>
+<p><strong>Answer.</strong> (1) <span class="math inline">\beta\approx1.099</span> and <span class="math inline">0.549</span>. (2) <span class="math inline">b(+1)/b(-1)=e^{8J-2\beta}</span>; white wins when <span class="math inline">J&gt;\beta/4</span>. (3) <span class="math inline">J&gt;0.275</span> and <span class="math inline">J&gt;0.137</span>.</p>
+</div>
+</div>
+</div>
+</section>
+<section id="prb-14" class="level3">
+<h3 class="anchored" data-anchor-id="prb-14">Problem 14: The log-prior of independent skills</h3>
+<p>Three players have independent <a href="https://en.wikipedia.org/wiki/Normal_distribution">normal</a> priors <span class="math inline">z_i\sim\mathcal N(0,1)</span>. Two candidate skill settings are stored as the rows of a <span class="math inline">2\times3</span> array:</p>
+<p><span class="math display">\begin{pmatrix}0&amp;1&amp;-2\\0.5&amp;0.5&amp;0.5\end{pmatrix}.</span></p>
+<ol type="1">
+<li>Compute the log-prior <span class="math inline">\log p(z_1,z_2,z_3)</span> for each row.</li>
+<li>Why is the joint log-prior a sum, and along which axis of this array does that sum run? What shape is the result?</li>
+</ol>
+<div class="practice-answer callout callout-style-default callout-tip callout-titled" title="Worked solution">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-14-contents" aria-controls="callout-14" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Worked solution
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-14" class="callout-14-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>This uses the prior in the TrueSkill definition of <a href="../lectures/week04.html#sec-trueskill">Week 4, Latent variables and the TrueSkill model</a>.</p>
+<p>The standard normal log-density is <span class="math inline">\log\mathcal N(z;0,1)=-\tfrac12\log(2\pi)-\tfrac12z^2</span>, and <span class="math inline">\tfrac12\log(2\pi)\approx0.9189</span>.</p>
+<ol type="1">
+<li>Row 1: <span class="math inline">-3(0.9189)-\tfrac12(0+1+4)=-2.7568-2.5=-5.257</span>. Row 2: <span class="math inline">-2.7568-\tfrac12(0.75)=-3.132</span>.</li>
+<li>Independence makes the joint prior a product <span class="math inline">\prod_ip(z_i)</span>, and the log of a product is a sum of logs. Each row is one setting of all players, so the sum runs across the players within a row (axis 1, the column axis), leaving one number per row: shape <code>(2,)</code>. Summing down the columns instead would add the same player’s log-density across two different settings, which is not the log of any probability in the model.</li>
+</ol>
+<p>Row 2 scores higher because all three skills sit near the prior mean of 0; row 1 pays for the player at <span class="math inline">-2</span>.</p>
+<p><strong>Answer.</strong> <span class="math inline">-5.257</span> and <span class="math inline">-3.132</span>. A sum because of independence, taken across players (axis 1), giving shape <code>(2,)</code>.</p>
+</div>
+</div>
+</div>
+</section>
+<section id="prb-15" class="level3">
+<h3 class="anchored" data-anchor-id="prb-15">Problem 15: Logs of sums without overflow</h3>
+<p>Double-precision floats overflow above about <span class="math inline">1.8\times10^{308}</span>, so <span class="math inline">e^{a}</span> is stored as infinity once <span class="math inline">a</span> exceeds roughly 709 (<a href="https://en.wikipedia.org/wiki/Arithmetic_overflow">arithmetic overflow</a>).</p>
+<ol type="1">
+<li>Compute <span class="math inline">\log\big(e^{1000}+e^{998}\big)</span> by hand, without ever forming <span class="math inline">e^{1000}</span>.</li>
+<li>The function <span class="math inline">\mathrm{logaddexp}(u,v)=\log(e^u+e^v)</span> is computed with the same trick. Write <span class="math inline">\log(1+e^{a})</span> using it. What does the naive formula <code>log(1 + exp(a))</code> return at <span class="math inline">a=800</span>, and what is the correct value to many digits?</li>
+</ol>
+<div class="practice-answer callout callout-style-default callout-tip callout-titled" title="Worked solution">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-15-contents" aria-controls="callout-15" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Worked solution
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-15" class="callout-15-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>This supports evaluating the logistic function of <a href="../lectures/week04.html#sec-trueskill">Week 4, Latent variables and the TrueSkill model</a> in log space.</p>
+<ol type="1">
+<li>Factor out the largest exponential (the <a href="https://en.wikipedia.org/wiki/LogSumExp">LogSumExp</a> trick): <span class="math display">\log\big(e^{1000}+e^{998}\big)=1000+\log\big(1+e^{-2}\big)=1000+0.1269=1000.1269.</span> The only exponential left to evaluate is <span class="math inline">e^{-2}</span>, which is harmless.</li>
+<li>Since <span class="math inline">1=e^0</span>, <span class="math inline">\log(1+e^{a})=\mathrm{logaddexp}(0,a)</span>. Naively, <code>exp(800)</code> overflows to infinity and the log of infinity is infinity. Factoring out <span class="math inline">e^{a}</span> instead gives <span class="math inline">800+\log(1+e^{-800})</span>, and <span class="math inline">e^{-800}</span> is so small that the answer is <span class="math inline">800</span> to all printed digits. For very negative <span class="math inline">a</span> the same trick avoids the opposite problem, where <span class="math inline">e^{a}</span> underflows toward 0 and the log goes to <span class="math inline">-\infty</span>.</li>
+</ol>
+<p><strong>Answer.</strong> (1) <span class="math inline">\approx1000.1269</span>. (2) <span class="math inline">\log(1+e^a)=\mathrm{logaddexp}(0,a)</span>; the naive formula returns infinity at <span class="math inline">a=800</span>, the true value is <span class="math inline">800</span> (to double precision).</p>
+</div>
+</div>
+</div>
+</section>
+<section id="prb-16" class="level3">
+<h3 class="anchored" data-anchor-id="prb-16">Problem 16: A two-player posterior up to a constant</h3>
+<p>Two players <span class="math inline">A</span> and <span class="math inline">B</span> have independent priors <span class="math inline">z_A,z_B\sim\mathcal N(0,1)</span> and the course’s TrueSkill likelihood <span class="math inline">p(A\text{ beats }B\mid z_A,z_B)=\sigma(z_A-z_B)</span>. They play four games: <span class="math inline">A</span> wins three and <span class="math inline">B</span> wins one.</p>
+<ol type="1">
+<li>Write <span class="math inline">\log p(z_A,z_B,\text{games})</span>.</li>
+<li>Evaluate it, dropping the constant <span class="math inline">-\log(2\pi)</span>, at <span class="math inline">(z_A,z_B)=(0,0)</span>, <span class="math inline">(0.5,-0.5)</span>, and <span class="math inline">(1.5,0.5)</span>. Which is most probable under the posterior?</li>
+<li>Why can we draw the posterior’s contour lines from <span class="math inline">\log p(z_A,z_B,\text{games})</span> without ever computing <span class="math inline">p(\text{games})</span>?</li>
+<li>Change variables to <span class="math inline">d=z_A-z_B</span> and <span class="math inline">s=z_A+z_B</span>. Show that the likelihood depends only on <span class="math inline">d</span>, and that the prior factorizes into a function of <span class="math inline">d</span> times a function of <span class="math inline">s</span>. What does that say about what the games can teach us?</li>
+</ol>
+<div class="practice-answer callout callout-style-default callout-tip callout-titled" title="Worked solution">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-16-contents" aria-controls="callout-16" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Worked solution
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-16" class="callout-16-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>This uses the joint distribution in <a href="../lectures/week04.html#sec-trueskill">Week 4, Latent variables and the TrueSkill model</a> and the unnormalized-density setting of <a href="../lectures/week04.html#sec-sampling">Sampling from an unnormalized density</a>.</p>
+<ol type="1">
+<li>Prior times one factor per game, with games independent given the skills: <span class="math display">\log p=-\log(2\pi)-\tfrac12\big(z_A^2+z_B^2\big)</span> <span class="math display">{}+3\log\sigma(z_A-z_B)+\log\sigma(z_B-z_A).</span></li>
+<li>Using <span class="math inline">\log\sigma(0)=-0.6931</span>, <span class="math inline">\log\sigma(1)=-0.3133</span>, <span class="math inline">\log\sigma(-1)=-1.3133</span>:
+<ul>
+<li><span class="math inline">(0,0)</span>: likelihood <span class="math inline">4(-0.6931)=-2.7726</span>, prior <span class="math inline">0</span>; total <span class="math inline">-2.773</span>.</li>
+<li><span class="math inline">(0.5,-0.5)</span>: <span class="math inline">d=1</span>, likelihood <span class="math inline">3(-0.3133)-1.3133=-2.2530</span>, prior <span class="math inline">-0.25</span>; total <span class="math inline">-2.503</span>.</li>
+<li><span class="math inline">(1.5,0.5)</span>: <span class="math inline">d=1</span> again, so the same likelihood <span class="math inline">-2.2530</span>, prior <span class="math inline">-\tfrac12(2.25+0.25)=-1.25</span>; total <span class="math inline">-3.503</span>.</li>
+</ul>
+<span class="math inline">(0.5,-0.5)</span> is the most probable of the three.</li>
+<li><span class="math inline">p(z_A,z_B\mid\text{games})=p(z_A,z_B,\text{games})/p(\text{games})</span>, and the denominator does not depend on <span class="math inline">(z_A,z_B)</span>. Dividing by a constant, or subtracting a constant in log space, shifts every height by the same amount, so the <a href="https://en.wikipedia.org/wiki/Level_set">level sets</a> are the same curves; only their labels change.</li>
+<li>The likelihood is a function of <span class="math inline">z_A-z_B=d</span> alone. For the prior, <span class="math inline">z_A=\tfrac{s+d}{2}</span> and <span class="math inline">z_B=\tfrac{s-d}{2}</span>, so <span class="math display">z_A^2+z_B^2=\tfrac14\big[(s+d)^2+(s-d)^2\big]=\tfrac12\big(s^2+d^2\big),</span> and the prior is proportional to <span class="math inline">e^{-d^2/4}\,e^{-s^2/4}</span>. (The change of variables also brings a constant Jacobian factor, which does not affect the shape.) The posterior is therefore <span class="math inline">\big[e^{-d^2/4}\times\text{likelihood}(d)\big]\times e^{-s^2/4}</span>: the games update our belief about the skill <em>difference</em>, while the belief about the <em>sum</em> stays exactly at the prior. Part 2 shows this: <span class="math inline">(0.5,-0.5)</span> and <span class="math inline">(1.5,0.5)</span> share <span class="math inline">d=1</span> and get the same likelihood, and only the prior separates them.</li>
+</ol>
+<p><strong>Answer.</strong> (2) <span class="math inline">-2.773</span>, <span class="math inline">-2.503</span>, <span class="math inline">-3.503</span>; <span class="math inline">(0.5,-0.5)</span> is highest. (3) The normalizer is a constant shift. (4) Likelihood in <span class="math inline">d</span> only, prior <span class="math inline">\propto e^{-d^2/4}e^{-s^2/4}</span>, so data inform <span class="math inline">d</span> and leave <span class="math inline">s</span> at its prior.</p>
+</div>
+</div>
+</div>
+</section>
+<section id="prb-17" class="level3">
+<h3 class="anchored" data-anchor-id="prb-17">Problem 17: Looking up skills game by game</h3>
+<p>Four players have skills <code>z = np.array([0.5, -1.0, 2.0, 0.0])</code>. Five games are stored one per row as (winner index, loser index):</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>games <span class="op">=</span> np.array([[<span class="dv">2</span>, <span class="dv">0</span>],</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>                  [<span class="dv">0</span>, <span class="dv">1</span>],</span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>                  [<span class="dv">3</span>, <span class="dv">1</span>],</span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>                  [<span class="dv">2</span>, <span class="dv">3</span>],</span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a>                  [<span class="dv">1</span>, <span class="dv">0</span>]])</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>What does <code>z[games[:, 0]] - z[games[:, 1]]</code> evaluate to, and what does each entry mean in the model?</p>
+<div class="practice-answer callout callout-style-default callout-tip callout-titled" title="Worked solution">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-17-contents" aria-controls="callout-17" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Worked solution
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-17" class="callout-17-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>This sets up the “one factor per game” product of <a href="../lectures/week04.html#sec-trueskill">Week 4, Latent variables and the TrueSkill model</a>.</p>
+<ul>
+<li><code>games[:, 0]</code> is the winner column <code>[2, 0, 3, 2, 1]</code>, and indexing <code>z</code> with an integer array returns one entry per index: <code>z[games[:, 0]]</code> is <code>[2.0, 0.5, 0.0, 2.0, -1.0]</code>.</li>
+<li><code>games[:, 1]</code> is <code>[0, 1, 1, 3, 0]</code>, so <code>z[games[:, 1]]</code> is <code>[0.5, -1.0, -1.0, 0.0, 0.5]</code>.</li>
+<li>The elementwise difference has shape <code>(5,)</code>, one entry per game.</li>
+</ul>
+<p>Each entry is <span class="math inline">z_{\text{winner}}-z_{\text{loser}}</span>, the argument of <span class="math inline">\sigma</span> in that game’s likelihood factor. Positive entries are games the stronger player won. The last entry, <span class="math inline">-1.5</span>, is an upset: player 1 beat a player rated higher, so its factor <span class="math inline">\sigma(-1.5)\approx0.18</span> is small. Player indices may repeat across rows, which is how several games between the same pair, or one player in many games, are handled with no loop.</p>
+<p><strong>Answer.</strong> <code>array([ 1.5,  1.5,  1. ,  2. , -1.5])</code>: the winner-minus-loser skill gap for each game.</p>
+</div>
+</div>
+</div>
+</section>
+<section id="prb-18" class="level3">
+<h3 class="anchored" data-anchor-id="prb-18">Problem 18: A probability from posterior samples</h3>
+<p>Suppose some sampler has produced eight draws from a joint posterior over two players’ skills <span class="math inline">(z_i,z_j)</span>:</p>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th><span class="math inline">r</span></th>
+<th>1</th>
+<th>2</th>
+<th>3</th>
+<th>4</th>
+<th>5</th>
+<th>6</th>
+<th>7</th>
+<th>8</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><span class="math inline">z_i</span></td>
+<td>1.2</td>
+<td>0.4</td>
+<td>1.5</td>
+<td>0.9</td>
+<td>0.3</td>
+<td>1.1</td>
+<td>1.8</td>
+<td>0.7</td>
+</tr>
+<tr class="even">
+<td><span class="math inline">z_j</span></td>
+<td>0.8</td>
+<td>0.9</td>
+<td>1.1</td>
+<td>0.2</td>
+<td>0.6</td>
+<td>1.3</td>
+<td>0.7</td>
+<td>0.4</td>
+</tr>
+</tbody>
+</table>
+<ol type="1">
+<li>Estimate <span class="math inline">\mathbb P(z_i\ge z_j\mid\text{games})</span>.</li>
+<li>Estimate the posterior mean and standard deviation of <span class="math inline">z_i</span>.</li>
+<li>If the draws were independent, roughly how uncertain is the estimate in part 1?</li>
+</ol>
+<div class="practice-answer callout callout-style-default callout-tip callout-titled" title="Worked solution">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-18-contents" aria-controls="callout-18" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Worked solution
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-18" class="callout-18-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>This uses <a href="../lectures/week04.html#sec-goals">Week 4, What sampling is for</a> and <a href="../lectures/week04.html#sec-simplemc">Simple Monte Carlo</a>.</p>
+<ol type="1">
+<li>A probability is the expectation of an indicator function: <span class="math inline">\mathbb P(z_i\ge z_j)=\mathbb E\big[\mathbf 1_{\{z_i\ge z_j\}}\big]</span>. The simple Monte Carlo estimate is the fraction of samples where the event holds. Row by row the indicator is <span class="math inline">1,0,1,1,0,0,1,1</span>, so the estimate is <span class="math inline">5/8=0.625</span>.</li>
+<li>Mean: <span class="math inline">\hat\Phi_1=7.9/8=0.9875</span>. For the spread, use the second test function <span class="math inline">\phi_2=z_i^2</span>: <span class="math inline">\hat\Phi_2=9.69/8=1.2113</span>, so the variance estimate is <span class="math inline">\hat\Phi_2-\hat\Phi_1^2=1.2113-0.9752=0.2361</span> and the standard deviation is <span class="math inline">0.486</span>.</li>
+<li>The indicator has variance <span class="math inline">p(1-p)</span>, so with independent draws <span class="math inline">\mathrm{var}[\hat\Phi]=p(1-p)/R\approx0.625\cdot0.375/8=0.029</span>, a standard deviation of about <span class="math inline">0.17</span>. Eight samples cannot pin the probability down. The <span class="math inline">1/R</span> rate assumes independent draws; samplers that produce each draw from the previous one (next week’s topic) give correlated samples, and then the error shrinks more slowly than this formula says.</li>
+</ol>
+<p><strong>Answer.</strong> (1) <span class="math inline">0.625</span>. (2) Mean <span class="math inline">0.9875</span>, standard deviation <span class="math inline">\approx0.486</span>. (3) About <span class="math inline">\pm0.17</span> (one standard deviation) for independent draws.</p>
+</div>
+</div>
+</div>
+
+
+</section>
+</section>
+
+</main> <!-- /main -->
+<script id="quarto-html-after-body" type="application/javascript">
+  window.document.addEventListener("DOMContentLoaded", function (event) {
+    const icon = "";
+    const anchorJS = new window.AnchorJS();
+    anchorJS.options = {
+      placement: 'right',
+      icon: icon
+    };
+    anchorJS.add('.anchored');
+    const isCodeAnnotation = (el) => {
+      for (const clz of el.classList) {
+        if (clz.startsWith('code-annotation-')) {                     
+          return true;
+        }
+      }
+      return false;
+    }
+    const onCopySuccess = function(e) {
+      // button target
+      const button = e.trigger;
+      // don't keep focus
+      button.blur();
+      // flash "checked"
+      button.classList.add('code-copy-button-checked');
+      var currentTitle = button.getAttribute("title");
+      button.setAttribute("title", "Copied!");
+      let tooltip;
+      if (window.bootstrap) {
+        button.setAttribute("data-bs-toggle", "tooltip");
+        button.setAttribute("data-bs-placement", "left");
+        button.setAttribute("data-bs-title", "Copied!");
+        tooltip = new bootstrap.Tooltip(button, 
+          { trigger: "manual", 
+            customClass: "code-copy-button-tooltip",
+            offset: [0, -8]});
+        tooltip.show();    
+      }
+      setTimeout(function() {
+        if (tooltip) {
+          tooltip.hide();
+          button.removeAttribute("data-bs-title");
+          button.removeAttribute("data-bs-toggle");
+          button.removeAttribute("data-bs-placement");
+        }
+        button.setAttribute("title", currentTitle);
+        button.classList.remove('code-copy-button-checked');
+      }, 1000);
+      // clear code selection
+      e.clearSelection();
+    }
+    const getTextToCopy = function(trigger) {
+      const outerScaffold = trigger.parentElement.cloneNode(true);
+      const codeEl = outerScaffold.querySelector('code');
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+    }
+    const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
+      text: getTextToCopy
+    });
+    clipboard.on('success', onCopySuccess);
+    if (window.document.getElementById('quarto-embedded-source-code-modal')) {
+      const clipboardModal = new window.ClipboardJS('.code-copy-button[data-in-quarto-modal]', {
+        text: getTextToCopy,
+        container: window.document.getElementById('quarto-embedded-source-code-modal')
+      });
+      clipboardModal.on('success', onCopySuccess);
+    }
+      var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+      var mailtoRegex = new RegExp(/^mailto:/);
+        var filterRegex = new RegExp('/' + window.location.host + '/');
+      var isInternal = (href) => {
+          return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+      }
+      // Inspect non-navigation links and adorn them if external
+     var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+      for (var i=0; i<links.length; i++) {
+        const link = links[i];
+        if (!isInternal(link.href)) {
+          // undo the damage that might have been done by quarto-nav.js in the case of
+          // links that we want to consider external
+          if (link.dataset.originalHref !== undefined) {
+            link.href = link.dataset.originalHref;
+          }
+            // target, if specified
+            link.setAttribute("target", "_blank");
+            if (link.getAttribute("rel") === null) {
+              link.setAttribute("rel", "noopener");
+            }
+        }
+      }
+    function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+      const config = {
+        allowHTML: true,
+        maxWidth: 500,
+        delay: 100,
+        arrow: false,
+        appendTo: function(el) {
+            return el.parentElement;
+        },
+        interactive: true,
+        interactiveBorder: 10,
+        theme: 'quarto',
+        placement: 'bottom-start',
+      };
+      if (contentFn) {
+        config.content = contentFn;
+      }
+      if (onTriggerFn) {
+        config.onTrigger = onTriggerFn;
+      }
+      if (onUntriggerFn) {
+        config.onUntrigger = onUntriggerFn;
+      }
+      window.tippy(el, config); 
+    }
+    const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+    for (var i=0; i<noterefs.length; i++) {
+      const ref = noterefs[i];
+      tippyHover(ref, function() {
+        // use id or data attribute instead here
+        let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+        try { href = new URL(href).hash; } catch {}
+        const id = href.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note) {
+          return note.innerHTML;
+        } else {
+          return "";
+        }
+      });
+    }
+    const xrefs = window.document.querySelectorAll('a.quarto-xref');
+    const processXRef = (id, note) => {
+      // Strip column container classes
+      const stripColumnClz = (el) => {
+        el.classList.remove("page-full", "page-columns");
+        if (el.children) {
+          for (const child of el.children) {
+            stripColumnClz(child);
+          }
+        }
+      }
+      stripColumnClz(note)
+      if (id === null || id.startsWith('sec-')) {
+        // Special case sections, only their first couple elements
+        const container = document.createElement("div");
+        if (note.children && note.children.length > 2) {
+          container.appendChild(note.children[0].cloneNode(true));
+          for (let i = 1; i < note.children.length; i++) {
+            const child = note.children[i];
+            if (child.tagName === "P" && child.innerText === "") {
+              continue;
+            } else {
+              container.appendChild(child.cloneNode(true));
+              break;
+            }
+          }
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(container);
+          }
+          return container.innerHTML
+        } else {
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(note);
+          }
+          return note.innerHTML;
+        }
+      } else {
+        // Remove any anchor links if they are present
+        const anchorLink = note.querySelector('a.anchorjs-link');
+        if (anchorLink) {
+          anchorLink.remove();
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        if (note.classList.contains("callout")) {
+          return note.outerHTML;
+        } else {
+          return note.innerHTML;
+        }
+      }
+    }
+    for (var i=0; i<xrefs.length; i++) {
+      const xref = xrefs[i];
+      tippyHover(xref, undefined, function(instance) {
+        instance.disable();
+        let url = xref.getAttribute('href');
+        let hash = undefined; 
+        if (url.startsWith('#')) {
+          hash = url;
+        } else {
+          try { hash = new URL(url).hash; } catch {}
+        }
+        if (hash) {
+          const id = hash.replace(/^#\/?/, "");
+          const note = window.document.getElementById(id);
+          if (note !== null) {
+            try {
+              const html = processXRef(id, note.cloneNode(true));
+              instance.setContent(html);
+            } finally {
+              instance.enable();
+              instance.show();
+            }
+          } else {
+            // See if we can fetch this
+            fetch(url.split('#')[0])
+            .then(res => res.text())
+            .then(html => {
+              const parser = new DOMParser();
+              const htmlDoc = parser.parseFromString(html, "text/html");
+              const note = htmlDoc.getElementById(id);
+              if (note !== null) {
+                const html = processXRef(id, note);
+                instance.setContent(html);
+              } 
+            }).finally(() => {
+              instance.enable();
+              instance.show();
+            });
+          }
+        } else {
+          // See if we can fetch a full url (with no hash to target)
+          // This is a special case and we should probably do some content thinning / targeting
+          fetch(url)
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.querySelector('main.content');
+            if (note !== null) {
+              // This should only happen for chapter cross references
+              // (since there is no id in the URL)
+              // remove the first header
+              if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+                note.children[0].remove();
+              }
+              const html = processXRef(null, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      }, function(instance) {
+      });
+    }
+        let selectedAnnoteEl;
+        const selectorForAnnotation = ( cell, annotation) => {
+          let cellAttr = 'data-code-cell="' + cell + '"';
+          let lineAttr = 'data-code-annotation="' +  annotation + '"';
+          const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+          return selector;
+        }
+        const selectCodeLines = (annoteEl) => {
+          const doc = window.document;
+          const targetCell = annoteEl.getAttribute("data-target-cell");
+          const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+          const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+          const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+          const lineIds = lines.map((line) => {
+            return targetCell + "-" + line;
+          })
+          let top = null;
+          let height = null;
+          let parent = null;
+          if (lineIds.length > 0) {
+              //compute the position of the single el (top and bottom and make a div)
+              const el = window.document.getElementById(lineIds[0]);
+              top = el.offsetTop;
+              height = el.offsetHeight;
+              parent = el.parentElement.parentElement;
+            if (lineIds.length > 1) {
+              const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+              const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+              height = bottom - top;
+            }
+            if (top !== null && height !== null && parent !== null) {
+              // cook up a div (if necessary) and position it 
+              let div = window.document.getElementById("code-annotation-line-highlight");
+              if (div === null) {
+                div = window.document.createElement("div");
+                div.setAttribute("id", "code-annotation-line-highlight");
+                div.style.position = 'absolute';
+                parent.appendChild(div);
+              }
+              div.style.top = top - 2 + "px";
+              div.style.height = height + 4 + "px";
+              div.style.left = 0;
+              let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+              if (gutterDiv === null) {
+                gutterDiv = window.document.createElement("div");
+                gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+                gutterDiv.style.position = 'absolute';
+                const codeCell = window.document.getElementById(targetCell);
+                const gutter = codeCell.querySelector('.code-annotation-gutter');
+                gutter.appendChild(gutterDiv);
+              }
+              gutterDiv.style.top = top - 2 + "px";
+              gutterDiv.style.height = height + 4 + "px";
+            }
+            selectedAnnoteEl = annoteEl;
+          }
+        };
+        const unselectCodeLines = () => {
+          const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+          elementsIds.forEach((elId) => {
+            const div = window.document.getElementById(elId);
+            if (div) {
+              div.remove();
+            }
+          });
+          selectedAnnoteEl = undefined;
+        };
+          // Handle positioning of the toggle
+      window.addEventListener(
+        "resize",
+        throttle(() => {
+          elRect = undefined;
+          if (selectedAnnoteEl) {
+            selectCodeLines(selectedAnnoteEl);
+          }
+        }, 10)
+      );
+      function throttle(fn, ms) {
+      let throttle = false;
+      let timer;
+        return (...args) => {
+          if(!throttle) { // first call gets through
+              fn.apply(this, args);
+              throttle = true;
+          } else { // all the others get throttled
+              if(timer) clearTimeout(timer); // cancel #2
+              timer = setTimeout(() => {
+                fn.apply(this, args);
+                timer = throttle = false;
+              }, ms);
+          }
+        };
+      }
+        // Attach click handler to the DT
+        const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+        for (const annoteDlNode of annoteDls) {
+          annoteDlNode.addEventListener('click', (event) => {
+            const clickedEl = event.target;
+            if (clickedEl !== selectedAnnoteEl) {
+              unselectCodeLines();
+              const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+              if (activeEl) {
+                activeEl.classList.remove('code-annotation-active');
+              }
+              selectCodeLines(clickedEl);
+              clickedEl.classList.add('code-annotation-active');
+            } else {
+              // Unselect the line
+              unselectCodeLines();
+              clickedEl.classList.remove('code-annotation-active');
+            }
+          });
+        }
+    const findCites = (el) => {
+      const parentEl = el.parentElement;
+      if (parentEl) {
+        const cites = parentEl.dataset.cites;
+        if (cites) {
+          return {
+            el,
+            cites: cites.split(' ')
+          };
+        } else {
+          return findCites(el.parentElement)
+        }
+      } else {
+        return undefined;
+      }
+    };
+    var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+    for (var i=0; i<bibliorefs.length; i++) {
+      const ref = bibliorefs[i];
+      const citeInfo = findCites(ref);
+      if (citeInfo) {
+        tippyHover(citeInfo.el, function() {
+          var popup = window.document.createElement('div');
+          citeInfo.cites.forEach(function(cite) {
+            var citeDiv = window.document.createElement('div');
+            citeDiv.classList.add('hanging-indent');
+            citeDiv.classList.add('csl-entry');
+            var biblioDiv = window.document.getElementById('ref-' + cite);
+            if (biblioDiv) {
+              citeDiv.innerHTML = biblioDiv.innerHTML;
+            }
+            popup.appendChild(citeDiv);
+          });
+          return popup.innerHTML;
+        });
+      }
+    }
+  });
+  </script>
+<nav class="page-navigation">
+  <div class="nav-page nav-page-previous">
+      <a href="../lectures/week04.html" class="pagination-link" aria-label="Week 4: Message Passing and Monte Carlo">
+        <i class="bi bi-arrow-left-short"></i> <span class="nav-page-text"><span class="chapter-title">Week 4: Message Passing and Monte Carlo</span></span>
+      </a>          
+  </div>
+  <div class="nav-page nav-page-next">
+      <a href="../lectures/week05.html" class="pagination-link" aria-label="Week 5: Sampling with MCMC">
+        <span class="nav-page-text"><span class="chapter-title">Week 5: Sampling with MCMC</span></span> <i class="bi bi-arrow-right-short"></i>
+      </a>
+  </div>
+</nav>
+</div> <!-- /content -->
+
+
+
+
+<script src="../site_libs/quarto-html/zenscroll-min.js"></script>
+</body></html>

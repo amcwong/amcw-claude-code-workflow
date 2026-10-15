@@ -1,0 +1,406 @@
+---
+title: "Week 5 practice: Sampling with MCMC"
+---
+
+```{=html}
+<style>#title-block-header { display: none; }</style>
+<div class="lecture-header">
+  <h1>Week 5 practice: Sampling with MCMC</h1>
+</div>
+```
+
+**Overview.** These problems drill [Week 5](week05.qmd) in two sections. [Lecture practice](#sec-w5p-lecture) works through the lecture's own content: transition matrices, stationary distributions, detailed balance, Metropolis-Hastings, Gibbs sampling, and $\hat R$. [Homework 2 practice](#sec-w5p-hw2) prepares the sampling skills a homework relies on. Try each stem before opening the worked solution. Every chain, corpus, target density, code snippet, accept/reject sequence, and sample matrix here is invented for practice; none is a homework item, and no homework function is written out. Notation matches the week chapter.
+
+## Lecture practice {#sec-w5p-lecture}
+
+### Problem 1: Two steps on a three-state chain {#prb-1}
+
+A stationary [Markov chain](https://en.wikipedia.org/wiki/Markov_chain) on states $\{1,2,3\}$ has transition matrix
+
+$$A = \begin{pmatrix} 0.5 & 0.3 & 0.2\\ 0.2 & 0.6 & 0.2\\ 0.1 & 0.3 & 0.6\end{pmatrix}, \qquad A_{ij}=p(x_t=j\mid x_{t-1}=i).$$
+
+1. Check that $A$ is a valid transition matrix. Do its columns need to sum to 1?
+2. Starting in state 1, what is the probability of being in state 3 two steps later? Compute it as a sum over the intermediate state.
+3. Compute the full two-step matrix $A(2)$ and check one of its rows.
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+This uses [Week 5, Transition matrices and state transition diagrams](week05.qmd#sec-transition) and [n-step transitions and the Chapman-Kolmogorov equations](week05.qmd#sec-nstep).
+
+1. Every entry is nonnegative, and the rows sum to $0.5+0.3+0.2=1$, $0.2+0.6+0.2=1$, $0.1+0.3+0.6=1$. Row $i$ is the distribution of the next state given the current state $i$, so rows must sum to 1. Columns need not: here they sum to $0.8$, $1.2$, $1.0$.
+2. The chain must pass through some state $k$ after one step:
+$$A_{13}(2) = \sum_k A_{1k}A_{k3} = 0.5(0.2)+0.3(0.2)+0.2(0.6) = 0.10+0.06+0.12 = 0.28.$$
+The three terms are "stay at 1, then move to 3", "move to 2, then to 3", and "move to 3, then stay".
+3. By Chapman-Kolmogorov, $A(2)=A^2$:
+$$A^2 = \begin{pmatrix} 0.33 & 0.39 & 0.28\\ 0.24 & 0.48 & 0.28\\ 0.17 & 0.39 & 0.44\end{pmatrix}.$$
+Row 1 sums to $0.33+0.39+0.28=1$, as every row of a transition matrix must.
+
+**Answer.** (1) Valid; only rows must sum to 1. (2) $0.28$. (3) $A^2$ as above.
+:::
+
+### Problem 2: The stationary distribution of the same chain {#prb-2}
+
+For the chain of Problem 1:
+
+1. Find the [stationary distribution](https://en.wikipedia.org/wiki/Discrete-time_Markov_chain#Stationary_distributions) $\pi$ by solving $A^\top\pi=\pi$ with $\pi_1+\pi_2+\pi_3=1$.
+2. Check your answer by applying one step of the chain.
+3. Which state does the chain spend most time in, in the long run? Explain from the matrix why.
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+This uses [Week 5, The stationary distribution](week05.qmd#sec-stationary).
+
+1. The condition $\pi_j=\sum_i\pi_iA_{ij}$ gives one equation per column. Column 1 and column 3:
+$$\pi_1 = 0.5\pi_1+0.2\pi_2+0.1\pi_3 \ \Rightarrow\ 5\pi_1 = 2\pi_2+\pi_3,$$
+$$\pi_3 = 0.2\pi_1+0.2\pi_2+0.6\pi_3 \ \Rightarrow\ 2\pi_3 = \pi_1+\pi_2.$$
+(The column-2 equation is implied by these two and the rows summing to 1, so it adds nothing.) Substituting $\pi_3=5\pi_1-2\pi_2$ into the second equation gives $10\pi_1-4\pi_2=\pi_1+\pi_2$, so $\pi_2=\tfrac95\pi_1$ and $\pi_3=\tfrac75\pi_1$. Normalizing, $\pi_1(1+\tfrac95+\tfrac75)=1$ gives $\pi_1=\tfrac5{21}$, so
+$$\pi = \big(\tfrac{5}{21},\ \tfrac{9}{21},\ \tfrac{7}{21}\big) \approx (0.238,\ 0.429,\ 0.333).$$
+2. Column 2 of $A$ is $(0.3,0.6,0.3)$, so $(A^\top\pi)_2=\tfrac{0.3(5)+0.6(9)+0.3(7)}{21}=\tfrac{9}{21}$, which equals $\pi_2$. The other two entries check the same way.
+3. State 2. Its self-transition probability, $0.6$, ties for the largest, and every state sends at least $0.3$ of its probability into state 2. State 1 keeps only half its probability and receives little from the others. As with the two-state chain in the week chapter, states that are easy to enter and hard to leave collect long-run probability.
+
+**Answer.** $\pi=(5,9,7)/21\approx(0.238,0.429,0.333)$; state 2 is visited most.
+:::
+
+### Problem 3: Unique? Convergent? {#prb-3}
+
+Three chains on states $\{1,2,3\}$:
+
+$$C_1 = \begin{pmatrix} 0&1&0\\ 0&0&1\\ 1&0&0\end{pmatrix},$$
+$$C_2 = \begin{pmatrix} 1&0&0\\ 0.3&0.4&0.3\\ 0&0&1\end{pmatrix},$$
+$$C_3 = \begin{pmatrix} 0&1&0\\ 0&0.5&0.5\\ 0.5&0&0.5\end{pmatrix}.$$
+
+For each chain: is it irreducible? Is it regular? Is its stationary distribution unique? Started in a single state, does the distribution of $x_t$ converge?
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+This uses [Week 5, When is the stationary distribution unique?](week05.qmd#sec-unique)
+
+**$C_1$, the deterministic 3-cycle** $1\to2\to3\to1$. Every state reaches every other, so it is irreducible. But $C_1^3=I$, so the powers cycle through $C_1$, $C_1^2$, $I$, and each has zeros: not regular. The stationary equations $A^\top\pi=\pi$ read $\pi_1=\pi_3$, $\pi_2=\pi_1$, $\pi_3=\pi_2$, so the only solution is $(\tfrac13,\tfrac13,\tfrac13)$: unique. Started in state 1, the distribution goes $(1,0,0)\to(0,1,0)\to(0,0,1)\to(1,0,0)$ and never converges. This is the three-state version of the week's swapping chain.
+
+**$C_2$, two absorbing states.** States 1 and 3 can never be left, so state 1 cannot reach state 3: not irreducible, hence not regular. Both $(1,0,0)$ and $(0,0,1)$ are stationary, and so is any mixture $(a,0,1-a)$: not unique. Each run does converge: from state 2, every step leaks $0.3$ to each side, so the distribution tends to $(0.5,0,0.5)$, while from state 1 it stays $(1,0,0)$. The limit depends on the start, which is exactly what MCMC cannot allow.
+
+**$C_3$.** The path $1\to2\to3\to1$ shows it is irreducible. $C_3^2$ still has a zero (state 1 cannot reach itself in two steps), but
+$$C_3^3 = \begin{pmatrix} 0.25&0.25&0.5\\ 0.25&0.375&0.375\\ 0.125&0.5&0.375\end{pmatrix}$$
+is all positive, so the chain is regular. By the theorem, the stationary distribution is unique and the chain converges to it from any start. Solving gives $\pi=(0.2,\ 0.4,\ 0.4)$; check: $(C_3^\top\pi)_1=0.5(0.4)=0.2$.
+
+Regularity can take a few steps to show up: a zero in $A$ or $A^2$ does not rule it out.
+
+**Answer.** $C_1$: irreducible, not regular, unique, does not converge. $C_2$: not irreducible, not regular, not unique, converges to a start-dependent limit. $C_3$: irreducible, regular, unique $\pi=(0.2,0.4,0.4)$, converges.
+:::
+
+### Problem 4: A bigram model from a tiny corpus {#prb-4}
+
+A first-order [language model](https://en.wikipedia.org/wiki/Language_model) is fitted by maximum likelihood to four sentences:
+
+"I like turtles", "you like turtles", "I like snails", "you don't like snails".
+
+1. Compute $\hat\pi$ (first-word probabilities) and every nonzero $\hat A_{jk}$.
+2. Score the sentence "you don't like turtles".
+3. Score "I don't like turtles". What goes wrong, and why?
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+This uses [Week 5, Application: Markov language models](week05.qmd#sec-langmodel).
+
+1. Two sentences start with "I" and two with "you", so $N^1_{\text{I}}=N^1_{\text{you}}=2$ and $\hat\pi_{\text{I}}=\hat\pi_{\text{you}}=\tfrac12$. The MLE of each row is "count over row total":
+    - after "I": like twice, so $\hat A_{\text{I},\text{like}}=1$;
+    - after "you": like once, don't once, so $\tfrac12$ each;
+    - after "don't": like once, so $\hat A_{\text{don't},\text{like}}=1$;
+    - after "like": turtles twice, snails twice, so $\tfrac12$ each.
+2. One first-word factor and one transition per later word:
+$$p(\text{you don't like turtles}) = \hat\pi_{\text{you}}\,\hat A_{\text{you},\text{don't}}$$
+$$\times\,\hat A_{\text{don't},\text{like}}\,\hat A_{\text{like},\text{turtles}}$$
+$$= \tfrac12\cdot\tfrac12\cdot1\cdot\tfrac12 = \tfrac18.$$
+This sentence never appears in the corpus, yet it gets positive probability, because each of its bigrams does appear.
+3. The factor $\hat A_{\text{I},\text{don't}}$ is $0$: "don't" never follows "I" in the corpus. One zero factor makes the whole product $0$, so a perfectly reasonable sentence is called impossible. Maximum likelihood gives zero probability to every transition it has not seen, because the count-over-total formula of the Multinomial MLE turns a zero count into a zero probability.
+
+**Answer.** (1) $\hat\pi=(\tfrac12,\tfrac12)$ for I, you; transitions as listed. (2) $\tfrac18$. (3) $0$, because the unseen bigram "I don't" has MLE probability 0.
+:::
+
+### Problem 5: Stationary without detailed balance, and a chain built to satisfy it {#prb-5}
+
+1. Show that the uniform distribution is stationary for the 3-cycle $C_1$ of Problem 3, but that $C_1$ does not satisfy [detailed balance](https://en.wikipedia.org/wiki/Detailed_balance) with respect to it.
+2. Now take the target $\pi=(0.5,\ 0.3,\ 0.2)$ on $\{1,2,3\}$. Build a Metropolis chain: from state $i$, propose each of the two other states with probability $\tfrac12$, and accept a proposed $j$ with probability $\min\{1,\pi_j/\pi_i\}$. Write out the full transition matrix, including the probabilities of staying put.
+3. Verify detailed balance for every pair, and verify $A^\top\pi=\pi$ directly.
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+This uses [Week 5, Detailed balance](week05.qmd#sec-detailed) and [Why Metropolis-Hastings works](week05.qmd#sec-mh-proof).
+
+1. Problem 3 showed $(\tfrac13,\tfrac13,\tfrac13)$ is stationary. For detailed balance we need $\pi_iA_{ij}=\pi_jA_{ji}$. Take $i=1$, $j=2$: the left side is $\tfrac13\cdot1$ and the right side is $\tfrac13\cdot0$. Probability flows around the cycle in one direction only, so the flow along each edge is not balanced, even though the total flow into each state equals the total flow out. This is the week's point that detailed balance is sufficient, not necessary.
+2. The proposal is symmetric ($q=\tfrac12$ both ways), so this is the Metropolis rule. A move off state $i$ to $j$ has probability $\tfrac12\min\{1,\pi_j/\pi_i\}$:
+    - from 1: to 2, $\tfrac12\cdot0.6=0.3$; to 3, $\tfrac12\cdot0.4=0.2$; stay $0.5$;
+    - from 2: to 1, $\tfrac12\cdot1=0.5$; to 3, $\tfrac12\cdot\tfrac23=\tfrac13$; stay $\tfrac16$;
+    - from 3: to 1, $0.5$; to 2, $0.5$; stay $0$.
+
+    So
+    $$A = \begin{pmatrix} 0.5 & 0.3 & 0.2\\ 0.5 & \tfrac16 & \tfrac13\\ 0.5 & 0.5 & 0\end{pmatrix}.$$
+    The stay-put entries are the rejected proposals. State 3 never rejects, because both alternatives are more probable.
+3. Detailed balance, pair by pair:
+$$\pi_1A_{12} = 0.5(0.3) = 0.15 = 0.3(0.5) = \pi_2A_{21},$$
+$$\pi_1A_{13} = 0.5(0.2) = 0.1 = 0.2(0.5) = \pi_3A_{31},$$
+$$\pi_2A_{23} = 0.3(\tfrac13) = 0.1 = 0.2(0.5) = \pi_3A_{32}.$$
+Each flow equals $\tfrac12\min\{\pi_i,\pi_j\}$, symmetric in $i$ and $j$, as in the proof. Directly, column by column:
+$$0.5(0.5)+0.3(0.5)+0.2(0.5) = 0.5,$$
+$$0.5(0.3)+0.3(\tfrac16)+0.2(0.5) = 0.3,$$
+$$0.5(0.2)+0.3(\tfrac13)+0.2(0) = 0.2.$$
+
+**Answer.** (1) $\tfrac13\cdot1\neq\tfrac13\cdot0$, so no detailed balance despite stationarity. (2) $A$ as above. (3) All three pair flows match, and $A^\top\pi=\pi$.
+:::
+
+### Problem 6: When the Hastings correction matters {#prb-6}
+
+The target on $(0,1)$ is $\tilde p(\theta)=\theta^3(1-\theta)^5$. The proposal ignores the current state and draws $\theta'$ from the density $q(\theta')=2\theta'$ on $(0,1)$, which favours large values.
+
+1. The chain is at $\theta=0.3$ and proposes $\theta'=0.5$. Compute the [Metropolis-Hastings](https://en.wikipedia.org/wiki/Metropolis%E2%80%93Hastings_algorithm) acceptance probability, and the value you would get by wrongly using the Metropolis rule (no $q$ ratio).
+2. Repeat for the reverse move, from $0.5$ to $0.3$.
+3. Explain the direction of the correction.
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+This uses [Week 5, The Metropolis-Hastings algorithm](week05.qmd#sec-mh).
+
+Here $q(x'\mid x)=2x'$, so $q(\theta\mid\theta')=2\theta$ and $q(\theta'\mid\theta)=2\theta'$. The target ratio is
+$$\frac{\tilde p(0.5)}{\tilde p(0.3)} = \Big(\frac{0.5}{0.3}\Big)^3\Big(\frac{0.5}{0.7}\Big)^5 = 4.630\times0.1859 \approx 0.861.$$
+
+1. MH multiplies by $q(0.3\mid0.5)/q(0.5\mid0.3)=0.6/1.0$:
+$$\alpha = \min\{1,\ 0.861\times0.6\} \approx 0.516.$$
+The Metropolis rule would give $\min\{1,0.861\}=0.861$.
+2. Reverse: the target ratio is $1/0.861\approx1.162$ and the $q$ ratio is $1.0/0.6$, so $\alpha=\min\{1,\ 1.936\}=1$. The Metropolis rule also gives $1$.
+3. This proposal suggests $0.5$ more readily than $0.3$ (density $1.0$ against $0.6$). Without correction, the chain would accept those frequent upward proposals too often and overweight large $\theta$; its stationary distribution would be proportional to $\tilde p(\theta)\,q(\theta)$ rather than $\tilde p(\theta)$. The factor $q(x\mid x')/q(x'\mid x)$ lowers acceptance for moves the proposal favours, so the flows $\min\{p(x)q(x'\mid x),\,p(x')q(x\mid x')\}$ balance again.
+
+**Answer.** (1) $\approx0.516$ (Metropolis would give $0.861$). (2) $1$ either way. (3) The correction discounts moves the proposal makes too often.
+:::
+
+### Problem 7: One Gibbs sweep, and a tempting bug {#prb-7}
+
+Target: a [bivariate Gaussian](https://en.wikipedia.org/wiki/Multivariate_normal_distribution) with mean $\mu=(1,-1)$, unit variances, and correlation $\rho=-0.5$. Start at $x^{(0)}=(0,0)$. The standard-normal draws for the first sweep are $\varepsilon_1=0.4$ (for $x_1$) and $\varepsilon_2=-1.0$ (for $x_2$), used as $\text{mean}+\text{sd}\cdot\varepsilon$.
+
+1. Carry out one [Gibbs](https://en.wikipedia.org/wiki/Gibbs_sampling) sweep.
+2. Someone writes the sweep as
+
+```python
+x1_new = m1(x2) + sd * eps1
+x2_new = m2(x1) + sd * eps2   # uses the old x1
+x1, x2 = x1_new, x2_new
+```
+
+where `m1`, `m2` are the conditional means. What value of $x_2$ does this produce from the same start and draws?
+
+3. Suppose $(x_1,x_2)$ is already an exact draw from the target. Under the buggy update, what is $\mathrm{cov}(x_1',x_2')$? Is the target still stationary?
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+This uses [Week 5, The conditional distribution of a bivariate Gaussian](week05.qmd#sec-gauss-cond) and [Gibbs sampling](week05.qmd#sec-gibbs).
+
+Both full conditionals have variance $1-\rho^2=0.75$, so $\text{sd}=0.866$.
+
+1. Update $x_1$ given $x_2=0$: mean $1+(-0.5)(0-(-1))=0.5$, so $x_1=0.5+0.866(0.4)=0.846$. Update $x_2$ given the **new** $x_1=0.846$: mean $-1+(-0.5)(0.846-1)=-0.923$, so $x_2=-0.923+0.866(-1.0)=-1.789$. After one sweep, $x^{(1)}=(0.846,\ -1.789)$. The negative correlation shows: $x_1$ came out a little below its mean, which nudged $x_2$'s conditional mean a little above $-1$.
+2. The buggy line conditions on the old $x_1=0$: mean $-1+(-0.5)(0-1)=-0.5$, so $x_2=-0.5-0.866=-1.366$. Both coordinates are now drawn from the previous state at once, which is not the algorithm in the week chapter, where each coordinate conditions on the *most recent* value of the others.
+3. Under the buggy update, $x_1'=\mu_1+\rho(x_2-\mu_2)+\text{noise}$ and $x_2'=\mu_2+\rho(x_1-\mu_1)+\text{noise}$, with independent noises. So
+$$\mathrm{cov}(x_1',x_2') = \rho^2\,\mathrm{cov}(x_2,x_1) = \rho^3 = -0.125.$$
+The target has covariance $-0.5$, so one step of the buggy update moves an exact draw away from the target: the target is not stationary. Each coordinate's marginal is still correct, which is why this bug can survive a check of means and variances alone.
+
+**Answer.** (1) $x^{(1)}\approx(0.846,\ -1.789)$. (2) $x_2\approx-1.366$. (3) $\rho^3=-0.125\neq-0.5$; the target is not stationary under the buggy update.
+:::
+
+### Problem 8: R-hat versus split R-hat {#prb-8}
+
+Two chains, each of length $n=4$ after burn-in, record a scalar quantity:
+
+$$\text{chain 1: } 1.0,\ 2.2,\ 2.8,\ 4.0, \qquad \text{chain 2: } 1.2,\ 1.8,\ 3.2,\ 3.8.$$
+
+1. Compute $B$, $W$, $\widehat{\mathrm{var}}^+$, and $\hat R$ for the two chains.
+2. Now split each chain into halves and compute $\hat R$ for the four half-chains.
+3. Which value tells the truth about these chains, and why?
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+This uses [Week 5, The R-hat statistic](week05.qmd#sec-rhat), including split-$\hat R$.
+
+1. Both chain means are $2.5$, so the overall mean is $2.5$ and $B=0$. Sample variances: chain 1 has deviations $-1.5,-0.3,0.3,1.5$, so $s_1^2=4.68/3=1.56$; chain 2 has $-1.3,-0.7,0.7,1.3$, so $s_2^2=4.36/3=1.453$. Then
+$$W = 1.507, \qquad \widehat{\mathrm{var}}^+ = \tfrac34(1.507)+\tfrac14(0) = 1.13,$$
+$$\hat R = \sqrt{1.13/1.507} = \sqrt{0.75} \approx 0.87.$$
+With $B=0$, $\hat R=\sqrt{(n-1)/n}$, slightly below 1 for short chains. Nothing here signals a problem.
+2. The halves $[1.0,2.2]$, $[2.8,4.0]$, $[1.2,1.8]$, $[3.2,3.8]$ have means $1.6$, $3.4$, $1.5$, $3.5$ (overall $2.5$) and sample variances $0.72$, $0.72$, $0.18$, $0.18$. With $m=4$, $n=2$:
+$$B = \tfrac23\big[0.81+0.81+1+1\big] = 2.413, \qquad W = 0.45,$$
+$$\widehat{\mathrm{var}}^+ = \tfrac12(0.45)+\tfrac12(2.413) = 1.432, \qquad \hat R = \sqrt{1.432/0.45} \approx 1.78.$$
+3. The split value. Both chains drift steadily upward together, so they agree with each other at every point and plain $\hat R$ cannot see the drift. Splitting compares each chain's first half with its second half, and the halves disagree strongly, which reveals that neither chain is stationary yet. Toy chains of length 4 are only for the arithmetic; real diagnostics use far longer runs.
+
+**Answer.** (1) $B=0$, $W\approx1.507$, $\widehat{\mathrm{var}}^+\approx1.13$, $\hat R\approx0.87$. (2) Split $\hat R\approx1.78$. (3) Split-$\hat R$: the chains drift in step, which only the split comparison detects.
+:::
+
+## Homework 2 practice {#sec-w5p-hw2}
+
+The problems in this section prepare the pieces a homework on sampling a skill posterior relies on: one [Hamiltonian Monte Carlo](https://en.wikipedia.org/wiki/Hamiltonian_Monte_Carlo) iteration written with the gradient of a log density, an accept step computed in log space, what a stored chain contains, and how to summarize and judge a matrix of samples.
+
+### Problem 9: One leapfrog step on a one-player skill posterior {#prb-9}
+
+A single player has skill $z$ with prior $z\sim\mathcal N(0,1)$. They play one game against an opponent whose skill is known to be $0$, and win. With the course's win probability $\sigma(z-0)$, where $\sigma$ is the [logistic function](https://en.wikipedia.org/wiki/Logistic_function), the unnormalized log-posterior (dropping constants) is
+
+$$\log\tilde p(z) = -\tfrac12z^2 + \log\sigma(z).$$
+
+1. Using $\frac{d}{dy}\log\sigma(y)=1-\sigma(y)=\sigma(-y)$, write $\nabla\log\tilde p(z)$. Which term pulls $z$ toward the prior mean, and which pushes it up because of the win?
+2. Start HMC at $z=0$ with fresh momentum $v=1$ and step size $\epsilon=0.5$. Do one [leapfrog](https://en.wikipedia.org/wiki/Leapfrog_integration) step ($L=1$) in the gradient-of-log-density form.
+3. With $E(z)=-\log\tilde p(z)$ and $K(v)=\tfrac12v^2$, compute $H$ at the start and at the end, and the acceptance probability.
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+This uses the energy and Hamiltonian of [Week 5, Hamiltonian Monte Carlo](week05.qmd#sec-hmc) and the integrator of [The leapfrog integrator and the HMC algorithm](week05.qmd#sec-leapfrog).
+
+1. Differentiate term by term:
+$$\nabla\log\tilde p(z) = -z + \sigma(-z).$$
+The $-z$ comes from the Gaussian prior and always points back toward 0. The $\sigma(-z)$ comes from the win and is always positive, so it pushes $z$ upward; it fades as $z$ grows, because a large skill already explains the win.
+
+2. At $z=0$ the gradient is $0+\sigma(0)=0.5$. The three leapfrog updates, with $+\tfrac\epsilon2\nabla\log\tilde p$ in place of $-\tfrac\epsilon2\nabla E$:
+$$v_{1/2} = 1 + 0.25\,(0.5) = 1.125,$$
+$$z' = 0 + 0.5\,(1.125) = 0.5625,$$
+$$\nabla\log\tilde p(0.5625) = -0.5625 + \sigma(-0.5625) = -0.5625+0.3630 = -0.1995,$$
+$$v' = 1.125 + 0.25\,(-0.1995) = 1.0751.$$
+The momentum grew on the first half step (the win pushed uphill in probability) and shrank slightly on the second (past $z\approx0.4$ the prior pull wins).
+
+3. At the start, $E(0)=0-\log\sigma(0)=\log2=0.6931$ and $K=0.5$, so $H=1.1931$. At the end,
+$$E(0.5625) = 0.1582 - \log\sigma(0.5625) = 0.1582+0.4510 = 0.6091,$$
+$$K = \tfrac12(1.0751)^2 = 0.5779, \qquad H = 1.1871.$$
+The total energy changed by only $-0.006$: potential energy dropped and kinetic energy rose by almost the same amount, as in the week's worked example. The acceptance probability is $\min\{1,\ e^{1.1931-1.1871}\}=\min\{1,\ e^{0.006}\}=1$.
+
+**Answer.** (1) $\nabla\log\tilde p(z)=-z+\sigma(-z)$: $-z$ is the prior pull, $\sigma(-z)$ the push from the win. (2) $v_{1/2}=1.125$, $z'=0.5625$, $v'\approx1.0751$. (3) $H\approx1.1931\to1.1871$; accepted with probability 1.
+:::
+
+### Problem 10: Which gradient goes in the momentum update {#prb-10}
+
+A leapfrog function contains these two momentum lines:
+
+```python
+v_half = v + 0.5 * eps * grad(x)
+v_new  = v_half + 0.5 * eps * grad(x_new)
+```
+
+1. For this to be the leapfrog integrator of the week chapter, must `grad` return $\nabla\log\tilde p(x)$ or $\nabla E(x)$?
+2. Suppose someone passes the other one by mistake. Using the target of Problem 9, at $z=0$ with $v=1$ and $\epsilon=0.5$, what is $v_{1/2}$ now, and in which direction does the trajectory bend over many steps? What happens to the acceptance rate?
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+This uses the remark on writing leapfrog with the log density in [Week 5, The leapfrog integrator and the HMC algorithm](week05.qmd#sec-leapfrog).
+
+1. The lecture's momentum update is $v\leftarrow v-\tfrac\epsilon2\nabla E(x)$. The code *adds* the gradient, and since $-\nabla E=\nabla\log\tilde p$, `grad` must return $\nabla\log\tilde p(x)$, the gradient of the log density. The gradient of the energy would need a minus sign.
+2. Passing $\nabla E=-\nabla\log\tilde p$ flips every momentum kick. At $z=0$ the energy gradient is $-0.5$, so $v_{1/2}=1+0.25(-0.5)=0.875$ instead of $1.125$. Over many steps the momentum is pushed toward *higher* energy, that is toward low-probability regions: the ball rolls uphill and accelerates away from the mode. Total energy is no longer close to conserved along the simulated path, $H$ at the end is typically far larger than at the start, and $e^{H_{\text{start}}-H_{\text{end}}}$ is close to 0. Almost every proposal is rejected and the chain sits still.
+
+A collapsed acceptance rate with a small step size is therefore worth checking for a sign error before tuning $\epsilon$.
+
+**Answer.** (1) $\nabla\log\tilde p$. (2) $v_{1/2}=0.875$; trajectories bend away from high probability, $H$ grows, and acceptance collapses toward 0.
+:::
+
+### Problem 11: A Metropolis accept step in log space {#prb-11}
+
+An accept step is written as
+
+```python
+accept_prob = exp(logp(new_state) - logp(old_state))
+if random.random() < accept_prob:
+    state = new_state
+```
+
+where `logp` returns $\log p(x,v)$ up to a constant, that is $-H(x,v)$, for a (position, momentum) pair.
+
+1. If `logp(old_state)` is $-12.4$ and `logp(new_state)` is $-13.1$, what is the acceptance probability?
+2. If instead `logp(new_state)` is $-12.1$, what does `accept_prob` evaluate to, and is the move accepted? The code never takes $\min\{1,\cdot\}$. Is that a bug?
+3. Why compute $\exp$ of a difference of logs, rather than `p(new) / p(old)`?
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+This uses the acceptance rule of [Week 5, The Metropolis-Hastings algorithm](week05.qmd#sec-mh) and its HMC form in [The leapfrog integrator and the HMC algorithm](week05.qmd#sec-leapfrog).
+
+1. $e^{-13.1-(-12.4)}=e^{-0.7}\approx0.497$. In energy terms, $H$ rose by $0.7$, and the move is accepted about half the time.
+2. $e^{-12.1+12.4}=e^{0.3}\approx1.35$. `random.random()` returns a number in $[0,1)$, which is always below $1.35$, so the move is always accepted. Accepting with probability $\min\{1,r\}$ and testing $u<r$ for a uniform $u$ give the same decision for every $r$, so leaving out the $\min$ is not a bug.
+3. The log densities of a posterior with many coordinates are large negative numbers (hundreds or thousands). Exponentiating each one separately underflows to $0$, and $0/0$ is undefined. The difference of logs is a modest number, and only that is exponentiated. Any constant, including $\log Z$, cancels in the difference, which is the same reason MH never needs $Z$.
+
+**Answer.** (1) $\approx0.497$. (2) $\approx1.35$, always accepted; the missing $\min$ is harmless. (3) To avoid underflow; the difference is small and constants cancel.
+:::
+
+### Problem 12: What the stored chain contains {#prb-12}
+
+A sampler starts at $\theta=0$ and runs this loop six times:
+
+```python
+samples = []
+for t in range(6):
+    samples.append(theta)
+    # propose theta_new, then accept or reject
+    theta = accept_or_reject(theta, theta_new)
+```
+
+The six proposals and decisions are: $0.8$ accepted, $1.4$ rejected, $1.1$ accepted, $2.0$ rejected, $1.5$ rejected, $0.9$ accepted.
+
+1. Write out `samples`. Is the last accepted value, $0.9$, in it?
+2. What is the acceptance rate?
+3. Compute the mean of `samples`, and the mean you would get if repeated values were dropped. Which one is the MCMC estimate, and why?
+4. Why is the first stored value suspect, and what is it called when we discard such early values?
+5. For a posterior over $N$ players' skills, what shape are `theta` and the momentum drawn in each HMC iteration?
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+This uses [Week 5, Why MCMC](week05.qmd#sec-whymcmc) and the remark "a rejection is still a sample" in [The Metropolis-Hastings algorithm](week05.qmd#sec-mh).
+
+1. The state is appended *before* each update, so the list records the state at the start of each iteration. A rejection leaves $\theta$ unchanged, so the next append repeats it:
+$$[\,0,\ 0.8,\ 0.8,\ 1.1,\ 1.1,\ 1.1\,].$$
+The final value $0.9$ is reached after the last append and is not stored. It would be the first entry of a seventh iteration.
+2. Three of six proposals were accepted: $3/6=0.5$.
+3. With repeats, the mean is $4.9/6\approx0.817$. Dropping repeats leaves $[0,0.8,1.1]$ with mean $0.633$. The first is the MCMC estimate. Staying at $1.1$ for three iterations is how the chain says that $1.1$ has more posterior mass nearby than the rejected proposals; the stay-put probability is part of the transition rule whose stationary distribution is the target, as the detailed-balance proof shows.
+4. The chain was started at an arbitrary point, $0$, not at a draw from the posterior. Early states reflect the starting point more than the target. Discarding them is the **burn-in**. With only six samples nothing here can be called converged; the arithmetic is for bookkeeping only.
+5. Both have one entry per player: shape $(N,)$. HMC samples all coordinates jointly, and the momentum always has the same dimension as the position.
+
+**Answer.** (1) $[0,0.8,0.8,1.1,1.1,1.1]$; $0.9$ is not stored. (2) $0.5$. (3) $\approx0.817$ with repeats (correct) versus $0.633$ without. (4) It is the arbitrary start; dropping early values is burn-in. (5) Both shape $(N,)$.
+:::
+
+### Problem 13: From a sample matrix to a ranking {#prb-13}
+
+After burn-in, a sampler has produced six draws of four players' skills, stored as an array `S` of shape `(6, 4)`: one row per sample, one column per player.
+
+| sample | player 0 | player 1 | player 2 | player 3 |
+|---|---|---|---|---|
+| 1 | 0.9 | −0.4 | 1.6 | 0.2 |
+| 2 | 1.1 | −0.2 | 1.2 | 0.5 |
+| 3 | 0.7 | −0.6 | 1.5 | 0.9 |
+| 4 | 1.3 | 0.1 | 1.0 | 0.4 |
+| 5 | 0.8 | −0.5 | 1.4 | 1.0 |
+| 6 | 1.0 | −0.3 | 1.1 | 0.6 |
+
+1. Estimate each player's posterior mean and standard deviation. Along which axis of `S` do the averages run?
+2. Rank the players from highest to lowest mean skill.
+3. Estimate $\mathbb P(z_3\ge z_0\mid\text{games})$.
+4. These draws come from a Markov chain. Why is the estimate in part 3 less precise than $p(1-p)/R$ suggests?
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+This uses the Monte Carlo average of [Week 5, Why MCMC](week05.qmd#sec-whymcmc) and [Effective sample size](week05.qmd#sec-ess).
+
+1. Each column is a sample from one player's marginal posterior, so the averages run down the rows (axis 0), giving one number per player. For player 0, the mean is $5.8/6=0.967$; the squared deviations sum to $0.2333$, so dividing by $6$ and taking the square root gives a standard deviation of $0.197$. The same steps for every column:
+
+    | | player 0 | player 1 | player 2 | player 3 |
+    |---|---|---|---|---|
+    | mean | 0.967 | −0.317 | 1.300 | 0.600 |
+    | std | 0.197 | 0.227 | 0.216 | 0.277 |
+
+    (Dividing by $5$ instead of $6$ gives slightly larger values; with thousands of samples the difference vanishes.)
+2. Sorting by mean: player 2, player 0, player 3, player 1. In code this is an argsort of the mean vector, reversed for highest first; the result is a list of player indices, not of skills.
+3. The probability is the expectation of an indicator. Row by row, $z_3\ge z_0$ holds in samples 3 and 5 only, so the estimate is $2/6\approx0.333$. The comparison is made within each row, because each row is one joint draw. Comparing the two players' means alone would only say player 0 is higher on average, not how often.
+4. The formula $p(1-p)/R$ assumes independent draws. Consecutive MCMC draws are positively correlated, so $R$ draws carry the information of only $n_{\text{eff}}<R$ independent ones, and the variance is closer to $p(1-p)/n_{\text{eff}}$.
+
+**Answer.** (1) Means $(0.967,\ -0.317,\ 1.300,\ 0.600)$, standard deviations $(0.197,\ 0.227,\ 0.216,\ 0.277)$, averaging over axis 0. (2) $2,0,3,1$. (3) $1/3$. (4) Correlated samples reduce the effective sample size.
+:::
+
+### Problem 14: Step size, trajectory length, and what samples are worth {#prb-14}
+
+A posterior has standard deviation about $1$ in each coordinate. Three HMC settings are tried:
+
+| setting | $\epsilon$ | $L$ |
+|---|---|---|
+| A | 0.02 | 10 |
+| B | 0.1 | 15 |
+| C | 1.5 | 1 |
+
+1. For each setting, how far can one trajectory move (in units of the posterior's standard deviation), and how many gradient evaluations does each iteration cost?
+2. Which setting behaves most like a random walk, and which is most likely to have a low acceptance rate? Explain.
+3. A run of 4000 samples has lag-one autocorrelation $0.95$. Assuming $\rho_t=\rho^t$ as in the week's example, estimate $n_{\text{eff}}$. Repeat for $\rho=0.5$.
+4. Four chains of setting A all pass $\hat R\approx1$. Is that enough to trust them?
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+This uses the two knobs of [Week 5, The leapfrog integrator and the HMC algorithm](week05.qmd#sec-leapfrog), [Effective sample size](week05.qmd#sec-ess), and [Diagnostics rule of thumb](week05.qmd#sec-rule).
+
+1. The trajectory length is $L\epsilon$: A $0.2$, B $1.5$, C $1.5$. Each leapfrog step evaluates the gradient once, so A costs about 10 gradients per iteration, B 15, C 1.
+2. **A** behaves most like a random walk. Each proposal moves at most about $0.2$ standard deviations, so the chain needs many iterations to cross the posterior, consecutive samples are strongly correlated, and the acceptance rate is high for the wrong reason, as with the tutorial's tiny-step chain. **C** is most likely to have a low acceptance rate: a single step of size $1.5$ is large compared with the posterior's width, the integration error in $H$ is large, and $e^{H_{\text{start}}-H_{\text{end}}}$ is often small. **B** covers the same distance as C in small steps, so it travels far while keeping $H$ nearly constant.
+3. The factor is $\frac{1+\rho}{1-\rho}$. For $\rho=0.95$ it is $1.95/0.05=39$, so $n_{\text{eff}}\approx4000/39\approx103$. For $\rho=0.5$ it is $3$, so $n_{\text{eff}}\approx1333$. The same number of iterations is worth about thirteen times more in the second case.
+4. Not on its own. The rule of thumb asks for $\hat R$ near 1 **and** $\hat n_{\text{eff}}$ above 10 per chain, and even passing both shows only that the chains appear mixed. Slow chains started near each other can agree while all of them have explored only a small part of the posterior.
+
+How the specific settings in a homework behave on its data is left to the homework.
+
+**Answer.** (1) $L\epsilon=0.2,\ 1.5,\ 1.5$; costs 10, 15, 1 gradients. (2) A is random-walk-like; C risks low acceptance. (3) $n_{\text{eff}}\approx103$ and $\approx1333$. (4) No: also check $\hat n_{\text{eff}}$, and passing shows apparent mixing only.
+:::

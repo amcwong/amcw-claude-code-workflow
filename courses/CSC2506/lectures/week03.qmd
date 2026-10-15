@@ -201,6 +201,17 @@ $$p(x_1,x_2,x_3,x_4) = \frac{1}{Z}\,\psi_{1,2}(x_1,x_2)\,\psi_{2,3}(x_2,x_3)\,\p
 
 **Figure 2.** A 4-cycle: each edge is its own maximal clique, since no three nodes here are all pairwise connected. Each $\psi$ can be stored as a small table (for binary variables, 4 numbers per edge); these numbers are potentials, not probabilities, since the normalizer $Z$ has not been applied.
 
+Because the variables are finite discrete, each potential really is just a table of nonnegative numbers. The lecture gives these four tables for the 4-cycle. Each row is one setting of the edge's two variables, listed in the order the potential takes them (for $\psi_{1,4}$, that is $(x_1,x_4)$):
+
+| Setting of the edge | $\psi_{1,2}(x_1,x_2)$ | $\psi_{2,3}(x_2,x_3)$ | $\psi_{3,4}(x_3,x_4)$ | $\psi_{1,4}(x_1,x_4)$ |
+|:---:|---:|---:|---:|---:|
+| $(0,0)$ | 30 | 100 | 1 | 100 |
+| $(0,1)$ | 5 | 1 | 100 | 1 |
+| $(1,0)$ | 1 | 1 | 100 | 1 |
+| $(1,1)$ | 10 | 100 | 1 | 100 |
+
+A larger entry makes that setting of the pair more likely, other things equal. So $\psi_{2,3}$ and $\psi_{1,4}$ strongly favour their two variables agreeing, $\psi_{3,4}$ strongly favours $x_3$ and $x_4$ disagreeing, and $\psi_{1,2}$ mildly favours $(0,0)$. None of the columns sums to 1. To get the probability of one full setting, multiply the four matching entries, then divide by $Z$, the sum of those products over all $2^4=16$ settings.
+
 ## The Hammersley-Clifford theorem {#sec-hc}
 
 We now have two ways to read an undirected graph. @sec-mrf reads it as a **factorization**: a product of clique potentials. The motivation in @sec-motivate reads it as a set of **independence statements**: a variable should depend only on its neighbours. Nothing so far says these two readings describe the same distributions. The Hammersley-Clifford theorem says they do, for distributions that are strictly positive.
@@ -225,6 +236,21 @@ $$f(y,z) = \Big(\sum_x \alpha(x,y)\Big)\beta(y,z).$$
 Dividing the joint by this marginal gives the conditional:
 $$f(x\mid y,z) = \frac{\alpha(x,y)\,\beta(y,z)}{\left(\sum_x \alpha(x,y)\right)\beta(y,z)} = \frac{\alpha(x,y)}{\sum_x \alpha(x,y)}.$$
 The right-hand side has no $z$ in it at all, so $f(x\mid y,z)$ does not depend on $z$, which is exactly $X\perp Z\mid Y$. The mechanism is the same cancellation as Week 2's causal-chain check (@sec-cistructures in Week 2): a shared factor in numerator and denominator drops out, leaving no trace of the conditioned-out variable.
+
+::: {.callout-tip collapse="true" .clarification title="Question: If no potential contains both x and z, are X and Z independent even when Y is not observed?"}
+No. The factorization gives independence only *given* $Y$. Without $Y$, the two ends of the chain are generally dependent, because each one carries information about $Y$, and $Y$ carries information about the other.
+
+Take binary $x,y,z$ and the agreement potentials from the factorization example in @sec-mrf: $\alpha(x,y)=2$ if $x=y$ and $1$ otherwise, and $\beta(y,z)$ defined the same way. The eight products $\alpha\beta$ sum to $18$.
+
+**Given $Y$, independent.** At $y=1$, the four products are $4$ (for $x=z=1$), $2$, $2$, and $1$, summing to $9$. So
+$$P(X=1,Z=1\mid Y=1)=\frac49=\frac23\cdot\frac23=P(X=1\mid Y=1)\,P(Z=1\mid Y=1).$$
+
+**Without $Y$, dependent.** By symmetry $P(X=1)=P(Z=1)=\tfrac12$, so independence would need $P(X=1,Z=1)=\tfrac14=\tfrac{4.5}{18}$. Summing over $y$ instead:
+$$P(X=1,Z=1)=\frac{\alpha(1,0)\,\beta(0,1)+\alpha(1,1)\,\beta(1,1)}{18}=\frac{1+4}{18}=\frac{5}{18}.$$
+Since $\tfrac{5}{18}\neq\tfrac{4.5}{18}$, $X$ and $Z$ are dependent.
+
+**Why the split breaks.** Each term of $\sum_y\alpha(x,y)\,\beta(y,z)$ is a function of $x$ times a function of $z$, but a sum of two such products is generally not itself a product. Observing $Y$ picks out a single term, and that term does split. This is the Ising practice question of @sec-ising worked in numbers, and the same pattern as the causal chain of @sec-cistructures in Week 2.
+:::
 
 ## Worked example: cliques, factorization, and independence {#sec-mrf-example}
 
@@ -274,6 +300,36 @@ $$p(\boldsymbol{x}) \propto \psi_{1,2,3}(x_1,x_2,x_3)\,\psi_{2,3,5}(x_2,x_3,x_5)
 $${}\times \psi_{3,5,6}(x_3,x_5,x_6)\,\psi_{4,5,6,7}(x_4,x_5,x_6,x_7).$$
 
 **What independencies does the graph imply?** Reading the global Markov property off the picture: removing $\{3,4,5\}$ disconnects $\{1,2\}$ from $\{6,7\}$ entirely (every path from $1$ or $2$ to $6$ or $7$ passes through $3$, $4$, or $5$), so $(X_1,X_2) \perp (X_6,X_7) \mid (X_3,X_4,X_5)$. Similarly, every path from $1$ to $5$ passes through $2$ or $3$, so $X_1 \perp X_5 \mid (X_2,X_3)$.
+
+::: {.callout-tip collapse="true" .clarification title="Question: How does the factorization itself prove these independencies, not just the picture?"}
+Hammersley-Clifford promises that separation and factorization agree. We can check this directly for $(X_1,X_2)\perp(X_6,X_7)\mid(X_3,X_4,X_5)$, with $A=\{1,2\}$, $B=\{6,7\}$, $S=\{3,4,5\}$.
+
+**No clique touches both sides.** The pairs 1-6, 1-7, 2-6, 2-7 are all non-edges, and a clique needs every pair joined, so no clique holds a node of $A$ and a node of $B$. Each clique lies inside $A\cup S$ or inside $B\cup S$:
+
+| Side | Cliques |
+|---|---|
+| inside $A\cup S$ | $\{1,2,3\}$, $\{2,3,5\}$, $\{2,4,5\}$ |
+| inside $B\cup S$ | $\{3,5,6\}$, $\{4,5,6,7\}$ |
+
+**Group the factors by side.**
+$$p(\boldsymbol x)=\frac1Z\,f(x_A,x_S)\,g(x_B,x_S),$$
+$$f=\psi_{1,2,3}\,\psi_{2,3,5}\,\psi_{2,4,5},\qquad g=\psi_{3,5,6}\,\psi_{4,5,6,7}.$$
+
+**Condition on $x_S$.** Dividing by $p(x_S)$, the $\frac1Z$ cancels. In the denominator, $g$ does not depend on $x_A'$, so the distributive law splits the double sum into a product of two single sums:
+$$\begin{aligned}
+p(x_A,x_B\mid x_S)&=\frac{f(x_A,x_S)\,g(x_B,x_S)}{\sum_{x_A'}\sum_{x_B'}f(x_A',x_S)\,g(x_B',x_S)}\\
+&=\frac{f(x_A,x_S)}{\sum_{x_A'}f(x_A',x_S)}\cdot\frac{g(x_B,x_S)}{\sum_{x_B'}g(x_B',x_S)}.
+\end{aligned}$$
+Each fraction sums to 1 over its own variables, so summing over $x_B$ shows the first is $p(x_A\mid x_S)$, and summing over $x_A$ shows the second is $p(x_B\mid x_S)$. That is the definition of conditional independence.
+
+**Nodes that are neither observed nor in the claim.** For $X_1\perp X_6\mid(X_2,X_3)$, nodes 4, 5, 7 stay random and are summed out. Only $\psi_{1,2,3}$ lacks all of $x_4,x_5,x_7$, so it moves outside the sums:
+$$p(x_1,x_2,x_3,x_6)=\frac1Z\,\psi_{1,2,3}(x_1,x_2,x_3)\,\tilde g(x_2,x_3,x_6),$$
+where $\tilde g=\sum_{x_4,x_5,x_7}\psi_{2,3,5}\,\psi_{2,4,5}\,\psi_{3,5,6}\,\psi_{4,5,6,7}$ is left depending only on $x_2,x_3,x_6$. This is again a function of $(x_1,x_S)$ times a function of $(x_6,x_S)$, so the same conditioning step applies.
+
+**When it fails.** Try $X_2\perp X_6\mid(X_4,X_5)$. Node 3 is unobserved, $\psi_{2,3,5}$ contains $x_2$ and $x_3$, and $\psi_{3,5,6}$ contains $x_3$ and $x_6$. Summing out $x_3$ leaves one factor containing both $x_2$ and $x_6$, so no split exists. In the graph, this is the path 2-3-6, which avoids $\{4,5\}$.
+
+The general check: cross the observed variables out of every factor, join two remaining variables whenever some factor contains both, and see whether any chain of joins links $A$ to $B$. This is graph separation stated in terms of factors.
+:::
 
 ::: {.callout-note}
 **Practice question.** In Figure 3, is $X_1 \perp X_4 \mid X_2$? Check by finding every path from node 1 to node 4 and seeing whether $\{2\}$ blocks all of them.
@@ -388,17 +444,139 @@ The catch is that $Z$ and its gradient sum over every joint configuration, which
 
 **When does the log-linear form hold?** For finite discrete $x_C$, $\log\psi_C$ takes only finitely many values, one per setting of $x_C$. Let $\theta_C$ list all those values, and let $\phi_C(x_C)$ be the indicator vector with a 1 in the entry matching $x_C$'s current setting and 0 elsewhere: then $\theta_C^\top \phi_C(x_C)$ just selects out the one matching entry, which is $\log\psi_C(x_C\mid\theta_C)$ by construction. As in Week 1's exponential-family facts, the log-partition function's gradient recovers an expectation: $\partial \log Z(\theta) / \partial \theta_C = \mathbb{E}[\phi_C(X_C)]$.
 
-**Worked example: minimal vs. non-minimal.** Take the chain $X_1 - X_2 - X_3$ with binary variables, so $p(x_1,x_2,x_3\mid\theta) = \frac{1}{Z(\theta)}\psi_{1,2}(x_1,x_2\mid\theta_{1,2})\,\psi_{2,3}(x_2,x_3\mid\theta_{2,3})$. Following the finite-discrete construction, index $\theta_{1,2}$ by the four settings of $(x_1,x_2)$:
-$$\theta_{1,2} := \begin{bmatrix}\log\psi_{1,2}(0,0)\\ \log\psi_{1,2}(0,1)\\ \log\psi_{1,2}(1,0)\\ \log\psi_{1,2}(1,1)\end{bmatrix} \in \mathbb{R}^4,$$
-with $\phi_{1,2}(x_1,x_2)$ the corresponding indicator vector, e.g. $\phi_{1,2}(0,1) = (0,1,0,0)^\top$. This reproduces $\log\psi_{1,2}(x_1,x_2\mid\theta_{1,2}) = \theta_{1,2}^\top \phi_{1,2}(x_1,x_2)$ exactly. If the potentials are taken to be normalized already (as the tutorial does), $Z(\theta)=1$; in general $Z(\theta)=\sum_{\boldsymbol x}\exp\{\theta^\top\phi(\boldsymbol x)\}$.
+::: {.callout-tip collapse="true" .clarification title="Question: What does the paragraph on the log-linear form mean in plain terms?"}
+In plain terms, the paragraph says that for a small group of variables with only finitely many settings, any table of positive numbers over those settings can be written as the exponential of a weighted sum. For finite discrete groups this form is always available, so using it costs nothing.
 
-But this representation is **not minimal**: every setting of $\phi_{1,2}(x_1,x_2)$ has entries summing to exactly 1 (only one indicator is ever "on"), so all four possible values of $\phi_{1,2}$ lie on the hyperplane $\{v : v^\top(1,1,1,1)^\top = 1\}$ rather than spanning $\mathbb{R}^4$. The tutorial says a non-minimal family fails the gradient identity $\nabla A(\theta) = \mathbb{E}_\theta[\phi(X)]$. More precisely, the identity still holds for the true log-partition function $A(\theta)=\log Z(\theta)$; what fails is identifiability (different $\theta$ give the same distribution, and $A$ is not strictly convex). The identity only appears to fail if $\theta$ is restricted to the set where $Z(\theta)=1$, because then $A=0$ there and the coordinates of $\theta$ cannot vary independently. The fix is to drop the redundant first coordinate and re-express the other three relative to it:
-$$\bar\theta_{1,2} = \big(\theta^{(1)},\,\theta^{(2)},\,\theta^{(3)}\big), \quad \text{where}$$
-$$\theta^{(1)} = \log\psi_{1,2}(0,1)-\log\psi_{1,2}(0,0),$$
-$$\theta^{(2)} = \log\psi_{1,2}(1,0)-\log\psi_{1,2}(0,0),$$
-$$\theta^{(3)} = \log\psi_{1,2}(1,1)-\log\psi_{1,2}(0,0),$$
-$$\bar\phi_{1,2}(x_1,x_2) = \begin{bmatrix}(1-x_1)x_2\\ x_1(1-x_2)\\ x_1 x_2\end{bmatrix},$$
-and analogously for $\bar\theta_{2,3}, \bar\phi_{2,3}$. This three-dimensional-per-edge parameterization is minimal, and its log-partition function, $A(\bar\theta) = \log Z - \log\big(\psi_{1,2}(0,0)\,\psi_{2,3}(0,0)\big)$, which is $-\log\big(\psi_{1,2}(0,0)\,\psi_{2,3}(0,0)\big)$ under the $Z=1$ convention, is no longer identically zero. The general lesson: writing every table entry as its own parameter is always possible but wastes one degree of freedom per clique to the normalization constraint; a minimal representation fixes a reference setting (here, $(0,0)$) and parameterizes only the *contrast* with it.
+**Step 1: the table becomes a list of weights.** Suppose a group of variables $x_C$ has finitely many settings, for example two binary variables with four settings in total. Its potential $\psi_C$ gives one positive number per setting. Take the log of each number and stack the results into a list $\theta_C$. That gives one weight per setting.
+
+**Step 2: a 0/1 vector picks out the right weight.** For the setting that currently holds, build the vector $\phi_C(x_C)$ that is all zeros except for a single 1 in that setting's slot. Taking the dot product of $\theta_C$ with this vector keeps only the weight in the slot marked 1. That weight is the log of the potential at the current setting, so the weighted sum reproduces the original table exactly.
+
+**Step 3: the slope of the normalizing sum gives probabilities.** $\log Z(\theta)$ is the log of the sum over every joint setting of all the variables. Its slope with respect to one group's weights is the model's average value of that group's 0/1 vector. Each entry of that average is the probability that the group sits in the matching setting, so the slope for a weight is the probability of its setting.
+
+Put simply, this section is a relabeling. A table of log-values is written as a dot product with a 0/1 vector, and the exponential-family tools from Week 1 then apply to it.
+:::
+
+**Worked example: minimal vs. non-minimal.** We now run the finite-discrete construction on the smallest MRF where it is interesting, following the tutorial. The goal is to see exactly what $\theta$ and $\phi$ look like, check that they rebuild the potentials, and find the one parameter per edge that this construction wastes.
+
+**Step 1: the model.**
+$$X_1 - X_2 - X_3, \qquad x_1, x_2, x_3 \in \{0,1\}$$
+$$p(x_1,x_2,x_3\mid\theta) = \frac{1}{Z(\theta)}\,\psi_{1,2}(x_1,x_2\mid\theta_{1,2})\,\psi_{2,3}(x_2,x_3\mid\theta_{2,3})$$
+The chain has two maximal cliques, the edges $\{1,2\}$ and $\{2,3\}$, so by Hammersley-Clifford the distribution is one potential per edge, multiplied and normalized. At this point $\psi_{1,2}$ is only a positive function of two binary variables. Two binary variables have four joint settings, so $\psi_{1,2}$ is nothing more than a table of four positive numbers, and the same holds for $\psi_{2,3}$. We have not yet said how $\theta$ controls those tables; Steps 3 to 5 do that.
+
+**Step 2: move everything into one exponent.**
+$$p(x_1,x_2,x_3\mid\theta) = \exp\big\{\log\psi_{1,2}(x_1,x_2\mid\theta_{1,2}) + \log\psi_{2,3}(x_2,x_3\mid\theta_{2,3}) - \log Z(\theta)\big\}$$
+This is the same distribution, rewritten using $a = e^{\log a}$. We do it because Week 1's exponential family has the shape $\exp\{\theta^\top\phi(\boldsymbol x) - A(\theta)\}$: one exponent, made of a dot product minus a term that depends only on $\theta$. Taking logs turns the product of potentials into a sum. So if each $\log\psi$ can be written as a dot product, the whole exponent becomes one dot product, and the model is an exponential family.
+
+**Step 3: define the weights $\theta_{1,2}$.**
+$$\theta_{1,2} := \begin{bmatrix}\log\psi_{1,2}(0,0)\\ \log\psi_{1,2}(0,1)\\ \log\psi_{1,2}(1,0)\\ \log\psi_{1,2}(1,1)\end{bmatrix} \in \mathbb{R}^4$$
+$\log\psi_{1,2}$ takes exactly four values, one per setting, and those four values are what we would learn from data. Calling the list of them $\theta_{1,2}$ makes the unknowns of the model its parameters directly, with nothing hidden. The order $(0,0),(0,1),(1,0),(1,1)$ is a bookkeeping choice, but it has to be the same order that $\phi_{1,2}$ uses in Step 4.
+
+**Step 4: define the features $\phi_{1,2}$.**
+$$\phi_{1,2}(x_1,x_2) := \begin{bmatrix}(1-x_1)(1-x_2)\\ (1-x_1)\,x_2\\ x_1\,(1-x_2)\\ x_1\,x_2\end{bmatrix}$$
+Each entry is a product that equals 1 for exactly one setting and 0 for the other three. For example, $(1-x_1)\,x_2$ is 1 only when $x_1=0$ and $x_2=1$. Plugging in the four settings gives the four indicator vectors:
+$$\phi_{1,2}(0,0)=\begin{bmatrix}1\\0\\0\\0\end{bmatrix},\quad \phi_{1,2}(0,1)=\begin{bmatrix}0\\1\\0\\0\end{bmatrix},$$
+$$\phi_{1,2}(1,0)=\begin{bmatrix}0\\0\\1\\0\end{bmatrix},\quad \phi_{1,2}(1,1)=\begin{bmatrix}0\\0\\0\\1\end{bmatrix}$$
+We want a vector with a single 1 because Step 5 multiplies it against $\theta_{1,2}$, and a single 1 picks out a single weight. Writing the entries as products of $x_1$ and $x_2$, rather than as a lookup rule, gives one formula that holds for every setting at once. That formula is what lets us do algebra on $\phi$ in Step 8.
+
+**Step 5: check the dot product, and define $\psi$ from it.** For the setting $(0,1)$:
+$$
+\begin{aligned}
+\theta_{1,2}^\top\phi_{1,2}(0,1) &= \log\psi_{1,2}(0,0)\cdot 0 + \log\psi_{1,2}(0,1)\cdot 1 \\
+&\quad + \log\psi_{1,2}(1,0)\cdot 0 + \log\psi_{1,2}(1,1)\cdot 0 \\
+&= \log\psi_{1,2}(0,1)
+\end{aligned}
+$$
+The zeros in $\phi$ cancel every weight except the one for the current setting. The same happens for each of the four settings, so the dot product reproduces the whole table:
+$$\log\psi_{1,2}(x_1,x_2\mid\theta_{1,2}) = \theta_{1,2}^\top\phi_{1,2}(x_1,x_2)$$
+$$\Longleftrightarrow\quad \psi_{1,2}(x_1,x_2\mid\theta_{1,2}) := \exp\{\theta_{1,2}^\top\phi_{1,2}(x_1,x_2)\}$$
+This is where $\psi$ is actually defined in this model. Step 3 built $\theta$ from the table, and this line turns that around: **any** $\theta_{1,2}\in\mathbb{R}^4$ now defines a potential table, by exponentiating the selected weight. The exponential keeps every entry positive, as an MRF potential must be, without constraining $\theta$. The tutorial phrases this as "let $\psi_{1,2}$ be the function that satisfies" the first equation. Repeating Steps 3 to 5 for the edge $\{2,3\}$ gives $\theta_{2,3}$ and $\phi_{2,3}(x_2,x_3)$, with $x_2,x_3$ in place of $x_1,x_2$.
+
+**Step 6: read off the exponential family.** Substituting Step 5 into Step 2:
+$$p(x_1,x_2,x_3\mid\theta) = \exp\big\{\theta_{1,2}^\top\phi_{1,2}(x_1,x_2) + \theta_{2,3}^\top\phi_{2,3}(x_2,x_3) - \log Z(\theta)\big\}$$
+Matching this to Week 1's template, the natural parameter is $\theta = (\theta_{1,2},\theta_{2,3}) \in \mathbb{R}^8$, the sufficient statistic is $\phi = (\phi_{1,2},\phi_{2,3})$, and the log-partition function is $A(\theta)=\log Z(\theta)$, with
+$$Z(\theta) = \sum_{\boldsymbol x\in\{0,1\}^3}\exp\big\{\theta_{1,2}^\top\phi_{1,2}(x_1,x_2) + \theta_{2,3}^\top\phi_{2,3}(x_2,x_3)\big\}.$$
+The tutorial takes the potentials to be normalized already, meaning their product sums to 1 over all eight settings. Under that convention $Z(\theta)=1$.
+
+**Step 7: why this representation is not minimal.**
+$$\phi_{1,2}(x_1,x_2)^\top\begin{bmatrix}1\\1\\1\\1\end{bmatrix} = 1 \quad\text{for all } (x_1,x_2)\in\{0,1\}^2$$
+Exactly one entry of $\phi_{1,2}$ is ever on, so its entries always sum to 1. All four possible values of $\phi_{1,2}$ therefore lie on the hyperplane $\{v : v^\top(1,1,1,1)^\top = 1\}$ rather than spreading through $\mathbb{R}^4$. An exponential family is **minimal** when no such fixed linear relation ties its sufficient statistics together, so this one is not.
+
+The cost shows up as soon as we shift every weight by the same constant $c$:
+$$(\theta_{1,2} + c\,\mathbf{1})^\top\phi_{1,2}(x_1,x_2) = \theta_{1,2}^\top\phi_{1,2}(x_1,x_2) + c$$
+The shift adds $c$ to $\log\psi_{1,2}$ at every setting, which multiplies the whole table by $e^c$. Dividing by $Z$ cancels that factor, so two different parameter vectors give the same distribution. The four weights per edge carry only three numbers' worth of information about $p$.
+
+The tutorial says that a non-minimal family fails the gradient identity $\nabla A(\theta) = \mathbb{E}_\theta[\phi(\boldsymbol X)]$ (@sec-mean). More precisely, the identity still holds for the true log-partition function $A(\theta)=\log Z(\theta)$. What fails is identifiability (different $\theta$ give the same distribution, as just shown, and $A$ is not strictly convex). The identity only appears to fail if $\theta$ is restricted to the set where $Z(\theta)=1$, because then $A=0$ there and the coordinates of $\theta$ cannot vary independently.
+
+**Step 8: the fix, using $(0,0)$ as a reference.** Rearranging the hyperplane relation of Step 7 writes the first entry of $\phi_{1,2}$ in terms of the other three:
+$$(1-x_1)(1-x_2) = 1 - (1-x_1)\,x_2 - x_1(1-x_2) - x_1x_2$$
+Substituting this into $\theta_{1,2}^\top\phi_{1,2}$ and grouping by entry:
+$$
+\begin{aligned}
+\log\psi_{1,2}(x_1,x_2) &= \log\psi_{1,2}(0,0) \\
+&\quad + \big[\log\psi_{1,2}(0,1)-\log\psi_{1,2}(0,0)\big]\,(1-x_1)\,x_2 \\
+&\quad + \big[\log\psi_{1,2}(1,0)-\log\psi_{1,2}(0,0)\big]\,x_1(1-x_2) \\
+&\quad + \big[\log\psi_{1,2}(1,1)-\log\psi_{1,2}(0,0)\big]\,x_1x_2
+\end{aligned}
+$$
+The first line does not depend on $x$, so it is a constant. The other three lines are again weights times features, which suggests the new parameters and statistics:
+$$
+\bar\theta_{1,2} := \begin{bmatrix}
+\log\psi_{1,2}(0,1)-\log\psi_{1,2}(0,0)\\
+\log\psi_{1,2}(1,0)-\log\psi_{1,2}(0,0)\\
+\log\psi_{1,2}(1,1)-\log\psi_{1,2}(0,0)
+\end{bmatrix}
+$$
+$$\bar\phi_{1,2}(x_1,x_2) := \begin{bmatrix}(1-x_1)\,x_2\\ x_1(1-x_2)\\ x_1x_2\end{bmatrix}$$
+so that $\log\psi_{1,2}(x_1,x_2) = \log\psi_{1,2}(0,0) + \bar\theta_{1,2}^\top\bar\phi_{1,2}(x_1,x_2)$. Each new weight is a **contrast**: how much larger the log-potential is at that setting than at $(0,0)$. The reference setting has $\bar\phi_{1,2}(0,0) = \mathbf{0}$, so it needs no weight of its own. Adding the same $c$ to all four old weights leaves every contrast unchanged, which is exactly the redundancy of Step 7 removed. The vector $\bar\phi_{1,2}$ satisfies no fixed linear relation (its four possible values $\mathbf 0$, $e_1$, $e_2$, $e_3$ are not confined to any hyperplane), so each edge on its own is now minimal. The edge $\{2,3\}$ gets $\bar\theta_{2,3}$ and $\bar\phi_{2,3}(x_2,x_3)$ the same way.
+
+**One redundancy is left across the two edges.** The edges share $x_2$, and their contrast features overlap through it:
+$$(1-x_1)\,x_2 + x_1x_2 \;=\; x_2 \;=\; x_2(1-x_3) + x_2x_3 \qquad\text{for every } \boldsymbol x.$$
+So adding $t$ to the first and third entries of $\bar\theta_{1,2}$ while subtracting $t$ from the second and third entries of $\bar\theta_{2,3}$ changes the exponent by $t\,x_2 - t\,x_2 = 0$, and the distribution does not move. The tutorial calls the six-parameter version minimal. That holds edge by edge, but not for the chain as a whole. Removing this last overlap leaves five statistics, $x_1, x_2, x_3, x_1x_2, x_2x_3$ (one weight per node and one per edge, the same shape as the Ising model in @sec-ising), and those five are minimal.
+
+**Step 9: the new log-partition function.** Substituting into Step 2, the two constants $\log\psi_{1,2}(0,0)$ and $\log\psi_{2,3}(0,0)$ leave the data part of the exponent and join the normalizer:
+$$p(x_1,x_2,x_3\mid\bar\theta) = \exp\big\{\bar\theta_{1,2}^\top\bar\phi_{1,2}(x_1,x_2) + \bar\theta_{2,3}^\top\bar\phi_{2,3}(x_2,x_3) - A(\bar\theta)\big\}$$
+$$A(\bar\theta) = \log Z - \log\big(\psi_{1,2}(0,0)\,\psi_{2,3}(0,0)\big)$$
+Under the $Z=1$ convention this is $A(\bar\theta) = -\log\big(\psi_{1,2}(0,0)\,\psi_{2,3}(0,0)\big)$. It is no longer identically zero. Because $p$ must sum to 1 over the eight settings, it can also be written purely in terms of $\bar\theta$, as the tutorial asks:
+$$A(\bar\theta) = \log\sum_{\boldsymbol x\in\{0,1\}^3}\exp\big\{\bar\theta_{1,2}^\top\bar\phi_{1,2}(x_1,x_2) + \bar\theta_{2,3}^\top\bar\phi_{2,3}(x_2,x_3)\big\}$$
+This is a genuine function of $\bar\theta$, not a constant, so the gradient identity can be used directly. Strict convexity needs one more step: $A$ is still flat along the cross-edge direction of Step 8, and only the five-statistic version removes that.
+
+The general lesson: writing every table entry as its own parameter is always possible but wastes one degree of freedom per clique, because the normalizer erases each table's overall scale. Fixing a reference setting (here, $(0,0)$) and parameterizing only the *contrast* with it removes that waste inside each clique. When cliques share a variable, their contrasts can still overlap, and a fully minimal representation removes that overlap too.
+
+::: {.callout-tip collapse="true" .clarification title="Question: What does it mean to write every table entry as its own parameter, and how does that waste a degree of freedom?"}
+Take the potential $\psi_{1,2}$ from the 4-cycle tables at the end of @sec-mrf. Its table holds four numbers, one per setting of $(x_1,x_2)$: 30, 5, 1, 10. Writing every entry as its own parameter means the model stores all four as separate unknowns, here as their logs, $\theta_{1,2} = (\log 30, \log 5, \log 1, \log 10)$. Nothing ties one entry to another.
+
+Now double every entry, to 60, 10, 2, 20. Each joint setting of the four variables uses exactly one entry of this table, so every product of potentials doubles. The normalizer $Z$ is the sum of those products, so it doubles too, and dividing by it cancels the factor. Every probability is exactly what it was before.
+
+So the model cannot tell the two tables apart. What it actually responds to is how the entries compare with each other: setting $(0,0)$ scores 6 times setting $(0,1)$, 30 times setting $(1,0)$, and 3 times setting $(1,1)$. That is four numbers but only three comparisons. The fourth number only sets the overall size of the table, and the normalizer erases it.
+
+That leftover number is the wasted **degree of freedom**: one parameter's worth of freedom that changes nothing about the distribution. Every clique's table has its own overall size, so the waste is one per clique.
+:::
+
+::: {.callout-tip collapse="true" .clarification title="Question: What is a minimal representation?"}
+A representation is the choice of features $\phi$ and weights $\theta$ used to write the model as $\exp\{\theta^\top\phi(\boldsymbol x) - A(\theta)\}$. It is **minimal** when no weight is spare: every change to $\theta$ changes the distribution, so each distribution has exactly one $\theta$.
+
+The test is on the features. Suppose some fixed combination of the features always comes out to the same value, whatever $\boldsymbol x$ is. Then moving the weights along that combination shifts every exponent by the same amount, the normalizer cancels it, and the distribution does not change. The four indicator features of Step 7 always add up to 1, which is exactly this situation. A minimal representation has no such combination.
+
+Why we care: with spare weights, many $\theta$ describe the same model. The best-fitting $\theta$ is then not unique, and the log-partition function $A$ is flat along the spare direction. With a minimal representation, each model has one parameter vector, and Week 1's facts (the gradient of $A$ is the expected features, and $A$ is strictly convex) apply cleanly.
+
+Minimality is a property of the whole model, not of each table on its own. In the chain, each edge's contrasts are minimal by themselves, but the two edges share $x_2$ and still overlap in one direction (Step 8).
+:::
+
+::: {.callout-tip collapse="true" .clarification title="Question: What does it mean to fix a reference setting?"}
+Only comparisons between entries of a table matter (see the first question above). So we pick one setting of the clique and describe every other setting by comparing it with that one. The chosen setting is the **reference**. In the worked example it is $(0,0)$, where both variables are 0. Any setting would work; $(0,0)$ is the tutorial's convention.
+
+Fixing it means the reference setting gets no weight of its own. Its log-potential, $\log\psi_{1,2}(0,0)$, is a constant that does not depend on $\boldsymbol x$, so it leaves the data part of the exponent and joins the normalizer (Step 9). For the 4-cycle's $\psi_{1,2}$, the reference entry is 30, and every other entry is now described relative to 30.
+:::
+
+::: {.callout-tip collapse="true" .clarification title="Question: What does it mean to parameterize only the contrast with the reference setting?"}
+A **contrast** is a comparison between one setting and the reference. Here it is a difference of log-potentials, which is the log of a ratio:
+$$\log\psi_{1,2}(0,1) - \log\psi_{1,2}(0,0) = \log\frac{\psi_{1,2}(0,1)}{\psi_{1,2}(0,0)}.$$
+For the 4-cycle's $\psi_{1,2}$ (entries 30, 5, 1, 10) the three contrasts are
+$$\log\tfrac{5}{30},\qquad \log\tfrac{1}{30},\qquad \log\tfrac{10}{30},$$
+one for each setting other than the reference. A negative contrast means that setting is favoured less than the reference; a contrast of zero means it is favoured equally.
+
+Parameterizing only the contrast means these three numbers are the parameters $\bar\theta_{1,2}$, and the reference entry is not a parameter at all. This removes the spare degree of freedom from the first question: doubling the table to 60, 10, 2, 20 gives $\log\tfrac{10}{60}$, $\log\tfrac{2}{60}$, $\log\tfrac{20}{60}$, which are the same three contrasts. Rescaling a table no longer changes its parameters.
+:::
 
 ## The Ising model {#sec-ising}
 
@@ -418,6 +596,45 @@ where $s\sim t$ ranges over edges. This is exactly the log-linear exponential fa
 **Practice question.** In an Ising model with three spins $X_1,X_2,X_3$ arranged in the chain $X_1-X_2-X_3$ (so $J_{13}=0$), is $X_1 \perp X_3$ marginally (with $X_2$ unobserved), or only $X_1 \perp X_3 \mid X_2$?
 
 **Solution.** $J_{13}=0$ says only that $X_1$ and $X_3$ are not directly coupled, which by Hammersley-Clifford gives the conditional statement $X_1 \perp X_3 \mid X_2$ (they are the two endpoints of a chain, and $X_2$ is the sole separator between them, exactly the causal-chain structure of Week 2's @sec-cistructures). It says nothing about the marginal relationship: both spins are still coupled to the same neighbor $X_2$, so marginally (summing $X_2$ out) $X_1$ and $X_3$ are typically dependent, the common-cause pattern from the same Week 2 section. This is the Ising-model instance of the general chain fact proved in @sec-hc.
+:::
+
+::: {.callout-tip collapse="true" .clarification title="Question: How does the general factorization give the Ising formula p(x) proportional to exp of the sum of J x_s x_t plus b_s x_s?"}
+**Start from the general rule.** Any MRF factorizes as one potential per clique, divided by the normalizer (@sec-mrf):
+$$p(\boldsymbol{x}) = \frac{1}{Z}\prod_{C} \psi_C(x_C).$$
+The symbol $\propto$ ("proportional to") means "equal up to a constant that does not depend on $\boldsymbol{x}$", so we may drop $\tfrac{1}{Z}$ and write $p(\boldsymbol{x}) \propto \prod_C \psi_C(x_C)$.
+
+**Step 1: list the cliques.** The Ising model uses two kinds of factor: one $\psi_{st}$ for every edge $s\sim t$, and one $\psi_s$ for every node $s$. Splitting the product by kind gives
+$$p(\boldsymbol{x}) \propto \prod_{s\sim t} \psi_{st}(x_s,x_t)\,\prod_s \psi_s(x_s).$$
+A single node is a clique but not a maximal one. That is allowed: $\psi_s$ can be multiplied into any edge potential that contains $s$, so the product still factorizes over the maximal cliques. Writing it separately just keeps the "pair" part and the "single spin" part apart.
+
+**Step 2: substitute the chosen potentials.** The model defines $\psi_{st}=e^{J_{st}x_sx_t}$ and $\psi_s=e^{b_sx_s}$:
+$$p(\boldsymbol{x}) \propto \prod_{s\sim t} e^{J_{st}x_sx_t}\,\prod_s e^{b_sx_s}.$$
+
+**Step 3: turn the product of exponentials into one exponential.** Since $e^a e^b = e^{a+b}$, multiplying exponentials adds their exponents. Every factor here is an exponential, so the whole product becomes one exponential of a sum:
+$$p(\boldsymbol{x}) \propto \exp\Big\{\sum_{s\sim t} J_{st}x_sx_t + \sum_s b_sx_s\Big\}.$$
+This is why the potentials were written as exponentials in the first place: a product of many factors becomes a sum in the exponent, and the sum is linear in the parameters $J_{st}$ and $b_s$. That linearity is the log-linear form of @sec-mrf-expfam.
+
+**A concrete example.** Take the three-spin chain $X_1 - X_2 - X_3$ with invented parameters $J_{12}=1$, $J_{23}=0.5$, $b_1=0.2$, $b_2=0$, $b_3=-0.3$. The definitions turn these numbers into potential tables (values rounded to two decimals):
+
+| Factor | Formula | Value when the input is $+1$ or the spins agree | Value when the input is $-1$ or the spins disagree |
+|:---|:---|---:|---:|
+| $\psi_{12}(x_1,x_2)$ | $e^{1\cdot x_1x_2}$ | $e^{1}=2.72$ | $e^{-1}=0.37$ |
+| $\psi_{23}(x_2,x_3)$ | $e^{0.5\,x_2x_3}$ | $e^{0.5}=1.65$ | $e^{-0.5}=0.61$ |
+| $\psi_1(x_1)$ | $e^{0.2\,x_1}$ | $e^{0.2}=1.22$ | $e^{-0.2}=0.82$ |
+| $\psi_2(x_2)$ | $e^{0}$ | $1$ | $1$ |
+| $\psi_3(x_3)$ | $e^{-0.3\,x_3}$ | $e^{-0.3}=0.74$ | $e^{0.3}=1.35$ |
+
+Both edges favour agreement, the first more strongly. $X_1$ leans towards $+1$, $X_3$ leans towards $-1$, and $X_2$ has no lean of its own.
+
+Now evaluate the setting $\boldsymbol{x}=(+1,+1,-1)$ both ways. As a product of the five matching table entries:
+$$\psi_{12}(+1,+1)\,\psi_{23}(+1,-1)\,\psi_1(+1)\,\psi_2(+1)\,\psi_3(-1) = e^{1}\cdot e^{-0.5}\cdot e^{0.2}\cdot 1\cdot e^{0.3}.$$
+As one exponential of the sum from Step 3:
+$$J_{12}x_1x_2 + J_{23}x_2x_3 + b_1x_1 + b_2x_2 + b_3x_3 = 1 - 0.5 + 0.2 + 0 + 0.3 = 1.0.$$
+Both give $e^{1.0}\approx 2.72$, which is Step 3 in action: the product of the factors equals $e$ raised to the sum of their exponents.
+
+This number is not yet a probability. Repeating the calculation for all $2^3=8$ settings and adding the results gives $Z\approx 14.54$, so
+$$p(+1,+1,-1) = \frac{e^{1.0}}{Z} \approx \frac{2.72}{14.54} \approx 0.19.$$
+For comparison, the setting $(-1,-1,-1)$ has exponent $1+0.5-0.2+0+0.3=1.6$, the largest of the eight, so it is the most likely setting ($e^{1.6}/Z\approx 0.34$). All three spins agree, which both couplings reward, and the pull of $b_1$ towards $+1$ is too weak to outweigh that.
 :::
 
 ## Gaussian graphical models {#sec-ggm}
@@ -567,23 +784,63 @@ Every intermediate sum here touches at most two variables at once ($k^2$ terms),
 
 The chain example eliminated variables from a DAG's conditional probabilities. Since the point of this lecture is MRFs, we need to check that the same algorithm works when the factors are clique potentials that need not sum to 1.
 
-Variable elimination on a DAG is really the same algorithm as on an MRF, once we notice that a DAG's conditional probability tables are themselves just a special kind of nonnegative potential. Introduce a nonnegative **factor** $\phi$ for each conditional probability table (or each MRF potential): for a DAG on $X,A,B,C$ with $p(A,B,C) = \sum_X p(X)p(A\mid X)p(B\mid A)p(C\mid B,X)$, write $\phi_1(X)=p(X)$, $\phi_2(A,X)=p(A\mid X)$, $\phi_3(A,B)=p(B\mid A)$, $\phi_4(X,B,C)=p(C\mid B,X)$, so
-$$p(A,B,C) = \sum_X \phi_1(X)\phi_2(A,X)\phi_3(A,B)\phi_4(X,B,C).$$
-The factor $\phi_3(A,B)$ does not involve $X$, so it can be pulled outside the sum over $X$:
-$$p(A,B,C) = \phi_3(A,B) \sum_X \phi_1(X)\phi_2(A,X)\phi_4(X,B,C) = \phi_3(A,B)\,\tau(A,B,C).$$
-Marginalizing out $X$ produces a brand new factor $\tau(A,B,C)$, an **intermediate factor** that generally is not any original conditional probability table; it is simply whatever function of the remaining variables the sum happened to produce. This is the mechanical step that repeats at every stage of variable elimination.
+Variable elimination on a DAG is really the same algorithm as on an MRF, once we notice that a DAG's conditional probability tables are themselves just a special kind of nonnegative potential. So we give every conditional probability table (or every MRF potential) one name: a nonnegative **factor**.
+
+Take a small DAG on four variables $X$, $A$, $B$, $C$, and suppose we want the marginal over $A$, $B$, $C$:
+$$p(A,B,C) = \sum_X p(X)\,p(A\mid X)\,p(B\mid A)\,p(C\mid B,X).$$
+Rename each conditional probability table as a factor:
+
+| Factor | Conditional probability table | Variables it touches |
+|:--|:--|:--|
+| $\phi_1(X)$ | $p(X)$ | $X$ |
+| $\phi_2(A,X)$ | $p(A\mid X)$ | $A$, $X$ |
+| $\phi_3(A,B)$ | $p(B\mid A)$ | $A$, $B$ |
+| $\phi_4(X,B,C)$ | $p(C\mid B,X)$ | $X$, $B$, $C$ |
+
+The marginal becomes a sum of a product of factors:
+$$p(A,B,C) = \sum_X \phi_1(X)\,\phi_2(A,X)\,\phi_3(A,B)\,\phi_4(X,B,C).$$
+The table shows that $\phi_3$ does not touch $X$, so it can be pulled outside the sum over $X$:
+$$p(A,B,C) = \phi_3(A,B) \sum_X \phi_1(X)\,\phi_2(A,X)\,\phi_4(X,B,C).$$
+The remaining sum leaves a function of $A$, $B$, $C$ only. Call it $\tau$:
+$$\tau(A,B,C) = \sum_X \phi_1(X)\,\phi_2(A,X)\,\phi_4(X,B,C), \qquad p(A,B,C) = \phi_3(A,B)\,\tau(A,B,C).$$
+This $\tau$ is an **intermediate factor**. It is generally not any of the original conditional probability tables; it is simply whatever function of the remaining variables the sum happened to produce. This is the mechanical step that repeats at every stage of variable elimination.
 
 Abstractly, both DAG and MRF inference reduce to the same **sum-product** computation:
 
 ::: {.boxed-eq}
-$$p(x_F\mid x_E) \propto \tau(x_F,x_E) = \sum_{x_R} \prod_{C\in\mathcal{F}} \psi_C(x_C),$$
+$$p(x_F\mid x_E) \propto \tau(x_F,x_E) = \sum_{x_R} \prod_{C\in\mathcal{F}} \psi_C(x_C).$$
 :::
 
-where $\mathcal{F}$ is the set of factors: for a DAG, $\mathcal{F}$ consists of the sets $\{i\}\cup\text{parents}(i)$ for every node $i$ (one factor per conditional probability table); for an MRF, $\mathcal{F}$ is the set of maximal cliques.
+The symbols are:
+
+- $x_F$: the variables we want a distribution over.
+- $x_E$: the observed evidence.
+- $x_R$: the rest, summed out.
+- $\mathcal{F}$: the set of factors, each a group of variables $C$ with its potential $\psi_C$.
+
+The only difference between the two model types is where $\mathcal{F}$ comes from:
+
+- **DAG:** one factor per node $i$, on the variables $\{i\}\cup\text{parents}(i)$ (its conditional probability table).
+- **MRF:** one factor per maximal clique.
 
 ## Worked example: variable elimination on a Bayes net {#sec-ve-student}
 
-On the chain of @sec-ve, every intermediate sum involved at most two variables. On a graph with more branching, an intermediate factor can involve several variables, and the elimination order decides how many. The lecture's student network shows this, using the sum-product form just stated.
+On the chain of @sec-ve, every intermediate sum involved at most two variables. On a graph with more branching, an intermediate factor can involve several variables, and the elimination order decides how many. The lecture's student network shows this, using the sum-product form just stated. First, the general procedure for computing a marginal $p(x_F)$ with nothing observed.
+
+::: {.theorem-block}
+**Recipe.**
+
+1. **List the factors.** Write the joint as a product of factors and record the factor set $\mathcal{F}$. For a DAG this is one conditional probability table per node; for an MRF it is one potential per maximal clique.
+2. **Pick what to sum out.** Every variable outside the query $x_F$ gets summed out. Fix an order for eliminating them (here the order is given; finding the best one is NP-hard, @sec-ve).
+3. **Eliminate one variable at a time.** For the next variable in the order:
+    - collect every factor that mentions it, whether original or intermediate;
+    - multiply those factors and sum the variable out;
+    - the result is a new intermediate factor $\tau$ over the other variables those factors touched;
+    - remove the factors you used and add $\tau$ in their place.
+4. **Multiply what is left.** Once only query variables remain, the product of the remaining factors is $\tau(x_F) \propto p(x_F)$.
+5. **Normalize if needed.** Divide by $\sum_{x_F}\tau(x_F)$. For a DAG built from its own conditional probability tables this sum is already 1; for an MRF it is not.
+6. **Read off the cost.** Let $N_i$ be the number of variables in the product formed when eliminating variable $i$. The largest $N_i$ sets the cost.
+:::
 
 ```{=html}
 <div style="overflow-x:auto; margin:1.5rem 0;">
@@ -651,7 +908,18 @@ where $m$ is the number of initial factors and $k$ is the (assumed common) numbe
 
 ## Variable elimination with evidence {#sec-ve-evidence}
 
-Inference as defined in @sec-inference usually conditions on observed evidence $x_E$, but the student-network example computed a marginal with nothing observed. Reintroducing evidence changes only which variable is fixed rather than summed.
+Inference as defined in @sec-inference usually conditions on observed evidence $x_E$, but the student-network example computed a marginal with nothing observed. Reintroducing evidence changes only which variable is fixed rather than summed. The general procedure for a posterior $p(x_F\mid \bar x_E)$, where $\bar x_E$ are the observed values:
+
+::: {.theorem-block}
+**Recipe.**
+
+1. **Split the variables.** Sort them into the query $x_F$, the evidence $x_E$, and the rest $x_R$.
+2. **Clamp the evidence.** Substitute the observed values $\bar x_E$ into every factor that mentions an evidence variable. Those factors now depend only on their other variables. Evidence variables are never summed over.
+3. **Eliminate the rest.** Run the recipe from @sec-ve-student over $x_R$ only. The result is $\tau(x_F) = p(x_F, \bar x_E)$. A factor that sums to 1 over the variable being eliminated, such as the conditional probability table of an unobserved leaf, drops out as a 1.
+4. **Normalize.** Divide by the sum over the query:
+$$p(x_F\mid \bar x_E) = \frac{\tau(x_F)}{\sum_{x_F}\tau(x_F)}.$$
+This step is needed even for a DAG, because the denominator equals $p(\bar x_E)$, not 1.
+:::
 
 **Worked example.** Take the DAG $X_1 \to X_2 \to X_4$, $X_1 \to X_3 \to X_5 \to X_6$, $X_2 \to X_6$ (so $X_6$ has two parents, $X_2$ and $X_5$), giving $p(x_1,\dots,x_6) = p(x_1)p(x_2\mid x_1)p(x_3\mid x_1)p(x_4\mid x_2)p(x_5\mid x_3)p(x_6\mid x_2,x_5)$. Suppose $X_6=\bar x_6$ is observed and we want $p(X_1\mid \bar x_6)$, so $x_F=\{x_1\}$, $x_E=\{x_6\}$, $x_R=\{x_2,x_3,x_4,x_5\}$. By the definition in @sec-inference,
 $$p(x_1\mid \bar x_6) = \frac{p(x_1,\bar x_6)}{\sum_{x_1} p(x_1,\bar x_6)}.$$
@@ -659,6 +927,48 @@ Computing the numerator by variable elimination in the order $5,4,3,2$ (the nest
 $$p(x_1,\bar x_6) = p(x_1)\sum_{x_2} p(x_2\mid x_1)\sum_{x_3} p(x_3\mid x_1)\sum_{x_4} p(x_4\mid x_2)\sum_{x_5} p(x_5\mid x_3)\,p(\bar x_6\mid x_2,x_5).$$
 The innermost sum over $x_5$ produces a new factor depending on $x_2,x_3$:
 $$\sum_{x_5} p(x_5\mid x_3)\,p(\bar x_6\mid x_2,x_5) = p(\bar x_6\mid x_2,x_3).$$
+
+::: {.callout-tip collapse="true" .clarification title="Question: Why does summing over x5 give p(x6 | x2, x3)?"}
+**Fast test procedure.** To sum out a variable $x_s$ from a product of DAG conditionals:
+
+1. **Find the factors that contain $x_s$.** These are $x_s$'s own table and the tables of its children.
+2. **If $x_s$ appears in no factor except its own table, drop that table.** A conditional summed over its own left-hand variable equals 1.
+3. **Collect the new factor's variables.** These are the other variables in the kept factors: the parents of $x_s$, the children of $x_s$, and the other parents of those children.
+4. **Sort by side.** Query variables go on the left, along with any children of $x_s$. Everything else goes on the right.
+
+The four examples below use the same procedure.
+
+**Example 1 (the question above).** Summing $x_5$ from $p(x_5\mid x_3)\,p(\bar x_6\mid x_2,x_5)$ keeps both factors, since $x_5$ is a child of $x_3$ and a parent of $x_6$. The new factor is over $x_2$, $x_3$, $x_6$. With $x_6$ as the query, the answer is $p(\bar x_6\mid x_2,x_3)$.
+
+**Example 2: no children left.** In $p(x_6\mid x_2)\sum_{x_5} p(x_5\mid x_3)$, the only factor containing $x_5$ is its own table, so step 2 drops it and it sums to 1. The answer is $p(x_6\mid x_2)$, and $x_3$ does not appear.
+
+**Example 3: a chain.** For $\sum_{x_5} p(x_5\mid x_3)\,p(x_7\mid x_5)$, the child $x_7$ has no other parents. The new factor is over $x_3$ and $x_7$, with $x_7$ on the left, giving $p(x_7\mid x_3)$.
+
+**Example 4: two children.** For $\sum_{x_3} p(x_3\mid x_1)\,p(x_6\mid x_2,x_3)\,p(x_8\mid x_3)$, the variable $x_3$ has two children, $x_6$ and $x_8$, so both go on the left. The answer is a joint, $p(x_6,x_8\mid x_1,x_2)$, not a product of two conditionals, because both children depend on the summed $x_3$. Its parents $x_1$ and $x_2$ go on the right.
+
+**MRFs.** The same neighbor rule finds the variables, but a product of potentials $\psi$ has no left or right side. The result is an unnormalized function of those variables, so write it without a bar.
+
+The steps below prove Example 1.
+
+The sum has a factor $p(x_5\mid x_3)$ and a factor $p(\bar x_6\mid x_2,x_5)$, and the claim is that adding over $x_5$ leaves a conditional that depends only on $x_2$ and $x_3$. The idea is to read the sum as a marginal of a joint distribution and then use the graph to simplify that joint.
+
+**Step 1: Write the target as a sum over $x_5$.** A marginal is a sum over the variables left out of a joint. Here the variable left out is $x_5$, so
+$$p(\bar x_6\mid x_2,x_3) = \sum_{x_5} p(x_5,\bar x_6\mid x_2,x_3).$$
+
+**Step 2: Apply the chain rule to the joint.**
+$$p(x_5,\bar x_6\mid x_2,x_3) = p(x_5\mid x_2,x_3)\;p(\bar x_6\mid x_2,x_3,x_5).$$
+
+**Step 3: Drop $x_3$ from the second factor.** The parents of $x_6$ are $x_2$ and $x_5$. In a DAG, a node is independent of its other ancestors once its parents are known, so $x_3$ adds nothing:
+$$p(\bar x_6\mid x_2,x_3,x_5) = p(\bar x_6\mid x_2,x_5).$$
+
+**Step 4: Drop $x_2$ from the first factor.** The only parent of $x_5$ is $x_3$, and $x_2$ is not a descendant of $x_5$. So once $x_3$ is known, $x_2$ tells us nothing more about $x_5$:
+$$p(x_5\mid x_2,x_3) = p(x_5\mid x_3).$$
+This works because the only path from $x_5$ to $x_2$ runs $x_5 \leftarrow x_3 \leftarrow x_1 \rightarrow x_2$, and conditioning on the middle node $x_3$ blocks it.
+
+**Step 5: Substitute back.** Steps 2 to 4 give
+$$p(\bar x_6\mid x_2,x_3) = \sum_{x_5} p(x_5\mid x_3)\,p(\bar x_6\mid x_2,x_5),$$
+which is the identity we started from. The sum is not a cancellation. It runs over every value of $x_5$, weighting each by $p(x_5\mid x_3)$, and that total is the conditional probability of $\bar x_6$.
+:::
 The next sum, over $x_4$, involves only $p(x_4\mid x_2)$, none of whose terms depend on $x_4$ after it is summed out (it sums to 1), so it drops out entirely:
 $$\sum_{x_4} p(x_4\mid x_2) = 1.$$
 This leaves

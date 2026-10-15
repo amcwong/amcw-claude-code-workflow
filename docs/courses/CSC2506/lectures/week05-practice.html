@@ -1,0 +1,1338 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.10.18">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+
+<title>Week 5 practice: Sampling with MCMC – CSC412/2506: Probabilistic Machine Learning notes</title>
+<style>
+/* Default styles provided by pandoc.
+** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
+*/
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: 1.5em;}
+div.column{flex: auto;}
+@media screen {
+div.columns{gap: min(4vw, 1.5em);}
+div.column{overflow-x: auto;}
+}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+/* CSS for syntax highlighting */
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+</style>
+
+
+<script src="../site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="../site_libs/quarto-nav/headroom.min.js"></script>
+<script src="../site_libs/clipboard/clipboard.min.js"></script>
+<script src="../site_libs/quarto-search/autocomplete.umd.js"></script>
+<script src="../site_libs/quarto-search/fuse.min.js"></script>
+<script src="../site_libs/quarto-search/quarto-search.js"></script>
+<meta name="quarto:offset" content="../">
+<link href="../glossary.html" rel="next">
+<link href="../lectures/week05.html" rel="prev">
+<script src="../site_libs/quarto-html/quarto.js" type="module"></script>
+<script src="../site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
+<script src="../site_libs/quarto-html/popper.min.js"></script>
+<script src="../site_libs/quarto-html/tippy.umd.min.js"></script>
+<script src="../site_libs/quarto-html/anchor.min.js"></script>
+<link href="../site_libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="../site_libs/quarto-html/quarto-syntax-highlighting-bb62276ab45c84d9efd712f51ff97b5a.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<script src="../site_libs/bootstrap/bootstrap.min.js"></script>
+<link href="../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="../site_libs/bootstrap/bootstrap-ce0958bf53307a1b0bb60f85d87db72f.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
+<script id="quarto-search-options" type="application/json">{
+  "location": "sidebar",
+  "copy-button": false,
+  "collapse-after": 3,
+  "panel-placement": "start",
+  "type": "textbox",
+  "limit": 50,
+  "keyboard-shortcut": [
+    "f",
+    "/",
+    "s"
+  ],
+  "show-item-context": false,
+  "language": {
+    "search-no-results-text": "No results",
+    "search-matching-documents-text": "matching documents",
+    "search-copy-link-title": "Copy link to search",
+    "search-hide-matches-text": "Hide additional matches",
+    "search-more-match-text": "more match in this document",
+    "search-more-matches-text": "more matches in this document",
+    "search-clear-button-title": "Clear",
+    "search-text-placeholder": "",
+    "search-detached-cancel-button-title": "Cancel",
+    "search-submit-button-title": "Submit",
+    "search-label": "Search"
+  }
+}</script>
+<style>html{ scroll-behavior: smooth; }</style>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+<link href="https://fonts.googleapis.com/css2?family=Source+Code+Pro:wght@400;600&amp;family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&amp;display=swap" rel="stylesheet">
+
+  <script>window.backupDefine = window.define; window.define = undefined;</script><script src="https://cdn.jsdelivr.net/npm/katex@latest/dist/katex.min.js"></script>
+  <script>document.addEventListener("DOMContentLoaded", function () {
+ var mathElements = document.getElementsByClassName("math");
+ var macros = [];
+ for (var i = 0; i < mathElements.length; i++) {
+  var texText = mathElements[i].firstChild;
+  if (mathElements[i].tagName == "SPAN") {
+   katex.render(texText.data, mathElements[i], {
+    displayMode: mathElements[i].classList.contains('display'),
+    throwOnError: false,
+    macros: macros,
+    fleqn: false
+   });
+}}});
+  </script>
+  <script>window.define = window.backupDefine; window.backupDefine = undefined;</script><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@latest/dist/katex.min.css">
+
+<script type="text/javascript">
+const typesetMath = (el) => {
+  if (window.MathJax) {
+    // MathJax Typeset
+    window.MathJax.typeset([el]);
+  } else if (window.katex) {
+    // KaTeX Render
+    var mathElements = el.getElementsByClassName("math");
+    var macros = [];
+    for (var i = 0; i < mathElements.length; i++) {
+      var texText = mathElements[i].firstChild;
+      if (mathElements[i].tagName == "SPAN" && texText && texText.data) {
+        window.katex.render(texText.data, mathElements[i], {
+          displayMode: mathElements[i].classList.contains('display'),
+          throwOnError: false,
+          macros: macros,
+          fleqn: false
+        });
+      }
+    }
+  }
+}
+window.Quarto = {
+  typesetMath
+};
+</script>
+
+<link rel="stylesheet" href="../styles/custom.css">
+</head>
+
+<body class="nav-sidebar floating quarto-light">
+
+<div id="quarto-search-results"></div>
+  <header id="quarto-header" class="headroom fixed-top">
+  <nav class="quarto-secondary-nav">
+    <div class="container-fluid d-flex">
+      <button type="button" class="quarto-btn-toggle btn" data-bs-toggle="collapse" role="button" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+        <i class="bi bi-layout-text-sidebar-reverse"></i>
+      </button>
+        <nav class="quarto-page-breadcrumbs" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../lectures/week05-practice.html"><span class="chapter-title">Week 5 practice: Sampling with MCMC</span></a></li></ol></nav>
+        <a class="flex-grow-1" role="navigation" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">      
+        </a>
+      <button type="button" class="btn quarto-search-button" aria-label="Search" onclick="window.quartoOpenSearch();">
+        <i class="bi bi-search"></i>
+      </button>
+    </div>
+  </nav>
+</header>
+<!-- content -->
+<div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-article">
+<!-- sidebar -->
+  <nav id="quarto-sidebar" class="sidebar collapse collapse-horizontal quarto-sidebar-collapse-item sidebar-navigation floating overflow-auto">
+    <div class="pt-lg-2 mt-2 text-left sidebar-header">
+    <div class="sidebar-title mb-0 py-0">
+      <a href="../">CSC412/2506: Probabilistic Machine Learning notes</a> 
+        <div class="sidebar-tools-main">
+    <a href="https://amcwong.github.io/amcw-claude-code-workflow/" title="All course notes" class="quarto-navigation-tool px-1" aria-label="All course notes"><i class="bi bi-house-door"></i></a>
+</div>
+    </div>
+      </div>
+        <div class="mt-2 flex-shrink-0 align-items-center">
+        <div class="sidebar-search">
+        <div id="quarto-search" class="" title="Search"></div>
+        </div>
+        </div>
+    <div class="sidebar-menu-container"> 
+    <ul class="list-unstyled mt-1">
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../index.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">CSC412/2506 Probabilistic Machine Learning</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../lectures/week01.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Week 1: Introduction and Probabilistic Models</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../lectures/week01-practice.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Week 1 practice: Introduction and probabilistic models</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../lectures/week02.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Week 2: Decision Theory and Graphical Models</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../lectures/week02-practice.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Week 2 practice: Decision theory and graphical models</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../lectures/week03.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Week 3: Markov Random Fields and Exact Inference</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../lectures/week03-practice.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Week 3 practice: Markov random fields and exact inference</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../lectures/week04.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Week 4: Message Passing and Monte Carlo</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../lectures/week04-practice.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Week 4 practice: Message passing and Monte Carlo</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../lectures/week05.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Week 5: Sampling with MCMC</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../lectures/week05-practice.html" class="sidebar-item-text sidebar-link active"><span class="chapter-title">Week 5 practice: Sampling with MCMC</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../glossary.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Glossary</span></a>
+  </div>
+</li>
+    </ul>
+    </div>
+</nav>
+<div id="quarto-sidebar-glass" class="quarto-sidebar-collapse-item" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item"></div>
+<!-- margin-sidebar -->
+    <div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
+        <nav id="TOC" role="doc-toc" class="toc-active">
+    <h2 id="toc-title">On this page</h2>
+   
+  <ul>
+  <li><a href="#sec-w5p-lecture" id="toc-sec-w5p-lecture" class="nav-link active" data-scroll-target="#sec-w5p-lecture">Lecture practice</a>
+  <ul class="collapse">
+  <li><a href="#prb-1" id="toc-prb-1" class="nav-link" data-scroll-target="#prb-1">Problem 1: Two steps on a three-state chain</a></li>
+  <li><a href="#prb-2" id="toc-prb-2" class="nav-link" data-scroll-target="#prb-2">Problem 2: The stationary distribution of the same chain</a></li>
+  <li><a href="#prb-3" id="toc-prb-3" class="nav-link" data-scroll-target="#prb-3">Problem 3: Unique? Convergent?</a></li>
+  <li><a href="#prb-4" id="toc-prb-4" class="nav-link" data-scroll-target="#prb-4">Problem 4: A bigram model from a tiny corpus</a></li>
+  <li><a href="#prb-5" id="toc-prb-5" class="nav-link" data-scroll-target="#prb-5">Problem 5: Stationary without detailed balance, and a chain built to satisfy it</a></li>
+  <li><a href="#prb-6" id="toc-prb-6" class="nav-link" data-scroll-target="#prb-6">Problem 6: When the Hastings correction matters</a></li>
+  <li><a href="#prb-7" id="toc-prb-7" class="nav-link" data-scroll-target="#prb-7">Problem 7: One Gibbs sweep, and a tempting bug</a></li>
+  <li><a href="#prb-8" id="toc-prb-8" class="nav-link" data-scroll-target="#prb-8">Problem 8: R-hat versus split R-hat</a></li>
+  </ul></li>
+  <li><a href="#sec-w5p-hw2" id="toc-sec-w5p-hw2" class="nav-link" data-scroll-target="#sec-w5p-hw2">Homework 2 practice</a>
+  <ul class="collapse">
+  <li><a href="#prb-9" id="toc-prb-9" class="nav-link" data-scroll-target="#prb-9">Problem 9: One leapfrog step on a one-player skill posterior</a></li>
+  <li><a href="#prb-10" id="toc-prb-10" class="nav-link" data-scroll-target="#prb-10">Problem 10: Which gradient goes in the momentum update</a></li>
+  <li><a href="#prb-11" id="toc-prb-11" class="nav-link" data-scroll-target="#prb-11">Problem 11: A Metropolis accept step in log space</a></li>
+  <li><a href="#prb-12" id="toc-prb-12" class="nav-link" data-scroll-target="#prb-12">Problem 12: What the stored chain contains</a></li>
+  <li><a href="#prb-13" id="toc-prb-13" class="nav-link" data-scroll-target="#prb-13">Problem 13: From a sample matrix to a ranking</a></li>
+  <li><a href="#prb-14" id="toc-prb-14" class="nav-link" data-scroll-target="#prb-14">Problem 14: Step size, trajectory length, and what samples are worth</a></li>
+  </ul></li>
+  </ul>
+</nav>
+    </div>
+<!-- main -->
+<main class="content" id="quarto-document-content">
+
+<header id="title-block-header" class="quarto-title-block default">
+<div class="quarto-title">
+<h1 class="title"><span class="chapter-title">Week 5 practice: Sampling with MCMC</span></h1>
+</div>
+
+
+
+<div class="quarto-title-meta">
+
+    
+  
+    
+  </div>
+  
+
+
+</header>
+
+
+<style>#title-block-header { display: none; }</style>
+<div class="lecture-header">
+  <h1>Week 5 practice: Sampling with MCMC</h1>
+</div>
+<p><strong>Overview.</strong> These problems drill <a href="../lectures/week05.html">Week 5</a> in two sections. <a href="#sec-w5p-lecture">Lecture practice</a> works through the lecture’s own content: transition matrices, stationary distributions, detailed balance, Metropolis-Hastings, Gibbs sampling, and <span class="math inline">\hat R</span>. <a href="#sec-w5p-hw2">Homework 2 practice</a> prepares the sampling skills a homework relies on. Try each stem before opening the worked solution. Every chain, corpus, target density, code snippet, accept/reject sequence, and sample matrix here is invented for practice; none is a homework item, and no homework function is written out. Notation matches the week chapter.</p>
+<section id="sec-w5p-lecture" class="level2">
+<h2 class="anchored" data-anchor-id="sec-w5p-lecture">Lecture practice</h2>
+<section id="prb-1" class="level3">
+<h3 class="anchored" data-anchor-id="prb-1">Problem 1: Two steps on a three-state chain</h3>
+<p>A stationary <a href="https://en.wikipedia.org/wiki/Markov_chain">Markov chain</a> on states <span class="math inline">\{1,2,3\}</span> has transition matrix</p>
+<p><span class="math display">A = \begin{pmatrix} 0.5 &amp; 0.3 &amp; 0.2\\ 0.2 &amp; 0.6 &amp; 0.2\\ 0.1 &amp; 0.3 &amp; 0.6\end{pmatrix}, \qquad A_{ij}=p(x_t=j\mid x_{t-1}=i).</span></p>
+<ol type="1">
+<li>Check that <span class="math inline">A</span> is a valid transition matrix. Do its columns need to sum to 1?</li>
+<li>Starting in state 1, what is the probability of being in state 3 two steps later? Compute it as a sum over the intermediate state.</li>
+<li>Compute the full two-step matrix <span class="math inline">A(2)</span> and check one of its rows.</li>
+</ol>
+<div class="practice-answer callout callout-style-default callout-tip callout-titled" title="Worked solution">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-1-contents" aria-controls="callout-1" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Worked solution
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-1" class="callout-1-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>This uses <a href="../lectures/week05.html#sec-transition">Week 5, Transition matrices and state transition diagrams</a> and <a href="../lectures/week05.html#sec-nstep">n-step transitions and the Chapman-Kolmogorov equations</a>.</p>
+<ol type="1">
+<li>Every entry is nonnegative, and the rows sum to <span class="math inline">0.5+0.3+0.2=1</span>, <span class="math inline">0.2+0.6+0.2=1</span>, <span class="math inline">0.1+0.3+0.6=1</span>. Row <span class="math inline">i</span> is the distribution of the next state given the current state <span class="math inline">i</span>, so rows must sum to 1. Columns need not: here they sum to <span class="math inline">0.8</span>, <span class="math inline">1.2</span>, <span class="math inline">1.0</span>.</li>
+<li>The chain must pass through some state <span class="math inline">k</span> after one step: <span class="math display">A_{13}(2) = \sum_k A_{1k}A_{k3} = 0.5(0.2)+0.3(0.2)+0.2(0.6) = 0.10+0.06+0.12 = 0.28.</span> The three terms are “stay at 1, then move to 3”, “move to 2, then to 3”, and “move to 3, then stay”.</li>
+<li>By Chapman-Kolmogorov, <span class="math inline">A(2)=A^2</span>: <span class="math display">A^2 = \begin{pmatrix} 0.33 &amp; 0.39 &amp; 0.28\\ 0.24 &amp; 0.48 &amp; 0.28\\ 0.17 &amp; 0.39 &amp; 0.44\end{pmatrix}.</span> Row 1 sums to <span class="math inline">0.33+0.39+0.28=1</span>, as every row of a transition matrix must.</li>
+</ol>
+<p><strong>Answer.</strong> (1) Valid; only rows must sum to 1. (2) <span class="math inline">0.28</span>. (3) <span class="math inline">A^2</span> as above.</p>
+</div>
+</div>
+</div>
+</section>
+<section id="prb-2" class="level3">
+<h3 class="anchored" data-anchor-id="prb-2">Problem 2: The stationary distribution of the same chain</h3>
+<p>For the chain of Problem 1:</p>
+<ol type="1">
+<li>Find the <a href="https://en.wikipedia.org/wiki/Discrete-time_Markov_chain#Stationary_distributions">stationary distribution</a> <span class="math inline">\pi</span> by solving <span class="math inline">A^\top\pi=\pi</span> with <span class="math inline">\pi_1+\pi_2+\pi_3=1</span>.</li>
+<li>Check your answer by applying one step of the chain.</li>
+<li>Which state does the chain spend most time in, in the long run? Explain from the matrix why.</li>
+</ol>
+<div class="practice-answer callout callout-style-default callout-tip callout-titled" title="Worked solution">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-2-contents" aria-controls="callout-2" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Worked solution
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-2" class="callout-2-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>This uses <a href="../lectures/week05.html#sec-stationary">Week 5, The stationary distribution</a>.</p>
+<ol type="1">
+<li>The condition <span class="math inline">\pi_j=\sum_i\pi_iA_{ij}</span> gives one equation per column. Column 1 and column 3: <span class="math display">\pi_1 = 0.5\pi_1+0.2\pi_2+0.1\pi_3 \ \Rightarrow\ 5\pi_1 = 2\pi_2+\pi_3,</span> <span class="math display">\pi_3 = 0.2\pi_1+0.2\pi_2+0.6\pi_3 \ \Rightarrow\ 2\pi_3 = \pi_1+\pi_2.</span> (The column-2 equation is implied by these two and the rows summing to 1, so it adds nothing.) Substituting <span class="math inline">\pi_3=5\pi_1-2\pi_2</span> into the second equation gives <span class="math inline">10\pi_1-4\pi_2=\pi_1+\pi_2</span>, so <span class="math inline">\pi_2=\tfrac95\pi_1</span> and <span class="math inline">\pi_3=\tfrac75\pi_1</span>. Normalizing, <span class="math inline">\pi_1(1+\tfrac95+\tfrac75)=1</span> gives <span class="math inline">\pi_1=\tfrac5{21}</span>, so <span class="math display">\pi = \big(\tfrac{5}{21},\ \tfrac{9}{21},\ \tfrac{7}{21}\big) \approx (0.238,\ 0.429,\ 0.333).</span></li>
+<li>Column 2 of <span class="math inline">A</span> is <span class="math inline">(0.3,0.6,0.3)</span>, so <span class="math inline">(A^\top\pi)_2=\tfrac{0.3(5)+0.6(9)+0.3(7)}{21}=\tfrac{9}{21}</span>, which equals <span class="math inline">\pi_2</span>. The other two entries check the same way.</li>
+<li>State 2. Its self-transition probability, <span class="math inline">0.6</span>, ties for the largest, and every state sends at least <span class="math inline">0.3</span> of its probability into state 2. State 1 keeps only half its probability and receives little from the others. As with the two-state chain in the week chapter, states that are easy to enter and hard to leave collect long-run probability.</li>
+</ol>
+<p><strong>Answer.</strong> <span class="math inline">\pi=(5,9,7)/21\approx(0.238,0.429,0.333)</span>; state 2 is visited most.</p>
+</div>
+</div>
+</div>
+</section>
+<section id="prb-3" class="level3">
+<h3 class="anchored" data-anchor-id="prb-3">Problem 3: Unique? Convergent?</h3>
+<p>Three chains on states <span class="math inline">\{1,2,3\}</span>:</p>
+<p><span class="math display">C_1 = \begin{pmatrix} 0&amp;1&amp;0\\ 0&amp;0&amp;1\\ 1&amp;0&amp;0\end{pmatrix},</span> <span class="math display">C_2 = \begin{pmatrix} 1&amp;0&amp;0\\ 0.3&amp;0.4&amp;0.3\\ 0&amp;0&amp;1\end{pmatrix},</span> <span class="math display">C_3 = \begin{pmatrix} 0&amp;1&amp;0\\ 0&amp;0.5&amp;0.5\\ 0.5&amp;0&amp;0.5\end{pmatrix}.</span></p>
+<p>For each chain: is it irreducible? Is it regular? Is its stationary distribution unique? Started in a single state, does the distribution of <span class="math inline">x_t</span> converge?</p>
+<div class="practice-answer callout callout-style-default callout-tip callout-titled" title="Worked solution">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-3-contents" aria-controls="callout-3" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Worked solution
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-3" class="callout-3-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>This uses <a href="../lectures/week05.html#sec-unique">Week 5, When is the stationary distribution unique?</a></p>
+<p><strong><span class="math inline">C_1</span>, the deterministic 3-cycle</strong> <span class="math inline">1\to2\to3\to1</span>. Every state reaches every other, so it is irreducible. But <span class="math inline">C_1^3=I</span>, so the powers cycle through <span class="math inline">C_1</span>, <span class="math inline">C_1^2</span>, <span class="math inline">I</span>, and each has zeros: not regular. The stationary equations <span class="math inline">A^\top\pi=\pi</span> read <span class="math inline">\pi_1=\pi_3</span>, <span class="math inline">\pi_2=\pi_1</span>, <span class="math inline">\pi_3=\pi_2</span>, so the only solution is <span class="math inline">(\tfrac13,\tfrac13,\tfrac13)</span>: unique. Started in state 1, the distribution goes <span class="math inline">(1,0,0)\to(0,1,0)\to(0,0,1)\to(1,0,0)</span> and never converges. This is the three-state version of the week’s swapping chain.</p>
+<p><strong><span class="math inline">C_2</span>, two absorbing states.</strong> States 1 and 3 can never be left, so state 1 cannot reach state 3: not irreducible, hence not regular. Both <span class="math inline">(1,0,0)</span> and <span class="math inline">(0,0,1)</span> are stationary, and so is any mixture <span class="math inline">(a,0,1-a)</span>: not unique. Each run does converge: from state 2, every step leaks <span class="math inline">0.3</span> to each side, so the distribution tends to <span class="math inline">(0.5,0,0.5)</span>, while from state 1 it stays <span class="math inline">(1,0,0)</span>. The limit depends on the start, which is exactly what MCMC cannot allow.</p>
+<p><strong><span class="math inline">C_3</span>.</strong> The path <span class="math inline">1\to2\to3\to1</span> shows it is irreducible. <span class="math inline">C_3^2</span> still has a zero (state 1 cannot reach itself in two steps), but <span class="math display">C_3^3 = \begin{pmatrix} 0.25&amp;0.25&amp;0.5\\ 0.25&amp;0.375&amp;0.375\\ 0.125&amp;0.5&amp;0.375\end{pmatrix}</span> is all positive, so the chain is regular. By the theorem, the stationary distribution is unique and the chain converges to it from any start. Solving gives <span class="math inline">\pi=(0.2,\ 0.4,\ 0.4)</span>; check: <span class="math inline">(C_3^\top\pi)_1=0.5(0.4)=0.2</span>.</p>
+<p>Regularity can take a few steps to show up: a zero in <span class="math inline">A</span> or <span class="math inline">A^2</span> does not rule it out.</p>
+<p><strong>Answer.</strong> <span class="math inline">C_1</span>: irreducible, not regular, unique, does not converge. <span class="math inline">C_2</span>: not irreducible, not regular, not unique, converges to a start-dependent limit. <span class="math inline">C_3</span>: irreducible, regular, unique <span class="math inline">\pi=(0.2,0.4,0.4)</span>, converges.</p>
+</div>
+</div>
+</div>
+</section>
+<section id="prb-4" class="level3">
+<h3 class="anchored" data-anchor-id="prb-4">Problem 4: A bigram model from a tiny corpus</h3>
+<p>A first-order <a href="https://en.wikipedia.org/wiki/Language_model">language model</a> is fitted by maximum likelihood to four sentences:</p>
+<p>“I like turtles”, “you like turtles”, “I like snails”, “you don’t like snails”.</p>
+<ol type="1">
+<li>Compute <span class="math inline">\hat\pi</span> (first-word probabilities) and every nonzero <span class="math inline">\hat A_{jk}</span>.</li>
+<li>Score the sentence “you don’t like turtles”.</li>
+<li>Score “I don’t like turtles”. What goes wrong, and why?</li>
+</ol>
+<div class="practice-answer callout callout-style-default callout-tip callout-titled" title="Worked solution">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-4-contents" aria-controls="callout-4" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Worked solution
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-4" class="callout-4-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>This uses <a href="../lectures/week05.html#sec-langmodel">Week 5, Application: Markov language models</a>.</p>
+<ol type="1">
+<li>Two sentences start with “I” and two with “you”, so <span class="math inline">N^1_{\text{I}}=N^1_{\text{you}}=2</span> and <span class="math inline">\hat\pi_{\text{I}}=\hat\pi_{\text{you}}=\tfrac12</span>. The MLE of each row is “count over row total”:
+<ul>
+<li>after “I”: like twice, so <span class="math inline">\hat A_{\text{I},\text{like}}=1</span>;</li>
+<li>after “you”: like once, don’t once, so <span class="math inline">\tfrac12</span> each;</li>
+<li>after “don’t”: like once, so <span class="math inline">\hat A_{\text{don't},\text{like}}=1</span>;</li>
+<li>after “like”: turtles twice, snails twice, so <span class="math inline">\tfrac12</span> each.</li>
+</ul></li>
+<li>One first-word factor and one transition per later word: <span class="math display">p(\text{you don't like turtles}) = \hat\pi_{\text{you}}\,\hat A_{\text{you},\text{don't}}</span> <span class="math display">\times\,\hat A_{\text{don't},\text{like}}\,\hat A_{\text{like},\text{turtles}}</span> <span class="math display">= \tfrac12\cdot\tfrac12\cdot1\cdot\tfrac12 = \tfrac18.</span> This sentence never appears in the corpus, yet it gets positive probability, because each of its bigrams does appear.</li>
+<li>The factor <span class="math inline">\hat A_{\text{I},\text{don't}}</span> is <span class="math inline">0</span>: “don’t” never follows “I” in the corpus. One zero factor makes the whole product <span class="math inline">0</span>, so a perfectly reasonable sentence is called impossible. Maximum likelihood gives zero probability to every transition it has not seen, because the count-over-total formula of the Multinomial MLE turns a zero count into a zero probability.</li>
+</ol>
+<p><strong>Answer.</strong> (1) <span class="math inline">\hat\pi=(\tfrac12,\tfrac12)</span> for I, you; transitions as listed. (2) <span class="math inline">\tfrac18</span>. (3) <span class="math inline">0</span>, because the unseen bigram “I don’t” has MLE probability 0.</p>
+</div>
+</div>
+</div>
+</section>
+<section id="prb-5" class="level3">
+<h3 class="anchored" data-anchor-id="prb-5">Problem 5: Stationary without detailed balance, and a chain built to satisfy it</h3>
+<ol type="1">
+<li>Show that the uniform distribution is stationary for the 3-cycle <span class="math inline">C_1</span> of Problem 3, but that <span class="math inline">C_1</span> does not satisfy <a href="https://en.wikipedia.org/wiki/Detailed_balance">detailed balance</a> with respect to it.</li>
+<li>Now take the target <span class="math inline">\pi=(0.5,\ 0.3,\ 0.2)</span> on <span class="math inline">\{1,2,3\}</span>. Build a Metropolis chain: from state <span class="math inline">i</span>, propose each of the two other states with probability <span class="math inline">\tfrac12</span>, and accept a proposed <span class="math inline">j</span> with probability <span class="math inline">\min\{1,\pi_j/\pi_i\}</span>. Write out the full transition matrix, including the probabilities of staying put.</li>
+<li>Verify detailed balance for every pair, and verify <span class="math inline">A^\top\pi=\pi</span> directly.</li>
+</ol>
+<div class="practice-answer callout callout-style-default callout-tip callout-titled" title="Worked solution">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-5-contents" aria-controls="callout-5" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Worked solution
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-5" class="callout-5-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>This uses <a href="../lectures/week05.html#sec-detailed">Week 5, Detailed balance</a> and <a href="../lectures/week05.html#sec-mh-proof">Why Metropolis-Hastings works</a>.</p>
+<ol type="1">
+<li>Problem 3 showed <span class="math inline">(\tfrac13,\tfrac13,\tfrac13)</span> is stationary. For detailed balance we need <span class="math inline">\pi_iA_{ij}=\pi_jA_{ji}</span>. Take <span class="math inline">i=1</span>, <span class="math inline">j=2</span>: the left side is <span class="math inline">\tfrac13\cdot1</span> and the right side is <span class="math inline">\tfrac13\cdot0</span>. Probability flows around the cycle in one direction only, so the flow along each edge is not balanced, even though the total flow into each state equals the total flow out. This is the week’s point that detailed balance is sufficient, not necessary.</li>
+<li>The proposal is symmetric (<span class="math inline">q=\tfrac12</span> both ways), so this is the Metropolis rule. A move off state <span class="math inline">i</span> to <span class="math inline">j</span> has probability <span class="math inline">\tfrac12\min\{1,\pi_j/\pi_i\}</span>:
+<ul>
+<li>from 1: to 2, <span class="math inline">\tfrac12\cdot0.6=0.3</span>; to 3, <span class="math inline">\tfrac12\cdot0.4=0.2</span>; stay <span class="math inline">0.5</span>;</li>
+<li>from 2: to 1, <span class="math inline">\tfrac12\cdot1=0.5</span>; to 3, <span class="math inline">\tfrac12\cdot\tfrac23=\tfrac13</span>; stay <span class="math inline">\tfrac16</span>;</li>
+<li>from 3: to 1, <span class="math inline">0.5</span>; to 2, <span class="math inline">0.5</span>; stay <span class="math inline">0</span>.</li>
+</ul>
+So <span class="math display">A = \begin{pmatrix} 0.5 &amp; 0.3 &amp; 0.2\\ 0.5 &amp; \tfrac16 &amp; \tfrac13\\ 0.5 &amp; 0.5 &amp; 0\end{pmatrix}.</span> The stay-put entries are the rejected proposals. State 3 never rejects, because both alternatives are more probable.</li>
+<li>Detailed balance, pair by pair: <span class="math display">\pi_1A_{12} = 0.5(0.3) = 0.15 = 0.3(0.5) = \pi_2A_{21},</span> <span class="math display">\pi_1A_{13} = 0.5(0.2) = 0.1 = 0.2(0.5) = \pi_3A_{31},</span> <span class="math display">\pi_2A_{23} = 0.3(\tfrac13) = 0.1 = 0.2(0.5) = \pi_3A_{32}.</span> Each flow equals <span class="math inline">\tfrac12\min\{\pi_i,\pi_j\}</span>, symmetric in <span class="math inline">i</span> and <span class="math inline">j</span>, as in the proof. Directly, column by column: <span class="math display">0.5(0.5)+0.3(0.5)+0.2(0.5) = 0.5,</span> <span class="math display">0.5(0.3)+0.3(\tfrac16)+0.2(0.5) = 0.3,</span> <span class="math display">0.5(0.2)+0.3(\tfrac13)+0.2(0) = 0.2.</span></li>
+</ol>
+<p><strong>Answer.</strong> (1) <span class="math inline">\tfrac13\cdot1\neq\tfrac13\cdot0</span>, so no detailed balance despite stationarity. (2) <span class="math inline">A</span> as above. (3) All three pair flows match, and <span class="math inline">A^\top\pi=\pi</span>.</p>
+</div>
+</div>
+</div>
+</section>
+<section id="prb-6" class="level3">
+<h3 class="anchored" data-anchor-id="prb-6">Problem 6: When the Hastings correction matters</h3>
+<p>The target on <span class="math inline">(0,1)</span> is <span class="math inline">\tilde p(\theta)=\theta^3(1-\theta)^5</span>. The proposal ignores the current state and draws <span class="math inline">\theta'</span> from the density <span class="math inline">q(\theta')=2\theta'</span> on <span class="math inline">(0,1)</span>, which favours large values.</p>
+<ol type="1">
+<li>The chain is at <span class="math inline">\theta=0.3</span> and proposes <span class="math inline">\theta'=0.5</span>. Compute the <a href="https://en.wikipedia.org/wiki/Metropolis%E2%80%93Hastings_algorithm">Metropolis-Hastings</a> acceptance probability, and the value you would get by wrongly using the Metropolis rule (no <span class="math inline">q</span> ratio).</li>
+<li>Repeat for the reverse move, from <span class="math inline">0.5</span> to <span class="math inline">0.3</span>.</li>
+<li>Explain the direction of the correction.</li>
+</ol>
+<div class="practice-answer callout callout-style-default callout-tip callout-titled" title="Worked solution">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-6-contents" aria-controls="callout-6" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Worked solution
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-6" class="callout-6-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>This uses <a href="../lectures/week05.html#sec-mh">Week 5, The Metropolis-Hastings algorithm</a>.</p>
+<p>Here <span class="math inline">q(x'\mid x)=2x'</span>, so <span class="math inline">q(\theta\mid\theta')=2\theta</span> and <span class="math inline">q(\theta'\mid\theta)=2\theta'</span>. The target ratio is <span class="math display">\frac{\tilde p(0.5)}{\tilde p(0.3)} = \Big(\frac{0.5}{0.3}\Big)^3\Big(\frac{0.5}{0.7}\Big)^5 = 4.630\times0.1859 \approx 0.861.</span></p>
+<ol type="1">
+<li>MH multiplies by <span class="math inline">q(0.3\mid0.5)/q(0.5\mid0.3)=0.6/1.0</span>: <span class="math display">\alpha = \min\{1,\ 0.861\times0.6\} \approx 0.516.</span> The Metropolis rule would give <span class="math inline">\min\{1,0.861\}=0.861</span>.</li>
+<li>Reverse: the target ratio is <span class="math inline">1/0.861\approx1.162</span> and the <span class="math inline">q</span> ratio is <span class="math inline">1.0/0.6</span>, so <span class="math inline">\alpha=\min\{1,\ 1.936\}=1</span>. The Metropolis rule also gives <span class="math inline">1</span>.</li>
+<li>This proposal suggests <span class="math inline">0.5</span> more readily than <span class="math inline">0.3</span> (density <span class="math inline">1.0</span> against <span class="math inline">0.6</span>). Without correction, the chain would accept those frequent upward proposals too often and overweight large <span class="math inline">\theta</span>; its stationary distribution would be proportional to <span class="math inline">\tilde p(\theta)\,q(\theta)</span> rather than <span class="math inline">\tilde p(\theta)</span>. The factor <span class="math inline">q(x\mid x')/q(x'\mid x)</span> lowers acceptance for moves the proposal favours, so the flows <span class="math inline">\min\{p(x)q(x'\mid x),\,p(x')q(x\mid x')\}</span> balance again.</li>
+</ol>
+<p><strong>Answer.</strong> (1) <span class="math inline">\approx0.516</span> (Metropolis would give <span class="math inline">0.861</span>). (2) <span class="math inline">1</span> either way. (3) The correction discounts moves the proposal makes too often.</p>
+</div>
+</div>
+</div>
+</section>
+<section id="prb-7" class="level3">
+<h3 class="anchored" data-anchor-id="prb-7">Problem 7: One Gibbs sweep, and a tempting bug</h3>
+<p>Target: a <a href="https://en.wikipedia.org/wiki/Multivariate_normal_distribution">bivariate Gaussian</a> with mean <span class="math inline">\mu=(1,-1)</span>, unit variances, and correlation <span class="math inline">\rho=-0.5</span>. Start at <span class="math inline">x^{(0)}=(0,0)</span>. The standard-normal draws for the first sweep are <span class="math inline">\varepsilon_1=0.4</span> (for <span class="math inline">x_1</span>) and <span class="math inline">\varepsilon_2=-1.0</span> (for <span class="math inline">x_2</span>), used as <span class="math inline">\text{mean}+\text{sd}\cdot\varepsilon</span>.</p>
+<ol type="1">
+<li>Carry out one <a href="https://en.wikipedia.org/wiki/Gibbs_sampling">Gibbs</a> sweep.</li>
+<li>Someone writes the sweep as</li>
+</ol>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>x1_new <span class="op">=</span> m1(x2) <span class="op">+</span> sd <span class="op">*</span> eps1</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>x2_new <span class="op">=</span> m2(x1) <span class="op">+</span> sd <span class="op">*</span> eps2   <span class="co"># uses the old x1</span></span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>x1, x2 <span class="op">=</span> x1_new, x2_new</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>where <code>m1</code>, <code>m2</code> are the conditional means. What value of <span class="math inline">x_2</span> does this produce from the same start and draws?</p>
+<ol start="3" type="1">
+<li>Suppose <span class="math inline">(x_1,x_2)</span> is already an exact draw from the target. Under the buggy update, what is <span class="math inline">\mathrm{cov}(x_1',x_2')</span>? Is the target still stationary?</li>
+</ol>
+<div class="practice-answer callout callout-style-default callout-tip callout-titled" title="Worked solution">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-7-contents" aria-controls="callout-7" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Worked solution
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-7" class="callout-7-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>This uses <a href="../lectures/week05.html#sec-gauss-cond">Week 5, The conditional distribution of a bivariate Gaussian</a> and <a href="../lectures/week05.html#sec-gibbs">Gibbs sampling</a>.</p>
+<p>Both full conditionals have variance <span class="math inline">1-\rho^2=0.75</span>, so <span class="math inline">\text{sd}=0.866</span>.</p>
+<ol type="1">
+<li>Update <span class="math inline">x_1</span> given <span class="math inline">x_2=0</span>: mean <span class="math inline">1+(-0.5)(0-(-1))=0.5</span>, so <span class="math inline">x_1=0.5+0.866(0.4)=0.846</span>. Update <span class="math inline">x_2</span> given the <strong>new</strong> <span class="math inline">x_1=0.846</span>: mean <span class="math inline">-1+(-0.5)(0.846-1)=-0.923</span>, so <span class="math inline">x_2=-0.923+0.866(-1.0)=-1.789</span>. After one sweep, <span class="math inline">x^{(1)}=(0.846,\ -1.789)</span>. The negative correlation shows: <span class="math inline">x_1</span> came out a little below its mean, which nudged <span class="math inline">x_2</span>’s conditional mean a little above <span class="math inline">-1</span>.</li>
+<li>The buggy line conditions on the old <span class="math inline">x_1=0</span>: mean <span class="math inline">-1+(-0.5)(0-1)=-0.5</span>, so <span class="math inline">x_2=-0.5-0.866=-1.366</span>. Both coordinates are now drawn from the previous state at once, which is not the algorithm in the week chapter, where each coordinate conditions on the <em>most recent</em> value of the others.</li>
+<li>Under the buggy update, <span class="math inline">x_1'=\mu_1+\rho(x_2-\mu_2)+\text{noise}</span> and <span class="math inline">x_2'=\mu_2+\rho(x_1-\mu_1)+\text{noise}</span>, with independent noises. So <span class="math display">\mathrm{cov}(x_1',x_2') = \rho^2\,\mathrm{cov}(x_2,x_1) = \rho^3 = -0.125.</span> The target has covariance <span class="math inline">-0.5</span>, so one step of the buggy update moves an exact draw away from the target: the target is not stationary. Each coordinate’s marginal is still correct, which is why this bug can survive a check of means and variances alone.</li>
+</ol>
+<p><strong>Answer.</strong> (1) <span class="math inline">x^{(1)}\approx(0.846,\ -1.789)</span>. (2) <span class="math inline">x_2\approx-1.366</span>. (3) <span class="math inline">\rho^3=-0.125\neq-0.5</span>; the target is not stationary under the buggy update.</p>
+</div>
+</div>
+</div>
+</section>
+<section id="prb-8" class="level3">
+<h3 class="anchored" data-anchor-id="prb-8">Problem 8: R-hat versus split R-hat</h3>
+<p>Two chains, each of length <span class="math inline">n=4</span> after burn-in, record a scalar quantity:</p>
+<p><span class="math display">\text{chain 1: } 1.0,\ 2.2,\ 2.8,\ 4.0, \qquad \text{chain 2: } 1.2,\ 1.8,\ 3.2,\ 3.8.</span></p>
+<ol type="1">
+<li>Compute <span class="math inline">B</span>, <span class="math inline">W</span>, <span class="math inline">\widehat{\mathrm{var}}^+</span>, and <span class="math inline">\hat R</span> for the two chains.</li>
+<li>Now split each chain into halves and compute <span class="math inline">\hat R</span> for the four half-chains.</li>
+<li>Which value tells the truth about these chains, and why?</li>
+</ol>
+<div class="practice-answer callout callout-style-default callout-tip callout-titled" title="Worked solution">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-8-contents" aria-controls="callout-8" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Worked solution
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-8" class="callout-8-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>This uses <a href="../lectures/week05.html#sec-rhat">Week 5, The R-hat statistic</a>, including split-<span class="math inline">\hat R</span>.</p>
+<ol type="1">
+<li>Both chain means are <span class="math inline">2.5</span>, so the overall mean is <span class="math inline">2.5</span> and <span class="math inline">B=0</span>. Sample variances: chain 1 has deviations <span class="math inline">-1.5,-0.3,0.3,1.5</span>, so <span class="math inline">s_1^2=4.68/3=1.56</span>; chain 2 has <span class="math inline">-1.3,-0.7,0.7,1.3</span>, so <span class="math inline">s_2^2=4.36/3=1.453</span>. Then <span class="math display">W = 1.507, \qquad \widehat{\mathrm{var}}^+ = \tfrac34(1.507)+\tfrac14(0) = 1.13,</span> <span class="math display">\hat R = \sqrt{1.13/1.507} = \sqrt{0.75} \approx 0.87.</span> With <span class="math inline">B=0</span>, <span class="math inline">\hat R=\sqrt{(n-1)/n}</span>, slightly below 1 for short chains. Nothing here signals a problem.</li>
+<li>The halves <span class="math inline">[1.0,2.2]</span>, <span class="math inline">[2.8,4.0]</span>, <span class="math inline">[1.2,1.8]</span>, <span class="math inline">[3.2,3.8]</span> have means <span class="math inline">1.6</span>, <span class="math inline">3.4</span>, <span class="math inline">1.5</span>, <span class="math inline">3.5</span> (overall <span class="math inline">2.5</span>) and sample variances <span class="math inline">0.72</span>, <span class="math inline">0.72</span>, <span class="math inline">0.18</span>, <span class="math inline">0.18</span>. With <span class="math inline">m=4</span>, <span class="math inline">n=2</span>: <span class="math display">B = \tfrac23\big[0.81+0.81+1+1\big] = 2.413, \qquad W = 0.45,</span> <span class="math display">\widehat{\mathrm{var}}^+ = \tfrac12(0.45)+\tfrac12(2.413) = 1.432, \qquad \hat R = \sqrt{1.432/0.45} \approx 1.78.</span></li>
+<li>The split value. Both chains drift steadily upward together, so they agree with each other at every point and plain <span class="math inline">\hat R</span> cannot see the drift. Splitting compares each chain’s first half with its second half, and the halves disagree strongly, which reveals that neither chain is stationary yet. Toy chains of length 4 are only for the arithmetic; real diagnostics use far longer runs.</li>
+</ol>
+<p><strong>Answer.</strong> (1) <span class="math inline">B=0</span>, <span class="math inline">W\approx1.507</span>, <span class="math inline">\widehat{\mathrm{var}}^+\approx1.13</span>, <span class="math inline">\hat R\approx0.87</span>. (2) Split <span class="math inline">\hat R\approx1.78</span>. (3) Split-<span class="math inline">\hat R</span>: the chains drift in step, which only the split comparison detects.</p>
+</div>
+</div>
+</div>
+</section>
+</section>
+<section id="sec-w5p-hw2" class="level2">
+<h2 class="anchored" data-anchor-id="sec-w5p-hw2">Homework 2 practice</h2>
+<p>The problems in this section prepare the pieces a homework on sampling a skill posterior relies on: one <a href="https://en.wikipedia.org/wiki/Hamiltonian_Monte_Carlo">Hamiltonian Monte Carlo</a> iteration written with the gradient of a log density, an accept step computed in log space, what a stored chain contains, and how to summarize and judge a matrix of samples.</p>
+<section id="prb-9" class="level3">
+<h3 class="anchored" data-anchor-id="prb-9">Problem 9: One leapfrog step on a one-player skill posterior</h3>
+<p>A single player has skill <span class="math inline">z</span> with prior <span class="math inline">z\sim\mathcal N(0,1)</span>. They play one game against an opponent whose skill is known to be <span class="math inline">0</span>, and win. With the course’s win probability <span class="math inline">\sigma(z-0)</span>, where <span class="math inline">\sigma</span> is the <a href="https://en.wikipedia.org/wiki/Logistic_function">logistic function</a>, the unnormalized log-posterior (dropping constants) is</p>
+<p><span class="math display">\log\tilde p(z) = -\tfrac12z^2 + \log\sigma(z).</span></p>
+<ol type="1">
+<li>Using <span class="math inline">\frac{d}{dy}\log\sigma(y)=1-\sigma(y)=\sigma(-y)</span>, write <span class="math inline">\nabla\log\tilde p(z)</span>. Which term pulls <span class="math inline">z</span> toward the prior mean, and which pushes it up because of the win?</li>
+<li>Start HMC at <span class="math inline">z=0</span> with fresh momentum <span class="math inline">v=1</span> and step size <span class="math inline">\epsilon=0.5</span>. Do one <a href="https://en.wikipedia.org/wiki/Leapfrog_integration">leapfrog</a> step (<span class="math inline">L=1</span>) in the gradient-of-log-density form.</li>
+<li>With <span class="math inline">E(z)=-\log\tilde p(z)</span> and <span class="math inline">K(v)=\tfrac12v^2</span>, compute <span class="math inline">H</span> at the start and at the end, and the acceptance probability.</li>
+</ol>
+<div class="practice-answer callout callout-style-default callout-tip callout-titled" title="Worked solution">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-9-contents" aria-controls="callout-9" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Worked solution
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-9" class="callout-9-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>This uses the energy and Hamiltonian of <a href="../lectures/week05.html#sec-hmc">Week 5, Hamiltonian Monte Carlo</a> and the integrator of <a href="../lectures/week05.html#sec-leapfrog">The leapfrog integrator and the HMC algorithm</a>.</p>
+<ol type="1">
+<li><p>Differentiate term by term: <span class="math display">\nabla\log\tilde p(z) = -z + \sigma(-z).</span> The <span class="math inline">-z</span> comes from the Gaussian prior and always points back toward 0. The <span class="math inline">\sigma(-z)</span> comes from the win and is always positive, so it pushes <span class="math inline">z</span> upward; it fades as <span class="math inline">z</span> grows, because a large skill already explains the win.</p></li>
+<li><p>At <span class="math inline">z=0</span> the gradient is <span class="math inline">0+\sigma(0)=0.5</span>. The three leapfrog updates, with <span class="math inline">+\tfrac\epsilon2\nabla\log\tilde p</span> in place of <span class="math inline">-\tfrac\epsilon2\nabla E</span>: <span class="math display">v_{1/2} = 1 + 0.25\,(0.5) = 1.125,</span> <span class="math display">z' = 0 + 0.5\,(1.125) = 0.5625,</span> <span class="math display">\nabla\log\tilde p(0.5625) = -0.5625 + \sigma(-0.5625) = -0.5625+0.3630 = -0.1995,</span> <span class="math display">v' = 1.125 + 0.25\,(-0.1995) = 1.0751.</span> The momentum grew on the first half step (the win pushed uphill in probability) and shrank slightly on the second (past <span class="math inline">z\approx0.4</span> the prior pull wins).</p></li>
+<li><p>At the start, <span class="math inline">E(0)=0-\log\sigma(0)=\log2=0.6931</span> and <span class="math inline">K=0.5</span>, so <span class="math inline">H=1.1931</span>. At the end, <span class="math display">E(0.5625) = 0.1582 - \log\sigma(0.5625) = 0.1582+0.4510 = 0.6091,</span> <span class="math display">K = \tfrac12(1.0751)^2 = 0.5779, \qquad H = 1.1871.</span> The total energy changed by only <span class="math inline">-0.006</span>: potential energy dropped and kinetic energy rose by almost the same amount, as in the week’s worked example. The acceptance probability is <span class="math inline">\min\{1,\ e^{1.1931-1.1871}\}=\min\{1,\ e^{0.006}\}=1</span>.</p></li>
+</ol>
+<p><strong>Answer.</strong> (1) <span class="math inline">\nabla\log\tilde p(z)=-z+\sigma(-z)</span>: <span class="math inline">-z</span> is the prior pull, <span class="math inline">\sigma(-z)</span> the push from the win. (2) <span class="math inline">v_{1/2}=1.125</span>, <span class="math inline">z'=0.5625</span>, <span class="math inline">v'\approx1.0751</span>. (3) <span class="math inline">H\approx1.1931\to1.1871</span>; accepted with probability 1.</p>
+</div>
+</div>
+</div>
+</section>
+<section id="prb-10" class="level3">
+<h3 class="anchored" data-anchor-id="prb-10">Problem 10: Which gradient goes in the momentum update</h3>
+<p>A leapfrog function contains these two momentum lines:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>v_half <span class="op">=</span> v <span class="op">+</span> <span class="fl">0.5</span> <span class="op">*</span> eps <span class="op">*</span> grad(x)</span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>v_new  <span class="op">=</span> v_half <span class="op">+</span> <span class="fl">0.5</span> <span class="op">*</span> eps <span class="op">*</span> grad(x_new)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<ol type="1">
+<li>For this to be the leapfrog integrator of the week chapter, must <code>grad</code> return <span class="math inline">\nabla\log\tilde p(x)</span> or <span class="math inline">\nabla E(x)</span>?</li>
+<li>Suppose someone passes the other one by mistake. Using the target of Problem 9, at <span class="math inline">z=0</span> with <span class="math inline">v=1</span> and <span class="math inline">\epsilon=0.5</span>, what is <span class="math inline">v_{1/2}</span> now, and in which direction does the trajectory bend over many steps? What happens to the acceptance rate?</li>
+</ol>
+<div class="practice-answer callout callout-style-default callout-tip callout-titled" title="Worked solution">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-10-contents" aria-controls="callout-10" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Worked solution
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-10" class="callout-10-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>This uses the remark on writing leapfrog with the log density in <a href="../lectures/week05.html#sec-leapfrog">Week 5, The leapfrog integrator and the HMC algorithm</a>.</p>
+<ol type="1">
+<li>The lecture’s momentum update is <span class="math inline">v\leftarrow v-\tfrac\epsilon2\nabla E(x)</span>. The code <em>adds</em> the gradient, and since <span class="math inline">-\nabla E=\nabla\log\tilde p</span>, <code>grad</code> must return <span class="math inline">\nabla\log\tilde p(x)</span>, the gradient of the log density. The gradient of the energy would need a minus sign.</li>
+<li>Passing <span class="math inline">\nabla E=-\nabla\log\tilde p</span> flips every momentum kick. At <span class="math inline">z=0</span> the energy gradient is <span class="math inline">-0.5</span>, so <span class="math inline">v_{1/2}=1+0.25(-0.5)=0.875</span> instead of <span class="math inline">1.125</span>. Over many steps the momentum is pushed toward <em>higher</em> energy, that is toward low-probability regions: the ball rolls uphill and accelerates away from the mode. Total energy is no longer close to conserved along the simulated path, <span class="math inline">H</span> at the end is typically far larger than at the start, and <span class="math inline">e^{H_{\text{start}}-H_{\text{end}}}</span> is close to 0. Almost every proposal is rejected and the chain sits still.</li>
+</ol>
+<p>A collapsed acceptance rate with a small step size is therefore worth checking for a sign error before tuning <span class="math inline">\epsilon</span>.</p>
+<p><strong>Answer.</strong> (1) <span class="math inline">\nabla\log\tilde p</span>. (2) <span class="math inline">v_{1/2}=0.875</span>; trajectories bend away from high probability, <span class="math inline">H</span> grows, and acceptance collapses toward 0.</p>
+</div>
+</div>
+</div>
+</section>
+<section id="prb-11" class="level3">
+<h3 class="anchored" data-anchor-id="prb-11">Problem 11: A Metropolis accept step in log space</h3>
+<p>An accept step is written as</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>accept_prob <span class="op">=</span> exp(logp(new_state) <span class="op">-</span> logp(old_state))</span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a><span class="cf">if</span> random.random() <span class="op">&lt;</span> accept_prob:</span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a>    state <span class="op">=</span> new_state</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>where <code>logp</code> returns <span class="math inline">\log p(x,v)</span> up to a constant, that is <span class="math inline">-H(x,v)</span>, for a (position, momentum) pair.</p>
+<ol type="1">
+<li>If <code>logp(old_state)</code> is <span class="math inline">-12.4</span> and <code>logp(new_state)</code> is <span class="math inline">-13.1</span>, what is the acceptance probability?</li>
+<li>If instead <code>logp(new_state)</code> is <span class="math inline">-12.1</span>, what does <code>accept_prob</code> evaluate to, and is the move accepted? The code never takes <span class="math inline">\min\{1,\cdot\}</span>. Is that a bug?</li>
+<li>Why compute <span class="math inline">\exp</span> of a difference of logs, rather than <code>p(new) / p(old)</code>?</li>
+</ol>
+<div class="practice-answer callout callout-style-default callout-tip callout-titled" title="Worked solution">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-11-contents" aria-controls="callout-11" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Worked solution
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-11" class="callout-11-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>This uses the acceptance rule of <a href="../lectures/week05.html#sec-mh">Week 5, The Metropolis-Hastings algorithm</a> and its HMC form in <a href="../lectures/week05.html#sec-leapfrog">The leapfrog integrator and the HMC algorithm</a>.</p>
+<ol type="1">
+<li><span class="math inline">e^{-13.1-(-12.4)}=e^{-0.7}\approx0.497</span>. In energy terms, <span class="math inline">H</span> rose by <span class="math inline">0.7</span>, and the move is accepted about half the time.</li>
+<li><span class="math inline">e^{-12.1+12.4}=e^{0.3}\approx1.35</span>. <code>random.random()</code> returns a number in <span class="math inline">[0,1)</span>, which is always below <span class="math inline">1.35</span>, so the move is always accepted. Accepting with probability <span class="math inline">\min\{1,r\}</span> and testing <span class="math inline">u&lt;r</span> for a uniform <span class="math inline">u</span> give the same decision for every <span class="math inline">r</span>, so leaving out the <span class="math inline">\min</span> is not a bug.</li>
+<li>The log densities of a posterior with many coordinates are large negative numbers (hundreds or thousands). Exponentiating each one separately underflows to <span class="math inline">0</span>, and <span class="math inline">0/0</span> is undefined. The difference of logs is a modest number, and only that is exponentiated. Any constant, including <span class="math inline">\log Z</span>, cancels in the difference, which is the same reason MH never needs <span class="math inline">Z</span>.</li>
+</ol>
+<p><strong>Answer.</strong> (1) <span class="math inline">\approx0.497</span>. (2) <span class="math inline">\approx1.35</span>, always accepted; the missing <span class="math inline">\min</span> is harmless. (3) To avoid underflow; the difference is small and constants cancel.</p>
+</div>
+</div>
+</div>
+</section>
+<section id="prb-12" class="level3">
+<h3 class="anchored" data-anchor-id="prb-12">Problem 12: What the stored chain contains</h3>
+<p>A sampler starts at <span class="math inline">\theta=0</span> and runs this loop six times:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>samples <span class="op">=</span> []</span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> t <span class="kw">in</span> <span class="bu">range</span>(<span class="dv">6</span>):</span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a>    samples.append(theta)</span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a>    <span class="co"># propose theta_new, then accept or reject</span></span>
+<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a>    theta <span class="op">=</span> accept_or_reject(theta, theta_new)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>The six proposals and decisions are: <span class="math inline">0.8</span> accepted, <span class="math inline">1.4</span> rejected, <span class="math inline">1.1</span> accepted, <span class="math inline">2.0</span> rejected, <span class="math inline">1.5</span> rejected, <span class="math inline">0.9</span> accepted.</p>
+<ol type="1">
+<li>Write out <code>samples</code>. Is the last accepted value, <span class="math inline">0.9</span>, in it?</li>
+<li>What is the acceptance rate?</li>
+<li>Compute the mean of <code>samples</code>, and the mean you would get if repeated values were dropped. Which one is the MCMC estimate, and why?</li>
+<li>Why is the first stored value suspect, and what is it called when we discard such early values?</li>
+<li>For a posterior over <span class="math inline">N</span> players’ skills, what shape are <code>theta</code> and the momentum drawn in each HMC iteration?</li>
+</ol>
+<div class="practice-answer callout callout-style-default callout-tip callout-titled" title="Worked solution">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-12-contents" aria-controls="callout-12" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Worked solution
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-12" class="callout-12-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>This uses <a href="../lectures/week05.html#sec-whymcmc">Week 5, Why MCMC</a> and the remark “a rejection is still a sample” in <a href="../lectures/week05.html#sec-mh">The Metropolis-Hastings algorithm</a>.</p>
+<ol type="1">
+<li>The state is appended <em>before</em> each update, so the list records the state at the start of each iteration. A rejection leaves <span class="math inline">\theta</span> unchanged, so the next append repeats it: <span class="math display">[\,0,\ 0.8,\ 0.8,\ 1.1,\ 1.1,\ 1.1\,].</span> The final value <span class="math inline">0.9</span> is reached after the last append and is not stored. It would be the first entry of a seventh iteration.</li>
+<li>Three of six proposals were accepted: <span class="math inline">3/6=0.5</span>.</li>
+<li>With repeats, the mean is <span class="math inline">4.9/6\approx0.817</span>. Dropping repeats leaves <span class="math inline">[0,0.8,1.1]</span> with mean <span class="math inline">0.633</span>. The first is the MCMC estimate. Staying at <span class="math inline">1.1</span> for three iterations is how the chain says that <span class="math inline">1.1</span> has more posterior mass nearby than the rejected proposals; the stay-put probability is part of the transition rule whose stationary distribution is the target, as the detailed-balance proof shows.</li>
+<li>The chain was started at an arbitrary point, <span class="math inline">0</span>, not at a draw from the posterior. Early states reflect the starting point more than the target. Discarding them is the <strong>burn-in</strong>. With only six samples nothing here can be called converged; the arithmetic is for bookkeeping only.</li>
+<li>Both have one entry per player: shape <span class="math inline">(N,)</span>. HMC samples all coordinates jointly, and the momentum always has the same dimension as the position.</li>
+</ol>
+<p><strong>Answer.</strong> (1) <span class="math inline">[0,0.8,0.8,1.1,1.1,1.1]</span>; <span class="math inline">0.9</span> is not stored. (2) <span class="math inline">0.5</span>. (3) <span class="math inline">\approx0.817</span> with repeats (correct) versus <span class="math inline">0.633</span> without. (4) It is the arbitrary start; dropping early values is burn-in. (5) Both shape <span class="math inline">(N,)</span>.</p>
+</div>
+</div>
+</div>
+</section>
+<section id="prb-13" class="level3">
+<h3 class="anchored" data-anchor-id="prb-13">Problem 13: From a sample matrix to a ranking</h3>
+<p>After burn-in, a sampler has produced six draws of four players’ skills, stored as an array <code>S</code> of shape <code>(6, 4)</code>: one row per sample, one column per player.</p>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th>sample</th>
+<th>player 0</th>
+<th>player 1</th>
+<th>player 2</th>
+<th>player 3</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>1</td>
+<td>0.9</td>
+<td>−0.4</td>
+<td>1.6</td>
+<td>0.2</td>
+</tr>
+<tr class="even">
+<td>2</td>
+<td>1.1</td>
+<td>−0.2</td>
+<td>1.2</td>
+<td>0.5</td>
+</tr>
+<tr class="odd">
+<td>3</td>
+<td>0.7</td>
+<td>−0.6</td>
+<td>1.5</td>
+<td>0.9</td>
+</tr>
+<tr class="even">
+<td>4</td>
+<td>1.3</td>
+<td>0.1</td>
+<td>1.0</td>
+<td>0.4</td>
+</tr>
+<tr class="odd">
+<td>5</td>
+<td>0.8</td>
+<td>−0.5</td>
+<td>1.4</td>
+<td>1.0</td>
+</tr>
+<tr class="even">
+<td>6</td>
+<td>1.0</td>
+<td>−0.3</td>
+<td>1.1</td>
+<td>0.6</td>
+</tr>
+</tbody>
+</table>
+<ol type="1">
+<li>Estimate each player’s posterior mean and standard deviation. Along which axis of <code>S</code> do the averages run?</li>
+<li>Rank the players from highest to lowest mean skill.</li>
+<li>Estimate <span class="math inline">\mathbb P(z_3\ge z_0\mid\text{games})</span>.</li>
+<li>These draws come from a Markov chain. Why is the estimate in part 3 less precise than <span class="math inline">p(1-p)/R</span> suggests?</li>
+</ol>
+<div class="practice-answer callout callout-style-default callout-tip callout-titled" title="Worked solution">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-13-contents" aria-controls="callout-13" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Worked solution
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-13" class="callout-13-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>This uses the Monte Carlo average of <a href="../lectures/week05.html#sec-whymcmc">Week 5, Why MCMC</a> and <a href="../lectures/week05.html#sec-ess">Effective sample size</a>.</p>
+<ol type="1">
+<li><p>Each column is a sample from one player’s marginal posterior, so the averages run down the rows (axis 0), giving one number per player. For player 0, the mean is <span class="math inline">5.8/6=0.967</span>; the squared deviations sum to <span class="math inline">0.2333</span>, so dividing by <span class="math inline">6</span> and taking the square root gives a standard deviation of <span class="math inline">0.197</span>. The same steps for every column:</p>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th></th>
+<th>player 0</th>
+<th>player 1</th>
+<th>player 2</th>
+<th>player 3</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>mean</td>
+<td>0.967</td>
+<td>−0.317</td>
+<td>1.300</td>
+<td>0.600</td>
+</tr>
+<tr class="even">
+<td>std</td>
+<td>0.197</td>
+<td>0.227</td>
+<td>0.216</td>
+<td>0.277</td>
+</tr>
+</tbody>
+</table>
+<p>(Dividing by <span class="math inline">5</span> instead of <span class="math inline">6</span> gives slightly larger values; with thousands of samples the difference vanishes.)</p></li>
+<li><p>Sorting by mean: player 2, player 0, player 3, player 1. In code this is an argsort of the mean vector, reversed for highest first; the result is a list of player indices, not of skills.</p></li>
+<li><p>The probability is the expectation of an indicator. Row by row, <span class="math inline">z_3\ge z_0</span> holds in samples 3 and 5 only, so the estimate is <span class="math inline">2/6\approx0.333</span>. The comparison is made within each row, because each row is one joint draw. Comparing the two players’ means alone would only say player 0 is higher on average, not how often.</p></li>
+<li><p>The formula <span class="math inline">p(1-p)/R</span> assumes independent draws. Consecutive MCMC draws are positively correlated, so <span class="math inline">R</span> draws carry the information of only <span class="math inline">n_{\text{eff}}&lt;R</span> independent ones, and the variance is closer to <span class="math inline">p(1-p)/n_{\text{eff}}</span>.</p></li>
+</ol>
+<p><strong>Answer.</strong> (1) Means <span class="math inline">(0.967,\ -0.317,\ 1.300,\ 0.600)</span>, standard deviations <span class="math inline">(0.197,\ 0.227,\ 0.216,\ 0.277)</span>, averaging over axis 0. (2) <span class="math inline">2,0,3,1</span>. (3) <span class="math inline">1/3</span>. (4) Correlated samples reduce the effective sample size.</p>
+</div>
+</div>
+</div>
+</section>
+<section id="prb-14" class="level3">
+<h3 class="anchored" data-anchor-id="prb-14">Problem 14: Step size, trajectory length, and what samples are worth</h3>
+<p>A posterior has standard deviation about <span class="math inline">1</span> in each coordinate. Three HMC settings are tried:</p>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th>setting</th>
+<th><span class="math inline">\epsilon</span></th>
+<th><span class="math inline">L</span></th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>A</td>
+<td>0.02</td>
+<td>10</td>
+</tr>
+<tr class="even">
+<td>B</td>
+<td>0.1</td>
+<td>15</td>
+</tr>
+<tr class="odd">
+<td>C</td>
+<td>1.5</td>
+<td>1</td>
+</tr>
+</tbody>
+</table>
+<ol type="1">
+<li>For each setting, how far can one trajectory move (in units of the posterior’s standard deviation), and how many gradient evaluations does each iteration cost?</li>
+<li>Which setting behaves most like a random walk, and which is most likely to have a low acceptance rate? Explain.</li>
+<li>A run of 4000 samples has lag-one autocorrelation <span class="math inline">0.95</span>. Assuming <span class="math inline">\rho_t=\rho^t</span> as in the week’s example, estimate <span class="math inline">n_{\text{eff}}</span>. Repeat for <span class="math inline">\rho=0.5</span>.</li>
+<li>Four chains of setting A all pass <span class="math inline">\hat R\approx1</span>. Is that enough to trust them?</li>
+</ol>
+<div class="practice-answer callout callout-style-default callout-tip callout-titled" title="Worked solution">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-14-contents" aria-controls="callout-14" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Worked solution
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-14" class="callout-14-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>This uses the two knobs of <a href="../lectures/week05.html#sec-leapfrog">Week 5, The leapfrog integrator and the HMC algorithm</a>, <a href="../lectures/week05.html#sec-ess">Effective sample size</a>, and <a href="../lectures/week05.html#sec-rule">Diagnostics rule of thumb</a>.</p>
+<ol type="1">
+<li>The trajectory length is <span class="math inline">L\epsilon</span>: A <span class="math inline">0.2</span>, B <span class="math inline">1.5</span>, C <span class="math inline">1.5</span>. Each leapfrog step evaluates the gradient once, so A costs about 10 gradients per iteration, B 15, C 1.</li>
+<li><strong>A</strong> behaves most like a random walk. Each proposal moves at most about <span class="math inline">0.2</span> standard deviations, so the chain needs many iterations to cross the posterior, consecutive samples are strongly correlated, and the acceptance rate is high for the wrong reason, as with the tutorial’s tiny-step chain. <strong>C</strong> is most likely to have a low acceptance rate: a single step of size <span class="math inline">1.5</span> is large compared with the posterior’s width, the integration error in <span class="math inline">H</span> is large, and <span class="math inline">e^{H_{\text{start}}-H_{\text{end}}}</span> is often small. <strong>B</strong> covers the same distance as C in small steps, so it travels far while keeping <span class="math inline">H</span> nearly constant.</li>
+<li>The factor is <span class="math inline">\frac{1+\rho}{1-\rho}</span>. For <span class="math inline">\rho=0.95</span> it is <span class="math inline">1.95/0.05=39</span>, so <span class="math inline">n_{\text{eff}}\approx4000/39\approx103</span>. For <span class="math inline">\rho=0.5</span> it is <span class="math inline">3</span>, so <span class="math inline">n_{\text{eff}}\approx1333</span>. The same number of iterations is worth about thirteen times more in the second case.</li>
+<li>Not on its own. The rule of thumb asks for <span class="math inline">\hat R</span> near 1 <strong>and</strong> <span class="math inline">\hat n_{\text{eff}}</span> above 10 per chain, and even passing both shows only that the chains appear mixed. Slow chains started near each other can agree while all of them have explored only a small part of the posterior.</li>
+</ol>
+<p>How the specific settings in a homework behave on its data is left to the homework.</p>
+<p><strong>Answer.</strong> (1) <span class="math inline">L\epsilon=0.2,\ 1.5,\ 1.5</span>; costs 10, 15, 1 gradients. (2) A is random-walk-like; C risks low acceptance. (3) <span class="math inline">n_{\text{eff}}\approx103</span> and <span class="math inline">\approx1333</span>. (4) No: also check <span class="math inline">\hat n_{\text{eff}}</span>, and passing shows apparent mixing only.</p>
+</div>
+</div>
+</div>
+
+
+</section>
+</section>
+
+</main> <!-- /main -->
+<script id="quarto-html-after-body" type="application/javascript">
+  window.document.addEventListener("DOMContentLoaded", function (event) {
+    const icon = "";
+    const anchorJS = new window.AnchorJS();
+    anchorJS.options = {
+      placement: 'right',
+      icon: icon
+    };
+    anchorJS.add('.anchored');
+    const isCodeAnnotation = (el) => {
+      for (const clz of el.classList) {
+        if (clz.startsWith('code-annotation-')) {                     
+          return true;
+        }
+      }
+      return false;
+    }
+    const onCopySuccess = function(e) {
+      // button target
+      const button = e.trigger;
+      // don't keep focus
+      button.blur();
+      // flash "checked"
+      button.classList.add('code-copy-button-checked');
+      var currentTitle = button.getAttribute("title");
+      button.setAttribute("title", "Copied!");
+      let tooltip;
+      if (window.bootstrap) {
+        button.setAttribute("data-bs-toggle", "tooltip");
+        button.setAttribute("data-bs-placement", "left");
+        button.setAttribute("data-bs-title", "Copied!");
+        tooltip = new bootstrap.Tooltip(button, 
+          { trigger: "manual", 
+            customClass: "code-copy-button-tooltip",
+            offset: [0, -8]});
+        tooltip.show();    
+      }
+      setTimeout(function() {
+        if (tooltip) {
+          tooltip.hide();
+          button.removeAttribute("data-bs-title");
+          button.removeAttribute("data-bs-toggle");
+          button.removeAttribute("data-bs-placement");
+        }
+        button.setAttribute("title", currentTitle);
+        button.classList.remove('code-copy-button-checked');
+      }, 1000);
+      // clear code selection
+      e.clearSelection();
+    }
+    const getTextToCopy = function(trigger) {
+      const outerScaffold = trigger.parentElement.cloneNode(true);
+      const codeEl = outerScaffold.querySelector('code');
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+    }
+    const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
+      text: getTextToCopy
+    });
+    clipboard.on('success', onCopySuccess);
+    if (window.document.getElementById('quarto-embedded-source-code-modal')) {
+      const clipboardModal = new window.ClipboardJS('.code-copy-button[data-in-quarto-modal]', {
+        text: getTextToCopy,
+        container: window.document.getElementById('quarto-embedded-source-code-modal')
+      });
+      clipboardModal.on('success', onCopySuccess);
+    }
+      var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+      var mailtoRegex = new RegExp(/^mailto:/);
+        var filterRegex = new RegExp('/' + window.location.host + '/');
+      var isInternal = (href) => {
+          return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+      }
+      // Inspect non-navigation links and adorn them if external
+     var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+      for (var i=0; i<links.length; i++) {
+        const link = links[i];
+        if (!isInternal(link.href)) {
+          // undo the damage that might have been done by quarto-nav.js in the case of
+          // links that we want to consider external
+          if (link.dataset.originalHref !== undefined) {
+            link.href = link.dataset.originalHref;
+          }
+            // target, if specified
+            link.setAttribute("target", "_blank");
+            if (link.getAttribute("rel") === null) {
+              link.setAttribute("rel", "noopener");
+            }
+        }
+      }
+    function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+      const config = {
+        allowHTML: true,
+        maxWidth: 500,
+        delay: 100,
+        arrow: false,
+        appendTo: function(el) {
+            return el.parentElement;
+        },
+        interactive: true,
+        interactiveBorder: 10,
+        theme: 'quarto',
+        placement: 'bottom-start',
+      };
+      if (contentFn) {
+        config.content = contentFn;
+      }
+      if (onTriggerFn) {
+        config.onTrigger = onTriggerFn;
+      }
+      if (onUntriggerFn) {
+        config.onUntrigger = onUntriggerFn;
+      }
+      window.tippy(el, config); 
+    }
+    const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+    for (var i=0; i<noterefs.length; i++) {
+      const ref = noterefs[i];
+      tippyHover(ref, function() {
+        // use id or data attribute instead here
+        let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+        try { href = new URL(href).hash; } catch {}
+        const id = href.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note) {
+          return note.innerHTML;
+        } else {
+          return "";
+        }
+      });
+    }
+    const xrefs = window.document.querySelectorAll('a.quarto-xref');
+    const processXRef = (id, note) => {
+      // Strip column container classes
+      const stripColumnClz = (el) => {
+        el.classList.remove("page-full", "page-columns");
+        if (el.children) {
+          for (const child of el.children) {
+            stripColumnClz(child);
+          }
+        }
+      }
+      stripColumnClz(note)
+      if (id === null || id.startsWith('sec-')) {
+        // Special case sections, only their first couple elements
+        const container = document.createElement("div");
+        if (note.children && note.children.length > 2) {
+          container.appendChild(note.children[0].cloneNode(true));
+          for (let i = 1; i < note.children.length; i++) {
+            const child = note.children[i];
+            if (child.tagName === "P" && child.innerText === "") {
+              continue;
+            } else {
+              container.appendChild(child.cloneNode(true));
+              break;
+            }
+          }
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(container);
+          }
+          return container.innerHTML
+        } else {
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(note);
+          }
+          return note.innerHTML;
+        }
+      } else {
+        // Remove any anchor links if they are present
+        const anchorLink = note.querySelector('a.anchorjs-link');
+        if (anchorLink) {
+          anchorLink.remove();
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        if (note.classList.contains("callout")) {
+          return note.outerHTML;
+        } else {
+          return note.innerHTML;
+        }
+      }
+    }
+    for (var i=0; i<xrefs.length; i++) {
+      const xref = xrefs[i];
+      tippyHover(xref, undefined, function(instance) {
+        instance.disable();
+        let url = xref.getAttribute('href');
+        let hash = undefined; 
+        if (url.startsWith('#')) {
+          hash = url;
+        } else {
+          try { hash = new URL(url).hash; } catch {}
+        }
+        if (hash) {
+          const id = hash.replace(/^#\/?/, "");
+          const note = window.document.getElementById(id);
+          if (note !== null) {
+            try {
+              const html = processXRef(id, note.cloneNode(true));
+              instance.setContent(html);
+            } finally {
+              instance.enable();
+              instance.show();
+            }
+          } else {
+            // See if we can fetch this
+            fetch(url.split('#')[0])
+            .then(res => res.text())
+            .then(html => {
+              const parser = new DOMParser();
+              const htmlDoc = parser.parseFromString(html, "text/html");
+              const note = htmlDoc.getElementById(id);
+              if (note !== null) {
+                const html = processXRef(id, note);
+                instance.setContent(html);
+              } 
+            }).finally(() => {
+              instance.enable();
+              instance.show();
+            });
+          }
+        } else {
+          // See if we can fetch a full url (with no hash to target)
+          // This is a special case and we should probably do some content thinning / targeting
+          fetch(url)
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.querySelector('main.content');
+            if (note !== null) {
+              // This should only happen for chapter cross references
+              // (since there is no id in the URL)
+              // remove the first header
+              if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+                note.children[0].remove();
+              }
+              const html = processXRef(null, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      }, function(instance) {
+      });
+    }
+        let selectedAnnoteEl;
+        const selectorForAnnotation = ( cell, annotation) => {
+          let cellAttr = 'data-code-cell="' + cell + '"';
+          let lineAttr = 'data-code-annotation="' +  annotation + '"';
+          const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+          return selector;
+        }
+        const selectCodeLines = (annoteEl) => {
+          const doc = window.document;
+          const targetCell = annoteEl.getAttribute("data-target-cell");
+          const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+          const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+          const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+          const lineIds = lines.map((line) => {
+            return targetCell + "-" + line;
+          })
+          let top = null;
+          let height = null;
+          let parent = null;
+          if (lineIds.length > 0) {
+              //compute the position of the single el (top and bottom and make a div)
+              const el = window.document.getElementById(lineIds[0]);
+              top = el.offsetTop;
+              height = el.offsetHeight;
+              parent = el.parentElement.parentElement;
+            if (lineIds.length > 1) {
+              const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+              const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+              height = bottom - top;
+            }
+            if (top !== null && height !== null && parent !== null) {
+              // cook up a div (if necessary) and position it 
+              let div = window.document.getElementById("code-annotation-line-highlight");
+              if (div === null) {
+                div = window.document.createElement("div");
+                div.setAttribute("id", "code-annotation-line-highlight");
+                div.style.position = 'absolute';
+                parent.appendChild(div);
+              }
+              div.style.top = top - 2 + "px";
+              div.style.height = height + 4 + "px";
+              div.style.left = 0;
+              let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+              if (gutterDiv === null) {
+                gutterDiv = window.document.createElement("div");
+                gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+                gutterDiv.style.position = 'absolute';
+                const codeCell = window.document.getElementById(targetCell);
+                const gutter = codeCell.querySelector('.code-annotation-gutter');
+                gutter.appendChild(gutterDiv);
+              }
+              gutterDiv.style.top = top - 2 + "px";
+              gutterDiv.style.height = height + 4 + "px";
+            }
+            selectedAnnoteEl = annoteEl;
+          }
+        };
+        const unselectCodeLines = () => {
+          const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+          elementsIds.forEach((elId) => {
+            const div = window.document.getElementById(elId);
+            if (div) {
+              div.remove();
+            }
+          });
+          selectedAnnoteEl = undefined;
+        };
+          // Handle positioning of the toggle
+      window.addEventListener(
+        "resize",
+        throttle(() => {
+          elRect = undefined;
+          if (selectedAnnoteEl) {
+            selectCodeLines(selectedAnnoteEl);
+          }
+        }, 10)
+      );
+      function throttle(fn, ms) {
+      let throttle = false;
+      let timer;
+        return (...args) => {
+          if(!throttle) { // first call gets through
+              fn.apply(this, args);
+              throttle = true;
+          } else { // all the others get throttled
+              if(timer) clearTimeout(timer); // cancel #2
+              timer = setTimeout(() => {
+                fn.apply(this, args);
+                timer = throttle = false;
+              }, ms);
+          }
+        };
+      }
+        // Attach click handler to the DT
+        const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+        for (const annoteDlNode of annoteDls) {
+          annoteDlNode.addEventListener('click', (event) => {
+            const clickedEl = event.target;
+            if (clickedEl !== selectedAnnoteEl) {
+              unselectCodeLines();
+              const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+              if (activeEl) {
+                activeEl.classList.remove('code-annotation-active');
+              }
+              selectCodeLines(clickedEl);
+              clickedEl.classList.add('code-annotation-active');
+            } else {
+              // Unselect the line
+              unselectCodeLines();
+              clickedEl.classList.remove('code-annotation-active');
+            }
+          });
+        }
+    const findCites = (el) => {
+      const parentEl = el.parentElement;
+      if (parentEl) {
+        const cites = parentEl.dataset.cites;
+        if (cites) {
+          return {
+            el,
+            cites: cites.split(' ')
+          };
+        } else {
+          return findCites(el.parentElement)
+        }
+      } else {
+        return undefined;
+      }
+    };
+    var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+    for (var i=0; i<bibliorefs.length; i++) {
+      const ref = bibliorefs[i];
+      const citeInfo = findCites(ref);
+      if (citeInfo) {
+        tippyHover(citeInfo.el, function() {
+          var popup = window.document.createElement('div');
+          citeInfo.cites.forEach(function(cite) {
+            var citeDiv = window.document.createElement('div');
+            citeDiv.classList.add('hanging-indent');
+            citeDiv.classList.add('csl-entry');
+            var biblioDiv = window.document.getElementById('ref-' + cite);
+            if (biblioDiv) {
+              citeDiv.innerHTML = biblioDiv.innerHTML;
+            }
+            popup.appendChild(citeDiv);
+          });
+          return popup.innerHTML;
+        });
+      }
+    }
+  });
+  </script>
+<nav class="page-navigation">
+  <div class="nav-page nav-page-previous">
+      <a href="../lectures/week05.html" class="pagination-link" aria-label="Week 5: Sampling with MCMC">
+        <i class="bi bi-arrow-left-short"></i> <span class="nav-page-text"><span class="chapter-title">Week 5: Sampling with MCMC</span></span>
+      </a>          
+  </div>
+  <div class="nav-page nav-page-next">
+      <a href="../glossary.html" class="pagination-link" aria-label="Glossary">
+        <span class="nav-page-text"><span class="chapter-title">Glossary</span></span> <i class="bi bi-arrow-right-short"></i>
+      </a>
+  </div>
+</nav>
+</div> <!-- /content -->
+
+
+
+
+<script src="../site_libs/quarto-html/zenscroll-min.js"></script>
+</body></html>

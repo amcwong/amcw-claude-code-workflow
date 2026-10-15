@@ -36,7 +36,7 @@ ul.task-list li input[type="checkbox"] {
 <script src="../site_libs/quarto-search/fuse.min.js"></script>
 <script src="../site_libs/quarto-search/quarto-search.js"></script>
 <meta name="quarto:offset" content="../">
-<link href="../lectures/week05.html" rel="next">
+<link href="../lectures/week04-practice.html" rel="next">
 <link href="../lectures/week03-practice.html" rel="prev">
 <script src="../site_libs/quarto-html/quarto.js" type="module"></script>
 <script src="../site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
@@ -206,7 +206,17 @@ window.Quarto = {
 </li>
         <li class="sidebar-item">
   <div class="sidebar-item-container"> 
+  <a href="../lectures/week04-practice.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Week 4 practice: Message passing and Monte Carlo</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
   <a href="../lectures/week05.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Week 5: Sampling with MCMC</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../lectures/week05-practice.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Week 5 practice: Sampling with MCMC</span></a>
   </div>
 </li>
         <li class="sidebar-item">
@@ -300,6 +310,58 @@ Note
 </div>
 <div class="callout-body-container callout-body">
 <p><strong>Homework-relevant.</strong> Assignment 2 returns to the TrueSkill model. This section explains the model, its joint distribution, and why the posterior couples the players; the specific posterior computations the assignment asks for are left to the assignment.</p>
+</div>
+</div>
+<div class="clarification callout callout-style-default callout-tip callout-titled" title="Question: How do the TrueSkill variables and equations fit together?">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-2-contents" aria-controls="callout-2" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Question: How do the TrueSkill variables and equations fit together?
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-2" class="callout-2-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p><strong>The variables, restated.</strong></p>
+<ul>
+<li><span class="math inline">N</span> is the number of players and <span class="math inline">T</span> is the number of games observed.</li>
+<li><span class="math inline">z_i \in \mathbb{R}</span> is player <span class="math inline">i</span>’s skill: one real number, fixed but unknown. It is the latent variable. A larger <span class="math inline">z_i</span> means a stronger player.</li>
+<li><span class="math inline">p(z_i)</span> is the prior over that skill, held before any game is seen. Assuming a <strong>Gaussian prior</strong> means we describe that belief with the normal distribution, here with mean <span class="math inline">0</span> and variance <span class="math inline">1</span>: <span class="math display">p(z_i) = \frac{1}{\sqrt{2\pi}}e^{-z_i^2/2}.</span> This is a modelling choice, not a fact about the players. It says that before any games we expect skills to be centred at <span class="math inline">0</span>, with most players close to it and extreme skills rare. For example, the prior density at a skill of <span class="math inline">2</span> is about <span class="math inline">e^{-2}\approx 0.14</span> times its density at <span class="math inline">0</span>. The posterior then combines this belief with the game results, so a different prior would give different skill estimates from the same games. The teaching example below makes this choice for each player.</li>
+<li>“<span class="math inline">i</span> beats <span class="math inline">j</span>” is the observed result of one game. It is data, so we condition on it rather than infer it. To condition on a result means to treat it as a known fact and ask what it tells us about the unknown skills, rather than treating the result itself as something to estimate.</li>
+<li><span class="math inline">\sigma</span> is the logistic function. It turns a gap in skill into a probability.</li>
+</ul>
+<p><strong>The equations, in parts.</strong></p>
+<p><em>1. The win probability</em> <span class="math inline">p(i \text{ beats } j \mid z_i, z_j) = \sigma(z_i - z_j)</span> takes three steps:</p>
+<ol type="1">
+<li>Form the gap <span class="math inline">d = z_i - z_j</span>. Only this difference enters the formula, so adding the same amount to both skills changes nothing.</li>
+<li>Compute <span class="math inline">e^{-d}</span>. It is large when <span class="math inline">d</span> is very negative and small when <span class="math inline">d</span> is very positive.</li>
+<li>Compute <span class="math inline">\sigma(d) = 1/(1+e^{-d})</span>. Three cases to read it by:
+<ul>
+<li><span class="math inline">d = 0</span> (equal skill): <span class="math inline">\sigma(d) = \tfrac12</span>, a coin flip.</li>
+<li><span class="math inline">d</span> large and positive (<span class="math inline">i</span> much stronger): <span class="math inline">\sigma(d)</span> is close to <span class="math inline">1</span>.</li>
+<li><span class="math inline">d</span> large and negative (<span class="math inline">i</span> much weaker): <span class="math inline">\sigma(d)</span> is close to <span class="math inline">0</span>.</li>
+</ul></li>
+</ol>
+<p>The loser’s probability is the complement, <span class="math inline">p(j \text{ beats } i \mid z_i, z_j) = \sigma(z_j - z_i) = 1 - \sigma(z_i - z_j)</span>, because one of the two players must win.</p>
+<p><em>2. The joint distribution.</em> The product <span class="math display">\Big[\prod_{i=1}^N p(z_i)\Big]\Big[\prod_{\text{games}} p(i \text{ beats } j \mid z_i, z_j)\Big]</span> has two brackets, and each bracket is a kind of evidence:</p>
+<ul>
+<li>The first bracket is the <strong>prior</strong>, one factor per player. It says which skill levels were plausible before any game.</li>
+<li>The second bracket is the <strong>likelihood</strong>, one factor per game. It rewards skill settings under which the observed winner really did win.</li>
+</ul>
+<p>Multiplying the two brackets gives the joint of skills and results. Conditioning on the results, which is what the posterior does, divides this by a constant, so the joint is the object the rest of the chapter works with.</p>
+<p><em>3. The posterior integral.</em> In <span class="math display">p(z_1,z_2\mid\text{games}) = \int\cdots\int p(z_1,\dots,z_N\mid\text{games})\,dz_3\cdots dz_N</span> the left side asks about two players only. The integrand is the full posterior over all <span class="math inline">N</span> skills, and the integral averages away every other player’s skill. There are <span class="math inline">N-2</span> integrations, one per player we do not ask about. Each one couples to the others through the game factors, so none of them can be done on its own.</p>
+<p><strong>Teaching example.</strong> Take three players, <span class="math inline">A</span>, <span class="math inline">B</span>, and <span class="math inline">C</span>, with invented skills. We will not infer anything here. We only evaluate the joint at one setting of the skills. Use the standard Gaussian prior <span class="math inline">p(z) = \frac{1}{\sqrt{2\pi}}e^{-z^2/2}</span> for each player, and suppose two games were played: <span class="math inline">A</span> beat <span class="math inline">B</span>, and <span class="math inline">B</span> beat <span class="math inline">C</span>.</p>
+<p>Set <span class="math inline">z_A = 1</span>, <span class="math inline">z_B = 0</span>, <span class="math inline">z_C = -1</span>.</p>
+<ul>
+<li><strong>Prior factors.</strong> <span class="math inline">p(1) \approx 0.2420</span>, <span class="math inline">p(0) \approx 0.3989</span>, <span class="math inline">p(-1) \approx 0.2420</span>. Their product is <span class="math inline">0.02336</span>.</li>
+<li><strong>Likelihood factors.</strong> For “<span class="math inline">A</span> beat <span class="math inline">B</span>” the gap is <span class="math inline">1 - 0 = 1</span>, so the factor is <span class="math inline">\sigma(1) = 1/(1+e^{-1}) \approx 0.7311</span>. For “<span class="math inline">B</span> beat <span class="math inline">C</span>” the gap is <span class="math inline">0 - (-1) = 1</span>, so the factor is again <span class="math inline">\approx 0.7311</span>. Their product is <span class="math inline">0.5344</span>.</li>
+<li><strong>Joint.</strong> Multiply the two brackets: <span class="math inline">0.02336 \times 0.5344 \approx 0.01248</span>.</li>
+</ul>
+<p>Now shift every skill up by 1: <span class="math inline">z_A = 2</span>, <span class="math inline">z_B = 1</span>, <span class="math inline">z_C = 0</span>. Every gap is unchanged, so the likelihood is still <span class="math inline">0.5344</span>. The prior factors change to <span class="math inline">p(2) \approx 0.05399</span>, <span class="math inline">p(1) \approx 0.2420</span>, <span class="math inline">p(0) \approx 0.3989</span>, with product <span class="math inline">0.005212</span>. The joint becomes <span class="math inline">0.005212 \times 0.5344 \approx 0.002785</span>, a little under a quarter of the first value.</p>
+<p>The takeaway: the games see only differences between skills, so they cannot say whether the whole group is strong or weak. The prior sees absolute levels, and it is the prior that makes the second setting less plausible. Each part of the joint has a job: the sigmoid reads gaps, the game factors multiply in one term per result, and the prior anchors the overall level.</p>
+</div>
 </div>
 </div>
 </section>
@@ -691,6 +753,28 @@ Note
 <p><strong>The lecture’s lake analogy.</strong> Imagine drawing water samples from a lake to find the average plankton concentration. Let <span class="math inline">\tilde p(\boldsymbol{x})</span> be the depth of the lake at location <span class="math inline">\boldsymbol{x}=(x,y)</span>, <span class="math inline">\phi(\boldsymbol{x})</span> the plankton concentration there, and <span class="math inline">Z=\int\tilde p(\boldsymbol{x})\,d\boldsymbol{x}</span> the volume of the lake. The average concentration over the lake’s water is</p>
 <p><span class="math display">\Phi = \frac1Z\int\phi(\boldsymbol{x})\,\tilde p(\boldsymbol{x})\,d\boldsymbol{x}.</span></p>
 <p>We can take a boat to any location and measure both the depth <span class="math inline">\tilde p(\boldsymbol{x})</span> and the concentration <span class="math inline">\phi(\boldsymbol{x})</span> there. Problem 1 is to draw water samples so that each is equally likely to come from any point within the lake’s volume. Problem 2 is to find the average concentration. The difficulty is a lake with a few narrow, very deep canyons: they hold much of the water, but a boat visiting surface locations at random rarely lands on one. To estimate <span class="math inline">\Phi</span> correctly, a method must implicitly discover the canyons and find their volume relative to the rest of the lake. High-dimensional distributions behave the same way, with most of their probability mass concentrated in regions that are a tiny fraction of the space.</p>
+<div class="clarification callout callout-style-default callout-tip callout-titled" title="Question: Where does the 1/Z in this average come from?">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-6-contents" aria-controls="callout-6" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Question: Where does the 1/Z in this average come from?
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-6" class="callout-6-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>It is the ordinary definition of an expectation, <span class="math inline">\Phi=\int\phi(x)\,p(x)\,dx</span>, with <span class="math inline">p=\tilde p/Z</span> substituted. <span class="math inline">Z</span> does not depend on <span class="math inline">x</span>, so it is a constant inside the integral and comes out by linearity: <span class="math display">\Phi=\int\phi(x)\,\frac{\tilde p(x)}{Z}\,dx=\frac1Z\int\phi(x)\,\tilde p(x)\,dx.</span> In the lake picture, the integral is the total plankton (concentration times depth, added up) and <span class="math inline">Z</span> is the volume of water, so <span class="math inline">\Phi</span> is total divided by volume.</p>
+<p><strong>A small check.</strong> Let <span class="math inline">x\in\{1,2,3\}</span> with <span class="math inline">\tilde p=(1,2,3)</span>, so <span class="math inline">Z=6</span>, and take <span class="math inline">\phi(x)=x^2</span>. The ratio form gives <span class="math inline">(1\cdot1+4\cdot2+9\cdot3)/6=36/6=6</span>. Using <span class="math inline">p=(\tfrac16,\tfrac26,\tfrac36)</span> directly gives <span class="math inline">\tfrac16+\tfrac86+\tfrac{27}6=6</span>, the same number.</p>
+<p><strong>Two tests for a missing <span class="math inline">Z</span>.</strong></p>
+<ul>
+<li>With <span class="math inline">\phi\equiv1</span> the average must be 1. Without the division we would get <span class="math inline">\sum\tilde p=6</span> instead.</li>
+<li>Doubling <span class="math inline">\tilde p</span> doubles both the numerator and <span class="math inline">Z</span> (<span class="math inline">72/12=6</span>), so the ratio is unchanged. The overall scale of <span class="math inline">\tilde p</span> never matters, but the denominator does, which is why importance sampling (<a href="#sec-importance" class="quarto-xref"><span>Importance sampling</span></a>) needs an estimate of a ratio of normalizers.</li>
+</ul>
+</div>
+</div>
+</div>
 </section>
 <section id="sec-importance" class="level2">
 <h2 class="anchored" data-anchor-id="sec-importance">Importance sampling</h2>
@@ -1213,8 +1297,8 @@ Note
       </a>          
   </div>
   <div class="nav-page nav-page-next">
-      <a href="../lectures/week05.html" class="pagination-link" aria-label="Week 5: Sampling with MCMC">
-        <span class="nav-page-text"><span class="chapter-title">Week 5: Sampling with MCMC</span></span> <i class="bi bi-arrow-right-short"></i>
+      <a href="../lectures/week04-practice.html" class="pagination-link" aria-label="Week 4 practice: Message passing and Monte Carlo">
+        <span class="nav-page-text"><span class="chapter-title">Week 4 practice: Message passing and Monte Carlo</span></span> <i class="bi bi-arrow-right-short"></i>
       </a>
   </div>
 </nav>

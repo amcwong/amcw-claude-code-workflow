@@ -206,7 +206,17 @@ window.Quarto = {
 </li>
         <li class="sidebar-item">
   <div class="sidebar-item-container"> 
+  <a href="../lectures/week04-practice.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Week 4 practice: Message passing and Monte Carlo</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
   <a href="../lectures/week05.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Week 5: Sampling with MCMC</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../lectures/week05-practice.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Week 5 practice: Sampling with MCMC</span></a>
   </div>
 </li>
         <li class="sidebar-item">
@@ -546,6 +556,55 @@ Note
 <p><strong>Causal chain</strong> (<span class="math inline">X \to Y \to Z</span>). The joint factors as <span class="math inline">p(x)p(y\mid x)p(z\mid y)</span>, so <span class="math display">p(z\mid x,y) = \frac{p(x)p(y\mid x)p(z\mid y)}{p(x)p(y\mid x)} = p(z\mid y).</span> Once <span class="math inline">Y</span> is known, <span class="math inline">X</span> tells us nothing more about <span class="math inline">Z</span>: <span class="math inline">X \perp Z \mid Y</span>.</p>
 <p><strong>Common cause</strong> (<span class="math inline">X \leftarrow Y \rightarrow Z</span>). The joint factors as <span class="math inline">p(y)p(x\mid y)p(z\mid y)</span>, so <span class="math display">p(x,z\mid y) = \frac{p(y)p(x\mid y)p(z\mid y)}{p(y)} = p(x\mid y)\,p(z\mid y).</span> Again <span class="math inline">X \perp Z \mid Y</span>: two effects of a shared cause become independent once that cause is observed.</p>
 <p><strong>Explaining away</strong> (<span class="math inline">X \to Y \leftarrow Z</span>). The joint factors as <span class="math inline">p(x)p(z)p(y\mid x,z)</span>, and now <span class="math display">p(z\mid x,y) = \frac{p(x)p(z)p(y\mid x,z)}{p(x)p(y\mid x)} = \frac{p(z)p(y\mid x,z)}{p(y\mid x)} \neq p(z\mid y)</span> in general. <span class="math inline">X</span> and <span class="math inline">Z</span> are marginally independent (with <span class="math inline">Y</span> unobserved), but conditioning on their common effect <span class="math inline">Y</span> can make them dependent: learning that it rained (<span class="math inline">X</span>) makes a ballgame (<span class="math inline">Z</span>) a less likely explanation for heavy traffic (<span class="math inline">Y</span>), even though rain and ballgames have nothing to do with each other on their own.</p>
+<div class="clarification callout callout-style-default callout-tip callout-titled" title="Question: How big is the explaining-away effect in numbers?">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-7-contents" aria-controls="callout-7" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Question: How big is the explaining-away effect in numbers?
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-7" class="callout-7-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>Take invented numbers for rain <span class="math inline">X</span>, a ballgame <span class="math inline">Z</span>, and heavy traffic <span class="math inline">Y</span>: <span class="math inline">p(X=1)=0.1</span>, <span class="math inline">p(Z=1)=0.2</span>, and <span class="math inline">p(Y=1\mid x,z)</span> equal to <span class="math inline">0.05</span>, <span class="math inline">0.8</span>, <span class="math inline">0.7</span>, <span class="math inline">0.9</span> for <span class="math inline">(x,z)=(0,0),(1,0),(0,1),(1,1)</span>. The joint with heavy traffic observed is <span class="math inline">p(x)\,p(z)\,p(Y=1\mid x,z)</span>:</p>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th><span class="math inline">(x,z)</span></th>
+<th><span class="math inline">p(x)\,p(z)\,p(Y=1\mid x,z)</span></th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>(0,0)</td>
+<td><span class="math inline">0.9\times0.8\times0.05=0.036</span></td>
+</tr>
+<tr class="even">
+<td>(1,0)</td>
+<td><span class="math inline">0.1\times0.8\times0.8=0.064</span></td>
+</tr>
+<tr class="odd">
+<td>(0,1)</td>
+<td><span class="math inline">0.9\times0.2\times0.7=0.126</span></td>
+</tr>
+<tr class="even">
+<td>(1,1)</td>
+<td><span class="math inline">0.1\times0.2\times0.9=0.018</span></td>
+</tr>
+</tbody>
+</table>
+<p>The column sums to <span class="math inline">p(Y=1)=0.244</span>.</p>
+<ul>
+<li><strong>Traffic alone</strong> raises the probability of rain from <span class="math inline">0.1</span> to <span class="math inline">p(X=1\mid Y=1)=(0.064+0.018)/0.244\approx0.336</span>.</li>
+<li><strong>Traffic and a ballgame</strong>: <span class="math inline">p(X=1\mid Y=1,Z=1)=0.018/(0.126+0.018)=0.125</span>. The ballgame already accounts for the traffic, so rain becomes less likely.</li>
+<li><strong>Traffic and no ballgame</strong>: <span class="math inline">p(X=1\mid Y=1,Z=0)=0.064/(0.036+0.064)=0.64</span>. Something has to explain the traffic, so rain becomes more likely.</li>
+</ul>
+<p>Learning <span class="math inline">Z</span> moves our belief about <span class="math inline">X</span>, so <span class="math inline">X</span> and <span class="math inline">Z</span> are dependent given <span class="math inline">Y</span>. Without <span class="math inline">Y</span> observed, summing it out uses <span class="math inline">\sum_y p(y\mid x,z)=1</span> and leaves <span class="math inline">p(x)\,p(z)</span>, so they are independent, as the factorization above says.</p>
+</div>
+</div>
+</div>
 <div class="callout callout-style-default callout-note callout-titled">
 <div class="callout-header d-flex align-content-center">
 <div class="callout-icon-container">

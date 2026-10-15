@@ -37,7 +37,7 @@ ul.task-list li input[type="checkbox"] {
 <script src="../site_libs/quarto-search/fuse.min.js"></script>
 <script src="../site_libs/quarto-search/quarto-search.js"></script>
 <meta name="quarto:offset" content="../">
-<link href="../glossary.html" rel="next">
+<link href="../lectures/week05-practice.html" rel="next">
 <link href="../lectures/week04-practice.html" rel="prev">
 <script src="../site_libs/quarto-html/quarto.js" type="module"></script>
 <script src="../site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
@@ -203,6 +203,11 @@ window.Quarto = {
         <li class="sidebar-item">
   <div class="sidebar-item-container"> 
   <a href="../lectures/week05.html" class="sidebar-item-text sidebar-link active"><span class="chapter-title">Week 5: Convolutional Networks, Normalization, and Residual Connections</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../lectures/week05-practice.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Week 5 practice: Convolutions, Batch Normalization, and Residual Connections</span></a>
   </div>
 </li>
         <li class="sidebar-item">
@@ -712,6 +717,54 @@ Note
 <p><span class="math display">\text{cross-correlation: } \sum_{a,b} \bm{V}_{a,b}\, \bm{X}_{i+a,\, j+b}, \qquad \text{convolution: } \sum_{a,b} \bm{V}_{a,b}\, \bm{X}_{i-a,\, j-b}.</span></p>
 <p>The only difference is the sign of the offsets. Pairing <span class="math inline">\bm{V}_{a,b}</span> with <span class="math inline">\bm{X}_{i-a,j-b}</span> is the same as pairing the flipped kernel entry <span class="math inline">\bm{V}_{-a,-b}</span> with <span class="math inline">\bm{X}_{i+a,j+b}</span>, which is why “flip, then cross-correlate” computes a convolution.</p>
 <p>For a network the distinction does not matter: the kernel is learned, so a network trained with one operation would simply learn the flipped kernel under the other. Deep learning therefore calls both “convolution”, and PyTorch’s <code>Conv2d</code> actually computes the cross-correlation. When a task asks for the <em>traditional</em> convolution, though, the flip changes the numbers, as the worked example below shows. A kernel that looks the same after flipping both ways (symmetric about its centre) gives the same output under either definition.</p>
+<div class="clarification callout callout-style-default callout-tip callout-titled" title="Question: If a network does not care, what does flipping the kernel actually buy?">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-5-contents" aria-controls="callout-5" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Question: If a network does not care, what does flipping the kernel actually buy?
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-5" class="callout-5-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>The flip pays off when the kernel is designed by hand, as in signal and image processing, rather than learned. Two one-dimensional examples of our own show what it buys; the same holds along each axis of a grid.</p>
+<p><strong>1. The output of a single bright pixel is the kernel itself.</strong> Take an input that is zero except for one <span class="math inline">1</span>, <span class="math inline">x = (0, 0, 1, 0, 0)</span>, a kernel <span class="math inline">w = (1, 2, 3)</span>, and one zero of padding on each edge, so the slid-over row is <span class="math inline">(0, 0, 0, 1, 0, 0, 0)</span> and the output has length <span class="math inline">5</span>.</p>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th>Operation</th>
+<th>Kernel laid over each window</th>
+<th>Output</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>Cross-correlation</td>
+<td><span class="math inline">(1, 2, 3)</span> as given</td>
+<td><span class="math inline">(0,\ 3,\ 2,\ 1,\ 0)</span></td>
+</tr>
+<tr class="even">
+<td>Convolution</td>
+<td>flipped to <span class="math inline">(3, 2, 1)</span></td>
+<td><span class="math inline">(0,\ 1,\ 2,\ 3,\ 0)</span></td>
+</tr>
+</tbody>
+</table>
+<p>Cross-correlation stamps a <em>reversed</em> copy of the kernel where the bright pixel was. Convolution stamps the kernel the right way round. This response to a single spike is called the <a href="https://en.wikipedia.org/wiki/Impulse_response">impulse response</a>. Every input is a sum of scaled, shifted spikes, so under convolution every output is the same sum of scaled, shifted copies of the kernel. A designer can read what a convolution kernel will do straight off it, with no mental flip.</p>
+<p><strong>2. Two filters in a row combine into one, in either order.</strong> Apply <span class="math inline">w_1 = (1, 1)</span>, which adds neighbours, and then <span class="math inline">w_2 = (1, -1)</span>, which takes differences, to <span class="math inline">x = (1, 2, 4, 7)</span> with no padding, using convolution both times:</p>
+<ul>
+<li>With <span class="math inline">w_1</span> (flipped: <span class="math inline">(1, 1)</span>): <span class="math inline">(1 + 2,\ 2 + 4,\ 4 + 7) = (3, 6, 11)</span>.</li>
+<li>Then with <span class="math inline">w_2</span> (flipped: <span class="math inline">(-1, 1)</span>): <span class="math inline">(-3 + 6,\ -6 + 11) = (3, 5)</span>.</li>
+</ul>
+<p>Now combine the two kernels first, by convolving one with the other. Pad <span class="math inline">w_1</span> with a zero on each edge so every overlap counts, <span class="math inline">(0, 1, 1, 0)</span>, and convolve with <span class="math inline">w_2</span> (flipped: <span class="math inline">(-1, 1)</span>): <span class="math inline">(0 + 1,\ -1 + 1,\ -1 + 0) = (1, 0, -1)</span>. A single convolution of <span class="math inline">x</span> with this combined kernel (flipped: <span class="math inline">(-1, 0, 1)</span>) gives</p>
+<p><span class="math display">(-1 + 4,\ -2 + 7) = (3, 5),</span></p>
+<p>the same result in one pass. Swapping the roles, padding <span class="math inline">w_2</span> to <span class="math inline">(0, 1, -1, 0)</span> and convolving with <span class="math inline">w_1</span>, gives <span class="math inline">(1, 0, -1)</span> again. In symbols, convolution is <a href="https://en.wikipedia.org/wiki/Associative_property">associative</a> and <a href="https://en.wikipedia.org/wiki/Commutative_property">commutative</a>: <span class="math inline">(x * w_1) * w_2 = x * (w_1 * w_2)</span> and <span class="math inline">w_1 * w_2 = w_2 * w_1</span>, where <span class="math inline">*</span> is convolution. A chain of hand-designed filters can be pre-combined into one kernel and reordered freely. Cross-correlation does not have these properties: swapping its two arguments reverses the result instead of leaving it unchanged. The flip is what puts the input and the kernel on an equal footing.</p>
+<p>For a network, none of this changes what can be learned. A layer trained with cross-correlation learns the flipped kernel, and its impulse response is still whatever the learned weights make it.</p>
+</div>
+</div>
+</div>
 </section>
 <section id="sec-conv-example" class="level3">
 <h3 class="anchored" data-anchor-id="sec-conv-example">A worked example</h3>
@@ -791,7 +844,7 @@ Note
 <text x="20" y="346" font-size="14" fill="#666">The red square is the top-left window. Both rows use the same input; only the kernel orientation differs.</text>
 </svg></div>
 <div class="clarification callout callout-style-default callout-tip callout-titled" title="Question: Why does the kernel look like the red window but hold different numbers?">
-<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-5-contents" aria-controls="callout-5" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-6-contents" aria-controls="callout-6" aria-expanded="false" aria-label="Toggle callout">
 <div class="callout-icon-container">
 <i class="callout-icon"></i>
 </div>
@@ -800,7 +853,7 @@ Note
 </div>
 <div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
 </div>
-<div id="callout-5" class="callout-5-contents callout-collapse collapse">
+<div id="callout-6" class="callout-6-contents callout-collapse collapse">
 <div class="callout-body-container callout-body">
 <p>The kernel <span class="math inline">\bm{V}</span> is the layer’s learned weights, not a piece of the input. Its values (here <span class="math inline">0, 1, 2, 3</span>) come from training and stay fixed while it slides. The red window holds input pixels (here <span class="math inline">0, 1, 3, 4</span>), and those change at every position. The numbers overlap in this example only because the lecture fills both grids with small integers.</p>
 <p>They have the same shape because the window is <em>defined</em> by the kernel: it is the patch of input the kernel covers when placed at one position. Each output entry is a dot product that pairs every kernel weight with exactly one pixel underneath it, so a <span class="math inline">2\times2</span> kernel always covers a <span class="math inline">2\times2</span> window, and a <span class="math inline">(2\Delta+1)\times(2\Delta+1)</span> kernel covers a <span class="math inline">(2\Delta+1)\times(2\Delta+1)</span> window. At the top-left position the pairs are <span class="math inline">0\cdot0</span>, <span class="math inline">1\cdot1</span>, <span class="math inline">2\cdot3</span> and <span class="math inline">3\cdot4</span>, which sum to <span class="math inline">19</span>.</p>
@@ -812,6 +865,7 @@ Note
 <li><strong>The output is smaller than the input</strong>, because the kernel can be placed only where it fits. Here a <span class="math inline">3\times3</span> input and a <span class="math inline">2\times2</span> kernel give a <span class="math inline">2\times2</span> output.</li>
 <li><strong>Each output entry depends on only a small region of the input</strong>, a consequence of locality.</li>
 </ol>
+<p>To watch a kernel slide across an input one output at a time, see the animated “Convolution Demo” in the <a href="https://cs231n.github.io/convolutional-networks/#conv">CS231n notes on convolutional layers</a> (scroll down the section to the demo). It also uses padding, stride, and several channels, which the sections below introduce; we come back to its numbers in <a href="#sec-general-size">The general output-size rule</a> and <a href="#sec-channels">Channels</a>.</p>
 </section>
 <section id="sec-template" class="level3">
 <h3 class="anchored" data-anchor-id="sec-template">Reading the kernel as a template</h3>
@@ -865,7 +919,7 @@ Note
 </tbody>
 </table>
 <div class="clarification callout callout-style-default callout-tip callout-titled" title="Question: Is this a dot product, a Frobenius inner product, or a matrix product, and what is the output here?">
-<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-6-contents" aria-controls="callout-6" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-7-contents" aria-controls="callout-7" aria-expanded="false" aria-label="Toggle callout">
 <div class="callout-icon-container">
 <i class="callout-icon"></i>
 </div>
@@ -874,7 +928,7 @@ Note
 </div>
 <div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
 </div>
-<div id="callout-6" class="callout-6-contents callout-collapse collapse">
+<div id="callout-7" class="callout-7-contents callout-collapse collapse">
 <div class="callout-body-container callout-body">
 <p><strong>What “output” means.</strong> Each output is one entry <span class="math inline">\bm{H}_{i,j}</span> of the feature map: the kernel sits at one position, covers one window, and produces one number. The full entry adds the bias,</p>
 <p><span class="math display">\bm{H}_{i,j} = u + \langle \bm{V},\ \text{window at } (i, j) \rangle_F,</span></p>
@@ -927,7 +981,7 @@ Note
 </section>
 <section id="sec-padding" class="level3">
 <h3 class="anchored" data-anchor-id="sec-padding">Padding</h3>
-<p>That the output shrinks is inconvenient: after a few layers there would be little left. The standard remedy is padding.</p>
+<p>Without padding, each convolution shrinks the output, which is inconvenient: after a few layers there would be little left. The standard remedy is padding.</p>
 <div class="definition-block">
 <p><strong>Definition.</strong> <strong>Padding</strong> adds a border of zeros around the input before the convolution, usually just enough that the output has the same height and width as the input.</p>
 </div>
@@ -935,6 +989,27 @@ Note
 <p><span class="math display">\frac{K-1}{2} \text{ rows or columns of zeros on each edge.}</span></p>
 <p>For a <span class="math inline">3\times3</span> kernel that is one zero on each edge. Padding the lecture’s <span class="math inline">3\times3</span> input with one zero on every side makes it <span class="math inline">5\times5</span>, and a <span class="math inline">3\times3</span> kernel then fits at <span class="math inline">5 - 3 + 1 = 3</span> positions along each axis: the output is <span class="math inline">3\times3</span>, the same as the input. Splitting <span class="math inline">K - 1</span> evenly needs <span class="math inline">K</span> to be odd, which is one reason kernels are almost always odd (a window from <span class="math inline">-\Delta</span> to <span class="math inline">\Delta</span> has <span class="math inline">2\Delta+1</span> entries, always odd). Neither convention is mandatory, and padding by a different amount gives a larger or smaller output.</p>
 <p>Padding does not change the receptive field’s size. It only means that, near the border, part of a receptive field covers the added zeros instead of real pixels.</p>
+<div class="clarification callout callout-style-default callout-tip callout-titled" title="Question: What does padding do to an actual signal?">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-8-contents" aria-controls="callout-8" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Question: What does padding do to an actual signal?
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-8" class="callout-8-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>Take a row of five values, <span class="math inline">x = (1, 2, 3, 4, 5)</span>, and a one-dimensional kernel of width <span class="math inline">3</span> with weights <span class="math inline">w = (1, 0, -1)</span> and bias <span class="math inline">0</span>. The row is one-dimensional so the arithmetic stays short; the same idea applies along each axis of a grid.</p>
+<p>Without padding, the kernel fits at <span class="math inline">5 - 3 + 1 = 3</span> positions, and each output is a weighted sum of one window:</p>
+<p><span class="math display">\big(1\cdot1 + 0\cdot2 + (-1)\cdot3,\ \ 1\cdot2 + 0\cdot3 + (-1)\cdot4,\ \ 1\cdot3 + 0\cdot4 + (-1)\cdot5\big) = (-2,\ -2,\ -2).</span></p>
+<p>Now add one zero on each edge, giving <span class="math inline">(0, 1, 2, 3, 4, 5, 0)</span>. The kernel fits at five positions, so the output has length <span class="math inline">5</span>, the same as the input:</p>
+<p><span class="math display">(-2,\ -2,\ -2,\ -2,\ 4).</span></p>
+<p>The three middle outputs match the unpadded result. The two edge outputs are new: the first window is <span class="math inline">(0, 1, 2)</span>, and the last is <span class="math inline">(4, 5, 0)</span>, so each sees a zero where a real value would be. That is the trade-off in one line: padding keeps the length, and the border entries are computed from the zeros we added.</p>
+</div>
+</div>
+</div>
 </section>
 <section id="sec-stride" class="level3">
 <h3 class="anchored" data-anchor-id="sec-stride">Stride</h3>
@@ -991,6 +1066,7 @@ Note
 <li>No padding, stride 1 (the worked example): <span class="math inline">\lfloor (3 + 0 - 2)/1 \rfloor + 1 = 2</span>. With <span class="math inline">p = 0</span> and <span class="math inline">s = 1</span> the rule is the earlier <span class="math inline">n - k + 1</span>.</li>
 <li>“Same” padding (the padding section): <span class="math inline">n = 3</span>, <span class="math inline">k = 3</span>, <span class="math inline">p = 1</span>, <span class="math inline">s = 1</span> gives <span class="math inline">\lfloor 2/1 \rfloor + 1 = 3</span>.</li>
 <li>Stride 2 on the worked example: <span class="math inline">n = 3</span>, <span class="math inline">k = 2</span>, <span class="math inline">p = 0</span>, <span class="math inline">s = 2</span> gives <span class="math inline">\lfloor 1/2 \rfloor + 1 = 1</span>. Only the top-left window (the <span class="math inline">19</span>) is computed, since a start at position <span class="math inline">2</span> would need a third column.</li>
+<li>The <a href="https://cs231n.github.io/convolutional-networks/#conv">CS231n convolution demo</a>: <span class="math inline">n = 5</span>, <span class="math inline">k = 3</span>, <span class="math inline">p = 1</span>, <span class="math inline">s = 2</span> gives <span class="math inline">\lfloor 4/2 \rfloor + 1 = 3</span>. The animation shows the padded <span class="math inline">7\times7</span> input (the border of zeros) and the kernel jumping two pixels at a time to fill a <span class="math inline">3\times3</span> output.</li>
 </ul>
 <p>This rule is also what decides the size of each layer when we trace shapes through a network in <a href="#sec-simple-convnet">Building a simple convolutional network</a>.</p>
 </section>
@@ -1006,6 +1082,79 @@ V_{1,1} &amp; V_{1,2} &amp; 0 &amp; V_{2,1} &amp; V_{2,2} &amp; 0 &amp; 0 &amp; 
 0 &amp; 0 &amp; 0 &amp; 0 &amp; V_{1,1} &amp; V_{1,2} &amp; 0 &amp; V_{2,1} &amp; V_{2,2}
 \end{bmatrix}</span></p>
 <p>Each row is the kernel, unrolled and placed where its window sits in the flattened image; moving to the next output position slides the same four weights along. With the lecture’s kernel (<span class="math inline">V_{1,1} = 0</span>, <span class="math inline">V_{1,2} = 1</span>, <span class="math inline">V_{2,1} = 2</span>, <span class="math inline">V_{2,2} = 3</span>) the first row is <span class="math inline">(0, 1, 0, 2, 3, 0, 0, 0, 0)</span>, and its dot product with <span class="math inline">\bm{x}</span> is <span class="math inline">1\cdot1 + 2\cdot3 + 3\cdot4 = 19</span>, the same top-left output as before. The other rows give <span class="math inline">25</span>, <span class="math inline">37</span>, <span class="math inline">43</span>.</p>
+<div class="clarification callout callout-style-default callout-tip callout-titled" title="Question: What do the four h calculations look like on the grid, without flattening?">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-9-contents" aria-controls="callout-9" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Question: What do the four h calculations look like on the grid, without flattening?
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-9" class="callout-9-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p><strong>What <span class="math inline">\bm{V}</span> is.</strong> <span class="math inline">\bm{V}</span> is the kernel: the layer’s <span class="math inline">2\times2</span> grid of learned weights, the same four numbers at every position. Here it is the lecture’s kernel,</p>
+<p><span class="math display">\bm{V} = \begin{bmatrix} V_{1,1} &amp; V_{1,2} \\ V_{2,1} &amp; V_{2,2} \end{bmatrix} = \begin{bmatrix} 0 &amp; 1 \\ 2 &amp; 3 \end{bmatrix},</span></p>
+<p>and it slides over the input</p>
+<p><span class="math display">\bm{X} = \begin{bmatrix} X_{1,1} &amp; X_{1,2} &amp; X_{1,3} \\ X_{2,1} &amp; X_{2,2} &amp; X_{2,3} \\ X_{3,1} &amp; X_{3,2} &amp; X_{3,3} \end{bmatrix}</span></p>
+<p><span class="math display">= \begin{bmatrix} 0 &amp; 1 &amp; 2 \\ 3 &amp; 4 &amp; 5 \\ 6 &amp; 7 &amp; 8 \end{bmatrix}.</span></p>
+<p><strong>Which input pixels each weight meets.</strong> A <span class="math inline">2\times2</span> kernel has no centre pixel (see the note on even kernels in <a href="#sec-derive-conv">From a dense layer to a convolution</a>), so we place it by its top-left corner. For output <span class="math inline">H_{i,j}</span> the window’s top-left pixel is <span class="math inline">X_{i,j}</span>, and kernel entry <span class="math inline">V_{a,b}</span> meets the pixel <span class="math inline">a - 1</span> rows down and <span class="math inline">b - 1</span> columns right of it:</p>
+<p><span class="math display">H_{i,j} = \sum_{a=1}^{2} \sum_{b=1}^{2} V_{a,b}\, X_{i+a-1,\ j+b-1}.</span></p>
+<p>So <span class="math inline">V_{1,1}</span> always meets the window’s top-left pixel, <span class="math inline">V_{1,2}</span> its top-right, <span class="math inline">V_{2,1}</span> its bottom-left, and <span class="math inline">V_{2,2}</span> its bottom-right. The bias is <span class="math inline">0</span> here, as in the worked example.</p>
+<p><strong>The four outputs, written on the grid.</strong></p>
+<p><span class="math display">H_{1,1} = V_{1,1} X_{1,1} + V_{1,2} X_{1,2} + V_{2,1} X_{2,1} + V_{2,2} X_{2,2} = 0\cdot0 + 1\cdot1 + 2\cdot3 + 3\cdot4 = 19</span></p>
+<p><span class="math display">H_{1,2} = V_{1,1} X_{1,2} + V_{1,2} X_{1,3} + V_{2,1} X_{2,2} + V_{2,2} X_{2,3} = 0\cdot1 + 1\cdot2 + 2\cdot4 + 3\cdot5 = 25</span></p>
+<p><span class="math display">H_{2,1} = V_{1,1} X_{2,1} + V_{1,2} X_{2,2} + V_{2,1} X_{3,1} + V_{2,2} X_{3,2} = 0\cdot3 + 1\cdot4 + 2\cdot6 + 3\cdot7 = 37</span></p>
+<p><span class="math display">H_{2,2} = V_{1,1} X_{2,2} + V_{1,2} X_{2,3} + V_{2,1} X_{3,2} + V_{2,2} X_{3,3} = 0\cdot4 + 1\cdot5 + 2\cdot7 + 3\cdot8 = 43</span></p>
+<p>The weights appear in the same order in every line; only the pixels change. Moving one column right (<span class="math inline">H_{1,1}</span> to <span class="math inline">H_{1,2}</span>) adds <span class="math inline">1</span> to every pixel’s column index, and moving one row down (<span class="math inline">H_{1,1}</span> to <span class="math inline">H_{2,1}</span>) adds <span class="math inline">1</span> to every row index.</p>
+<p><strong>Matching each line to a row of <span class="math inline">\bm{W}</span>.</strong> Row-major flattening puts pixel <span class="math inline">X_{k,l}</span> at position <span class="math inline">3(k-1) + l</span> of <span class="math inline">\bm{x}</span>.</p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 25%">
+<col style="width: 25%">
+<col style="width: 25%">
+<col style="width: 25%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Output</th>
+<th>Pixels its window covers</th>
+<th>Their positions in <span class="math inline">\bm{x}</span></th>
+<th>Nonzero columns of that row of <span class="math inline">\bm{W}</span></th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><span class="math inline">H_{1,1}</span></td>
+<td><span class="math inline">X_{1,1}, X_{1,2}, X_{2,1}, X_{2,2}</span></td>
+<td><span class="math inline">1, 2, 4, 5</span></td>
+<td><span class="math inline">1, 2, 4, 5</span></td>
+</tr>
+<tr class="even">
+<td><span class="math inline">H_{1,2}</span></td>
+<td><span class="math inline">X_{1,2}, X_{1,3}, X_{2,2}, X_{2,3}</span></td>
+<td><span class="math inline">2, 3, 5, 6</span></td>
+<td><span class="math inline">2, 3, 5, 6</span></td>
+</tr>
+<tr class="odd">
+<td><span class="math inline">H_{2,1}</span></td>
+<td><span class="math inline">X_{2,1}, X_{2,2}, X_{3,1}, X_{3,2}</span></td>
+<td><span class="math inline">4, 5, 7, 8</span></td>
+<td><span class="math inline">4, 5, 7, 8</span></td>
+</tr>
+<tr class="even">
+<td><span class="math inline">H_{2,2}</span></td>
+<td><span class="math inline">X_{2,2}, X_{2,3}, X_{3,2}, X_{3,3}</span></td>
+<td><span class="math inline">5, 6, 8, 9</span></td>
+<td><span class="math inline">5, 6, 8, 9</span></td>
+</tr>
+</tbody>
+</table>
+<p>The grid version and the matrix version add up the same four products for each output. The matrix just writes the pairing as “which column of <span class="math inline">\bm{W}</span> holds which <span class="math inline">V_{a,b}</span>”, and fills every column the window does not cover with a zero.</p>
+</div>
+</div>
+</div>
 <p>Three things are visible in this matrix:</p>
 <ul>
 <li><strong>Locality is the zeros.</strong> Each row has at most <span class="math inline">4</span> nonzero entries out of <span class="math inline">9</span>, since each output sees only its window. The matrix is <a href="https://en.wikipedia.org/wiki/Sparse_matrix">sparse</a>: of its <span class="math inline">4 \times 9 = 36</span> entries, at most <span class="math inline">16</span> can be nonzero.</li>
@@ -1111,6 +1260,54 @@ V_{1,1} &amp; V_{1,2} &amp; 0 &amp; V_{2,1} &amp; V_{2,2} &amp; 0 &amp; 0 &amp; 
 <text x="20" y="386" font-size="14" fill="#666">Follow the lines down from the top entry: it reaches all 8 input pixels.</text>
 </svg></div>
 <p>For a two-dimensional layer, run the recursion twice, once for the height (with each layer’s <span class="math inline">k_h</span> and <span class="math inline">s_h</span>) and once for the width (with <span class="math inline">k_w</span> and <span class="math inline">s_w</span>). With a non-square stride the two jumps grow at different rates. For example (again our own numbers), a layer with a <span class="math inline">2\times2</span> kernel and stride <span class="math inline">(1, 3)</span> followed by another <span class="math inline">2\times2</span> kernel gives a height of <span class="math inline">2 + 1\cdot1 = 3</span> and a width of <span class="math inline">2 + 1\cdot3 = 5</span>: a <span class="math inline">3\times5</span> receptive field. The receptive fields of the networks in the homework are left to the assignment.</p>
+<div class="clarification callout callout-style-default callout-tip callout-titled" title="Question: What do r and j look like on a stack, one convolution at a time?">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-10-contents" aria-controls="callout-10" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Question: What do r and j look like on a stack, one convolution at a time?
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-10" class="callout-10-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>The receptive field of an output is the set of input pixels it depends on. The formulas track its size <span class="math inline">r</span> and the spacing <span class="math inline">j</span> between neighbouring entries, both measured in input pixels. Here is the calculation on a one-dimensional input of <span class="math inline">n = 7</span> pixels, numbered <span class="math inline">0</span> to <span class="math inline">6</span>, followed by two convolutions with no padding:</p>
+<ul>
+<li><strong>Layer 1:</strong> kernel <span class="math inline">k = 3</span>, stride <span class="math inline">s = 2</span>. This gives <span class="math inline">\lfloor (7 - 3)/2 \rfloor + 1 = 3</span> outputs, which we call <span class="math inline">A</span>, <span class="math inline">B</span>, <span class="math inline">C</span>.</li>
+<li><strong>Layer 2:</strong> kernel <span class="math inline">k = 3</span>, stride <span class="math inline">s = 1</span>. Its input is the 3-entry output of layer 1, namely <span class="math inline">A</span>, <span class="math inline">B</span>, <span class="math inline">C</span>, not the 7 raw pixels. This gives <span class="math inline">\lfloor (3 - 3)/1 \rfloor + 1 = 1</span> output, which we call <span class="math inline">D</span>.</li>
+</ul>
+<p><strong>Start: the input.</strong> A pixel sees only itself, so <span class="math inline">r = 1</span>. Neighbouring pixels are <span class="math inline">1</span> apart, so <span class="math inline">j = 1</span>.</p>
+<p><strong>Step 1: layer 1.</strong> Each entry is the kernel placed on three neighbouring pixels, and the kernel moves two pixels between entries:</p>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th>Entry</th>
+<th>Input pixels it covers</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><span class="math inline">A</span></td>
+<td><span class="math inline">0, 1, 2</span></td>
+</tr>
+<tr class="even">
+<td><span class="math inline">B</span></td>
+<td><span class="math inline">2, 3, 4</span></td>
+</tr>
+<tr class="odd">
+<td><span class="math inline">C</span></td>
+<td><span class="math inline">4, 5, 6</span></td>
+</tr>
+</tbody>
+</table>
+<p>The kernel spans three entries of the input, which are <span class="math inline">j = 1</span> apart, so the field grows by <span class="math inline">(k-1)j = 2</span> pixels: <span class="math inline">r_\text{new} = 1 + 2 \cdot 1 = 3</span>. The stride spreads the entries out, so <span class="math inline">j_\text{new} = 1 \cdot 2 = 2</span>. This matches the table, since <span class="math inline">A</span> and <span class="math inline">B</span> start two pixels apart.</p>
+<p><strong>Step 2: layer 2.</strong> Layer 2 takes the 3-pixel output of layer 1 as its input, a row of three entries <span class="math inline">A</span>, <span class="math inline">B</span>, <span class="math inline">C</span>. The kernel sits on all three of them. Those entries are <span class="math inline">j = 2</span> input pixels apart, so the field grows by <span class="math inline">(k-1)j = 4</span> pixels: <span class="math inline">r_\text{new} = 3 + 2 \cdot 2 = 7</span>. The stride is <span class="math inline">1</span>, so <span class="math inline">j_\text{new} = 2 \cdot 1 = 2</span>.</p>
+<p>The output <span class="math inline">D</span> covers <span class="math inline">A</span>, <span class="math inline">B</span>, <span class="math inline">C</span>, and together they reach from pixel <span class="math inline">0</span> (the left edge of <span class="math inline">A</span>) to pixel <span class="math inline">6</span> (the right edge of <span class="math inline">C</span>). That is <span class="math inline">7</span> input pixels, which is the <span class="math inline">r = 7</span> from the formula. The formula gives the same number from the edges: the field of <span class="math inline">D</span> is the first entry’s field, <span class="math inline">r = 3</span>, plus the distance <span class="math inline">(k-1)j = 4</span> from <span class="math inline">A</span> to <span class="math inline">C</span>.</p>
+<p><strong>What <span class="math inline">r</span> and <span class="math inline">j</span> tell you.</strong> Suppose input pixel <span class="math inline">3</span> changes. In layer 1 only <span class="math inline">B</span> sees it, since <span class="math inline">B</span> covers <span class="math inline">2, 3, 4</span>. <span class="math inline">B</span> feeds <span class="math inline">D</span>, and <span class="math inline">D</span>’s field covers all seven pixels, so the change can reach the output. The receptive field <span class="math inline">r</span> answers “which input pixels can change this output?”, and <span class="math inline">j</span> tells us how far apart the entries being combined are.</p>
+</div>
+</div>
+</div>
 </section>
 <section id="sec-channels" class="level3">
 <h3 class="anchored" data-anchor-id="sec-channels">Channels</h3>
@@ -1127,6 +1324,7 @@ V_{1,1} &amp; V_{1,2} &amp; 0 &amp; V_{2,1} &amp; V_{2,2} &amp; 0 &amp; 0 &amp; 
 <li>There is <strong>one kernel for every (input channel, output channel) pair</strong>. With <span class="math inline">20</span> input channels and <span class="math inline">10</span> output channels, the lecture’s example, there are <span class="math inline">20 \times 10 = 200</span> kernels.</li>
 <li>There is <strong>one bias per output channel</strong>, shared over all positions. A bias per position would break translation invariance.</li>
 </ul>
+<p>The <a href="https://cs231n.github.io/convolutional-networks/#conv">CS231n convolution demo</a> animates this formula with <span class="math inline">3</span> input channels and <span class="math inline">2</span> output channels: <span class="math inline">3 \times 2 = 6</span> kernels of size <span class="math inline">3\times3</span>, and <span class="math inline">2</span> biases. Each output entry is the sum over all three input channels plus that output channel’s bias. CS231n uses “filter” for the whole <span class="math inline">3\times3\times3</span> stack that produces one output channel, so its “two filters” are our six kernels grouped by output channel <span class="math inline">d</span>.</p>
 <p>This mirrors the dense layer, where one weight connects each input feature to each output feature; here one kernel connects each input channel to each output channel, mixing channels while it convolves over space.</p>
 <div style="overflow-x:auto; margin:1.5rem 0;">
 <svg viewbox="0 0 680 320" width="100%" style="max-width:680px;display:block;margin:auto;font-family:Helvetica,'Helvetica Neue',Arial,sans-serif;">
@@ -1171,6 +1369,37 @@ V_{1,1} &amp; V_{1,2} &amp; 0 &amp; V_{2,1} &amp; V_{2,2} &amp; 0 &amp; 0 &amp; 
 <li>A <strong>dense layer</strong> from <span class="math inline">n_\text{in}</span> features to <span class="math inline">n_\text{out}</span> has <span class="math inline">n_\text{in}\, n_\text{out}</span> weights and <span class="math inline">n_\text{out}</span> biases, as in Week 2.</li>
 </ul>
 <p>The parameter counts for the networks in the homework are left to the assignment.</p>
+<div class="clarification callout callout-style-default callout-tip callout-titled" title="Question: Why is the count $k_h k_w C_\text{in} C_\text{out}$, and what would change without parameter sharing?">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-11-contents" aria-controls="callout-11" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Question: Why is the count <span class="math inline">k_h k_w C_\text{in} C_\text{out}</span>, and what would change without parameter sharing?
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-11" class="callout-11-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p><strong>The symbols.</strong> <span class="math inline">C_\text{in}</span> is the number of channels the layer receives: <span class="math inline">3</span> for an RGB image, or the number of feature maps from the layer before. <span class="math inline">C_\text{out}</span> is the number of channels it produces, which you choose as a hyperparameter. A kernel has height <span class="math inline">k_h</span> and width <span class="math inline">k_w</span>.</p>
+<p><strong>Why one kernel per channel pair.</strong> Each output channel <span class="math inline">d</span> is built from <em>all</em> the input channels. For a single output channel, the layer convolves each input channel <span class="math inline">c</span> with its own <span class="math inline">k_h \times k_w</span> kernel, and adds the <span class="math inline">C_\text{in}</span> results together with the bias. So one output channel needs <span class="math inline">C_\text{in}</span> kernels, and that gives one kernel for each (input channel, output channel) pair. A kernel is never shared across channels, because a red-channel edge detector and a blue-channel edge detector are different functions. Each kernel has <span class="math inline">k_h k_w</span> weights, so the total is <span class="math inline">C_\text{in} C_\text{out}</span> kernels of <span class="math inline">k_h k_w</span> weights each. The bias adds one number per output channel.</p>
+<p><strong>A small example.</strong> Take the CS231n demo’s layer: a <span class="math inline">5 \times 5</span> input with <span class="math inline">C_\text{in} = 3</span> channels, <span class="math inline">C_\text{out} = 2</span> filters of <span class="math inline">3 \times 3</span> size, and stride <span class="math inline">2</span> with padding <span class="math inline">1</span>. Its output is <span class="math inline">3 \times 3 \times 2</span>.</p>
+<ul>
+<li>Kernels: <span class="math inline">C_\text{in} C_\text{out} = 3 \cdot 2 = 6</span>, one <span class="math inline">3 \times 3</span> kernel per (input channel, output channel) pair.</li>
+<li>Weights: <span class="math inline">3 \cdot 3 \cdot 3 \cdot 2 = 54</span>.</li>
+<li>Biases: <span class="math inline">C_\text{out} = 2</span>.</li>
+<li>Total: <span class="math inline">54 + 2 = 56</span>.</li>
+</ul>
+<p><strong>What parameter sharing saves.</strong> The count <span class="math inline">56</span> uses sharing across positions: the same six kernels slide over all nine output positions. Without sharing, every output position <span class="math inline">(i, j)</span> would have its own copy of every kernel, the way the before-sharing example in <a href="#sec-derive-conv">From a dense layer to a convolution</a> stores four kernels for four positions. There are <span class="math inline">3 \times 3 = 9</span> output positions, so the count would be</p>
+<ul>
+<li>weights: <span class="math inline">9 \cdot 54 = 486</span>,</li>
+<li>biases: <span class="math inline">9 \cdot 2 = 18</span>,</li>
+<li>total: <span class="math inline">504</span>.</li>
+</ul>
+<p>The sharing count does not depend on the height and width at all. Doubling the image would double the output positions but leave the layer at 56 parameters. A dense layer from the same input to the same output would instead need <span class="math inline">(5 \cdot 5 \cdot 3)(3 \cdot 3 \cdot 2) = 75 \cdot 18 = 1350</span> weights and <span class="math inline">18</span> biases, for <span class="math inline">1368</span> parameters. The convolution’s gain comes from the two assumptions of the derivation: translation invariance (sharing across positions) and locality (each kernel covers only <span class="math inline">3 \times 3</span> pixels across channels).</p>
+</div>
+</div>
+</div>
 </section>
 <section id="sec-pooling" class="level3">
 <h3 class="anchored" data-anchor-id="sec-pooling">Pooling</h3>
@@ -1911,8 +2140,8 @@ Note
       </a>          
   </div>
   <div class="nav-page nav-page-next">
-      <a href="../glossary.html" class="pagination-link" aria-label="Glossary">
-        <span class="nav-page-text"><span class="chapter-title">Glossary</span></span> <i class="bi bi-arrow-right-short"></i>
+      <a href="../lectures/week05-practice.html" class="pagination-link" aria-label="Week 5 practice: Convolutions, Batch Normalization, and Residual Connections">
+        <span class="nav-page-text"><span class="chapter-title">Week 5 practice: Convolutions, Batch Normalization, and Residual Connections</span></span> <i class="bi bi-arrow-right-short"></i>
       </a>
   </div>
 </nav>

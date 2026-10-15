@@ -46,6 +46,57 @@ This is an $(N-2)$-dimensional integral with no closed form. The rest of the fir
 **Homework-relevant.** Assignment 2 returns to the TrueSkill model. This section explains the model, its joint distribution, and why the posterior couples the players; the specific posterior computations the assignment asks for are left to the assignment.
 :::
 
+::: {.callout-tip collapse="true" .clarification title="Question: How do the TrueSkill variables and equations fit together?"}
+**The variables, restated.**
+
+- $N$ is the number of players and $T$ is the number of games observed.
+- $z_i \in \mathbb{R}$ is player $i$'s skill: one real number, fixed but unknown. It is the latent variable. A larger $z_i$ means a stronger player.
+- $p(z_i)$ is the prior over that skill, held before any game is seen. Assuming a **Gaussian prior** means we describe that belief with the normal distribution, here with mean $0$ and variance $1$:
+$$p(z_i) = \frac{1}{\sqrt{2\pi}}e^{-z_i^2/2}.$$
+This is a modelling choice, not a fact about the players. It says that before any games we expect skills to be centred at $0$, with most players close to it and extreme skills rare. For example, the prior density at a skill of $2$ is about $e^{-2}\approx 0.14$ times its density at $0$. The posterior then combines this belief with the game results, so a different prior would give different skill estimates from the same games. The teaching example below makes this choice for each player.
+- "$i$ beats $j$" is the observed result of one game. It is data, so we condition on it rather than infer it. To condition on a result means to treat it as a known fact and ask what it tells us about the unknown skills, rather than treating the result itself as something to estimate.
+- $\sigma$ is the logistic function. It turns a gap in skill into a probability.
+
+**The equations, in parts.**
+
+*1. The win probability* $p(i \text{ beats } j \mid z_i, z_j) = \sigma(z_i - z_j)$ takes three steps:
+
+1. Form the gap $d = z_i - z_j$. Only this difference enters the formula, so adding the same amount to both skills changes nothing.
+2. Compute $e^{-d}$. It is large when $d$ is very negative and small when $d$ is very positive.
+3. Compute $\sigma(d) = 1/(1+e^{-d})$. Three cases to read it by:
+   - $d = 0$ (equal skill): $\sigma(d) = \tfrac12$, a coin flip.
+   - $d$ large and positive ($i$ much stronger): $\sigma(d)$ is close to $1$.
+   - $d$ large and negative ($i$ much weaker): $\sigma(d)$ is close to $0$.
+
+The loser's probability is the complement, $p(j \text{ beats } i \mid z_i, z_j) = \sigma(z_j - z_i) = 1 - \sigma(z_i - z_j)$, because one of the two players must win.
+
+*2. The joint distribution.* The product
+$$\Big[\prod_{i=1}^N p(z_i)\Big]\Big[\prod_{\text{games}} p(i \text{ beats } j \mid z_i, z_j)\Big]$$
+has two brackets, and each bracket is a kind of evidence:
+
+- The first bracket is the **prior**, one factor per player. It says which skill levels were plausible before any game.
+- The second bracket is the **likelihood**, one factor per game. It rewards skill settings under which the observed winner really did win.
+
+Multiplying the two brackets gives the joint of skills and results. Conditioning on the results, which is what the posterior does, divides this by a constant, so the joint is the object the rest of the chapter works with.
+
+*3. The posterior integral.* In
+$$p(z_1,z_2\mid\text{games}) = \int\cdots\int p(z_1,\dots,z_N\mid\text{games})\,dz_3\cdots dz_N$$
+the left side asks about two players only. The integrand is the full posterior over all $N$ skills, and the integral averages away every other player's skill. There are $N-2$ integrations, one per player we do not ask about. Each one couples to the others through the game factors, so none of them can be done on its own.
+
+**Teaching example.** Take three players, $A$, $B$, and $C$, with invented skills. We will not infer anything here. We only evaluate the joint at one setting of the skills. Use the standard Gaussian prior $p(z) = \frac{1}{\sqrt{2\pi}}e^{-z^2/2}$ for each player, and suppose two games were played: $A$ beat $B$, and $B$ beat $C$.
+
+Set $z_A = 1$, $z_B = 0$, $z_C = -1$.
+
+- **Prior factors.** $p(1) \approx 0.2420$, $p(0) \approx 0.3989$, $p(-1) \approx 0.2420$. Their product is $0.02336$.
+- **Likelihood factors.** For "$A$ beat $B$" the gap is $1 - 0 = 1$, so the factor is $\sigma(1) = 1/(1+e^{-1}) \approx 0.7311$. For "$B$ beat $C$" the gap is $0 - (-1) = 1$, so the factor is again $\approx 0.7311$. Their product is $0.5344$.
+- **Joint.** Multiply the two brackets: $0.02336 \times 0.5344 \approx 0.01248$.
+
+Now shift every skill up by 1: $z_A = 2$, $z_B = 1$, $z_C = 0$. Every gap is unchanged, so the likelihood is still $0.5344$. The prior factors change to $p(2) \approx 0.05399$, $p(1) \approx 0.2420$, $p(0) \approx 0.3989$, with product $0.005212$. The joint becomes $0.005212 \times 0.5344 \approx 0.002785$, a little under a quarter of the first value.
+
+The takeaway: the games see only differences between skills, so they cannot say whether the whole group is strong or weak. The prior sees absolute levels, and it is the prior that makes the second setting less plausible. Each part of the joint has a job: the sigmoid reads gaps, the game factors multiply in one term per result, and the prior anchors the overall level.
+
+:::
+
 ## Trees and elimination order {#sec-trees}
 
 Week 3 showed that variable elimination's cost depends on the graph structure and on the elimination ordering, and that finding the best ordering is NP-hard in general (@sec-ve in Week 3). Even the best ordering can leave an intermediate factor over many variables at once, which is unreasonably costly. There is one large family of graphs where neither problem arises.
@@ -512,6 +563,19 @@ When we can only evaluate $\tilde p$, there are two separate difficulties:
 $$\Phi = \frac1Z\int\phi(\boldsymbol{x})\,\tilde p(\boldsymbol{x})\,d\boldsymbol{x}.$$
 
 We can take a boat to any location and measure both the depth $\tilde p(\boldsymbol{x})$ and the concentration $\phi(\boldsymbol{x})$ there. Problem 1 is to draw water samples so that each is equally likely to come from any point within the lake's volume. Problem 2 is to find the average concentration. The difficulty is a lake with a few narrow, very deep canyons: they hold much of the water, but a boat visiting surface locations at random rarely lands on one. To estimate $\Phi$ correctly, a method must implicitly discover the canyons and find their volume relative to the rest of the lake. High-dimensional distributions behave the same way, with most of their probability mass concentrated in regions that are a tiny fraction of the space.
+
+::: {.callout-tip collapse="true" .clarification title="Question: Where does the 1/Z in this average come from?"}
+It is the ordinary definition of an expectation, $\Phi=\int\phi(x)\,p(x)\,dx$, with $p=\tilde p/Z$ substituted. $Z$ does not depend on $x$, so it is a constant inside the integral and comes out by linearity:
+$$\Phi=\int\phi(x)\,\frac{\tilde p(x)}{Z}\,dx=\frac1Z\int\phi(x)\,\tilde p(x)\,dx.$$
+In the lake picture, the integral is the total plankton (concentration times depth, added up) and $Z$ is the volume of water, so $\Phi$ is total divided by volume.
+
+**A small check.** Let $x\in\{1,2,3\}$ with $\tilde p=(1,2,3)$, so $Z=6$, and take $\phi(x)=x^2$. The ratio form gives $(1\cdot1+4\cdot2+9\cdot3)/6=36/6=6$. Using $p=(\tfrac16,\tfrac26,\tfrac36)$ directly gives $\tfrac16+\tfrac86+\tfrac{27}6=6$, the same number.
+
+**Two tests for a missing $Z$.**
+
+- With $\phi\equiv1$ the average must be 1. Without the division we would get $\sum\tilde p=6$ instead.
+- Doubling $\tilde p$ doubles both the numerator and $Z$ ($72/12=6$), so the ratio is unchanged. The overall scale of $\tilde p$ never matters, but the denominator does, which is why importance sampling (@sec-importance) needs an estimate of a ratio of normalizers.
+:::
 
 ## Importance sampling {#sec-importance}
 

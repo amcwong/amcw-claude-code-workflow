@@ -1,0 +1,640 @@
+---
+title: "Week 5 practice: Convolutions, Batch Normalization, and Residual Connections"
+---
+
+```{=html}
+<style>#title-block-header { display: none; }</style>
+<div class="lecture-header">
+  <h1>Week 5 practice: Convolutions, Batch Normalization, and Residual Connections</h1>
+</div>
+```
+
+**Overview.** These problems drill [Week 5](week05.qmd). Try each stem before opening the worked solution. Every problem has a single integer as its answer, the same shape as the course's quiz questions. An equation sheet comes first, then five parts:
+
+1. **Convolution, output size, and receptive field.** Three problems on the sliding dot product and the geometry around it.
+2. **Parameters and shapes.** Two problems on counting what a network learns.
+3. **Batch normalization and residual connections.** Two problems that work the week's last two ideas by hand.
+4. **Testing Homework 5.** A context section on the conventions Homework 5 uses, then five problems on the same ideas.
+5. **Official Quiz 6 practice.** Four questions provided by the course for this offering, reproduced with their answers.
+
+In every part except Part 5, the numbers and setups are invented for practice. They are not homework answers: the networks, kernels, and matrices that Homework 5 asks about are left to the assignment. A line under each stem names the part of Homework 5 that uses the same method. Notation matches the week chapter: a kernel $\bm{V}$ slides over an input $\bm{X}$, a layer has $C_\text{in}$ input and $C_\text{out}$ output channels, and batch norm uses the batch mean $\bm{\mu}_B$ and standard deviation $\bm{\sigma}_B$.
+
+## Equations to know for the quiz {#sec-w5p-equations}
+
+Every problem in this chapter, and every official quiz question in Part 5, can be solved with the equations below. They are collected from the [Week 5](week05.qmd) chapter, and each table says where the equation is explained. This is our own summary of the lecture, not a list published by the course. Results marked *(ours)* are short consequences worked out in this chapter, not lines from the lecture.
+
+### Convolution and output size
+
+| Equation | What it says | Where |
+|---|---|---|
+| $\bm{H}_{i,j} = u + \sum_{a,b} \bm{V}_{a,b}\, \bm{X}_{i+a,\, j+b}$ | deep learning's convolution: lay the kernel over the window and take a dot product (a cross-correlation) | [Derivation](week05.qmd#sec-derive-conv) |
+| $\sum_{a,b} \bm{V}_{a,b}\, \bm{X}_{i-a,\, j-b}$ | traditional convolution: the same, with the kernel flipped top-to-bottom and left-to-right | [Convolution or cross-correlation?](week05.qmd#sec-flip) |
+| $n_\text{out} = \left\lfloor \dfrac{n + 2p - k}{s} \right\rfloor + 1$ | output length along one axis, with padding $p$ on each edge and stride $s$ | [Output-size rule](week05.qmd#sec-general-size) |
+| $p = \dfrac{K - 1}{2}$ | "same" padding for an odd $K\times K$ kernel at stride $1$ | [Padding](week05.qmd#sec-padding) |
+
+Pooling layers use the same output-size rule with their own window and stride, and act on each channel separately.
+
+### Receptive field
+
+| Equation | What it says | Where |
+|---|---|---|
+| $r_\text{new} = r + (k - 1)\, j$, $\quad j_\text{new} = j \cdot s$ | per axis: the receptive field $r$ and the jump $j$ after a layer with kernel $k$ and stride $s$; start at $r = j = 1$ | [Stacked layers](week05.qmd#sec-rf-stack) |
+| $r = 1 + (k - 1)L$ | $L$ stride-1 layers of kernel $k$; for $k = 3$, $r = 1 + 2L$ *(ours)* | Quiz question 4 |
+
+Padding, nonlinearities, and batch norm do not change the receptive field. Pooling does, as a layer with its own $k$ and $s$.
+
+### Parameters
+
+| Equation | What it says | Where |
+|---|---|---|
+| weights $= k_h k_w C_\text{in} C_\text{out}$, $\quad$ biases $= C_\text{out}$ | one kernel per (input channel, output channel) pair, one bias per output channel | [Counting parameters](week05.qmd#sec-param-count) |
+| $2C$ | batch norm's learned $\bm{\gamma}$ and $\bm{\beta}$ for $C$ channels; running averages are not counted | [Counting parameters](week05.qmd#sec-param-count) |
+| $n_\text{in}\, n_\text{out} + n_\text{out}$ | a dense layer's weights and biases | [Counting parameters](week05.qmd#sec-param-count) |
+| flatten: $n_\text{in} = C \cdot H \cdot W$; $\quad$ global average pooling: $n_\text{in} = C$ | the input size of the classifier's dense layer | [Simple CNN](week05.qmd#sec-simple-convnet), [ResNet](week05.qmd#sec-resnet) |
+
+Nonlinearities and pooling have no parameters. Stride and padding change shapes, not parameter counts.
+
+### Batch normalization
+
+| Equation | What it says | Where |
+|---|---|---|
+| $\bm{\mu}_B = \dfrac{1}{\lvert B\rvert} \sum_{\bm{x}\in B} \bm{x}$, $\quad \bm{\sigma}_B^2 = \dfrac{1}{\lvert B\rvert} \sum_{\bm{x}\in B} (\bm{x} - \bm{\mu}_B)^2$ | batch mean and variance, per feature, dividing by the batch size | [How it works](week05.qmd#sec-batchnorm-how) |
+| $\operatorname{BN}(\bm{x}) = \bm{\gamma} \odot \dfrac{\bm{x} - \bm{\mu}_B}{\bm{\sigma}_B + \epsilon} + \bm{\beta}$ | standardize, then apply the learned scale and shift | [How it works](week05.qmd#sec-batchnorm-how) |
+| statistics over axes $(0, 1, 2)$ of $B \times H \times W \times C$ | for images: one mean and variance per channel, over the batch and all positions | [How it works](week05.qmd#sec-batchnorm-how) |
+
+The batch norm paper and PyTorch put $\epsilon$ inside the square root, $\sqrt{\bm{\sigma}_B^2 + \epsilon}$. With $\epsilon = 0$, as in every problem here, the two forms agree.
+
+### Residual connections
+
+| Equation | What it says | Where |
+|---|---|---|
+| $\bm{y} = f(\bm{x}) + \bm{x}$ | a residual block adds its input back to the main path's output | [Residual connections](week05.qmd#sec-residual) |
+| $\dfrac{\partial \mathcal{L}}{\partial \bm{x}} = \bm{J}_f^{\top} \dfrac{\partial \mathcal{L}}{\partial \bm{y}} + \dfrac{\partial \mathcal{L}}{\partial \bm{y}}$ | the gradient has a term through the layer and a term through the skip path | [Residual connections](week05.qmd#sec-residual) |
+| $1\times1$ convolution: $C_\text{in} C_\text{out}$ weights | the skip path's shape fix when the channel count changes | [Matching shapes](week05.qmd#sec-residual-shapes) |
+
+## Part 1: Convolution, output size, and receptive field {#sec-w5p-conv}
+
+### Problem 1: Flipping the kernel changes the answer {#prb-1}
+
+*Homework 5 link: Part 1, `convolution` (the traditional definition).*
+
+Take the input and kernel
+
+$$\bm{X} = \begin{bmatrix} 2 & 0 & 1 \\ 1 & 3 & 0 \\ 0 & 1 & 2 \end{bmatrix}, \qquad \bm{V} = \begin{bmatrix} 1 & 2 \\ 0 & -1 \end{bmatrix},$$
+
+with bias $0$, no padding, and stride $1$. How much larger is the top-left output under the traditional convolution than under deep learning's [cross-correlation](https://en.wikipedia.org/wiki/Cross-correlation)?
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+This uses [Week 5, Convolution or cross-correlation?](week05.qmd#sec-flip) and the [worked example](week05.qmd#sec-conv-example) that follows it.
+
+**The window.** The top-left output sees the top-left $2\times2$ window, $\begin{bmatrix} 2 & 0 \\ 1 & 3 \end{bmatrix}$.
+
+**Cross-correlation.** Lay $\bm{V}$ over the window as it is, multiply matching entries, and sum:
+
+$$1\cdot2 + 2\cdot0 + 0\cdot1 + (-1)\cdot3 = -1$$
+
+**Traditional [convolution](https://en.wikipedia.org/wiki/Convolution).** First flip $\bm{V}$ top-to-bottom and left-to-right, which gives $\begin{bmatrix} -1 & 0 \\ 2 & 1 \end{bmatrix}$, then take the same dot product:
+
+$$(-1)\cdot2 + 0\cdot0 + 2\cdot1 + 1\cdot3 = 3$$
+
+The two definitions disagree because this kernel is not symmetric about its centre. For a learned kernel the difference does not matter, since the network would learn the flipped kernel under the other definition. When a task names the traditional convolution, as Homework 5's Part 1 does, the flip has to happen.
+
+**Answer:** $3 - (-1) = 4$.
+:::
+
+### Problem 2: Where the floors bite {#prb-2}
+
+*Homework 5 link: Part 1, `output_shape_of_conv`; Part 3, the shape of each layer.*
+
+A single-image input has height $31$ and width $23$. It passes through a convolution with a $5\times5$ kernel, padding $1$, stride $3$, and $6$ output channels, then a $3\times3$ max pooling layer with stride $2$. How many numbers are in the output volume?
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+This uses [Week 5, The general output-size rule](week05.qmd#sec-general-size) and [Pooling](week05.qmd#sec-pooling).
+
+Apply $n_\text{out} = \lfloor (n + 2p - k)/s \rfloor + 1$ to the height and the width separately. Here $\lfloor\cdot\rfloor$ is the [floor function](https://en.wikipedia.org/wiki/Floor_and_ceiling_functions).
+
+**The convolution** ($k = 5$, $p = 1$, $s = 3$):
+
+$$\text{height: } \left\lfloor \frac{31 + 2 - 5}{3} \right\rfloor + 1 = \lfloor 9.33 \rfloor + 1 = 10$$
+
+$$\text{width: } \left\lfloor \frac{23 + 2 - 5}{3} \right\rfloor + 1 = \lfloor 6.67 \rfloor + 1 = 7$$
+
+The channel count becomes the number of kernels, $6$. Both floors discard a final window that would run off the padded edge.
+
+**The pooling layer** ($k = 3$, $p = 0$, $s = 2$):
+
+$$\text{height: } \left\lfloor \frac{10 - 3}{2} \right\rfloor + 1 = 4, \qquad \text{width: } \left\lfloor \frac{7 - 3}{2} \right\rfloor + 1 = 3$$
+
+Pooling acts on each channel separately, so there are still $6$ channels.
+
+**The volume.** $6 \times 4 \times 3$.
+
+**Answer:** $72$.
+:::
+
+### Problem 3: A receptive field that grows faster with depth {#prb-3}
+
+*Homework 5 link: Part 2, the receptive fields of Networks 1 to 3.*
+
+Along one axis, a network applies four layers in order: a convolution with kernel $5$ and stride $2$; a max pooling layer with window $2$ and stride $2$; a convolution with kernel $3$ and stride $1$; and a convolution with kernel $3$ and stride $2$. What is the [receptive field](https://en.wikipedia.org/wiki/Receptive_field) of one entry of the final layer, in input pixels?
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+This uses [Week 5, Receptive fields of stacked layers](week05.qmd#sec-rf-stack).
+
+Track the receptive field $r$ and the jump $j$ (the distance in input pixels between neighbouring entries), starting from the input's $r = 1$, $j = 1$. Each layer applies $r \leftarrow r + (k - 1)\,j$ and then $j \leftarrow j \cdot s$:
+
+| After | $k$ | $s$ | $r = r + (k-1)j$ | $j = j \cdot s$ |
+|---|---|---|---|---|
+| input | | | $1$ | $1$ |
+| conv | $5$ | $2$ | $1 + 4\cdot1 = 5$ | $2$ |
+| pool | $2$ | $2$ | $5 + 1\cdot2 = 7$ | $4$ |
+| conv | $3$ | $1$ | $7 + 2\cdot4 = 15$ | $4$ |
+| conv | $3$ | $2$ | $15 + 2\cdot4 = 23$ | $8$ |
+
+The pooling layer counts as a layer with its own window and stride. The last convolution's stride only changes the jump, which would matter for a layer after it. Notice the two $3$-wide convolutions: at stride $1$ on the raw input each would add $2$, but here each adds $8$, because the earlier strides spread their inputs $4$ pixels apart.
+
+**Answer:** $23$.
+:::
+
+## Part 2: Parameters and shapes {#sec-w5p-params}
+
+### Problem 4: A residual block that downsamples {#prb-4}
+
+*Homework 5 link: Part 2, `conv_layer_num_weights` and `conv_layer_num_biases`, and the batch norm entries of Network 3.*
+
+A residual block receives a volume with $16$ channels. Its main path is: a $3\times3$ convolution from $16$ to $32$ channels with stride $2$ and a bias, then [batch normalization](https://en.wikipedia.org/wiki/Batch_normalization), then ReLU, then a $3\times3$ convolution from $32$ to $32$ channels with no bias, then batch normalization. Its skip path is a $1\times1$ convolution from $16$ to $32$ channels with stride $2$ and no bias. How many learned parameters does the block have?
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+This uses [Week 5, Counting parameters](week05.qmd#sec-param-count) and [Matching shapes](week05.qmd#sec-residual-shapes).
+
+Count each layer with weights $= k_h k_w C_\text{in} C_\text{out}$, biases $= C_\text{out}$, and batch norm $= 2C$:
+
+| Layer | Count |
+|---|---|
+| main conv 1, weights | $3\cdot3\cdot16\cdot32 = 4608$ |
+| main conv 1, biases | $32$ |
+| batch norm 1 ($\bm{\gamma}$, $\bm{\beta}$) | $2\cdot32 = 64$ |
+| ReLU | $0$ |
+| main conv 2, weights | $3\cdot3\cdot32\cdot32 = 9216$ |
+| batch norm 2 | $64$ |
+| skip $1\times1$ conv, weights | $1\cdot1\cdot16\cdot32 = 512$ |
+| addition | $0$ |
+
+**Why the skip path needs a convolution.** The main path changes the channel count from $16$ to $32$ and halves the height and width. The input cannot be added to an output of a different shape, so the skip path uses a $1\times1$ convolution with $32$ output channels and the same stride $2$.
+
+**What is not counted.** Each batch norm layer also stores running averages of its mean and variance for use at inference. They are updated during training but not learned by gradient descent, so they are not parameters. The strides change shapes but not the counts.
+
+**Answer:** $4608 + 32 + 64 + 9216 + 64 + 512 = 14496$.
+:::
+
+### Problem 5: Tracing shapes to the classifier {#prb-5}
+
+*Homework 5 link: Part 3, the input size of the final `nn.Linear`.*
+
+A grayscale $28\times28$ image passes through: a $5\times5$ convolution to $6$ channels (no padding, stride $1$); $2\times2$ max pooling with stride $2$; a $3\times3$ convolution to $10$ channels (padding $1$, stride $1$); $3\times3$ max pooling with stride $3$; flatten; and a dense layer to $5$ classes. Every convolution and the dense layer have biases. How many learned parameters does the network have in total?
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+This uses [Week 5, Building a simple convolutional network](week05.qmd#sec-simple-convnet).
+
+**Trace the shape** (channels $\times$ height $\times$ width) with the output-size rule:
+
+| Layer | Side length | Shape |
+|---|---|---|
+| input | $28$ | $1 \times 28 \times 28$ |
+| conv $5\times5$, $p = 0$ | $\lfloor (28 - 5)/1 \rfloor + 1 = 24$ | $6 \times 24 \times 24$ |
+| pool $2$, $s = 2$ | $\lfloor (24 - 2)/2 \rfloor + 1 = 12$ | $6 \times 12 \times 12$ |
+| conv $3\times3$, $p = 1$ | $\lfloor (12 + 2 - 3)/1 \rfloor + 1 = 12$ | $10 \times 12 \times 12$ |
+| pool $3$, $s = 3$ | $\lfloor (12 - 3)/3 \rfloor + 1 = 4$ | $10 \times 4 \times 4$ |
+| flatten | | $160$ |
+
+**Count the parameters.**
+
+| Layer | Count |
+|---|---|
+| conv 1 | $5\cdot5\cdot1\cdot6 + 6 = 156$ |
+| conv 2 | $3\cdot3\cdot6\cdot10 + 10 = 550$ |
+| dense, $160 \to 5$ | $160\cdot5 + 5 = 805$ |
+
+The dense layer is the largest, and its size depends on every layer before it. That is why the shape has to be traced first.
+
+**With global average pooling instead.** A ResNet-style head averages each channel over its $4\times4$ grid, leaving $10$ numbers, so the dense layer has $10\cdot5 + 5 = 55$ parameters and the network $156 + 550 + 55 = 761$. The dense layer's size then depends only on the channel count, not on the image size.
+
+**Answer:** $156 + 550 + 805 = 1511$.
+:::
+
+## Part 3: Batch normalization and residual connections {#sec-w5p-bn-res}
+
+### Problem 6: Batch norm on an image channel {#prb-6}
+
+*Homework 5 link: Part 3, `nn.BatchNorm2d` in `model.train()` mode.*
+
+A batch holds two single-channel $2\times2$ images:
+
+$$\text{image 1} = \begin{bmatrix} 2 & 4 \\ 4 & 4 \end{bmatrix}, \qquad \text{image 2} = \begin{bmatrix} 5 & 5 \\ 7 & 9 \end{bmatrix}$$
+
+They pass through batch normalization in training mode, with $\gamma = 3$, $\beta = -1$, $\epsilon = 0$, and variance divided by the number of values, then through ReLU. What is the sum of the $8$ outputs?
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+This uses [Week 5, How it works](week05.qmd#sec-batchnorm-how), the paragraph on images.
+
+**Which values share statistics.** For images, batch norm computes one mean and one variance per channel, over the batch *and* every spatial position. There is one channel here, so all $8$ values share one mean and one variance. Normalizing each image on its own would give different statistics and a different answer.
+
+**Mean.**
+
+$$\mu_B = \frac{2 + 4 + 4 + 4 + 5 + 5 + 7 + 9}{8} = \frac{40}{8} = 5$$
+
+**Variance.** The deviations from $5$ are $-3, -1, -1, -1, 0, 0, 2, 4$, so
+
+$$\sigma_B^2 = \frac{9 + 1 + 1 + 1 + 0 + 0 + 4 + 16}{8} = \frac{32}{8} = 4, \qquad \sigma_B = 2$$
+
+**Normalize, scale, and shift.** Each output is $3 \cdot \dfrac{x - 5}{2} - 1$, then ReLU:
+
+| $x$ | $\dfrac{x - 5}{2}$ | $3 \cdot (\cdot) - 1$ | ReLU |
+|---|---|---|---|
+| $2$ | $-1.5$ | $-5.5$ | $0$ |
+| $4$ (three times) | $-0.5$ | $-2.5$ | $0$ |
+| $5$ (twice) | $0$ | $-1$ | $0$ |
+| $7$ | $1$ | $2$ | $2$ |
+| $9$ | $2$ | $5$ | $5$ |
+
+The shift $\beta = -1$ moves values that were exactly at the mean below zero, so only values more than a third of a standard deviation above the mean survive the ReLU.
+
+**Answer:** $2 + 5 = 7$.
+:::
+
+### Problem 7: Why the skip path keeps gradients alive {#prb-7}
+
+A network on a single number stacks four blocks. Block $k$ has main path $f_k(x) = a_k\,x$, with $(a_1, a_2, a_3, a_4) = (0,\ 0,\ 1,\ 3)$, and each block is a residual block, $y = f_k(x) + x$. The gradient of the loss with respect to the last block's output is $3$. What is the gradient of the loss with respect to the network's input?
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+This uses [Week 5, Residual Connections](week05.qmd#sec-residual).
+
+**One block.** The lecture's gradient rule is $\partial\mathcal{L}/\partial x = \bm{J}_f^\top\, \partial\mathcal{L}/\partial y + \partial\mathcal{L}/\partial y$. With one number, the Jacobian of $f_k(x) = a_k x$ is just $a_k$, so one block multiplies the incoming gradient by $a_k + 1$: the first term is the path through the layer, the second is the skip path.
+
+**The stack.** Going backwards from the gradient $3$, the four factors multiply:
+
+$$\frac{\partial \mathcal{L}}{\partial x} = 3 \cdot (1 + 0)(1 + 0)(1 + 1)(1 + 3) = 3 \cdot 1 \cdot 1 \cdot 2 \cdot 4$$
+
+**Without the skip paths.** The plain stack $f_4(f_3(f_2(f_1(x))))$ multiplies by $a_1 a_2 a_3 a_4 = 0$, so the input's gradient is $0$. Blocks 1 and 2 output zeros whatever their input, which is the lecture's example of a layer that stops every earlier layer from learning. With residual connections those blocks pass the input through unchanged, and the gradient passes through with it.
+
+**Answer:** $24$.
+:::
+
+## Part 4: Testing Homework 5 {#sec-w5p-homework}
+
+### Context for these questions {#sec-w5p-hw-context}
+
+Homework 5 implements the week's operations in code and uses a few conventions that the lecture mentions only in passing. The problems below test each one on invented setups. None of them reproduce the homework's image, kernels, networks, or matrices.
+
+**Traditional convolution.** Part 1 asks for the traditional convolution, with the flip, not deep learning's cross-correlation. PyTorch's `nn.Conv2d` in Part 3 computes the cross-correlation, so no flip is written there.
+
+**Receptive field as (height, width).** Part 2 reports a receptive field as the pair $(r_h, r_w)$, from running the recursion once per axis. The jump $j$ is bookkeeping for the next layer and is never part of the answer.
+
+**What counts as a batch norm parameter.** The learned $\bm{\gamma}$ and $\bm{\beta}$, $2C$ numbers for $C$ channels. The running mean and variance are stored in the layer (PyTorch calls them *buffers*) but not learned.
+
+**PyTorch's layout and parameters.** PyTorch stores a batch of images as `(N, C, H, W)`. `model.parameters()` returns every learned tensor that a model's layers registered, including batch norm's $\bm{\gamma}$ and $\bm{\beta}$ and the dense layer's weights, but not the buffers.
+
+### Problem 8: Traditional convolution with padding and stride {#prb-8}
+
+*Homework 5 link: Part 1, `convolution` with padding and stride.*
+
+Take the $4\times4$ image and $3\times3$ kernel
+
+$$\bm{X} = \begin{bmatrix} 1 & 0 & 2 & 1 \\ 0 & 3 & 1 & 0 \\ 2 & 1 & 0 & 1 \\ 1 & 0 & 1 & 2 \end{bmatrix},$$
+
+$$\bm{V} = \begin{bmatrix} 1 & 0 & 0 \\ 0 & 2 & 0 \\ 0 & 0 & -1 \end{bmatrix},$$
+
+with one zero of padding on every edge, stride $2$, and bias $0$. Using the traditional convolution, what is the sum of all the outputs?
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+This uses [Week 5, Convolution or cross-correlation?](week05.qmd#sec-flip), [Padding](week05.qmd#sec-padding), and [The general output-size rule](week05.qmd#sec-general-size).
+
+**Output size.** Along each axis, $\lfloor (4 + 2 - 3)/2 \rfloor + 1 = 2$, so the output is $2\times2$.
+
+**Flip the kernel.** Flipping top-to-bottom and left-to-right moves the $1$ to the bottom-right and the $-1$ to the top-left:
+
+$$\text{flipped } \bm{V} = \begin{bmatrix} -1 & 0 & 0 \\ 0 & 2 & 0 \\ 0 & 0 & 1 \end{bmatrix}$$
+
+So each output is $-(\text{top-left}) + 2\,(\text{centre}) + (\text{bottom-right})$ of its window.
+
+**The windows.** Padding makes the image $6\times6$. With stride $2$ the windows start at padded rows and columns $0$ and $2$:
+
+| Output | Window | Score |
+|---|---|---|
+| $(1, 1)$ | $\begin{bmatrix} 0 & 0 & 0 \\ 0 & 1 & 0 \\ 0 & 0 & 3 \end{bmatrix}$ | $-0 + 2\cdot1 + 3 = 5$ |
+| $(1, 2)$ | $\begin{bmatrix} 0 & 0 & 0 \\ 0 & 2 & 1 \\ 3 & 1 & 0 \end{bmatrix}$ | $-0 + 2\cdot2 + 0 = 4$ |
+| $(2, 1)$ | $\begin{bmatrix} 0 & 0 & 3 \\ 0 & 2 & 1 \\ 0 & 1 & 0 \end{bmatrix}$ | $-0 + 2\cdot2 + 0 = 4$ |
+| $(2, 2)$ | $\begin{bmatrix} 3 & 1 & 0 \\ 1 & 0 & 1 \\ 0 & 1 & 2 \end{bmatrix}$ | $-3 + 2\cdot0 + 2 = -1$ |
+
+The top-left window is mostly padding: only the image's first two rows and columns reach it. With stride $2$ the window centres land only on the image's first and third rows and columns; the others are seen only at window edges.
+
+**The trap.** Without the flip, each output would be $(\text{top-left}) + 2\,(\text{centre}) - (\text{bottom-right})$, giving $-1, 4, 4, 1$ and a sum of $8$. In code, the flip is one line before the sliding loop.
+
+**Answer:** $5 + 4 + 4 + (-1) = 12$.
+:::
+
+### Problem 9: A hand-made detector that is not symmetric {#prb-9}
+
+*Homework 5 link: Part 1, the plus detector.*
+
+To detect an L shape (a bright left column and bottom row), a student writes the template kernel
+
+$$\bm{V} = \begin{bmatrix} 1 & -1 & -1 \\ 1 & -1 & -1 \\ 1 & 1 & 1 \end{bmatrix}.$$
+
+On the window $\begin{bmatrix} 1 & 0 & 0 \\ 1 & 0 & 0 \\ 1 & 1 & 1 \end{bmatrix}$, an L, the cross-correlation scores $5$. By how much does the score drop if the traditional convolution is used instead?
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+This uses [Week 5, Reading the kernel as a template](week05.qmd#sec-template) and [Convolution or cross-correlation?](week05.qmd#sec-flip).
+
+**The template.** The kernel puts $+1$ on the L's five pixels and $-1$ elsewhere. Under cross-correlation it is laid over the window as written, every bright pixel meets a $+1$, and the score is $5$.
+
+**The flip.** The traditional convolution first flips the kernel both ways:
+
+$$\text{flipped } \bm{V} = \begin{bmatrix} 1 & 1 & 1 \\ -1 & -1 & 1 \\ -1 & -1 & 1 \end{bmatrix}$$
+
+This is the L turned upside down: a bright top row and right column. On the L window, the bright pixels now meet $1, -1, -1, -1, 1$ (top-left, middle-left, bottom-left, bottom-middle, bottom-right), for a score of $-1$.
+
+**What to take from it.** A plus-shaped kernel is symmetric about its centre, so flipping it changes nothing, and it detects pluses under either definition. A non-symmetric template detects the flipped shape under the traditional convolution. To detect the L with the traditional convolution, store the flipped kernel, so that the operation's flip undoes it.
+
+**Answer:** $5 - (-1) = 6$.
+:::
+
+### Problem 10: A receptive field that is not square {#prb-10}
+
+*Homework 5 link: Part 2, Network 2 (a stride that differs between height and width).*
+
+A three-layer network uses these kernels and strides, written as (height, width):
+
+| Layer | Kernel | Stride |
+|---|---|---|
+| 1 | $(3, 5)$ | $(1, 2)$ |
+| 2 | $(3, 3)$ | $(2, 2)$ |
+| 3 | $(2, 2)$ | $(1, 1)$ |
+
+How many input pixels are in the receptive field of one entry of layer 3?
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+This uses [Week 5, Receptive fields of stacked layers](week05.qmd#sec-rf-stack), the paragraph on two-dimensional layers.
+
+Run the recursion $r \leftarrow r + (k-1)j$, $j \leftarrow j \cdot s$ once for each axis, starting at $r = j = 1$:
+
+| After | Height: $r_h$ | Height: $j_h$ | Width: $r_w$ | Width: $j_w$ |
+|---|---|---|---|---|
+| input | $1$ | $1$ | $1$ | $1$ |
+| layer 1 | $1 + 2\cdot1 = 3$ | $1$ | $1 + 4\cdot1 = 5$ | $2$ |
+| layer 2 | $3 + 2\cdot1 = 5$ | $2$ | $5 + 2\cdot2 = 9$ | $4$ |
+| layer 3 | $5 + 1\cdot2 = 7$ | $2$ | $9 + 1\cdot4 = 13$ | $4$ |
+
+The receptive field is $(r_h, r_w) = (7, 13)$: $7$ rows and $13$ columns. The jumps $(2, 4)$ are not part of it. Reporting $(7, 2)$, or $(13, 4)$, mixes a size with a spacing.
+
+**Answer:** $7 \cdot 13 = 91$.
+:::
+
+### Problem 11: How empty is the convolution matrix? {#prb-11}
+
+*Homework 5 link: Part 2, convolution as a matrix-vector product.*
+
+A $5\times5$ image is flattened row by row into a vector of $25$ entries, and a convolution with a $3\times3$ kernel (all nine weights nonzero), no padding, and stride $1$ is written as a matrix $\bm{A}$ with output $\bm{h} = \bm{A}\bm{x}$. How many entries of $\bm{A}$ are zero?
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+This uses [Week 5, Convolution as a matrix](week05.qmd#sec-conv-matrix).
+
+**The shape of $\bm{A}$.** The output is $\lfloor (5 - 3)/1 \rfloor + 1 = 3$ along each axis, so $3 \times 3 = 9$ outputs. Each output is one row of $\bm{A}$ and each input pixel one column, so $\bm{A}$ is $9 \times 25$, with $225$ entries.
+
+**The nonzeros.** Each row holds the nine kernel weights, in the columns of the nine pixels its window covers, and zeros everywhere else. That gives $9 \cdot 9 = 81$ nonzero entries. Neighbouring windows overlap, so the same pixel's column has nonzeros in several rows, but every row has exactly nine.
+
+**The zeros.** $225 - 81 = 144$, almost two thirds of the matrix. The pattern, the same nine weights shifted along each row, is close to a [Toeplitz matrix](https://en.wikipedia.org/wiki/Toeplitz_matrix). In general a $k\times k$ kernel on an $n\times n$ image leaves $n^2 - k^2$ zeros in each row, so the fraction of zeros grows toward $1$ as the image grows. That is why frameworks slide the kernel instead of building $\bm{A}$.
+
+**Answer:** $144$.
+:::
+
+### Problem 12: What `model.parameters()` holds {#prb-12}
+
+*Homework 5 link: Part 3, building the `CNN` and setting up the optimizer.*
+
+A PyTorch model takes batches of shape `(N, 3, 24, 24)` and applies, in order:
+
+```python
+nn.Conv2d(3, 8, kernel_size=5, padding=2)
+nn.BatchNorm2d(8)
+nn.ReLU()
+nn.MaxPool2d(kernel_size=2, stride=2)
+nn.Conv2d(8, 12, kernel_size=3)
+nn.BatchNorm2d(12)
+nn.ReLU()
+nn.MaxPool2d(kernel_size=2, stride=2)
+nn.Flatten()
+nn.Linear(?, 4)
+```
+
+`nn.Conv2d` and `nn.Linear` have biases by default, and `nn.Conv2d` has stride $1$ and padding $0$ unless given. How many numbers in total are in `model.parameters()`?
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+This uses [Week 5, Building a simple convolutional network](week05.qmd#sec-simple-convnet) (including the PyTorch note there) and [Counting parameters](week05.qmd#sec-param-count).
+
+**Step 1: the missing input size.** Trace one image, in PyTorch's (channels, height, width) order:
+
+| Layer | Shape |
+|---|---|
+| input | $3 \times 24 \times 24$ |
+| conv $5\times5$, padding $2$ | $8 \times 24 \times 24$ (since $\lfloor (24 + 4 - 5)/1 \rfloor + 1 = 24$) |
+| pool | $8 \times 12 \times 12$ |
+| conv $3\times3$, padding $0$ | $12 \times 10 \times 10$ |
+| pool | $12 \times 5 \times 5$ |
+| flatten | $300$ |
+
+So the dense layer is `nn.Linear(300, 4)`. A wrong number here is the usual cause of a shape-mismatch error on the first forward pass.
+
+**Step 2: the parameters.**
+
+| Layer | Count |
+|---|---|
+| conv 1 | $5\cdot5\cdot3\cdot8 + 8 = 608$ |
+| batch norm 1 | $2\cdot8 = 16$ |
+| conv 2 | $3\cdot3\cdot8\cdot12 + 12 = 876$ |
+| batch norm 2 | $2\cdot12 = 24$ |
+| dense | $300\cdot4 + 4 = 1204$ |
+
+ReLU, pooling, and flatten register no parameters.
+
+**What is left out.** Each `nn.BatchNorm2d` also stores a running mean and a running variance, one per channel ($2\cdot(8 + 12) = 40$ numbers), plus a counter of batches seen. These are buffers: `model.eval()` uses them, but the optimizer never updates them, so they are not in `model.parameters()`.
+
+**Answer:** $608 + 16 + 876 + 24 + 1204 = 2728$.
+:::
+
+## Part 5: Official Quiz 6 practice {#sec-w5p-official-quiz}
+
+The four questions below were provided by the course as Quiz 6 practice, and they test Week 5 material. They are reproduced with the course's own numbers and answers, in increasing order of difficulty.
+
+### Quiz question 1: Parameters of a residual block (easy) {#quiz-1}
+
+A residual block's main path is one $3\times3$ convolution from $3$ to $4$ channels. Its shortcut is a $1\times1$ convolution from $3$ to $4$ channels. Each convolution has one bias per output channel. How many parameters does the block have?
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+This uses [Week 5, Residual Connections](week05.qmd#sec-residual), [Matching shapes](week05.qmd#sec-residual-shapes), and [Counting parameters](week05.qmd#sec-param-count).
+
+**What a residual block is.** A [residual block](https://en.wikipedia.org/wiki/Residual_neural_network) is a few layers wrapped by a residual connection: the block's input is added back to the output of its layers. The lecture writes it as
+
+$$\bm{y} = f(\bm{x}) + \bm{x}$$
+
+where $f$ is whatever the block's layers compute. The block has two paths from $\bm{x}$ to the sum:
+
+- The **main path** runs $\bm{x}$ through the layers and produces $f(\bm{x})$. The lecture reads $f(\bm{x})$ as a *change* to the input, the residual that the block adds on, rather than a replacement for it.
+- The **skip path** (also called the shortcut, or the identity path when it leaves $\bm{x}$ unchanged) carries $\bm{x}$ around the layers to the addition. On the backward pass the gradient flows down both paths, and the skip path passes it back unchanged, which is what keeps gradients reaching earlier layers.
+
+"Residual path" is used loosely for either one, so these notes say main path and skip path. In this question, the main path is the $3\times3$ convolution and the skip path is the $1\times1$ shortcut.
+
+**Why this skip path is a convolution.** The addition is entry by entry, so $f(\bm{x})$ and the skip path's output must have the same shape. The main path turns $3$ channels into $4$, so $\bm{x}$ itself cannot be added. A $1\times1$ convolution fixes this: at each position it computes each of the $4$ output channels as a weighted sum of the $3$ input channels at that same position, plus a bias.
+
+**A small example with numbers.** Look at one position, where the input has the $3$ channel values $\bm{x} = (1,\ 0,\ 2)$, and suppose the main path's $3\times3$ convolution produced $f(\bm{x}) = (0.5,\ -1,\ 2,\ 0)$ there. Take the $1\times1$ shortcut's weights as a $4\times3$ matrix with zero biases:
+
+$$\bm{W}_\text{skip} = \begin{bmatrix} 1 & 0 & 0 \\ 0 & 1 & 0 \\ 0 & 0 & 1 \\ 1 & 1 & 1 \end{bmatrix}, \qquad \bm{W}_\text{skip}\,\bm{x} = (1,\ 0,\ 2,\ 3)$$
+
+The first three output channels copy the input channels and the fourth adds them up. The block's output at this position is
+
+$$\bm{y} = (0.5,\ -1,\ 2,\ 0) + (1,\ 0,\ 2,\ 3) = (1.5,\ -1,\ 4,\ 3)$$
+
+If the main path's layers had output all zeros, $\bm{y}$ would still be $(1, 0, 2, 3)$: the input's information passes through the skip path whatever the layers do. When the main path keeps the shape, the skip path needs no layer at all and the block is simply $f(\bm{x}) + \bm{x}$.
+
+**Counting the parameters.** Use weights $= k_h k_w C_\text{in} C_\text{out}$ and biases $= C_\text{out}$ for each convolution:
+
+1. Main path weights: $3\cdot3\cdot3\cdot4 = 108$.
+2. Main path biases: $4$.
+3. Shortcut weights: $1\cdot1\cdot3\cdot4 = 12$, one per entry of the $4\times3$ matrix above.
+4. Shortcut biases: $4$.
+
+The addition, and any ReLU after it, have no parameters. The usual mistake is forgetting the shortcut's $12 + 4$.
+
+**Answer:** $108 + 4 + 12 + 4 = 128$.
+:::
+
+### Quiz question 2: Flatten versus global average pooling (medium) {#quiz-2}
+
+An input of shape $3\times12\times12$ (channels, height, width) passes through: a $3\times3$ convolution with $4$ output channels (stride $1$, padding $1$); $2\times2$ max pooling with stride $2$; a $3\times3$ convolution with $8$ output channels (stride $1$, no padding); $2\times2$ max pooling with stride $2$; and a dense layer to $10$ classes with no bias. How many more dense-layer weights does the network have if it flattens before the dense layer than if it uses global average pooling?
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+This uses [Week 5, Building a simple convolutional network](week05.qmd#sec-simple-convnet) and the global average pooling paragraph of [The ResNet](week05.qmd#sec-resnet).
+
+Both versions share every layer before the dense layer, so the convolution parameters are identical and cancel in the difference. Only the shape entering the dense layer matters.
+
+**Background 1: the output-size formula.** A convolution or pooling layer slides a window across one side of its input. Along one side (height or width), write
+
+- $n$: the side length going in;
+- $k$: the window (kernel) side length;
+- $p$: the padding, the number of zeros added on each edge;
+- $s$: the stride, how many pixels the window moves each time.
+
+The number of window positions along that side is
+
+$$n_\text{out} = \left\lfloor \frac{n + 2p - k}{s} \right\rfloor + 1$$
+
+The $n + 2p$ is the padded side length. The window fits $n + 2p - k$ pixels past its start, the floor divides that by the stride, and the $+1$ counts the starting position itself. The formula gives the output side length; the convolution's own parameters do not depend on it. Apply it separately to height and width, and to each layer in turn, feeding each layer's output into the next.
+
+**Background 2: what a "grid" and a "channel" are.** A volume like $8 \times 2 \times 2$ means $8$ channels, each a grid of $2$ rows by $2$ columns. Each channel is one table of numbers, so each channel has $2 \cdot 2 = 4$ numbers. The $8$ channels together hold $8 \cdot 4 = 32$ numbers. The channel count is never changed by pooling; only the grid shrinks.
+
+**Background 3: the weights of a dense layer.** A dense layer connects every input number to every output number, and each connection has its own weight. With $n_\text{in}$ inputs and $n_\text{out}$ outputs (here $n_\text{out}$ means the number of classes, not the formula above), the layer has
+
+$$n_\text{in} \cdot n_\text{out} \quad \text{weights}$$
+
+Here there are no biases, so nothing is added.
+
+**Compare with Quiz question 1.** Question 1 counts a convolution, and its formula is different: $k_h k_w C_\text{in} C_\text{out}$. A convolution reuses one small kernel at every position, so its weights do not depend on the image size. Each output channel needs only one kernel of size $k_h \cdot k_w \cdot C_\text{in}$. A dense layer reuses nothing, so every input-output pair gets its own weight. Its count depends on how many numbers flow in and out, which is why the flatten step matters so much here.
+
+**Why the letters differ: $n$ counts numbers, $C$ counts channels.** The two symbols measure different things, and the difference is in the size of each unit.
+
+- $C_\text{in}$ and $C_\text{out}$ count **channels**. A channel is a whole grid, so $C_\text{in} = 3$ means three grids, however tall or wide each one is. The grid's height and width are not in the convolution formula at all; the kernel's $k_h \cdot k_w$ covers only the small window that slides across it.
+- $n_\text{in}$ counts **individual numbers** (scalars) that enter the layer. A dense layer has no grids, only a flat list of numbers, so $n_\text{in}$ is the length of that list.
+
+For the first layer of this quiz's input, $3 \times 12 \times 12$: $C_\text{in} = 3$ channels, but $n_\text{in} = 3 \cdot 12 \cdot 12 = 432$ numbers. If the dense layer received that input unflattened, it would have to treat all $432$ numbers as separate inputs, which is the $432$ in the earlier comparison. The convolution's $C_\text{in} = 3$ is the same input counted in grids rather than numbers.
+
+**Trace the shape** of the volume through the network. Each row applies the formula above to the side length:
+
+| Layer | Side length | Shape (channels $\times$ height $\times$ width) |
+|---|---|---|
+| input | | $3 \times 12 \times 12$ |
+| conv $3\times3$, $p = 1$, $s = 1$, 4 channels | $n_\text{out} = \lfloor (12 + 2 - 3)/1 \rfloor + 1 = 12$ | $4 \times 12 \times 12$ |
+| pool $2\times2$, $s = 2$ | $n_\text{out} = \lfloor (12 - 2)/2 \rfloor + 1 = 6$ | $4 \times 6 \times 6$ |
+| conv $3\times3$, $p = 0$, $s = 1$, 8 channels | $n_\text{out} = \lfloor (6 - 3)/1 \rfloor + 1 = 4$ | $8 \times 4 \times 4$ |
+| pool $2\times2$, $s = 2$ | $n_\text{out} = \lfloor (4 - 2)/2 \rfloor + 1 = 2$ | $8 \times 2 \times 2$ |
+
+The padding of $1$ in the first convolution keeps $12$ at $12$: the $3$ in the window and the $2$ from the two padded edges cancel, so the convolution leaves the side unchanged. Each pool halves the side. The channel count changes only at the convolutions.
+
+After the last pool the volume is $8 \times 2 \times 2$. Each of the $8$ channels is a $2 \times 2$ grid, the "$2\times2$ grid" in the solution below.
+
+**Flatten.** Flattening lists every number in every channel as its own input to the dense layer. There are $8 \cdot 2 \cdot 2 = 32$ numbers, so $n_\text{in} = 32$, and the dense layer has
+
+$$32 \cdot 10 = 320 \quad \text{weights.}$$
+
+**Global average pooling.** Instead, take each channel's $2 \times 2$ grid, add its $4$ numbers, and divide by $4$. Each channel becomes one number, its average. For example, a channel whose grid is $\begin{bmatrix} 1 & 3 \\ 5 & 3 \end{bmatrix}$ has the average $(1 + 3 + 5 + 3)/4 = 3$. There are $8$ channels, so the volume becomes $8$ numbers, and $n_\text{in} = 8$. The dense layer then has
+
+$$8 \cdot 10 = 80 \quad \text{weights.}$$
+
+**Why the difference is a factor of 4.** Flattening feeds the dense layer $4$ separate numbers per channel, one for each cell of the $2\times2$ grid. Global average pooling feeds it one number per channel. So the flattened version has $4$ times as many inputs, and $4$ times as many dense weights, which is the grid's area $2 \cdot 2 = 4$.
+
+**Answer:** $320 - 80 = 240$.
+:::
+
+### Quiz question 3: Batch normalization before ReLU (medium-hard) {#quiz-3}
+
+The pre-activations of one unit on a batch of $\lvert B\rvert = 4$ examples are $-7, -7, -1, -1$. With no normalization, a ReLU outputs $0$ for every example. Instead, apply batch normalization with $\epsilon = 0$, $\gamma = 2$, $\beta = 1$, and the variance computed by dividing by $\lvert B\rvert$, then ReLU. What is the sum of the $4$ outputs?
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+This uses [Week 5, How it works](week05.qmd#sec-batchnorm-how).
+
+For each value $x_i$, batch norm computes
+
+$$y_i = \gamma\, \frac{x_i - \mu_B}{\sigma_B + \epsilon} + \beta$$
+
+with $\mu_B$ the batch mean and $\sigma_B$ the batch standard deviation.
+
+**Mean.** $\mu_B = (-7 - 7 - 1 - 1)/4 = -16/4 = -4$.
+
+**Variance.** The deviations from $-4$ are $-3, -3, 3, 3$, so
+
+$$\sigma_B^2 = \frac{9 + 9 + 9 + 9}{4} = 9, \qquad \sigma_B + \epsilon = 3 + 0 = 3$$
+
+**Normalize.** Dividing each deviation by $3$ gives $(-1, -1, 1, 1)$, which has mean $0$ and variance $1$, as a normalized batch must. A different result here means an arithmetic slip.
+
+**Scale and shift.** $2 \cdot (-1, -1, 1, 1) + 1 = (-1, -1, 3, 3)$.
+
+**ReLU.** $(0, 0, 3, 3)$.
+
+Without normalization every input is negative and the sum is $0$. Batch norm uses only each value's position relative to the batch: the two inputs at $-1$ sit above the batch mean of $-4$, so after normalization and the shift they are $+3$ and pass through the ReLU. This is the lecture's point about keeping activations out of the ReLU's flat region. Dividing by $\lvert B\rvert - 1 = 3$ instead would give a variance of $12$ and a different answer; the question and the lecture both divide by $\lvert B\rvert$.
+
+**Answer:** $0 + 0 + 3 + 3 = 6$.
+:::
+
+### Quiz question 4: Replacing a $9\times9$ convolution (hard) {#quiz-4}
+
+A single $9\times9$ convolution has $4$ input and $4$ output channels and no bias. It is replaced by the smallest stack of $3\times3$ stride-$1$ convolutions ($4$ channels in and out at every layer, no bias) whose output entries have a receptive field at least as large. How many fewer parameters does the stack have?
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+This uses [Week 5, Receptive fields of stacked layers](week05.qmd#sec-rf-stack) and [Counting parameters](week05.qmd#sec-param-count).
+
+**Background 1: what "replace" means here.** The question does not ask for the new layers to compute the same numbers as the $9\times9$ convolution. The kernel weights will be different. It asks for a replacement that sees the same amount of input. The measure of that is the receptive field: how many input pixels one output entry depends on. A replacement with a receptive field of $9\times9$ lets each output entry depend on the same $9\times9$ patch of input the original does, so the network's view of the image is unchanged in size.
+
+**Background 2: what a "stack" is.** A stack is a sequence of convolutions chained one after another. Layer 1 takes the image, layer 2 takes layer 1's output as its input, layer 3 takes layer 2's output, and so on. Each layer has its own weights. Nothing runs in parallel. The stack's receptive field grows because each layer's output entry is built from several entries of the layer before, and each of those already depends on a patch of the image.
+
+Here is a two-layer stack of $3\times3$ convolutions, one axis at a time to keep it short. Layer 1 takes the input row $x_1, x_2, x_3, x_4, x_5$ and produces $a_1, a_2, a_3$, where each $a$ is a $3$-wide window of $x$. Layer 2 takes $a_1, a_2, a_3$ and produces one output $b_1$, a $3$-wide window of the $a$'s:
+
+- $a_1$ depends on $x_1, x_2, x_3$; $a_2$ on $x_2, x_3, x_4$; $a_3$ on $x_3, x_4, x_5$.
+- $b_1$ depends on all three $a$'s, so it depends on $x_1$ through $x_5$.
+
+One layer sees $3$ input values. Two stride-$1$ layers see $5$. Along each axis, a $3\times3$ stack of two layers has a $5\times5$ receptive field, and each further layer adds $2$ more. That is the recursion $r \leftarrow r + (k-1)j$ with $k = 3$ and $j = 1$.
+
+**Background 3: why "smallest".** A $9\times9$ receptive field needs one layer of kernel $9$, or several smaller layers that together add up to $9$. Each $3\times3$ stride-$1$ layer adds $2$, so we need $1 + 2L \ge 9$. The smallest such $L$ is $4$, and four layers give exactly $9$. Three layers give $7$, which is too small. A stack with more than four layers would also work, but it would have more parameters and is not the answer asked for.
+
+**The original.** $9 \cdot 9 \cdot 4 \cdot 4 = 81 \cdot 16 = 1296$ weights.
+
+**Receptive field of the stack.** With $k = 3$ and stride $1$ the jump stays $j = 1$, so the recursion $r \leftarrow r + (k-1)j$ adds $2$ per layer. Starting from $r = 1$, after $L$ layers
+
+$$r = 1 + 2L$$
+
+so $L = 1, 2, 3, 4$ give $3, 5, 7, 9$. The smallest $L$ with $r \ge 9$ is $L = 4$; three layers reach only $7$.
+
+**Parameters of the stack.** Each layer has $3 \cdot 3 \cdot 4 \cdot 4 = 144$ weights, so four layers have $4 \cdot 144 = 576$.
+
+The receptive field grows by adding, not multiplying: three $3\times3$ layers reach $7\times7$, not $27\times27$. If ReLUs sit between the layers, the stack also has nonlinearities that a single large convolution does not have.
+
+**Answer:** $1296 - 576 = 720$.
+:::

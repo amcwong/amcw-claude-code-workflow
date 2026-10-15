@@ -1,0 +1,1863 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.10.18">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+
+<title>Week 5 practice: Convolutions, Batch Normalization, and Residual Connections – Neural Networks and Deep Learning</title>
+<style>
+/* Default styles provided by pandoc.
+** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
+*/
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: 1.5em;}
+div.column{flex: auto;}
+@media screen {
+div.columns{gap: min(4vw, 1.5em);}
+div.column{overflow-x: auto;}
+}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+/* CSS for syntax highlighting */
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+</style>
+
+
+<script src="../site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="../site_libs/quarto-nav/headroom.min.js"></script>
+<script src="../site_libs/clipboard/clipboard.min.js"></script>
+<script src="../site_libs/quarto-search/autocomplete.umd.js"></script>
+<script src="../site_libs/quarto-search/fuse.min.js"></script>
+<script src="../site_libs/quarto-search/quarto-search.js"></script>
+<meta name="quarto:offset" content="../">
+<link href="../glossary.html" rel="next">
+<link href="../lectures/week05.html" rel="prev">
+<script src="../site_libs/quarto-html/quarto.js" type="module"></script>
+<script src="../site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
+<script src="../site_libs/quarto-html/popper.min.js"></script>
+<script src="../site_libs/quarto-html/tippy.umd.min.js"></script>
+<script src="../site_libs/quarto-html/anchor.min.js"></script>
+<link href="../site_libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="../site_libs/quarto-html/quarto-syntax-highlighting-bb62276ab45c84d9efd712f51ff97b5a.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<script src="../site_libs/bootstrap/bootstrap.min.js"></script>
+<link href="../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="../site_libs/bootstrap/bootstrap-ce0958bf53307a1b0bb60f85d87db72f.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
+<script id="quarto-search-options" type="application/json">{
+  "location": "sidebar",
+  "copy-button": false,
+  "collapse-after": 3,
+  "panel-placement": "start",
+  "type": "textbox",
+  "limit": 50,
+  "keyboard-shortcut": [
+    "f",
+    "/",
+    "s"
+  ],
+  "show-item-context": false,
+  "language": {
+    "search-no-results-text": "No results",
+    "search-matching-documents-text": "matching documents",
+    "search-copy-link-title": "Copy link to search",
+    "search-hide-matches-text": "Hide additional matches",
+    "search-more-match-text": "more match in this document",
+    "search-more-matches-text": "more matches in this document",
+    "search-clear-button-title": "Clear",
+    "search-text-placeholder": "",
+    "search-detached-cancel-button-title": "Cancel",
+    "search-submit-button-title": "Submit",
+    "search-label": "Search"
+  }
+}</script>
+<style>html{ scroll-behavior: smooth; }</style>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+<link href="https://fonts.googleapis.com/css2?family=Source+Code+Pro:wght@400;600&amp;family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&amp;display=swap" rel="stylesheet">
+
+  <script>window.backupDefine = window.define; window.define = undefined;</script><script src="https://cdn.jsdelivr.net/npm/katex@latest/dist/katex.min.js"></script>
+  <script>document.addEventListener("DOMContentLoaded", function () {
+ var mathElements = document.getElementsByClassName("math");
+ var macros = [];
+ for (var i = 0; i < mathElements.length; i++) {
+  var texText = mathElements[i].firstChild;
+  if (mathElements[i].tagName == "SPAN") {
+   katex.render(texText.data, mathElements[i], {
+    displayMode: mathElements[i].classList.contains('display'),
+    throwOnError: false,
+    macros: macros,
+    fleqn: false
+   });
+}}});
+  </script>
+  <script>window.define = window.backupDefine; window.backupDefine = undefined;</script><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@latest/dist/katex.min.css">
+
+<script type="text/javascript">
+const typesetMath = (el) => {
+  if (window.MathJax) {
+    // MathJax Typeset
+    window.MathJax.typeset([el]);
+  } else if (window.katex) {
+    // KaTeX Render
+    var mathElements = el.getElementsByClassName("math");
+    var macros = [];
+    for (var i = 0; i < mathElements.length; i++) {
+      var texText = mathElements[i].firstChild;
+      if (mathElements[i].tagName == "SPAN" && texText && texText.data) {
+        window.katex.render(texText.data, mathElements[i], {
+          displayMode: mathElements[i].classList.contains('display'),
+          throwOnError: false,
+          macros: macros,
+          fleqn: false
+        });
+      }
+    }
+  }
+}
+window.Quarto = {
+  typesetMath
+};
+</script>
+
+<link rel="stylesheet" href="../styles/custom.css">
+</head>
+
+<body class="nav-sidebar floating quarto-light">
+
+<div id="quarto-search-results"></div>
+  <header id="quarto-header" class="headroom fixed-top">
+  <nav class="quarto-secondary-nav">
+    <div class="container-fluid d-flex">
+      <button type="button" class="quarto-btn-toggle btn" data-bs-toggle="collapse" role="button" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+        <i class="bi bi-layout-text-sidebar-reverse"></i>
+      </button>
+        <nav class="quarto-page-breadcrumbs" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../lectures/week05-practice.html"><span class="chapter-title">Week 5 practice: Convolutions, Batch Normalization, and Residual Connections</span></a></li></ol></nav>
+        <a class="flex-grow-1" role="navigation" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">      
+        </a>
+      <button type="button" class="btn quarto-search-button" aria-label="Search" onclick="window.quartoOpenSearch();">
+        <i class="bi bi-search"></i>
+      </button>
+    </div>
+  </nav>
+</header>
+<!-- content -->
+<div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-article">
+<!-- sidebar -->
+  <nav id="quarto-sidebar" class="sidebar collapse collapse-horizontal quarto-sidebar-collapse-item sidebar-navigation floating overflow-auto">
+    <div class="pt-lg-2 mt-2 text-left sidebar-header">
+    <div class="sidebar-title mb-0 py-0">
+      <a href="../">Neural Networks and Deep Learning</a> 
+        <div class="sidebar-tools-main">
+    <a href="https://amcwong.github.io/amcw-claude-code-workflow/" title="All course notes" class="quarto-navigation-tool px-1" aria-label="All course notes"><i class="bi bi-house-door"></i></a>
+</div>
+    </div>
+      </div>
+        <div class="mt-2 flex-shrink-0 align-items-center">
+        <div class="sidebar-search">
+        <div id="quarto-search" class="" title="Search"></div>
+        </div>
+        </div>
+    <div class="sidebar-menu-container"> 
+    <ul class="list-unstyled mt-1">
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../index.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">CSC413/2516 Neural Networks and Deep Learning</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../lectures/week01.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Week 1: Introduction, Linear &amp; Logistic Regression</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../lectures/week02.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Week 2: Multi-Layer Perceptrons &amp; Backpropagation</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../lectures/week03.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Week 3: Initialization, Autodiff, Overfitting &amp; Regularization</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../lectures/week03-practice.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Week 3 practice: Variance, Autodiff, and Regularization</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../lectures/week04.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Week 4: Gradient Descent and Adaptive Methods</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../lectures/week04-practice.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Week 4 practice: Gradient Descent, SGD, Momentum, and Adam</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../lectures/week05.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Week 5: Convolutional Networks, Normalization, and Residual Connections</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../lectures/week05-practice.html" class="sidebar-item-text sidebar-link active"><span class="chapter-title">Week 5 practice: Convolutions, Batch Normalization, and Residual Connections</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../glossary.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Glossary</span></a>
+  </div>
+</li>
+    </ul>
+    </div>
+</nav>
+<div id="quarto-sidebar-glass" class="quarto-sidebar-collapse-item" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item"></div>
+<!-- margin-sidebar -->
+    <div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
+        <nav id="TOC" role="doc-toc" class="toc-active">
+    <h2 id="toc-title">On this page</h2>
+   
+  <ul>
+  <li><a href="#sec-w5p-equations" id="toc-sec-w5p-equations" class="nav-link active" data-scroll-target="#sec-w5p-equations">Equations to know for the quiz</a>
+  <ul class="collapse">
+  <li><a href="#convolution-and-output-size" id="toc-convolution-and-output-size" class="nav-link" data-scroll-target="#convolution-and-output-size">Convolution and output size</a></li>
+  <li><a href="#receptive-field" id="toc-receptive-field" class="nav-link" data-scroll-target="#receptive-field">Receptive field</a></li>
+  <li><a href="#parameters" id="toc-parameters" class="nav-link" data-scroll-target="#parameters">Parameters</a></li>
+  <li><a href="#batch-normalization" id="toc-batch-normalization" class="nav-link" data-scroll-target="#batch-normalization">Batch normalization</a></li>
+  <li><a href="#residual-connections" id="toc-residual-connections" class="nav-link" data-scroll-target="#residual-connections">Residual connections</a></li>
+  </ul></li>
+  <li><a href="#sec-w5p-conv" id="toc-sec-w5p-conv" class="nav-link" data-scroll-target="#sec-w5p-conv">Part 1: Convolution, output size, and receptive field</a>
+  <ul class="collapse">
+  <li><a href="#prb-1" id="toc-prb-1" class="nav-link" data-scroll-target="#prb-1">Problem 1: Flipping the kernel changes the answer</a></li>
+  <li><a href="#prb-2" id="toc-prb-2" class="nav-link" data-scroll-target="#prb-2">Problem 2: Where the floors bite</a></li>
+  <li><a href="#prb-3" id="toc-prb-3" class="nav-link" data-scroll-target="#prb-3">Problem 3: A receptive field that grows faster with depth</a></li>
+  </ul></li>
+  <li><a href="#sec-w5p-params" id="toc-sec-w5p-params" class="nav-link" data-scroll-target="#sec-w5p-params">Part 2: Parameters and shapes</a>
+  <ul class="collapse">
+  <li><a href="#prb-4" id="toc-prb-4" class="nav-link" data-scroll-target="#prb-4">Problem 4: A residual block that downsamples</a></li>
+  <li><a href="#prb-5" id="toc-prb-5" class="nav-link" data-scroll-target="#prb-5">Problem 5: Tracing shapes to the classifier</a></li>
+  </ul></li>
+  <li><a href="#sec-w5p-bn-res" id="toc-sec-w5p-bn-res" class="nav-link" data-scroll-target="#sec-w5p-bn-res">Part 3: Batch normalization and residual connections</a>
+  <ul class="collapse">
+  <li><a href="#prb-6" id="toc-prb-6" class="nav-link" data-scroll-target="#prb-6">Problem 6: Batch norm on an image channel</a></li>
+  <li><a href="#prb-7" id="toc-prb-7" class="nav-link" data-scroll-target="#prb-7">Problem 7: Why the skip path keeps gradients alive</a></li>
+  </ul></li>
+  <li><a href="#sec-w5p-homework" id="toc-sec-w5p-homework" class="nav-link" data-scroll-target="#sec-w5p-homework">Part 4: Testing Homework 5</a>
+  <ul class="collapse">
+  <li><a href="#sec-w5p-hw-context" id="toc-sec-w5p-hw-context" class="nav-link" data-scroll-target="#sec-w5p-hw-context">Context for these questions</a></li>
+  <li><a href="#prb-8" id="toc-prb-8" class="nav-link" data-scroll-target="#prb-8">Problem 8: Traditional convolution with padding and stride</a></li>
+  <li><a href="#prb-9" id="toc-prb-9" class="nav-link" data-scroll-target="#prb-9">Problem 9: A hand-made detector that is not symmetric</a></li>
+  <li><a href="#prb-10" id="toc-prb-10" class="nav-link" data-scroll-target="#prb-10">Problem 10: A receptive field that is not square</a></li>
+  <li><a href="#prb-11" id="toc-prb-11" class="nav-link" data-scroll-target="#prb-11">Problem 11: How empty is the convolution matrix?</a></li>
+  <li><a href="#prb-12" id="toc-prb-12" class="nav-link" data-scroll-target="#prb-12">Problem 12: What <code>model.parameters()</code> holds</a></li>
+  </ul></li>
+  <li><a href="#sec-w5p-official-quiz" id="toc-sec-w5p-official-quiz" class="nav-link" data-scroll-target="#sec-w5p-official-quiz">Part 5: Official Quiz 6 practice</a>
+  <ul class="collapse">
+  <li><a href="#quiz-1" id="toc-quiz-1" class="nav-link" data-scroll-target="#quiz-1">Quiz question 1: Parameters of a residual block (easy)</a></li>
+  <li><a href="#quiz-2" id="toc-quiz-2" class="nav-link" data-scroll-target="#quiz-2">Quiz question 2: Flatten versus global average pooling (medium)</a></li>
+  <li><a href="#quiz-3" id="toc-quiz-3" class="nav-link" data-scroll-target="#quiz-3">Quiz question 3: Batch normalization before ReLU (medium-hard)</a></li>
+  <li><a href="#quiz-4" id="toc-quiz-4" class="nav-link" data-scroll-target="#quiz-4">Quiz question 4: Replacing a <span class="math inline">9\times9</span> convolution (hard)</a></li>
+  </ul></li>
+  </ul>
+</nav>
+    </div>
+<!-- main -->
+<main class="content" id="quarto-document-content">
+
+<header id="title-block-header" class="quarto-title-block default">
+<div class="quarto-title">
+<h1 class="title"><span class="chapter-title">Week 5 practice: Convolutions, Batch Normalization, and Residual Connections</span></h1>
+</div>
+
+
+
+<div class="quarto-title-meta">
+
+    
+  
+    
+  </div>
+  
+
+
+</header>
+
+
+<style>#title-block-header { display: none; }</style>
+<div class="lecture-header">
+  <h1>Week 5 practice: Convolutions, Batch Normalization, and Residual Connections</h1>
+</div>
+<p><strong>Overview.</strong> These problems drill <a href="../lectures/week05.html">Week 5</a>. Try each stem before opening the worked solution. Every problem has a single integer as its answer, the same shape as the course’s quiz questions. An equation sheet comes first, then five parts:</p>
+<ol type="1">
+<li><strong>Convolution, output size, and receptive field.</strong> Three problems on the sliding dot product and the geometry around it.</li>
+<li><strong>Parameters and shapes.</strong> Two problems on counting what a network learns.</li>
+<li><strong>Batch normalization and residual connections.</strong> Two problems that work the week’s last two ideas by hand.</li>
+<li><strong>Testing Homework 5.</strong> A context section on the conventions Homework 5 uses, then five problems on the same ideas.</li>
+<li><strong>Official Quiz 6 practice.</strong> Four questions provided by the course for this offering, reproduced with their answers.</li>
+</ol>
+<p>In every part except Part 5, the numbers and setups are invented for practice. They are not homework answers: the networks, kernels, and matrices that Homework 5 asks about are left to the assignment. A line under each stem names the part of Homework 5 that uses the same method. Notation matches the week chapter: a kernel <span class="math inline">\bm{V}</span> slides over an input <span class="math inline">\bm{X}</span>, a layer has <span class="math inline">C_\text{in}</span> input and <span class="math inline">C_\text{out}</span> output channels, and batch norm uses the batch mean <span class="math inline">\bm{\mu}_B</span> and standard deviation <span class="math inline">\bm{\sigma}_B</span>.</p>
+<section id="sec-w5p-equations" class="level2">
+<h2 class="anchored" data-anchor-id="sec-w5p-equations">Equations to know for the quiz</h2>
+<p>Every problem in this chapter, and every official quiz question in Part 5, can be solved with the equations below. They are collected from the <a href="../lectures/week05.html">Week 5</a> chapter, and each table says where the equation is explained. This is our own summary of the lecture, not a list published by the course. Results marked <em>(ours)</em> are short consequences worked out in this chapter, not lines from the lecture.</p>
+<section id="convolution-and-output-size" class="level3">
+<h3 class="anchored" data-anchor-id="convolution-and-output-size">Convolution and output size</h3>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th>Equation</th>
+<th>What it says</th>
+<th>Where</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><span class="math inline">\bm{H}_{i,j} = u + \sum_{a,b} \bm{V}_{a,b}\, \bm{X}_{i+a,\, j+b}</span></td>
+<td>deep learning’s convolution: lay the kernel over the window and take a dot product (a cross-correlation)</td>
+<td><a href="../lectures/week05.html#sec-derive-conv">Derivation</a></td>
+</tr>
+<tr class="even">
+<td><span class="math inline">\sum_{a,b} \bm{V}_{a,b}\, \bm{X}_{i-a,\, j-b}</span></td>
+<td>traditional convolution: the same, with the kernel flipped top-to-bottom and left-to-right</td>
+<td><a href="../lectures/week05.html#sec-flip">Convolution or cross-correlation?</a></td>
+</tr>
+<tr class="odd">
+<td><span class="math inline">n_\text{out} = \left\lfloor \dfrac{n + 2p - k}{s} \right\rfloor + 1</span></td>
+<td>output length along one axis, with padding <span class="math inline">p</span> on each edge and stride <span class="math inline">s</span></td>
+<td><a href="../lectures/week05.html#sec-general-size">Output-size rule</a></td>
+</tr>
+<tr class="even">
+<td><span class="math inline">p = \dfrac{K - 1}{2}</span></td>
+<td>“same” padding for an odd <span class="math inline">K\times K</span> kernel at stride <span class="math inline">1</span></td>
+<td><a href="../lectures/week05.html#sec-padding">Padding</a></td>
+</tr>
+</tbody>
+</table>
+<p>Pooling layers use the same output-size rule with their own window and stride, and act on each channel separately.</p>
+</section>
+<section id="receptive-field" class="level3">
+<h3 class="anchored" data-anchor-id="receptive-field">Receptive field</h3>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th>Equation</th>
+<th>What it says</th>
+<th>Where</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><span class="math inline">r_\text{new} = r + (k - 1)\, j</span>, <span class="math inline">\quad j_\text{new} = j \cdot s</span></td>
+<td>per axis: the receptive field <span class="math inline">r</span> and the jump <span class="math inline">j</span> after a layer with kernel <span class="math inline">k</span> and stride <span class="math inline">s</span>; start at <span class="math inline">r = j = 1</span></td>
+<td><a href="../lectures/week05.html#sec-rf-stack">Stacked layers</a></td>
+</tr>
+<tr class="even">
+<td><span class="math inline">r = 1 + (k - 1)L</span></td>
+<td><span class="math inline">L</span> stride-1 layers of kernel <span class="math inline">k</span>; for <span class="math inline">k = 3</span>, <span class="math inline">r = 1 + 2L</span> <em>(ours)</em></td>
+<td>Quiz question 4</td>
+</tr>
+</tbody>
+</table>
+<p>Padding, nonlinearities, and batch norm do not change the receptive field. Pooling does, as a layer with its own <span class="math inline">k</span> and <span class="math inline">s</span>.</p>
+</section>
+<section id="parameters" class="level3">
+<h3 class="anchored" data-anchor-id="parameters">Parameters</h3>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th>Equation</th>
+<th>What it says</th>
+<th>Where</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>weights <span class="math inline">= k_h k_w C_\text{in} C_\text{out}</span>, <span class="math inline">\quad</span> biases <span class="math inline">= C_\text{out}</span></td>
+<td>one kernel per (input channel, output channel) pair, one bias per output channel</td>
+<td><a href="../lectures/week05.html#sec-param-count">Counting parameters</a></td>
+</tr>
+<tr class="even">
+<td><span class="math inline">2C</span></td>
+<td>batch norm’s learned <span class="math inline">\bm{\gamma}</span> and <span class="math inline">\bm{\beta}</span> for <span class="math inline">C</span> channels; running averages are not counted</td>
+<td><a href="../lectures/week05.html#sec-param-count">Counting parameters</a></td>
+</tr>
+<tr class="odd">
+<td><span class="math inline">n_\text{in}\, n_\text{out} + n_\text{out}</span></td>
+<td>a dense layer’s weights and biases</td>
+<td><a href="../lectures/week05.html#sec-param-count">Counting parameters</a></td>
+</tr>
+<tr class="even">
+<td>flatten: <span class="math inline">n_\text{in} = C \cdot H \cdot W</span>; <span class="math inline">\quad</span> global average pooling: <span class="math inline">n_\text{in} = C</span></td>
+<td>the input size of the classifier’s dense layer</td>
+<td><a href="../lectures/week05.html#sec-simple-convnet">Simple CNN</a>, <a href="../lectures/week05.html#sec-resnet">ResNet</a></td>
+</tr>
+</tbody>
+</table>
+<p>Nonlinearities and pooling have no parameters. Stride and padding change shapes, not parameter counts.</p>
+</section>
+<section id="batch-normalization" class="level3">
+<h3 class="anchored" data-anchor-id="batch-normalization">Batch normalization</h3>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th>Equation</th>
+<th>What it says</th>
+<th>Where</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><span class="math inline">\bm{\mu}_B = \dfrac{1}{\lvert B\rvert} \sum_{\bm{x}\in B} \bm{x}</span>, <span class="math inline">\quad \bm{\sigma}_B^2 = \dfrac{1}{\lvert B\rvert} \sum_{\bm{x}\in B} (\bm{x} - \bm{\mu}_B)^2</span></td>
+<td>batch mean and variance, per feature, dividing by the batch size</td>
+<td><a href="../lectures/week05.html#sec-batchnorm-how">How it works</a></td>
+</tr>
+<tr class="even">
+<td><span class="math inline">\operatorname{BN}(\bm{x}) = \bm{\gamma} \odot \dfrac{\bm{x} - \bm{\mu}_B}{\bm{\sigma}_B + \epsilon} + \bm{\beta}</span></td>
+<td>standardize, then apply the learned scale and shift</td>
+<td><a href="../lectures/week05.html#sec-batchnorm-how">How it works</a></td>
+</tr>
+<tr class="odd">
+<td>statistics over axes <span class="math inline">(0, 1, 2)</span> of <span class="math inline">B \times H \times W \times C</span></td>
+<td>for images: one mean and variance per channel, over the batch and all positions</td>
+<td><a href="../lectures/week05.html#sec-batchnorm-how">How it works</a></td>
+</tr>
+</tbody>
+</table>
+<p>The batch norm paper and PyTorch put <span class="math inline">\epsilon</span> inside the square root, <span class="math inline">\sqrt{\bm{\sigma}_B^2 + \epsilon}</span>. With <span class="math inline">\epsilon = 0</span>, as in every problem here, the two forms agree.</p>
+</section>
+<section id="residual-connections" class="level3">
+<h3 class="anchored" data-anchor-id="residual-connections">Residual connections</h3>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th>Equation</th>
+<th>What it says</th>
+<th>Where</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><span class="math inline">\bm{y} = f(\bm{x}) + \bm{x}</span></td>
+<td>a residual block adds its input back to the main path’s output</td>
+<td><a href="../lectures/week05.html#sec-residual">Residual connections</a></td>
+</tr>
+<tr class="even">
+<td><span class="math inline">\dfrac{\partial \mathcal{L}}{\partial \bm{x}} = \bm{J}_f^{\top} \dfrac{\partial \mathcal{L}}{\partial \bm{y}} + \dfrac{\partial \mathcal{L}}{\partial \bm{y}}</span></td>
+<td>the gradient has a term through the layer and a term through the skip path</td>
+<td><a href="../lectures/week05.html#sec-residual">Residual connections</a></td>
+</tr>
+<tr class="odd">
+<td><span class="math inline">1\times1</span> convolution: <span class="math inline">C_\text{in} C_\text{out}</span> weights</td>
+<td>the skip path’s shape fix when the channel count changes</td>
+<td><a href="../lectures/week05.html#sec-residual-shapes">Matching shapes</a></td>
+</tr>
+</tbody>
+</table>
+</section>
+</section>
+<section id="sec-w5p-conv" class="level2">
+<h2 class="anchored" data-anchor-id="sec-w5p-conv">Part 1: Convolution, output size, and receptive field</h2>
+<section id="prb-1" class="level3">
+<h3 class="anchored" data-anchor-id="prb-1">Problem 1: Flipping the kernel changes the answer</h3>
+<p><em>Homework 5 link: Part 1, <code>convolution</code> (the traditional definition).</em></p>
+<p>Take the input and kernel</p>
+<p><span class="math display">\bm{X} = \begin{bmatrix} 2 &amp; 0 &amp; 1 \\ 1 &amp; 3 &amp; 0 \\ 0 &amp; 1 &amp; 2 \end{bmatrix}, \qquad \bm{V} = \begin{bmatrix} 1 &amp; 2 \\ 0 &amp; -1 \end{bmatrix},</span></p>
+<p>with bias <span class="math inline">0</span>, no padding, and stride <span class="math inline">1</span>. How much larger is the top-left output under the traditional convolution than under deep learning’s <a href="https://en.wikipedia.org/wiki/Cross-correlation">cross-correlation</a>?</p>
+<div class="practice-answer callout callout-style-default callout-tip callout-titled" title="Worked solution">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-1-contents" aria-controls="callout-1" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Worked solution
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-1" class="callout-1-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>This uses <a href="../lectures/week05.html#sec-flip">Week 5, Convolution or cross-correlation?</a> and the <a href="../lectures/week05.html#sec-conv-example">worked example</a> that follows it.</p>
+<p><strong>The window.</strong> The top-left output sees the top-left <span class="math inline">2\times2</span> window, <span class="math inline">\begin{bmatrix} 2 &amp; 0 \\ 1 &amp; 3 \end{bmatrix}</span>.</p>
+<p><strong>Cross-correlation.</strong> Lay <span class="math inline">\bm{V}</span> over the window as it is, multiply matching entries, and sum:</p>
+<p><span class="math display">1\cdot2 + 2\cdot0 + 0\cdot1 + (-1)\cdot3 = -1</span></p>
+<p><strong>Traditional <a href="https://en.wikipedia.org/wiki/Convolution">convolution</a>.</strong> First flip <span class="math inline">\bm{V}</span> top-to-bottom and left-to-right, which gives <span class="math inline">\begin{bmatrix} -1 &amp; 0 \\ 2 &amp; 1 \end{bmatrix}</span>, then take the same dot product:</p>
+<p><span class="math display">(-1)\cdot2 + 0\cdot0 + 2\cdot1 + 1\cdot3 = 3</span></p>
+<p>The two definitions disagree because this kernel is not symmetric about its centre. For a learned kernel the difference does not matter, since the network would learn the flipped kernel under the other definition. When a task names the traditional convolution, as Homework 5’s Part 1 does, the flip has to happen.</p>
+<p><strong>Answer:</strong> <span class="math inline">3 - (-1) = 4</span>.</p>
+</div>
+</div>
+</div>
+</section>
+<section id="prb-2" class="level3">
+<h3 class="anchored" data-anchor-id="prb-2">Problem 2: Where the floors bite</h3>
+<p><em>Homework 5 link: Part 1, <code>output_shape_of_conv</code>; Part 3, the shape of each layer.</em></p>
+<p>A single-image input has height <span class="math inline">31</span> and width <span class="math inline">23</span>. It passes through a convolution with a <span class="math inline">5\times5</span> kernel, padding <span class="math inline">1</span>, stride <span class="math inline">3</span>, and <span class="math inline">6</span> output channels, then a <span class="math inline">3\times3</span> max pooling layer with stride <span class="math inline">2</span>. How many numbers are in the output volume?</p>
+<div class="practice-answer callout callout-style-default callout-tip callout-titled" title="Worked solution">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-2-contents" aria-controls="callout-2" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Worked solution
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-2" class="callout-2-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>This uses <a href="../lectures/week05.html#sec-general-size">Week 5, The general output-size rule</a> and <a href="../lectures/week05.html#sec-pooling">Pooling</a>.</p>
+<p>Apply <span class="math inline">n_\text{out} = \lfloor (n + 2p - k)/s \rfloor + 1</span> to the height and the width separately. Here <span class="math inline">\lfloor\cdot\rfloor</span> is the <a href="https://en.wikipedia.org/wiki/Floor_and_ceiling_functions">floor function</a>.</p>
+<p><strong>The convolution</strong> (<span class="math inline">k = 5</span>, <span class="math inline">p = 1</span>, <span class="math inline">s = 3</span>):</p>
+<p><span class="math display">\text{height: } \left\lfloor \frac{31 + 2 - 5}{3} \right\rfloor + 1 = \lfloor 9.33 \rfloor + 1 = 10</span></p>
+<p><span class="math display">\text{width: } \left\lfloor \frac{23 + 2 - 5}{3} \right\rfloor + 1 = \lfloor 6.67 \rfloor + 1 = 7</span></p>
+<p>The channel count becomes the number of kernels, <span class="math inline">6</span>. Both floors discard a final window that would run off the padded edge.</p>
+<p><strong>The pooling layer</strong> (<span class="math inline">k = 3</span>, <span class="math inline">p = 0</span>, <span class="math inline">s = 2</span>):</p>
+<p><span class="math display">\text{height: } \left\lfloor \frac{10 - 3}{2} \right\rfloor + 1 = 4, \qquad \text{width: } \left\lfloor \frac{7 - 3}{2} \right\rfloor + 1 = 3</span></p>
+<p>Pooling acts on each channel separately, so there are still <span class="math inline">6</span> channels.</p>
+<p><strong>The volume.</strong> <span class="math inline">6 \times 4 \times 3</span>.</p>
+<p><strong>Answer:</strong> <span class="math inline">72</span>.</p>
+</div>
+</div>
+</div>
+</section>
+<section id="prb-3" class="level3">
+<h3 class="anchored" data-anchor-id="prb-3">Problem 3: A receptive field that grows faster with depth</h3>
+<p><em>Homework 5 link: Part 2, the receptive fields of Networks 1 to 3.</em></p>
+<p>Along one axis, a network applies four layers in order: a convolution with kernel <span class="math inline">5</span> and stride <span class="math inline">2</span>; a max pooling layer with window <span class="math inline">2</span> and stride <span class="math inline">2</span>; a convolution with kernel <span class="math inline">3</span> and stride <span class="math inline">1</span>; and a convolution with kernel <span class="math inline">3</span> and stride <span class="math inline">2</span>. What is the <a href="https://en.wikipedia.org/wiki/Receptive_field">receptive field</a> of one entry of the final layer, in input pixels?</p>
+<div class="practice-answer callout callout-style-default callout-tip callout-titled" title="Worked solution">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-3-contents" aria-controls="callout-3" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Worked solution
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-3" class="callout-3-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>This uses <a href="../lectures/week05.html#sec-rf-stack">Week 5, Receptive fields of stacked layers</a>.</p>
+<p>Track the receptive field <span class="math inline">r</span> and the jump <span class="math inline">j</span> (the distance in input pixels between neighbouring entries), starting from the input’s <span class="math inline">r = 1</span>, <span class="math inline">j = 1</span>. Each layer applies <span class="math inline">r \leftarrow r + (k - 1)\,j</span> and then <span class="math inline">j \leftarrow j \cdot s</span>:</p>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th>After</th>
+<th><span class="math inline">k</span></th>
+<th><span class="math inline">s</span></th>
+<th><span class="math inline">r = r + (k-1)j</span></th>
+<th><span class="math inline">j = j \cdot s</span></th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>input</td>
+<td></td>
+<td></td>
+<td><span class="math inline">1</span></td>
+<td><span class="math inline">1</span></td>
+</tr>
+<tr class="even">
+<td>conv</td>
+<td><span class="math inline">5</span></td>
+<td><span class="math inline">2</span></td>
+<td><span class="math inline">1 + 4\cdot1 = 5</span></td>
+<td><span class="math inline">2</span></td>
+</tr>
+<tr class="odd">
+<td>pool</td>
+<td><span class="math inline">2</span></td>
+<td><span class="math inline">2</span></td>
+<td><span class="math inline">5 + 1\cdot2 = 7</span></td>
+<td><span class="math inline">4</span></td>
+</tr>
+<tr class="even">
+<td>conv</td>
+<td><span class="math inline">3</span></td>
+<td><span class="math inline">1</span></td>
+<td><span class="math inline">7 + 2\cdot4 = 15</span></td>
+<td><span class="math inline">4</span></td>
+</tr>
+<tr class="odd">
+<td>conv</td>
+<td><span class="math inline">3</span></td>
+<td><span class="math inline">2</span></td>
+<td><span class="math inline">15 + 2\cdot4 = 23</span></td>
+<td><span class="math inline">8</span></td>
+</tr>
+</tbody>
+</table>
+<p>The pooling layer counts as a layer with its own window and stride. The last convolution’s stride only changes the jump, which would matter for a layer after it. Notice the two <span class="math inline">3</span>-wide convolutions: at stride <span class="math inline">1</span> on the raw input each would add <span class="math inline">2</span>, but here each adds <span class="math inline">8</span>, because the earlier strides spread their inputs <span class="math inline">4</span> pixels apart.</p>
+<p><strong>Answer:</strong> <span class="math inline">23</span>.</p>
+</div>
+</div>
+</div>
+</section>
+</section>
+<section id="sec-w5p-params" class="level2">
+<h2 class="anchored" data-anchor-id="sec-w5p-params">Part 2: Parameters and shapes</h2>
+<section id="prb-4" class="level3">
+<h3 class="anchored" data-anchor-id="prb-4">Problem 4: A residual block that downsamples</h3>
+<p><em>Homework 5 link: Part 2, <code>conv_layer_num_weights</code> and <code>conv_layer_num_biases</code>, and the batch norm entries of Network 3.</em></p>
+<p>A residual block receives a volume with <span class="math inline">16</span> channels. Its main path is: a <span class="math inline">3\times3</span> convolution from <span class="math inline">16</span> to <span class="math inline">32</span> channels with stride <span class="math inline">2</span> and a bias, then <a href="https://en.wikipedia.org/wiki/Batch_normalization">batch normalization</a>, then ReLU, then a <span class="math inline">3\times3</span> convolution from <span class="math inline">32</span> to <span class="math inline">32</span> channels with no bias, then batch normalization. Its skip path is a <span class="math inline">1\times1</span> convolution from <span class="math inline">16</span> to <span class="math inline">32</span> channels with stride <span class="math inline">2</span> and no bias. How many learned parameters does the block have?</p>
+<div class="practice-answer callout callout-style-default callout-tip callout-titled" title="Worked solution">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-4-contents" aria-controls="callout-4" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Worked solution
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-4" class="callout-4-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>This uses <a href="../lectures/week05.html#sec-param-count">Week 5, Counting parameters</a> and <a href="../lectures/week05.html#sec-residual-shapes">Matching shapes</a>.</p>
+<p>Count each layer with weights <span class="math inline">= k_h k_w C_\text{in} C_\text{out}</span>, biases <span class="math inline">= C_\text{out}</span>, and batch norm <span class="math inline">= 2C</span>:</p>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th>Layer</th>
+<th>Count</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>main conv 1, weights</td>
+<td><span class="math inline">3\cdot3\cdot16\cdot32 = 4608</span></td>
+</tr>
+<tr class="even">
+<td>main conv 1, biases</td>
+<td><span class="math inline">32</span></td>
+</tr>
+<tr class="odd">
+<td>batch norm 1 (<span class="math inline">\bm{\gamma}</span>, <span class="math inline">\bm{\beta}</span>)</td>
+<td><span class="math inline">2\cdot32 = 64</span></td>
+</tr>
+<tr class="even">
+<td>ReLU</td>
+<td><span class="math inline">0</span></td>
+</tr>
+<tr class="odd">
+<td>main conv 2, weights</td>
+<td><span class="math inline">3\cdot3\cdot32\cdot32 = 9216</span></td>
+</tr>
+<tr class="even">
+<td>batch norm 2</td>
+<td><span class="math inline">64</span></td>
+</tr>
+<tr class="odd">
+<td>skip <span class="math inline">1\times1</span> conv, weights</td>
+<td><span class="math inline">1\cdot1\cdot16\cdot32 = 512</span></td>
+</tr>
+<tr class="even">
+<td>addition</td>
+<td><span class="math inline">0</span></td>
+</tr>
+</tbody>
+</table>
+<p><strong>Why the skip path needs a convolution.</strong> The main path changes the channel count from <span class="math inline">16</span> to <span class="math inline">32</span> and halves the height and width. The input cannot be added to an output of a different shape, so the skip path uses a <span class="math inline">1\times1</span> convolution with <span class="math inline">32</span> output channels and the same stride <span class="math inline">2</span>.</p>
+<p><strong>What is not counted.</strong> Each batch norm layer also stores running averages of its mean and variance for use at inference. They are updated during training but not learned by gradient descent, so they are not parameters. The strides change shapes but not the counts.</p>
+<p><strong>Answer:</strong> <span class="math inline">4608 + 32 + 64 + 9216 + 64 + 512 = 14496</span>.</p>
+</div>
+</div>
+</div>
+</section>
+<section id="prb-5" class="level3">
+<h3 class="anchored" data-anchor-id="prb-5">Problem 5: Tracing shapes to the classifier</h3>
+<p><em>Homework 5 link: Part 3, the input size of the final <code>nn.Linear</code>.</em></p>
+<p>A grayscale <span class="math inline">28\times28</span> image passes through: a <span class="math inline">5\times5</span> convolution to <span class="math inline">6</span> channels (no padding, stride <span class="math inline">1</span>); <span class="math inline">2\times2</span> max pooling with stride <span class="math inline">2</span>; a <span class="math inline">3\times3</span> convolution to <span class="math inline">10</span> channels (padding <span class="math inline">1</span>, stride <span class="math inline">1</span>); <span class="math inline">3\times3</span> max pooling with stride <span class="math inline">3</span>; flatten; and a dense layer to <span class="math inline">5</span> classes. Every convolution and the dense layer have biases. How many learned parameters does the network have in total?</p>
+<div class="practice-answer callout callout-style-default callout-tip callout-titled" title="Worked solution">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-5-contents" aria-controls="callout-5" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Worked solution
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-5" class="callout-5-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>This uses <a href="../lectures/week05.html#sec-simple-convnet">Week 5, Building a simple convolutional network</a>.</p>
+<p><strong>Trace the shape</strong> (channels <span class="math inline">\times</span> height <span class="math inline">\times</span> width) with the output-size rule:</p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 33%">
+<col style="width: 33%">
+<col style="width: 33%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Layer</th>
+<th>Side length</th>
+<th>Shape</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>input</td>
+<td><span class="math inline">28</span></td>
+<td><span class="math inline">1 \times 28 \times 28</span></td>
+</tr>
+<tr class="even">
+<td>conv <span class="math inline">5\times5</span>, <span class="math inline">p = 0</span></td>
+<td><span class="math inline">\lfloor (28 - 5)/1 \rfloor + 1 = 24</span></td>
+<td><span class="math inline">6 \times 24 \times 24</span></td>
+</tr>
+<tr class="odd">
+<td>pool <span class="math inline">2</span>, <span class="math inline">s = 2</span></td>
+<td><span class="math inline">\lfloor (24 - 2)/2 \rfloor + 1 = 12</span></td>
+<td><span class="math inline">6 \times 12 \times 12</span></td>
+</tr>
+<tr class="even">
+<td>conv <span class="math inline">3\times3</span>, <span class="math inline">p = 1</span></td>
+<td><span class="math inline">\lfloor (12 + 2 - 3)/1 \rfloor + 1 = 12</span></td>
+<td><span class="math inline">10 \times 12 \times 12</span></td>
+</tr>
+<tr class="odd">
+<td>pool <span class="math inline">3</span>, <span class="math inline">s = 3</span></td>
+<td><span class="math inline">\lfloor (12 - 3)/3 \rfloor + 1 = 4</span></td>
+<td><span class="math inline">10 \times 4 \times 4</span></td>
+</tr>
+<tr class="even">
+<td>flatten</td>
+<td></td>
+<td><span class="math inline">160</span></td>
+</tr>
+</tbody>
+</table>
+<p><strong>Count the parameters.</strong></p>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th>Layer</th>
+<th>Count</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>conv 1</td>
+<td><span class="math inline">5\cdot5\cdot1\cdot6 + 6 = 156</span></td>
+</tr>
+<tr class="even">
+<td>conv 2</td>
+<td><span class="math inline">3\cdot3\cdot6\cdot10 + 10 = 550</span></td>
+</tr>
+<tr class="odd">
+<td>dense, <span class="math inline">160 \to 5</span></td>
+<td><span class="math inline">160\cdot5 + 5 = 805</span></td>
+</tr>
+</tbody>
+</table>
+<p>The dense layer is the largest, and its size depends on every layer before it. That is why the shape has to be traced first.</p>
+<p><strong>With global average pooling instead.</strong> A ResNet-style head averages each channel over its <span class="math inline">4\times4</span> grid, leaving <span class="math inline">10</span> numbers, so the dense layer has <span class="math inline">10\cdot5 + 5 = 55</span> parameters and the network <span class="math inline">156 + 550 + 55 = 761</span>. The dense layer’s size then depends only on the channel count, not on the image size.</p>
+<p><strong>Answer:</strong> <span class="math inline">156 + 550 + 805 = 1511</span>.</p>
+</div>
+</div>
+</div>
+</section>
+</section>
+<section id="sec-w5p-bn-res" class="level2">
+<h2 class="anchored" data-anchor-id="sec-w5p-bn-res">Part 3: Batch normalization and residual connections</h2>
+<section id="prb-6" class="level3">
+<h3 class="anchored" data-anchor-id="prb-6">Problem 6: Batch norm on an image channel</h3>
+<p><em>Homework 5 link: Part 3, <code>nn.BatchNorm2d</code> in <code>model.train()</code> mode.</em></p>
+<p>A batch holds two single-channel <span class="math inline">2\times2</span> images:</p>
+<p><span class="math display">\text{image 1} = \begin{bmatrix} 2 &amp; 4 \\ 4 &amp; 4 \end{bmatrix}, \qquad \text{image 2} = \begin{bmatrix} 5 &amp; 5 \\ 7 &amp; 9 \end{bmatrix}</span></p>
+<p>They pass through batch normalization in training mode, with <span class="math inline">\gamma = 3</span>, <span class="math inline">\beta = -1</span>, <span class="math inline">\epsilon = 0</span>, and variance divided by the number of values, then through ReLU. What is the sum of the <span class="math inline">8</span> outputs?</p>
+<div class="practice-answer callout callout-style-default callout-tip callout-titled" title="Worked solution">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-6-contents" aria-controls="callout-6" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Worked solution
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-6" class="callout-6-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>This uses <a href="../lectures/week05.html#sec-batchnorm-how">Week 5, How it works</a>, the paragraph on images.</p>
+<p><strong>Which values share statistics.</strong> For images, batch norm computes one mean and one variance per channel, over the batch <em>and</em> every spatial position. There is one channel here, so all <span class="math inline">8</span> values share one mean and one variance. Normalizing each image on its own would give different statistics and a different answer.</p>
+<p><strong>Mean.</strong></p>
+<p><span class="math display">\mu_B = \frac{2 + 4 + 4 + 4 + 5 + 5 + 7 + 9}{8} = \frac{40}{8} = 5</span></p>
+<p><strong>Variance.</strong> The deviations from <span class="math inline">5</span> are <span class="math inline">-3, -1, -1, -1, 0, 0, 2, 4</span>, so</p>
+<p><span class="math display">\sigma_B^2 = \frac{9 + 1 + 1 + 1 + 0 + 0 + 4 + 16}{8} = \frac{32}{8} = 4, \qquad \sigma_B = 2</span></p>
+<p><strong>Normalize, scale, and shift.</strong> Each output is <span class="math inline">3 \cdot \dfrac{x - 5}{2} - 1</span>, then ReLU:</p>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th><span class="math inline">x</span></th>
+<th><span class="math inline">\dfrac{x - 5}{2}</span></th>
+<th><span class="math inline">3 \cdot (\cdot) - 1</span></th>
+<th>ReLU</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><span class="math inline">2</span></td>
+<td><span class="math inline">-1.5</span></td>
+<td><span class="math inline">-5.5</span></td>
+<td><span class="math inline">0</span></td>
+</tr>
+<tr class="even">
+<td><span class="math inline">4</span> (three times)</td>
+<td><span class="math inline">-0.5</span></td>
+<td><span class="math inline">-2.5</span></td>
+<td><span class="math inline">0</span></td>
+</tr>
+<tr class="odd">
+<td><span class="math inline">5</span> (twice)</td>
+<td><span class="math inline">0</span></td>
+<td><span class="math inline">-1</span></td>
+<td><span class="math inline">0</span></td>
+</tr>
+<tr class="even">
+<td><span class="math inline">7</span></td>
+<td><span class="math inline">1</span></td>
+<td><span class="math inline">2</span></td>
+<td><span class="math inline">2</span></td>
+</tr>
+<tr class="odd">
+<td><span class="math inline">9</span></td>
+<td><span class="math inline">2</span></td>
+<td><span class="math inline">5</span></td>
+<td><span class="math inline">5</span></td>
+</tr>
+</tbody>
+</table>
+<p>The shift <span class="math inline">\beta = -1</span> moves values that were exactly at the mean below zero, so only values more than a third of a standard deviation above the mean survive the ReLU.</p>
+<p><strong>Answer:</strong> <span class="math inline">2 + 5 = 7</span>.</p>
+</div>
+</div>
+</div>
+</section>
+<section id="prb-7" class="level3">
+<h3 class="anchored" data-anchor-id="prb-7">Problem 7: Why the skip path keeps gradients alive</h3>
+<p>A network on a single number stacks four blocks. Block <span class="math inline">k</span> has main path <span class="math inline">f_k(x) = a_k\,x</span>, with <span class="math inline">(a_1, a_2, a_3, a_4) = (0,\ 0,\ 1,\ 3)</span>, and each block is a residual block, <span class="math inline">y = f_k(x) + x</span>. The gradient of the loss with respect to the last block’s output is <span class="math inline">3</span>. What is the gradient of the loss with respect to the network’s input?</p>
+<div class="practice-answer callout callout-style-default callout-tip callout-titled" title="Worked solution">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-7-contents" aria-controls="callout-7" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Worked solution
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-7" class="callout-7-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>This uses <a href="../lectures/week05.html#sec-residual">Week 5, Residual Connections</a>.</p>
+<p><strong>One block.</strong> The lecture’s gradient rule is <span class="math inline">\partial\mathcal{L}/\partial x = \bm{J}_f^\top\, \partial\mathcal{L}/\partial y + \partial\mathcal{L}/\partial y</span>. With one number, the Jacobian of <span class="math inline">f_k(x) = a_k x</span> is just <span class="math inline">a_k</span>, so one block multiplies the incoming gradient by <span class="math inline">a_k + 1</span>: the first term is the path through the layer, the second is the skip path.</p>
+<p><strong>The stack.</strong> Going backwards from the gradient <span class="math inline">3</span>, the four factors multiply:</p>
+<p><span class="math display">\frac{\partial \mathcal{L}}{\partial x} = 3 \cdot (1 + 0)(1 + 0)(1 + 1)(1 + 3) = 3 \cdot 1 \cdot 1 \cdot 2 \cdot 4</span></p>
+<p><strong>Without the skip paths.</strong> The plain stack <span class="math inline">f_4(f_3(f_2(f_1(x))))</span> multiplies by <span class="math inline">a_1 a_2 a_3 a_4 = 0</span>, so the input’s gradient is <span class="math inline">0</span>. Blocks 1 and 2 output zeros whatever their input, which is the lecture’s example of a layer that stops every earlier layer from learning. With residual connections those blocks pass the input through unchanged, and the gradient passes through with it.</p>
+<p><strong>Answer:</strong> <span class="math inline">24</span>.</p>
+</div>
+</div>
+</div>
+</section>
+</section>
+<section id="sec-w5p-homework" class="level2">
+<h2 class="anchored" data-anchor-id="sec-w5p-homework">Part 4: Testing Homework 5</h2>
+<section id="sec-w5p-hw-context" class="level3">
+<h3 class="anchored" data-anchor-id="sec-w5p-hw-context">Context for these questions</h3>
+<p>Homework 5 implements the week’s operations in code and uses a few conventions that the lecture mentions only in passing. The problems below test each one on invented setups. None of them reproduce the homework’s image, kernels, networks, or matrices.</p>
+<p><strong>Traditional convolution.</strong> Part 1 asks for the traditional convolution, with the flip, not deep learning’s cross-correlation. PyTorch’s <code>nn.Conv2d</code> in Part 3 computes the cross-correlation, so no flip is written there.</p>
+<p><strong>Receptive field as (height, width).</strong> Part 2 reports a receptive field as the pair <span class="math inline">(r_h, r_w)</span>, from running the recursion once per axis. The jump <span class="math inline">j</span> is bookkeeping for the next layer and is never part of the answer.</p>
+<p><strong>What counts as a batch norm parameter.</strong> The learned <span class="math inline">\bm{\gamma}</span> and <span class="math inline">\bm{\beta}</span>, <span class="math inline">2C</span> numbers for <span class="math inline">C</span> channels. The running mean and variance are stored in the layer (PyTorch calls them <em>buffers</em>) but not learned.</p>
+<p><strong>PyTorch’s layout and parameters.</strong> PyTorch stores a batch of images as <code>(N, C, H, W)</code>. <code>model.parameters()</code> returns every learned tensor that a model’s layers registered, including batch norm’s <span class="math inline">\bm{\gamma}</span> and <span class="math inline">\bm{\beta}</span> and the dense layer’s weights, but not the buffers.</p>
+</section>
+<section id="prb-8" class="level3">
+<h3 class="anchored" data-anchor-id="prb-8">Problem 8: Traditional convolution with padding and stride</h3>
+<p><em>Homework 5 link: Part 1, <code>convolution</code> with padding and stride.</em></p>
+<p>Take the <span class="math inline">4\times4</span> image and <span class="math inline">3\times3</span> kernel</p>
+<p><span class="math display">\bm{X} = \begin{bmatrix} 1 &amp; 0 &amp; 2 &amp; 1 \\ 0 &amp; 3 &amp; 1 &amp; 0 \\ 2 &amp; 1 &amp; 0 &amp; 1 \\ 1 &amp; 0 &amp; 1 &amp; 2 \end{bmatrix},</span></p>
+<p><span class="math display">\bm{V} = \begin{bmatrix} 1 &amp; 0 &amp; 0 \\ 0 &amp; 2 &amp; 0 \\ 0 &amp; 0 &amp; -1 \end{bmatrix},</span></p>
+<p>with one zero of padding on every edge, stride <span class="math inline">2</span>, and bias <span class="math inline">0</span>. Using the traditional convolution, what is the sum of all the outputs?</p>
+<div class="practice-answer callout callout-style-default callout-tip callout-titled" title="Worked solution">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-8-contents" aria-controls="callout-8" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Worked solution
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-8" class="callout-8-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>This uses <a href="../lectures/week05.html#sec-flip">Week 5, Convolution or cross-correlation?</a>, <a href="../lectures/week05.html#sec-padding">Padding</a>, and <a href="../lectures/week05.html#sec-general-size">The general output-size rule</a>.</p>
+<p><strong>Output size.</strong> Along each axis, <span class="math inline">\lfloor (4 + 2 - 3)/2 \rfloor + 1 = 2</span>, so the output is <span class="math inline">2\times2</span>.</p>
+<p><strong>Flip the kernel.</strong> Flipping top-to-bottom and left-to-right moves the <span class="math inline">1</span> to the bottom-right and the <span class="math inline">-1</span> to the top-left:</p>
+<p><span class="math display">\text{flipped } \bm{V} = \begin{bmatrix} -1 &amp; 0 &amp; 0 \\ 0 &amp; 2 &amp; 0 \\ 0 &amp; 0 &amp; 1 \end{bmatrix}</span></p>
+<p>So each output is <span class="math inline">-(\text{top-left}) + 2\,(\text{centre}) + (\text{bottom-right})</span> of its window.</p>
+<p><strong>The windows.</strong> Padding makes the image <span class="math inline">6\times6</span>. With stride <span class="math inline">2</span> the windows start at padded rows and columns <span class="math inline">0</span> and <span class="math inline">2</span>:</p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 33%">
+<col style="width: 33%">
+<col style="width: 33%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Output</th>
+<th>Window</th>
+<th>Score</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><span class="math inline">(1, 1)</span></td>
+<td><span class="math inline">\begin{bmatrix} 0 &amp; 0 &amp; 0 \\ 0 &amp; 1 &amp; 0 \\ 0 &amp; 0 &amp; 3 \end{bmatrix}</span></td>
+<td><span class="math inline">-0 + 2\cdot1 + 3 = 5</span></td>
+</tr>
+<tr class="even">
+<td><span class="math inline">(1, 2)</span></td>
+<td><span class="math inline">\begin{bmatrix} 0 &amp; 0 &amp; 0 \\ 0 &amp; 2 &amp; 1 \\ 3 &amp; 1 &amp; 0 \end{bmatrix}</span></td>
+<td><span class="math inline">-0 + 2\cdot2 + 0 = 4</span></td>
+</tr>
+<tr class="odd">
+<td><span class="math inline">(2, 1)</span></td>
+<td><span class="math inline">\begin{bmatrix} 0 &amp; 0 &amp; 3 \\ 0 &amp; 2 &amp; 1 \\ 0 &amp; 1 &amp; 0 \end{bmatrix}</span></td>
+<td><span class="math inline">-0 + 2\cdot2 + 0 = 4</span></td>
+</tr>
+<tr class="even">
+<td><span class="math inline">(2, 2)</span></td>
+<td><span class="math inline">\begin{bmatrix} 3 &amp; 1 &amp; 0 \\ 1 &amp; 0 &amp; 1 \\ 0 &amp; 1 &amp; 2 \end{bmatrix}</span></td>
+<td><span class="math inline">-3 + 2\cdot0 + 2 = -1</span></td>
+</tr>
+</tbody>
+</table>
+<p>The top-left window is mostly padding: only the image’s first two rows and columns reach it. With stride <span class="math inline">2</span> the window centres land only on the image’s first and third rows and columns; the others are seen only at window edges.</p>
+<p><strong>The trap.</strong> Without the flip, each output would be <span class="math inline">(\text{top-left}) + 2\,(\text{centre}) - (\text{bottom-right})</span>, giving <span class="math inline">-1, 4, 4, 1</span> and a sum of <span class="math inline">8</span>. In code, the flip is one line before the sliding loop.</p>
+<p><strong>Answer:</strong> <span class="math inline">5 + 4 + 4 + (-1) = 12</span>.</p>
+</div>
+</div>
+</div>
+</section>
+<section id="prb-9" class="level3">
+<h3 class="anchored" data-anchor-id="prb-9">Problem 9: A hand-made detector that is not symmetric</h3>
+<p><em>Homework 5 link: Part 1, the plus detector.</em></p>
+<p>To detect an L shape (a bright left column and bottom row), a student writes the template kernel</p>
+<p><span class="math display">\bm{V} = \begin{bmatrix} 1 &amp; -1 &amp; -1 \\ 1 &amp; -1 &amp; -1 \\ 1 &amp; 1 &amp; 1 \end{bmatrix}.</span></p>
+<p>On the window <span class="math inline">\begin{bmatrix} 1 &amp; 0 &amp; 0 \\ 1 &amp; 0 &amp; 0 \\ 1 &amp; 1 &amp; 1 \end{bmatrix}</span>, an L, the cross-correlation scores <span class="math inline">5</span>. By how much does the score drop if the traditional convolution is used instead?</p>
+<div class="practice-answer callout callout-style-default callout-tip callout-titled" title="Worked solution">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-9-contents" aria-controls="callout-9" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Worked solution
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-9" class="callout-9-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>This uses <a href="../lectures/week05.html#sec-template">Week 5, Reading the kernel as a template</a> and <a href="../lectures/week05.html#sec-flip">Convolution or cross-correlation?</a>.</p>
+<p><strong>The template.</strong> The kernel puts <span class="math inline">+1</span> on the L’s five pixels and <span class="math inline">-1</span> elsewhere. Under cross-correlation it is laid over the window as written, every bright pixel meets a <span class="math inline">+1</span>, and the score is <span class="math inline">5</span>.</p>
+<p><strong>The flip.</strong> The traditional convolution first flips the kernel both ways:</p>
+<p><span class="math display">\text{flipped } \bm{V} = \begin{bmatrix} 1 &amp; 1 &amp; 1 \\ -1 &amp; -1 &amp; 1 \\ -1 &amp; -1 &amp; 1 \end{bmatrix}</span></p>
+<p>This is the L turned upside down: a bright top row and right column. On the L window, the bright pixels now meet <span class="math inline">1, -1, -1, -1, 1</span> (top-left, middle-left, bottom-left, bottom-middle, bottom-right), for a score of <span class="math inline">-1</span>.</p>
+<p><strong>What to take from it.</strong> A plus-shaped kernel is symmetric about its centre, so flipping it changes nothing, and it detects pluses under either definition. A non-symmetric template detects the flipped shape under the traditional convolution. To detect the L with the traditional convolution, store the flipped kernel, so that the operation’s flip undoes it.</p>
+<p><strong>Answer:</strong> <span class="math inline">5 - (-1) = 6</span>.</p>
+</div>
+</div>
+</div>
+</section>
+<section id="prb-10" class="level3">
+<h3 class="anchored" data-anchor-id="prb-10">Problem 10: A receptive field that is not square</h3>
+<p><em>Homework 5 link: Part 2, Network 2 (a stride that differs between height and width).</em></p>
+<p>A three-layer network uses these kernels and strides, written as (height, width):</p>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th>Layer</th>
+<th>Kernel</th>
+<th>Stride</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>1</td>
+<td><span class="math inline">(3, 5)</span></td>
+<td><span class="math inline">(1, 2)</span></td>
+</tr>
+<tr class="even">
+<td>2</td>
+<td><span class="math inline">(3, 3)</span></td>
+<td><span class="math inline">(2, 2)</span></td>
+</tr>
+<tr class="odd">
+<td>3</td>
+<td><span class="math inline">(2, 2)</span></td>
+<td><span class="math inline">(1, 1)</span></td>
+</tr>
+</tbody>
+</table>
+<p>How many input pixels are in the receptive field of one entry of layer 3?</p>
+<div class="practice-answer callout callout-style-default callout-tip callout-titled" title="Worked solution">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-10-contents" aria-controls="callout-10" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Worked solution
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-10" class="callout-10-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>This uses <a href="../lectures/week05.html#sec-rf-stack">Week 5, Receptive fields of stacked layers</a>, the paragraph on two-dimensional layers.</p>
+<p>Run the recursion <span class="math inline">r \leftarrow r + (k-1)j</span>, <span class="math inline">j \leftarrow j \cdot s</span> once for each axis, starting at <span class="math inline">r = j = 1</span>:</p>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th>After</th>
+<th>Height: <span class="math inline">r_h</span></th>
+<th>Height: <span class="math inline">j_h</span></th>
+<th>Width: <span class="math inline">r_w</span></th>
+<th>Width: <span class="math inline">j_w</span></th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>input</td>
+<td><span class="math inline">1</span></td>
+<td><span class="math inline">1</span></td>
+<td><span class="math inline">1</span></td>
+<td><span class="math inline">1</span></td>
+</tr>
+<tr class="even">
+<td>layer 1</td>
+<td><span class="math inline">1 + 2\cdot1 = 3</span></td>
+<td><span class="math inline">1</span></td>
+<td><span class="math inline">1 + 4\cdot1 = 5</span></td>
+<td><span class="math inline">2</span></td>
+</tr>
+<tr class="odd">
+<td>layer 2</td>
+<td><span class="math inline">3 + 2\cdot1 = 5</span></td>
+<td><span class="math inline">2</span></td>
+<td><span class="math inline">5 + 2\cdot2 = 9</span></td>
+<td><span class="math inline">4</span></td>
+</tr>
+<tr class="even">
+<td>layer 3</td>
+<td><span class="math inline">5 + 1\cdot2 = 7</span></td>
+<td><span class="math inline">2</span></td>
+<td><span class="math inline">9 + 1\cdot4 = 13</span></td>
+<td><span class="math inline">4</span></td>
+</tr>
+</tbody>
+</table>
+<p>The receptive field is <span class="math inline">(r_h, r_w) = (7, 13)</span>: <span class="math inline">7</span> rows and <span class="math inline">13</span> columns. The jumps <span class="math inline">(2, 4)</span> are not part of it. Reporting <span class="math inline">(7, 2)</span>, or <span class="math inline">(13, 4)</span>, mixes a size with a spacing.</p>
+<p><strong>Answer:</strong> <span class="math inline">7 \cdot 13 = 91</span>.</p>
+</div>
+</div>
+</div>
+</section>
+<section id="prb-11" class="level3">
+<h3 class="anchored" data-anchor-id="prb-11">Problem 11: How empty is the convolution matrix?</h3>
+<p><em>Homework 5 link: Part 2, convolution as a matrix-vector product.</em></p>
+<p>A <span class="math inline">5\times5</span> image is flattened row by row into a vector of <span class="math inline">25</span> entries, and a convolution with a <span class="math inline">3\times3</span> kernel (all nine weights nonzero), no padding, and stride <span class="math inline">1</span> is written as a matrix <span class="math inline">\bm{A}</span> with output <span class="math inline">\bm{h} = \bm{A}\bm{x}</span>. How many entries of <span class="math inline">\bm{A}</span> are zero?</p>
+<div class="practice-answer callout callout-style-default callout-tip callout-titled" title="Worked solution">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-11-contents" aria-controls="callout-11" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Worked solution
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-11" class="callout-11-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>This uses <a href="../lectures/week05.html#sec-conv-matrix">Week 5, Convolution as a matrix</a>.</p>
+<p><strong>The shape of <span class="math inline">\bm{A}</span>.</strong> The output is <span class="math inline">\lfloor (5 - 3)/1 \rfloor + 1 = 3</span> along each axis, so <span class="math inline">3 \times 3 = 9</span> outputs. Each output is one row of <span class="math inline">\bm{A}</span> and each input pixel one column, so <span class="math inline">\bm{A}</span> is <span class="math inline">9 \times 25</span>, with <span class="math inline">225</span> entries.</p>
+<p><strong>The nonzeros.</strong> Each row holds the nine kernel weights, in the columns of the nine pixels its window covers, and zeros everywhere else. That gives <span class="math inline">9 \cdot 9 = 81</span> nonzero entries. Neighbouring windows overlap, so the same pixel’s column has nonzeros in several rows, but every row has exactly nine.</p>
+<p><strong>The zeros.</strong> <span class="math inline">225 - 81 = 144</span>, almost two thirds of the matrix. The pattern, the same nine weights shifted along each row, is close to a <a href="https://en.wikipedia.org/wiki/Toeplitz_matrix">Toeplitz matrix</a>. In general a <span class="math inline">k\times k</span> kernel on an <span class="math inline">n\times n</span> image leaves <span class="math inline">n^2 - k^2</span> zeros in each row, so the fraction of zeros grows toward <span class="math inline">1</span> as the image grows. That is why frameworks slide the kernel instead of building <span class="math inline">\bm{A}</span>.</p>
+<p><strong>Answer:</strong> <span class="math inline">144</span>.</p>
+</div>
+</div>
+</div>
+</section>
+<section id="prb-12" class="level3">
+<h3 class="anchored" data-anchor-id="prb-12">Problem 12: What <code>model.parameters()</code> holds</h3>
+<p><em>Homework 5 link: Part 3, building the <code>CNN</code> and setting up the optimizer.</em></p>
+<p>A PyTorch model takes batches of shape <code>(N, 3, 24, 24)</code> and applies, in order:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>nn.Conv2d(<span class="dv">3</span>, <span class="dv">8</span>, kernel_size<span class="op">=</span><span class="dv">5</span>, padding<span class="op">=</span><span class="dv">2</span>)</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>nn.BatchNorm2d(<span class="dv">8</span>)</span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>nn.ReLU()</span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>nn.MaxPool2d(kernel_size<span class="op">=</span><span class="dv">2</span>, stride<span class="op">=</span><span class="dv">2</span>)</span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a>nn.Conv2d(<span class="dv">8</span>, <span class="dv">12</span>, kernel_size<span class="op">=</span><span class="dv">3</span>)</span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a>nn.BatchNorm2d(<span class="dv">12</span>)</span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a>nn.ReLU()</span>
+<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a>nn.MaxPool2d(kernel_size<span class="op">=</span><span class="dv">2</span>, stride<span class="op">=</span><span class="dv">2</span>)</span>
+<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a>nn.Flatten()</span>
+<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a>nn.Linear(?, <span class="dv">4</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p><code>nn.Conv2d</code> and <code>nn.Linear</code> have biases by default, and <code>nn.Conv2d</code> has stride <span class="math inline">1</span> and padding <span class="math inline">0</span> unless given. How many numbers in total are in <code>model.parameters()</code>?</p>
+<div class="practice-answer callout callout-style-default callout-tip callout-titled" title="Worked solution">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-12-contents" aria-controls="callout-12" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Worked solution
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-12" class="callout-12-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>This uses <a href="../lectures/week05.html#sec-simple-convnet">Week 5, Building a simple convolutional network</a> (including the PyTorch note there) and <a href="../lectures/week05.html#sec-param-count">Counting parameters</a>.</p>
+<p><strong>Step 1: the missing input size.</strong> Trace one image, in PyTorch’s (channels, height, width) order:</p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 50%">
+<col style="width: 50%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Layer</th>
+<th>Shape</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>input</td>
+<td><span class="math inline">3 \times 24 \times 24</span></td>
+</tr>
+<tr class="even">
+<td>conv <span class="math inline">5\times5</span>, padding <span class="math inline">2</span></td>
+<td><span class="math inline">8 \times 24 \times 24</span> (since <span class="math inline">\lfloor (24 + 4 - 5)/1 \rfloor + 1 = 24</span>)</td>
+</tr>
+<tr class="odd">
+<td>pool</td>
+<td><span class="math inline">8 \times 12 \times 12</span></td>
+</tr>
+<tr class="even">
+<td>conv <span class="math inline">3\times3</span>, padding <span class="math inline">0</span></td>
+<td><span class="math inline">12 \times 10 \times 10</span></td>
+</tr>
+<tr class="odd">
+<td>pool</td>
+<td><span class="math inline">12 \times 5 \times 5</span></td>
+</tr>
+<tr class="even">
+<td>flatten</td>
+<td><span class="math inline">300</span></td>
+</tr>
+</tbody>
+</table>
+<p>So the dense layer is <code>nn.Linear(300, 4)</code>. A wrong number here is the usual cause of a shape-mismatch error on the first forward pass.</p>
+<p><strong>Step 2: the parameters.</strong></p>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th>Layer</th>
+<th>Count</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>conv 1</td>
+<td><span class="math inline">5\cdot5\cdot3\cdot8 + 8 = 608</span></td>
+</tr>
+<tr class="even">
+<td>batch norm 1</td>
+<td><span class="math inline">2\cdot8 = 16</span></td>
+</tr>
+<tr class="odd">
+<td>conv 2</td>
+<td><span class="math inline">3\cdot3\cdot8\cdot12 + 12 = 876</span></td>
+</tr>
+<tr class="even">
+<td>batch norm 2</td>
+<td><span class="math inline">2\cdot12 = 24</span></td>
+</tr>
+<tr class="odd">
+<td>dense</td>
+<td><span class="math inline">300\cdot4 + 4 = 1204</span></td>
+</tr>
+</tbody>
+</table>
+<p>ReLU, pooling, and flatten register no parameters.</p>
+<p><strong>What is left out.</strong> Each <code>nn.BatchNorm2d</code> also stores a running mean and a running variance, one per channel (<span class="math inline">2\cdot(8 + 12) = 40</span> numbers), plus a counter of batches seen. These are buffers: <code>model.eval()</code> uses them, but the optimizer never updates them, so they are not in <code>model.parameters()</code>.</p>
+<p><strong>Answer:</strong> <span class="math inline">608 + 16 + 876 + 24 + 1204 = 2728</span>.</p>
+</div>
+</div>
+</div>
+</section>
+</section>
+<section id="sec-w5p-official-quiz" class="level2">
+<h2 class="anchored" data-anchor-id="sec-w5p-official-quiz">Part 5: Official Quiz 6 practice</h2>
+<p>The four questions below were provided by the course as Quiz 6 practice, and they test Week 5 material. They are reproduced with the course’s own numbers and answers, in increasing order of difficulty.</p>
+<section id="quiz-1" class="level3">
+<h3 class="anchored" data-anchor-id="quiz-1">Quiz question 1: Parameters of a residual block (easy)</h3>
+<p>A residual block’s main path is one <span class="math inline">3\times3</span> convolution from <span class="math inline">3</span> to <span class="math inline">4</span> channels. Its shortcut is a <span class="math inline">1\times1</span> convolution from <span class="math inline">3</span> to <span class="math inline">4</span> channels. Each convolution has one bias per output channel. How many parameters does the block have?</p>
+<div class="practice-answer callout callout-style-default callout-tip callout-titled" title="Worked solution">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-13-contents" aria-controls="callout-13" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Worked solution
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-13" class="callout-13-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>This uses <a href="../lectures/week05.html#sec-residual">Week 5, Residual Connections</a>, <a href="../lectures/week05.html#sec-residual-shapes">Matching shapes</a>, and <a href="../lectures/week05.html#sec-param-count">Counting parameters</a>.</p>
+<p><strong>What a residual block is.</strong> A <a href="https://en.wikipedia.org/wiki/Residual_neural_network">residual block</a> is a few layers wrapped by a residual connection: the block’s input is added back to the output of its layers. The lecture writes it as</p>
+<p><span class="math display">\bm{y} = f(\bm{x}) + \bm{x}</span></p>
+<p>where <span class="math inline">f</span> is whatever the block’s layers compute. The block has two paths from <span class="math inline">\bm{x}</span> to the sum:</p>
+<ul>
+<li>The <strong>main path</strong> runs <span class="math inline">\bm{x}</span> through the layers and produces <span class="math inline">f(\bm{x})</span>. The lecture reads <span class="math inline">f(\bm{x})</span> as a <em>change</em> to the input, the residual that the block adds on, rather than a replacement for it.</li>
+<li>The <strong>skip path</strong> (also called the shortcut, or the identity path when it leaves <span class="math inline">\bm{x}</span> unchanged) carries <span class="math inline">\bm{x}</span> around the layers to the addition. On the backward pass the gradient flows down both paths, and the skip path passes it back unchanged, which is what keeps gradients reaching earlier layers.</li>
+</ul>
+<p>“Residual path” is used loosely for either one, so these notes say main path and skip path. In this question, the main path is the <span class="math inline">3\times3</span> convolution and the skip path is the <span class="math inline">1\times1</span> shortcut.</p>
+<p><strong>Why this skip path is a convolution.</strong> The addition is entry by entry, so <span class="math inline">f(\bm{x})</span> and the skip path’s output must have the same shape. The main path turns <span class="math inline">3</span> channels into <span class="math inline">4</span>, so <span class="math inline">\bm{x}</span> itself cannot be added. A <span class="math inline">1\times1</span> convolution fixes this: at each position it computes each of the <span class="math inline">4</span> output channels as a weighted sum of the <span class="math inline">3</span> input channels at that same position, plus a bias.</p>
+<p><strong>A small example with numbers.</strong> Look at one position, where the input has the <span class="math inline">3</span> channel values <span class="math inline">\bm{x} = (1,\ 0,\ 2)</span>, and suppose the main path’s <span class="math inline">3\times3</span> convolution produced <span class="math inline">f(\bm{x}) = (0.5,\ -1,\ 2,\ 0)</span> there. Take the <span class="math inline">1\times1</span> shortcut’s weights as a <span class="math inline">4\times3</span> matrix with zero biases:</p>
+<p><span class="math display">\bm{W}_\text{skip} = \begin{bmatrix} 1 &amp; 0 &amp; 0 \\ 0 &amp; 1 &amp; 0 \\ 0 &amp; 0 &amp; 1 \\ 1 &amp; 1 &amp; 1 \end{bmatrix}, \qquad \bm{W}_\text{skip}\,\bm{x} = (1,\ 0,\ 2,\ 3)</span></p>
+<p>The first three output channels copy the input channels and the fourth adds them up. The block’s output at this position is</p>
+<p><span class="math display">\bm{y} = (0.5,\ -1,\ 2,\ 0) + (1,\ 0,\ 2,\ 3) = (1.5,\ -1,\ 4,\ 3)</span></p>
+<p>If the main path’s layers had output all zeros, <span class="math inline">\bm{y}</span> would still be <span class="math inline">(1, 0, 2, 3)</span>: the input’s information passes through the skip path whatever the layers do. When the main path keeps the shape, the skip path needs no layer at all and the block is simply <span class="math inline">f(\bm{x}) + \bm{x}</span>.</p>
+<p><strong>Counting the parameters.</strong> Use weights <span class="math inline">= k_h k_w C_\text{in} C_\text{out}</span> and biases <span class="math inline">= C_\text{out}</span> for each convolution:</p>
+<ol type="1">
+<li>Main path weights: <span class="math inline">3\cdot3\cdot3\cdot4 = 108</span>.</li>
+<li>Main path biases: <span class="math inline">4</span>.</li>
+<li>Shortcut weights: <span class="math inline">1\cdot1\cdot3\cdot4 = 12</span>, one per entry of the <span class="math inline">4\times3</span> matrix above.</li>
+<li>Shortcut biases: <span class="math inline">4</span>.</li>
+</ol>
+<p>The addition, and any ReLU after it, have no parameters. The usual mistake is forgetting the shortcut’s <span class="math inline">12 + 4</span>.</p>
+<p><strong>Answer:</strong> <span class="math inline">108 + 4 + 12 + 4 = 128</span>.</p>
+</div>
+</div>
+</div>
+</section>
+<section id="quiz-2" class="level3">
+<h3 class="anchored" data-anchor-id="quiz-2">Quiz question 2: Flatten versus global average pooling (medium)</h3>
+<p>An input of shape <span class="math inline">3\times12\times12</span> (channels, height, width) passes through: a <span class="math inline">3\times3</span> convolution with <span class="math inline">4</span> output channels (stride <span class="math inline">1</span>, padding <span class="math inline">1</span>); <span class="math inline">2\times2</span> max pooling with stride <span class="math inline">2</span>; a <span class="math inline">3\times3</span> convolution with <span class="math inline">8</span> output channels (stride <span class="math inline">1</span>, no padding); <span class="math inline">2\times2</span> max pooling with stride <span class="math inline">2</span>; and a dense layer to <span class="math inline">10</span> classes with no bias. How many more dense-layer weights does the network have if it flattens before the dense layer than if it uses global average pooling?</p>
+<div class="practice-answer callout callout-style-default callout-tip callout-titled" title="Worked solution">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-14-contents" aria-controls="callout-14" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Worked solution
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-14" class="callout-14-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>This uses <a href="../lectures/week05.html#sec-simple-convnet">Week 5, Building a simple convolutional network</a> and the global average pooling paragraph of <a href="../lectures/week05.html#sec-resnet">The ResNet</a>.</p>
+<p>Both versions share every layer before the dense layer, so the convolution parameters are identical and cancel in the difference. Only the shape entering the dense layer matters.</p>
+<p><strong>Background 1: the output-size formula.</strong> A convolution or pooling layer slides a window across one side of its input. Along one side (height or width), write</p>
+<ul>
+<li><span class="math inline">n</span>: the side length going in;</li>
+<li><span class="math inline">k</span>: the window (kernel) side length;</li>
+<li><span class="math inline">p</span>: the padding, the number of zeros added on each edge;</li>
+<li><span class="math inline">s</span>: the stride, how many pixels the window moves each time.</li>
+</ul>
+<p>The number of window positions along that side is</p>
+<p><span class="math display">n_\text{out} = \left\lfloor \frac{n + 2p - k}{s} \right\rfloor + 1</span></p>
+<p>The <span class="math inline">n + 2p</span> is the padded side length. The window fits <span class="math inline">n + 2p - k</span> pixels past its start, the floor divides that by the stride, and the <span class="math inline">+1</span> counts the starting position itself. The formula gives the output side length; the convolution’s own parameters do not depend on it. Apply it separately to height and width, and to each layer in turn, feeding each layer’s output into the next.</p>
+<p><strong>Background 2: what a “grid” and a “channel” are.</strong> A volume like <span class="math inline">8 \times 2 \times 2</span> means <span class="math inline">8</span> channels, each a grid of <span class="math inline">2</span> rows by <span class="math inline">2</span> columns. Each channel is one table of numbers, so each channel has <span class="math inline">2 \cdot 2 = 4</span> numbers. The <span class="math inline">8</span> channels together hold <span class="math inline">8 \cdot 4 = 32</span> numbers. The channel count is never changed by pooling; only the grid shrinks.</p>
+<p><strong>Background 3: the weights of a dense layer.</strong> A dense layer connects every input number to every output number, and each connection has its own weight. With <span class="math inline">n_\text{in}</span> inputs and <span class="math inline">n_\text{out}</span> outputs (here <span class="math inline">n_\text{out}</span> means the number of classes, not the formula above), the layer has</p>
+<p><span class="math display">n_\text{in} \cdot n_\text{out} \quad \text{weights}</span></p>
+<p>Here there are no biases, so nothing is added.</p>
+<p><strong>Compare with Quiz question 1.</strong> Question 1 counts a convolution, and its formula is different: <span class="math inline">k_h k_w C_\text{in} C_\text{out}</span>. A convolution reuses one small kernel at every position, so its weights do not depend on the image size. Each output channel needs only one kernel of size <span class="math inline">k_h \cdot k_w \cdot C_\text{in}</span>. A dense layer reuses nothing, so every input-output pair gets its own weight. Its count depends on how many numbers flow in and out, which is why the flatten step matters so much here.</p>
+<p><strong>Why the letters differ: <span class="math inline">n</span> counts numbers, <span class="math inline">C</span> counts channels.</strong> The two symbols measure different things, and the difference is in the size of each unit.</p>
+<ul>
+<li><span class="math inline">C_\text{in}</span> and <span class="math inline">C_\text{out}</span> count <strong>channels</strong>. A channel is a whole grid, so <span class="math inline">C_\text{in} = 3</span> means three grids, however tall or wide each one is. The grid’s height and width are not in the convolution formula at all; the kernel’s <span class="math inline">k_h \cdot k_w</span> covers only the small window that slides across it.</li>
+<li><span class="math inline">n_\text{in}</span> counts <strong>individual numbers</strong> (scalars) that enter the layer. A dense layer has no grids, only a flat list of numbers, so <span class="math inline">n_\text{in}</span> is the length of that list.</li>
+</ul>
+<p>For the first layer of this quiz’s input, <span class="math inline">3 \times 12 \times 12</span>: <span class="math inline">C_\text{in} = 3</span> channels, but <span class="math inline">n_\text{in} = 3 \cdot 12 \cdot 12 = 432</span> numbers. If the dense layer received that input unflattened, it would have to treat all <span class="math inline">432</span> numbers as separate inputs, which is the <span class="math inline">432</span> in the earlier comparison. The convolution’s <span class="math inline">C_\text{in} = 3</span> is the same input counted in grids rather than numbers.</p>
+<p><strong>Trace the shape</strong> of the volume through the network. Each row applies the formula above to the side length:</p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 33%">
+<col style="width: 33%">
+<col style="width: 33%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Layer</th>
+<th>Side length</th>
+<th>Shape (channels <span class="math inline">\times</span> height <span class="math inline">\times</span> width)</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>input</td>
+<td></td>
+<td><span class="math inline">3 \times 12 \times 12</span></td>
+</tr>
+<tr class="even">
+<td>conv <span class="math inline">3\times3</span>, <span class="math inline">p = 1</span>, <span class="math inline">s = 1</span>, 4 channels</td>
+<td><span class="math inline">n_\text{out} = \lfloor (12 + 2 - 3)/1 \rfloor + 1 = 12</span></td>
+<td><span class="math inline">4 \times 12 \times 12</span></td>
+</tr>
+<tr class="odd">
+<td>pool <span class="math inline">2\times2</span>, <span class="math inline">s = 2</span></td>
+<td><span class="math inline">n_\text{out} = \lfloor (12 - 2)/2 \rfloor + 1 = 6</span></td>
+<td><span class="math inline">4 \times 6 \times 6</span></td>
+</tr>
+<tr class="even">
+<td>conv <span class="math inline">3\times3</span>, <span class="math inline">p = 0</span>, <span class="math inline">s = 1</span>, 8 channels</td>
+<td><span class="math inline">n_\text{out} = \lfloor (6 - 3)/1 \rfloor + 1 = 4</span></td>
+<td><span class="math inline">8 \times 4 \times 4</span></td>
+</tr>
+<tr class="odd">
+<td>pool <span class="math inline">2\times2</span>, <span class="math inline">s = 2</span></td>
+<td><span class="math inline">n_\text{out} = \lfloor (4 - 2)/2 \rfloor + 1 = 2</span></td>
+<td><span class="math inline">8 \times 2 \times 2</span></td>
+</tr>
+</tbody>
+</table>
+<p>The padding of <span class="math inline">1</span> in the first convolution keeps <span class="math inline">12</span> at <span class="math inline">12</span>: the <span class="math inline">3</span> in the window and the <span class="math inline">2</span> from the two padded edges cancel, so the convolution leaves the side unchanged. Each pool halves the side. The channel count changes only at the convolutions.</p>
+<p>After the last pool the volume is <span class="math inline">8 \times 2 \times 2</span>. Each of the <span class="math inline">8</span> channels is a <span class="math inline">2 \times 2</span> grid, the “<span class="math inline">2\times2</span> grid” in the solution below.</p>
+<p><strong>Flatten.</strong> Flattening lists every number in every channel as its own input to the dense layer. There are <span class="math inline">8 \cdot 2 \cdot 2 = 32</span> numbers, so <span class="math inline">n_\text{in} = 32</span>, and the dense layer has</p>
+<p><span class="math display">32 \cdot 10 = 320 \quad \text{weights.}</span></p>
+<p><strong>Global average pooling.</strong> Instead, take each channel’s <span class="math inline">2 \times 2</span> grid, add its <span class="math inline">4</span> numbers, and divide by <span class="math inline">4</span>. Each channel becomes one number, its average. For example, a channel whose grid is <span class="math inline">\begin{bmatrix} 1 &amp; 3 \\ 5 &amp; 3 \end{bmatrix}</span> has the average <span class="math inline">(1 + 3 + 5 + 3)/4 = 3</span>. There are <span class="math inline">8</span> channels, so the volume becomes <span class="math inline">8</span> numbers, and <span class="math inline">n_\text{in} = 8</span>. The dense layer then has</p>
+<p><span class="math display">8 \cdot 10 = 80 \quad \text{weights.}</span></p>
+<p><strong>Why the difference is a factor of 4.</strong> Flattening feeds the dense layer <span class="math inline">4</span> separate numbers per channel, one for each cell of the <span class="math inline">2\times2</span> grid. Global average pooling feeds it one number per channel. So the flattened version has <span class="math inline">4</span> times as many inputs, and <span class="math inline">4</span> times as many dense weights, which is the grid’s area <span class="math inline">2 \cdot 2 = 4</span>.</p>
+<p><strong>Answer:</strong> <span class="math inline">320 - 80 = 240</span>.</p>
+</div>
+</div>
+</div>
+</section>
+<section id="quiz-3" class="level3">
+<h3 class="anchored" data-anchor-id="quiz-3">Quiz question 3: Batch normalization before ReLU (medium-hard)</h3>
+<p>The pre-activations of one unit on a batch of <span class="math inline">\lvert B\rvert = 4</span> examples are <span class="math inline">-7, -7, -1, -1</span>. With no normalization, a ReLU outputs <span class="math inline">0</span> for every example. Instead, apply batch normalization with <span class="math inline">\epsilon = 0</span>, <span class="math inline">\gamma = 2</span>, <span class="math inline">\beta = 1</span>, and the variance computed by dividing by <span class="math inline">\lvert B\rvert</span>, then ReLU. What is the sum of the <span class="math inline">4</span> outputs?</p>
+<div class="practice-answer callout callout-style-default callout-tip callout-titled" title="Worked solution">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-15-contents" aria-controls="callout-15" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Worked solution
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-15" class="callout-15-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>This uses <a href="../lectures/week05.html#sec-batchnorm-how">Week 5, How it works</a>.</p>
+<p>For each value <span class="math inline">x_i</span>, batch norm computes</p>
+<p><span class="math display">y_i = \gamma\, \frac{x_i - \mu_B}{\sigma_B + \epsilon} + \beta</span></p>
+<p>with <span class="math inline">\mu_B</span> the batch mean and <span class="math inline">\sigma_B</span> the batch standard deviation.</p>
+<p><strong>Mean.</strong> <span class="math inline">\mu_B = (-7 - 7 - 1 - 1)/4 = -16/4 = -4</span>.</p>
+<p><strong>Variance.</strong> The deviations from <span class="math inline">-4</span> are <span class="math inline">-3, -3, 3, 3</span>, so</p>
+<p><span class="math display">\sigma_B^2 = \frac{9 + 9 + 9 + 9}{4} = 9, \qquad \sigma_B + \epsilon = 3 + 0 = 3</span></p>
+<p><strong>Normalize.</strong> Dividing each deviation by <span class="math inline">3</span> gives <span class="math inline">(-1, -1, 1, 1)</span>, which has mean <span class="math inline">0</span> and variance <span class="math inline">1</span>, as a normalized batch must. A different result here means an arithmetic slip.</p>
+<p><strong>Scale and shift.</strong> <span class="math inline">2 \cdot (-1, -1, 1, 1) + 1 = (-1, -1, 3, 3)</span>.</p>
+<p><strong>ReLU.</strong> <span class="math inline">(0, 0, 3, 3)</span>.</p>
+<p>Without normalization every input is negative and the sum is <span class="math inline">0</span>. Batch norm uses only each value’s position relative to the batch: the two inputs at <span class="math inline">-1</span> sit above the batch mean of <span class="math inline">-4</span>, so after normalization and the shift they are <span class="math inline">+3</span> and pass through the ReLU. This is the lecture’s point about keeping activations out of the ReLU’s flat region. Dividing by <span class="math inline">\lvert B\rvert - 1 = 3</span> instead would give a variance of <span class="math inline">12</span> and a different answer; the question and the lecture both divide by <span class="math inline">\lvert B\rvert</span>.</p>
+<p><strong>Answer:</strong> <span class="math inline">0 + 0 + 3 + 3 = 6</span>.</p>
+</div>
+</div>
+</div>
+</section>
+<section id="quiz-4" class="level3">
+<h3 class="anchored" data-anchor-id="quiz-4">Quiz question 4: Replacing a <span class="math inline">9\times9</span> convolution (hard)</h3>
+<p>A single <span class="math inline">9\times9</span> convolution has <span class="math inline">4</span> input and <span class="math inline">4</span> output channels and no bias. It is replaced by the smallest stack of <span class="math inline">3\times3</span> stride-<span class="math inline">1</span> convolutions (<span class="math inline">4</span> channels in and out at every layer, no bias) whose output entries have a receptive field at least as large. How many fewer parameters does the stack have?</p>
+<div class="practice-answer callout callout-style-default callout-tip callout-titled" title="Worked solution">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-16-contents" aria-controls="callout-16" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Worked solution
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-16" class="callout-16-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>This uses <a href="../lectures/week05.html#sec-rf-stack">Week 5, Receptive fields of stacked layers</a> and <a href="../lectures/week05.html#sec-param-count">Counting parameters</a>.</p>
+<p><strong>Background 1: what “replace” means here.</strong> The question does not ask for the new layers to compute the same numbers as the <span class="math inline">9\times9</span> convolution. The kernel weights will be different. It asks for a replacement that sees the same amount of input. The measure of that is the receptive field: how many input pixels one output entry depends on. A replacement with a receptive field of <span class="math inline">9\times9</span> lets each output entry depend on the same <span class="math inline">9\times9</span> patch of input the original does, so the network’s view of the image is unchanged in size.</p>
+<p><strong>Background 2: what a “stack” is.</strong> A stack is a sequence of convolutions chained one after another. Layer 1 takes the image, layer 2 takes layer 1’s output as its input, layer 3 takes layer 2’s output, and so on. Each layer has its own weights. Nothing runs in parallel. The stack’s receptive field grows because each layer’s output entry is built from several entries of the layer before, and each of those already depends on a patch of the image.</p>
+<p>Here is a two-layer stack of <span class="math inline">3\times3</span> convolutions, one axis at a time to keep it short. Layer 1 takes the input row <span class="math inline">x_1, x_2, x_3, x_4, x_5</span> and produces <span class="math inline">a_1, a_2, a_3</span>, where each <span class="math inline">a</span> is a <span class="math inline">3</span>-wide window of <span class="math inline">x</span>. Layer 2 takes <span class="math inline">a_1, a_2, a_3</span> and produces one output <span class="math inline">b_1</span>, a <span class="math inline">3</span>-wide window of the <span class="math inline">a</span>’s:</p>
+<ul>
+<li><span class="math inline">a_1</span> depends on <span class="math inline">x_1, x_2, x_3</span>; <span class="math inline">a_2</span> on <span class="math inline">x_2, x_3, x_4</span>; <span class="math inline">a_3</span> on <span class="math inline">x_3, x_4, x_5</span>.</li>
+<li><span class="math inline">b_1</span> depends on all three <span class="math inline">a</span>’s, so it depends on <span class="math inline">x_1</span> through <span class="math inline">x_5</span>.</li>
+</ul>
+<p>One layer sees <span class="math inline">3</span> input values. Two stride-<span class="math inline">1</span> layers see <span class="math inline">5</span>. Along each axis, a <span class="math inline">3\times3</span> stack of two layers has a <span class="math inline">5\times5</span> receptive field, and each further layer adds <span class="math inline">2</span> more. That is the recursion <span class="math inline">r \leftarrow r + (k-1)j</span> with <span class="math inline">k = 3</span> and <span class="math inline">j = 1</span>.</p>
+<p><strong>Background 3: why “smallest”.</strong> A <span class="math inline">9\times9</span> receptive field needs one layer of kernel <span class="math inline">9</span>, or several smaller layers that together add up to <span class="math inline">9</span>. Each <span class="math inline">3\times3</span> stride-<span class="math inline">1</span> layer adds <span class="math inline">2</span>, so we need <span class="math inline">1 + 2L \ge 9</span>. The smallest such <span class="math inline">L</span> is <span class="math inline">4</span>, and four layers give exactly <span class="math inline">9</span>. Three layers give <span class="math inline">7</span>, which is too small. A stack with more than four layers would also work, but it would have more parameters and is not the answer asked for.</p>
+<p><strong>The original.</strong> <span class="math inline">9 \cdot 9 \cdot 4 \cdot 4 = 81 \cdot 16 = 1296</span> weights.</p>
+<p><strong>Receptive field of the stack.</strong> With <span class="math inline">k = 3</span> and stride <span class="math inline">1</span> the jump stays <span class="math inline">j = 1</span>, so the recursion <span class="math inline">r \leftarrow r + (k-1)j</span> adds <span class="math inline">2</span> per layer. Starting from <span class="math inline">r = 1</span>, after <span class="math inline">L</span> layers</p>
+<p><span class="math display">r = 1 + 2L</span></p>
+<p>so <span class="math inline">L = 1, 2, 3, 4</span> give <span class="math inline">3, 5, 7, 9</span>. The smallest <span class="math inline">L</span> with <span class="math inline">r \ge 9</span> is <span class="math inline">L = 4</span>; three layers reach only <span class="math inline">7</span>.</p>
+<p><strong>Parameters of the stack.</strong> Each layer has <span class="math inline">3 \cdot 3 \cdot 4 \cdot 4 = 144</span> weights, so four layers have <span class="math inline">4 \cdot 144 = 576</span>.</p>
+<p>The receptive field grows by adding, not multiplying: three <span class="math inline">3\times3</span> layers reach <span class="math inline">7\times7</span>, not <span class="math inline">27\times27</span>. If ReLUs sit between the layers, the stack also has nonlinearities that a single large convolution does not have.</p>
+<p><strong>Answer:</strong> <span class="math inline">1296 - 576 = 720</span>.</p>
+</div>
+</div>
+</div>
+
+
+</section>
+</section>
+
+</main> <!-- /main -->
+<script id="quarto-html-after-body" type="application/javascript">
+  window.document.addEventListener("DOMContentLoaded", function (event) {
+    const icon = "";
+    const anchorJS = new window.AnchorJS();
+    anchorJS.options = {
+      placement: 'right',
+      icon: icon
+    };
+    anchorJS.add('.anchored');
+    const isCodeAnnotation = (el) => {
+      for (const clz of el.classList) {
+        if (clz.startsWith('code-annotation-')) {                     
+          return true;
+        }
+      }
+      return false;
+    }
+    const onCopySuccess = function(e) {
+      // button target
+      const button = e.trigger;
+      // don't keep focus
+      button.blur();
+      // flash "checked"
+      button.classList.add('code-copy-button-checked');
+      var currentTitle = button.getAttribute("title");
+      button.setAttribute("title", "Copied!");
+      let tooltip;
+      if (window.bootstrap) {
+        button.setAttribute("data-bs-toggle", "tooltip");
+        button.setAttribute("data-bs-placement", "left");
+        button.setAttribute("data-bs-title", "Copied!");
+        tooltip = new bootstrap.Tooltip(button, 
+          { trigger: "manual", 
+            customClass: "code-copy-button-tooltip",
+            offset: [0, -8]});
+        tooltip.show();    
+      }
+      setTimeout(function() {
+        if (tooltip) {
+          tooltip.hide();
+          button.removeAttribute("data-bs-title");
+          button.removeAttribute("data-bs-toggle");
+          button.removeAttribute("data-bs-placement");
+        }
+        button.setAttribute("title", currentTitle);
+        button.classList.remove('code-copy-button-checked');
+      }, 1000);
+      // clear code selection
+      e.clearSelection();
+    }
+    const getTextToCopy = function(trigger) {
+      const outerScaffold = trigger.parentElement.cloneNode(true);
+      const codeEl = outerScaffold.querySelector('code');
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+    }
+    const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
+      text: getTextToCopy
+    });
+    clipboard.on('success', onCopySuccess);
+    if (window.document.getElementById('quarto-embedded-source-code-modal')) {
+      const clipboardModal = new window.ClipboardJS('.code-copy-button[data-in-quarto-modal]', {
+        text: getTextToCopy,
+        container: window.document.getElementById('quarto-embedded-source-code-modal')
+      });
+      clipboardModal.on('success', onCopySuccess);
+    }
+      var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+      var mailtoRegex = new RegExp(/^mailto:/);
+        var filterRegex = new RegExp('/' + window.location.host + '/');
+      var isInternal = (href) => {
+          return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+      }
+      // Inspect non-navigation links and adorn them if external
+     var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+      for (var i=0; i<links.length; i++) {
+        const link = links[i];
+        if (!isInternal(link.href)) {
+          // undo the damage that might have been done by quarto-nav.js in the case of
+          // links that we want to consider external
+          if (link.dataset.originalHref !== undefined) {
+            link.href = link.dataset.originalHref;
+          }
+            // target, if specified
+            link.setAttribute("target", "_blank");
+            if (link.getAttribute("rel") === null) {
+              link.setAttribute("rel", "noopener");
+            }
+        }
+      }
+    function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+      const config = {
+        allowHTML: true,
+        maxWidth: 500,
+        delay: 100,
+        arrow: false,
+        appendTo: function(el) {
+            return el.parentElement;
+        },
+        interactive: true,
+        interactiveBorder: 10,
+        theme: 'quarto',
+        placement: 'bottom-start',
+      };
+      if (contentFn) {
+        config.content = contentFn;
+      }
+      if (onTriggerFn) {
+        config.onTrigger = onTriggerFn;
+      }
+      if (onUntriggerFn) {
+        config.onUntrigger = onUntriggerFn;
+      }
+      window.tippy(el, config); 
+    }
+    const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+    for (var i=0; i<noterefs.length; i++) {
+      const ref = noterefs[i];
+      tippyHover(ref, function() {
+        // use id or data attribute instead here
+        let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+        try { href = new URL(href).hash; } catch {}
+        const id = href.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note) {
+          return note.innerHTML;
+        } else {
+          return "";
+        }
+      });
+    }
+    const xrefs = window.document.querySelectorAll('a.quarto-xref');
+    const processXRef = (id, note) => {
+      // Strip column container classes
+      const stripColumnClz = (el) => {
+        el.classList.remove("page-full", "page-columns");
+        if (el.children) {
+          for (const child of el.children) {
+            stripColumnClz(child);
+          }
+        }
+      }
+      stripColumnClz(note)
+      if (id === null || id.startsWith('sec-')) {
+        // Special case sections, only their first couple elements
+        const container = document.createElement("div");
+        if (note.children && note.children.length > 2) {
+          container.appendChild(note.children[0].cloneNode(true));
+          for (let i = 1; i < note.children.length; i++) {
+            const child = note.children[i];
+            if (child.tagName === "P" && child.innerText === "") {
+              continue;
+            } else {
+              container.appendChild(child.cloneNode(true));
+              break;
+            }
+          }
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(container);
+          }
+          return container.innerHTML
+        } else {
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(note);
+          }
+          return note.innerHTML;
+        }
+      } else {
+        // Remove any anchor links if they are present
+        const anchorLink = note.querySelector('a.anchorjs-link');
+        if (anchorLink) {
+          anchorLink.remove();
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        if (note.classList.contains("callout")) {
+          return note.outerHTML;
+        } else {
+          return note.innerHTML;
+        }
+      }
+    }
+    for (var i=0; i<xrefs.length; i++) {
+      const xref = xrefs[i];
+      tippyHover(xref, undefined, function(instance) {
+        instance.disable();
+        let url = xref.getAttribute('href');
+        let hash = undefined; 
+        if (url.startsWith('#')) {
+          hash = url;
+        } else {
+          try { hash = new URL(url).hash; } catch {}
+        }
+        if (hash) {
+          const id = hash.replace(/^#\/?/, "");
+          const note = window.document.getElementById(id);
+          if (note !== null) {
+            try {
+              const html = processXRef(id, note.cloneNode(true));
+              instance.setContent(html);
+            } finally {
+              instance.enable();
+              instance.show();
+            }
+          } else {
+            // See if we can fetch this
+            fetch(url.split('#')[0])
+            .then(res => res.text())
+            .then(html => {
+              const parser = new DOMParser();
+              const htmlDoc = parser.parseFromString(html, "text/html");
+              const note = htmlDoc.getElementById(id);
+              if (note !== null) {
+                const html = processXRef(id, note);
+                instance.setContent(html);
+              } 
+            }).finally(() => {
+              instance.enable();
+              instance.show();
+            });
+          }
+        } else {
+          // See if we can fetch a full url (with no hash to target)
+          // This is a special case and we should probably do some content thinning / targeting
+          fetch(url)
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.querySelector('main.content');
+            if (note !== null) {
+              // This should only happen for chapter cross references
+              // (since there is no id in the URL)
+              // remove the first header
+              if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+                note.children[0].remove();
+              }
+              const html = processXRef(null, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      }, function(instance) {
+      });
+    }
+        let selectedAnnoteEl;
+        const selectorForAnnotation = ( cell, annotation) => {
+          let cellAttr = 'data-code-cell="' + cell + '"';
+          let lineAttr = 'data-code-annotation="' +  annotation + '"';
+          const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+          return selector;
+        }
+        const selectCodeLines = (annoteEl) => {
+          const doc = window.document;
+          const targetCell = annoteEl.getAttribute("data-target-cell");
+          const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+          const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+          const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+          const lineIds = lines.map((line) => {
+            return targetCell + "-" + line;
+          })
+          let top = null;
+          let height = null;
+          let parent = null;
+          if (lineIds.length > 0) {
+              //compute the position of the single el (top and bottom and make a div)
+              const el = window.document.getElementById(lineIds[0]);
+              top = el.offsetTop;
+              height = el.offsetHeight;
+              parent = el.parentElement.parentElement;
+            if (lineIds.length > 1) {
+              const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+              const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+              height = bottom - top;
+            }
+            if (top !== null && height !== null && parent !== null) {
+              // cook up a div (if necessary) and position it 
+              let div = window.document.getElementById("code-annotation-line-highlight");
+              if (div === null) {
+                div = window.document.createElement("div");
+                div.setAttribute("id", "code-annotation-line-highlight");
+                div.style.position = 'absolute';
+                parent.appendChild(div);
+              }
+              div.style.top = top - 2 + "px";
+              div.style.height = height + 4 + "px";
+              div.style.left = 0;
+              let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+              if (gutterDiv === null) {
+                gutterDiv = window.document.createElement("div");
+                gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+                gutterDiv.style.position = 'absolute';
+                const codeCell = window.document.getElementById(targetCell);
+                const gutter = codeCell.querySelector('.code-annotation-gutter');
+                gutter.appendChild(gutterDiv);
+              }
+              gutterDiv.style.top = top - 2 + "px";
+              gutterDiv.style.height = height + 4 + "px";
+            }
+            selectedAnnoteEl = annoteEl;
+          }
+        };
+        const unselectCodeLines = () => {
+          const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+          elementsIds.forEach((elId) => {
+            const div = window.document.getElementById(elId);
+            if (div) {
+              div.remove();
+            }
+          });
+          selectedAnnoteEl = undefined;
+        };
+          // Handle positioning of the toggle
+      window.addEventListener(
+        "resize",
+        throttle(() => {
+          elRect = undefined;
+          if (selectedAnnoteEl) {
+            selectCodeLines(selectedAnnoteEl);
+          }
+        }, 10)
+      );
+      function throttle(fn, ms) {
+      let throttle = false;
+      let timer;
+        return (...args) => {
+          if(!throttle) { // first call gets through
+              fn.apply(this, args);
+              throttle = true;
+          } else { // all the others get throttled
+              if(timer) clearTimeout(timer); // cancel #2
+              timer = setTimeout(() => {
+                fn.apply(this, args);
+                timer = throttle = false;
+              }, ms);
+          }
+        };
+      }
+        // Attach click handler to the DT
+        const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+        for (const annoteDlNode of annoteDls) {
+          annoteDlNode.addEventListener('click', (event) => {
+            const clickedEl = event.target;
+            if (clickedEl !== selectedAnnoteEl) {
+              unselectCodeLines();
+              const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+              if (activeEl) {
+                activeEl.classList.remove('code-annotation-active');
+              }
+              selectCodeLines(clickedEl);
+              clickedEl.classList.add('code-annotation-active');
+            } else {
+              // Unselect the line
+              unselectCodeLines();
+              clickedEl.classList.remove('code-annotation-active');
+            }
+          });
+        }
+    const findCites = (el) => {
+      const parentEl = el.parentElement;
+      if (parentEl) {
+        const cites = parentEl.dataset.cites;
+        if (cites) {
+          return {
+            el,
+            cites: cites.split(' ')
+          };
+        } else {
+          return findCites(el.parentElement)
+        }
+      } else {
+        return undefined;
+      }
+    };
+    var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+    for (var i=0; i<bibliorefs.length; i++) {
+      const ref = bibliorefs[i];
+      const citeInfo = findCites(ref);
+      if (citeInfo) {
+        tippyHover(citeInfo.el, function() {
+          var popup = window.document.createElement('div');
+          citeInfo.cites.forEach(function(cite) {
+            var citeDiv = window.document.createElement('div');
+            citeDiv.classList.add('hanging-indent');
+            citeDiv.classList.add('csl-entry');
+            var biblioDiv = window.document.getElementById('ref-' + cite);
+            if (biblioDiv) {
+              citeDiv.innerHTML = biblioDiv.innerHTML;
+            }
+            popup.appendChild(citeDiv);
+          });
+          return popup.innerHTML;
+        });
+      }
+    }
+  });
+  </script>
+<nav class="page-navigation">
+  <div class="nav-page nav-page-previous">
+      <a href="../lectures/week05.html" class="pagination-link" aria-label="Week 5: Convolutional Networks, Normalization, and Residual Connections">
+        <i class="bi bi-arrow-left-short"></i> <span class="nav-page-text"><span class="chapter-title">Week 5: Convolutional Networks, Normalization, and Residual Connections</span></span>
+      </a>          
+  </div>
+  <div class="nav-page nav-page-next">
+      <a href="../glossary.html" class="pagination-link" aria-label="Glossary">
+        <span class="nav-page-text"><span class="chapter-title">Glossary</span></span> <i class="bi bi-arrow-right-short"></i>
+      </a>
+  </div>
+</nav>
+</div> <!-- /content -->
+
+
+
+
+<script src="../site_libs/quarto-html/zenscroll-min.js"></script>
+</body></html>

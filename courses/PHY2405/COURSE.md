@@ -16,8 +16,10 @@ The user is a complete beginner to experimental high energy physics and accelera
 
 - Course site: https://www.physics.utoronto.ca/~phy2405/ (plain text, not a hyperlink; Wikipedia is the only hyperlink target in these notes)
 - Lecture slides and readings live in `sources/weekN/` (gitignored binaries).
+- Problem sets live in `sources/Problem Sets/` (gitignored binaries). Every course page may read this folder as context, and should note which problem set it draws on. It is context only: do not reproduce or solve its items.
 - Week 1 sources: an intro slide deck for the non-collider half, a handout of scanned pages (definition of HEP, the archetypal experiment, LEP, DELPHI and CDF diagrams), and the course outline (logistics skipped).
 - Week 2 sources: handwritten accelerator lecture notes (LHC-updated) and a set of textbook figure pages (Edwards and Syphers). No homework sheet supplied; the notes reference Problems 1c and 2c.
+- Week 4 sources: two slide decks, *Laboratories for rare event search experiments* (designing an ideal WIMP experiment) and *Battle with noise: Cooling it down* (cryogenics). Related set: eHEP Homework 2, items 1–3.
 
 ## Book
 
@@ -25,6 +27,7 @@ The user is a complete beginner to experimental high energy physics and accelera
 - **Title:** "Experimental Methods in High Energy Physics Notes"
 - **Expected week count:** 12 (assumed; edit when the syllabus is known)
 - **Chapters:** `lectures/weekNN.qmd` (source of truth). Do not keep a parallel week markdown file.
+- **Exception, problem-set pages:** at times, make one page per problem set in `sources/Problem Sets/`. These are beginner-facing guidance on the concepts the set exercises, with no worked answers to its items. Name each page and register it in `_quarto.yml` after the week it belongs to; record the chosen name here when it is created. These pages are not week chapters, so the rule above does not apply to them.
 - **Published URL:** `https://amcwong.github.io/amcw-claude-code-workflow/courses/PHY2405/` (after `/deploy-course-notes` + push + GitHub Pages enabled)
 
 ## Design system (book page)
