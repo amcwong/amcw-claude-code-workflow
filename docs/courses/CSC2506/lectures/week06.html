@@ -1,0 +1,1430 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.10.18">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+
+<title>Week 6: HMMs and Variational Inference I – CSC412/2506: Probabilistic Machine Learning notes</title>
+<style>
+/* Default styles provided by pandoc.
+** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
+*/
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: 1.5em;}
+div.column{flex: auto;}
+@media screen {
+div.columns{gap: min(4vw, 1.5em);}
+div.column{overflow-x: auto;}
+}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+</style>
+
+
+<script src="../site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="../site_libs/quarto-nav/headroom.min.js"></script>
+<script src="../site_libs/clipboard/clipboard.min.js"></script>
+<script src="../site_libs/quarto-search/autocomplete.umd.js"></script>
+<script src="../site_libs/quarto-search/fuse.min.js"></script>
+<script src="../site_libs/quarto-search/quarto-search.js"></script>
+<meta name="quarto:offset" content="../">
+<link href="../lectures/week06-practice.html" rel="next">
+<link href="../lectures/week05-practice.html" rel="prev">
+<script src="../site_libs/quarto-html/quarto.js" type="module"></script>
+<script src="../site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
+<script src="../site_libs/quarto-html/popper.min.js"></script>
+<script src="../site_libs/quarto-html/tippy.umd.min.js"></script>
+<script src="../site_libs/quarto-html/anchor.min.js"></script>
+<link href="../site_libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="../site_libs/quarto-html/quarto-syntax-highlighting-bb62276ab45c84d9efd712f51ff97b5a.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<script src="../site_libs/bootstrap/bootstrap.min.js"></script>
+<link href="../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="../site_libs/bootstrap/bootstrap-ce0958bf53307a1b0bb60f85d87db72f.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
+<script id="quarto-search-options" type="application/json">{
+  "location": "sidebar",
+  "copy-button": false,
+  "collapse-after": 3,
+  "panel-placement": "start",
+  "type": "textbox",
+  "limit": 50,
+  "keyboard-shortcut": [
+    "f",
+    "/",
+    "s"
+  ],
+  "show-item-context": false,
+  "language": {
+    "search-no-results-text": "No results",
+    "search-matching-documents-text": "matching documents",
+    "search-copy-link-title": "Copy link to search",
+    "search-hide-matches-text": "Hide additional matches",
+    "search-more-match-text": "more match in this document",
+    "search-more-matches-text": "more matches in this document",
+    "search-clear-button-title": "Clear",
+    "search-text-placeholder": "",
+    "search-detached-cancel-button-title": "Cancel",
+    "search-submit-button-title": "Submit",
+    "search-label": "Search"
+  }
+}</script>
+<style>html{ scroll-behavior: smooth; }</style>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+<link href="https://fonts.googleapis.com/css2?family=Source+Code+Pro:wght@400;600&amp;family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&amp;display=swap" rel="stylesheet">
+
+  <script>window.backupDefine = window.define; window.define = undefined;</script><script src="https://cdn.jsdelivr.net/npm/katex@latest/dist/katex.min.js"></script>
+  <script>document.addEventListener("DOMContentLoaded", function () {
+ var mathElements = document.getElementsByClassName("math");
+ var macros = [];
+ for (var i = 0; i < mathElements.length; i++) {
+  var texText = mathElements[i].firstChild;
+  if (mathElements[i].tagName == "SPAN") {
+   katex.render(texText.data, mathElements[i], {
+    displayMode: mathElements[i].classList.contains('display'),
+    throwOnError: false,
+    macros: macros,
+    fleqn: false
+   });
+}}});
+  </script>
+  <script>window.define = window.backupDefine; window.backupDefine = undefined;</script><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@latest/dist/katex.min.css">
+
+<script type="text/javascript">
+const typesetMath = (el) => {
+  if (window.MathJax) {
+    // MathJax Typeset
+    window.MathJax.typeset([el]);
+  } else if (window.katex) {
+    // KaTeX Render
+    var mathElements = el.getElementsByClassName("math");
+    var macros = [];
+    for (var i = 0; i < mathElements.length; i++) {
+      var texText = mathElements[i].firstChild;
+      if (mathElements[i].tagName == "SPAN" && texText && texText.data) {
+        window.katex.render(texText.data, mathElements[i], {
+          displayMode: mathElements[i].classList.contains('display'),
+          throwOnError: false,
+          macros: macros,
+          fleqn: false
+        });
+      }
+    }
+  }
+}
+window.Quarto = {
+  typesetMath
+};
+</script>
+
+<link rel="stylesheet" href="../styles/custom.css">
+</head>
+
+<body class="nav-sidebar floating quarto-light">
+
+<div id="quarto-search-results"></div>
+  <header id="quarto-header" class="headroom fixed-top">
+  <nav class="quarto-secondary-nav">
+    <div class="container-fluid d-flex">
+      <button type="button" class="quarto-btn-toggle btn" data-bs-toggle="collapse" role="button" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+        <i class="bi bi-layout-text-sidebar-reverse"></i>
+      </button>
+        <nav class="quarto-page-breadcrumbs" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../lectures/week06.html"><span class="chapter-title">Week 6: HMMs and Variational Inference I</span></a></li></ol></nav>
+        <a class="flex-grow-1" role="navigation" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">      
+        </a>
+      <button type="button" class="btn quarto-search-button" aria-label="Search" onclick="window.quartoOpenSearch();">
+        <i class="bi bi-search"></i>
+      </button>
+    </div>
+  </nav>
+</header>
+<!-- content -->
+<div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-article">
+<!-- sidebar -->
+  <nav id="quarto-sidebar" class="sidebar collapse collapse-horizontal quarto-sidebar-collapse-item sidebar-navigation floating overflow-auto">
+    <div class="pt-lg-2 mt-2 text-left sidebar-header">
+    <div class="sidebar-title mb-0 py-0">
+      <a href="../">CSC412/2506: Probabilistic Machine Learning notes</a> 
+        <div class="sidebar-tools-main">
+    <a href="https://amcwong.github.io/amcw-claude-code-workflow/" title="All course notes" class="quarto-navigation-tool px-1" aria-label="All course notes"><i class="bi bi-house-door"></i></a>
+</div>
+    </div>
+      </div>
+        <div class="mt-2 flex-shrink-0 align-items-center">
+        <div class="sidebar-search">
+        <div id="quarto-search" class="" title="Search"></div>
+        </div>
+        </div>
+    <div class="sidebar-menu-container"> 
+    <ul class="list-unstyled mt-1">
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../index.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">CSC412/2506 Probabilistic Machine Learning</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../lectures/week01.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Week 1: Introduction and Probabilistic Models</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../lectures/week01-practice.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Week 1 practice: Introduction and probabilistic models</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../lectures/week02.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Week 2: Decision Theory and Graphical Models</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../lectures/week02-practice.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Week 2 practice: Decision theory and graphical models</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../lectures/week03.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Week 3: Markov Random Fields and Exact Inference</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../lectures/week03-practice.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Week 3 practice: Markov random fields and exact inference</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../lectures/week04.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Week 4: Message Passing and Monte Carlo</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../lectures/week04-practice.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Week 4 practice: Message passing and Monte Carlo</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../lectures/week05.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Week 5: Sampling with MCMC</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../lectures/week05-practice.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Week 5 practice: Sampling with MCMC</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../lectures/week06.html" class="sidebar-item-text sidebar-link active"><span class="chapter-title">Week 6: HMMs and Variational Inference I</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../lectures/week06-practice.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Week 6 practice: HMMs and Variational Inference I</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../glossary.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Glossary</span></a>
+  </div>
+</li>
+    </ul>
+    </div>
+</nav>
+<div id="quarto-sidebar-glass" class="quarto-sidebar-collapse-item" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item"></div>
+<!-- margin-sidebar -->
+    <div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
+        <nav id="TOC" role="doc-toc" class="toc-active">
+    <h2 id="toc-title">On this page</h2>
+   
+  <ul>
+  <li><a href="#sec-hmm-motivate" id="toc-sec-hmm-motivate" class="nav-link active" data-scroll-target="#sec-hmm-motivate">From Markov chains to hidden states</a></li>
+  <li><a href="#sec-hmm" id="toc-sec-hmm" class="nav-link" data-scroll-target="#sec-hmm">Hidden Markov models</a></li>
+  <li><a href="#sec-hmm-goals" id="toc-sec-hmm-goals" class="nav-link" data-scroll-target="#sec-hmm-goals">Two inference questions</a></li>
+  <li><a href="#sec-forward" id="toc-sec-forward" class="nav-link" data-scroll-target="#sec-forward">The forward algorithm</a></li>
+  <li><a href="#sec-fb" id="toc-sec-fb" class="nav-link" data-scroll-target="#sec-fb">The forward-backward algorithm</a></li>
+  <li><a href="#sec-hmm-example" id="toc-sec-hmm-example" class="nav-link" data-scroll-target="#sec-hmm-example">Worked example: a two-state HMM</a></li>
+  <li><a href="#sec-viterbi" id="toc-sec-viterbi" class="nav-link" data-scroll-target="#sec-viterbi">The Viterbi algorithm</a></li>
+  <li><a href="#sec-latent-post" id="toc-sec-latent-post" class="nav-link" data-scroll-target="#sec-latent-post">Posterior inference in latent variable models</a></li>
+  <li><a href="#sec-trueskill-post" id="toc-sec-trueskill-post" class="nav-link" data-scroll-target="#sec-trueskill-post">What the TrueSkill posterior looks like</a></li>
+  <li><a href="#sec-hard-post" id="toc-sec-hard-post" class="nav-link" data-scroll-target="#sec-hard-post">Why the posterior is hard</a></li>
+  <li><a href="#sec-vi" id="toc-sec-vi" class="nav-link" data-scroll-target="#sec-vi">Variational methods</a></li>
+  <li><a href="#sec-jensen" id="toc-sec-jensen" class="nav-link" data-scroll-target="#sec-jensen">Jensen’s inequality</a></li>
+  <li><a href="#sec-kl" id="toc-sec-kl" class="nav-link" data-scroll-target="#sec-kl">The KL divergence</a></li>
+  <li><a href="#sec-projections" id="toc-sec-projections" class="nav-link" data-scroll-target="#sec-projections">Which direction? I-projection and M-projection</a>
+  <ul class="collapse">
+  <li><a href="#sec-proj-tutorial" id="toc-sec-proj-tutorial" class="nav-link" data-scroll-target="#sec-proj-tutorial">Tutorial example: fitting a Gaussian to a two-component mixture</a></li>
+  </ul></li>
+  <li><a href="#sec-why-iproj" id="toc-sec-why-iproj" class="nav-link" data-scroll-target="#sec-why-iproj">Why variational inference uses the I-projection</a></li>
+  <li><a href="#sec-elbo" id="toc-sec-elbo" class="nav-link" data-scroll-target="#sec-elbo">Tutorial: reverse KL and the ELBO</a></li>
+  <li><a href="#sec-mf-mrf" id="toc-sec-mf-mrf" class="nav-link" data-scroll-target="#sec-mf-mrf">Mean field for an MRF</a></li>
+  <li><a href="#sec-naive-mf" id="toc-sec-naive-mf" class="nav-link" data-scroll-target="#sec-naive-mf">Naive mean field</a></li>
+  <li><a href="#sec-coord-ascent" id="toc-sec-coord-ascent" class="nav-link" data-scroll-target="#sec-coord-ascent">Pairwise MRFs and coordinate ascent</a>
+  <ul class="collapse">
+  <li><a href="#sec-lagrange" id="toc-sec-lagrange" class="nav-link" data-scroll-target="#sec-lagrange">Lagrange multipliers</a></li>
+  <li><a href="#sec-mf-update" id="toc-sec-mf-update" class="nav-link" data-scroll-target="#sec-mf-update">The coordinate update</a></li>
+  </ul></li>
+  <li><a href="#sec-summary6" id="toc-sec-summary6" class="nav-link" data-scroll-target="#sec-summary6">Summary</a></li>
+  <li><a href="#quick-self-check" id="toc-quick-self-check" class="nav-link" data-scroll-target="#quick-self-check">Quick self-check</a></li>
+  </ul>
+</nav>
+    </div>
+<!-- main -->
+<main class="content" id="quarto-document-content">
+
+<header id="title-block-header" class="quarto-title-block default">
+<div class="quarto-title">
+<h1 class="title"><span class="chapter-title">Week 6: HMMs and Variational Inference I</span></h1>
+</div>
+
+
+
+<div class="quarto-title-meta">
+
+    
+  
+    
+  </div>
+  
+
+
+</header>
+
+
+<style>#title-block-header { display: none; }</style>
+<div class="lecture-header">
+  <h1>Week 6: HMMs and Variational Inference I</h1>
+</div>
+<p><strong>Overview.</strong> This lecture has two halves joined by one theme: computing with a posterior over unobserved variables. The first half returns to the Markov chains of Week 5, but hides the chain. In a <strong>hidden Markov model</strong> the states <span class="math inline">z_1,\dots,z_T</span> form a Markov chain we never see, and each state emits an observation <span class="math inline">x_t</span> we do see. Two recursions exploit the chain structure: the <strong>forward-backward algorithm</strong> computes the posterior of each hidden state, and the <strong>Viterbi algorithm</strong> finds the single most probable hidden sequence. Both cost time linear in <span class="math inline">T</span> instead of exponential. The second half turns to models where no such recursion exists, such as the TrueSkill model of Week 4. There the posterior <span class="math inline">p(z\mid x)</span> needs a normalizing constant we cannot compute. Week 5 answered with sampling (MCMC). This week starts a second answer, <strong>variational inference</strong>: pick a tractable family of distributions and find the member closest to the posterior, with closeness measured by the <strong>KL divergence</strong>. The two directions of KL behave differently, and the lecture ends with the <strong>naive mean-field</strong> method for MRFs (Week 3), which turns inference into a coordinate-wise optimization.</p>
+<p>Skipped: the title slide and the announcements slide (assignment and midterm logistics). The two agenda slides (slides 2 and 16) became the paragraph above, and the two summary slides (15 and 36) are folded into <a href="#sec-summary6" class="quarto-xref"><span>Summary</span></a>.</p>
+<section id="sec-hmm-motivate" class="level2">
+<h2 class="anchored" data-anchor-id="sec-hmm-motivate">From Markov chains to hidden states</h2>
+<p>Week 5 (<a href="week05.html#sec-markov" class="quarto-xref"><span>Markov chains</span></a> in Week 5) modelled sequential data, such as stock prices, speech, video, text, or gene sequences, without assuming the values are independent. The chain rule factorizes any sequence exactly,</p>
+<p><span class="math display">p(x_{1:T}) = \prod_{t=1}^T p(x_t\mid x_{t-1},\dots,x_1), \qquad p(x_1\mid x_0) := p(x_1),</span></p>
+<p>but each factor conditions on the whole history, which quickly becomes intractable. The first-order Markov assumption <span class="math inline">p(x_t\mid x_{1:t-1}) = p(x_t\mid x_{t-1})</span> cut every factor down to one step.</p>
+<p>That assumption is sometimes too restrictive. Often what evolves step by step is not the thing we measure but some underlying condition that we never observe directly, and the measurements only reflect it. If we force a Markov chain onto the measurements themselves, the one-step dependence has to carry all of the history the hidden condition would have carried. The lecture’s fix is to put the Markov chain on <strong>latent variables</strong> (Week 4, <a href="week04.html#sec-trueskill" class="quarto-xref"><span>Latent variables and the TrueSkill model</span></a> in Week 4: unobserved variables that govern the observed data) and let each observation depend only on the latent state at its own time step. This is the hidden Markov model, which Week 2 previewed (<a href="week02.html#sec-wilddgm" class="quarto-xref"><span>DGMs in the wild, briefly</span></a> in Week 2).</p>
+</section>
+<section id="sec-hmm" class="level2">
+<h2 class="anchored" data-anchor-id="sec-hmm">Hidden Markov models</h2>
+<div class="definition-block">
+<p><strong>Definition.</strong> A <strong><a href="https://en.wikipedia.org/wiki/Hidden_Markov_model">hidden Markov model</a> (HMM)</strong> pairs each observation <span class="math inline">x_t</span> with an unobserved <strong>hidden state</strong> <span class="math inline">z_t</span>, for <span class="math inline">t=1,\dots,T</span>. The hidden states form a first-order Markov chain, and each observation depends only on the hidden state at the same time: <span class="math display">p(x_{1:T}, z_{1:T}) = p(z_1)\prod_{t=2}^T p(z_t\mid z_{t-1})\prod_{t=1}^T p(x_t\mid z_t).</span></p>
+</div>
+<p>The first two factors are exactly a Week 5 Markov chain on <span class="math inline">z</span>. The last product adds one <strong>emission</strong> factor per time step: the hidden state “emits” the observation. The lecture’s phrase is that an HMM hides the temporal dependence by keeping it in the unobserved state. The observations <span class="math inline">x_t</span> are not a Markov chain on their own: once <span class="math inline">z</span> is summed out, <span class="math inline">x_t</span> can depend on the entire past.</p>
+<div style="overflow-x:auto; margin:1.5rem 0;">
+<svg viewbox="0 0 520 270" width="100%" style="max-width:520px;display:block;margin:auto;font-family:Helvetica,'Helvetica Neue',Arial,sans-serif;" role="img" aria-label="A hidden Markov model. A chain of hidden states z1, z2, up to zT, each with an arrow to the next, and each with an arrow down to its observation x1, x2, up to xT. Observations are shaded.">
+  <defs>
+    <marker id="arrW6a" markerwidth="8" markerheight="8" refx="7" refy="4" orient="auto">
+      <path d="M0,0 L0,8 L8,4 z" fill="#555"></path>
+    </marker>
+  </defs>
+  <text x="260" y="32" text-anchor="middle" font-size="24" font-weight="600" fill="#333">A hidden Markov model</text>
+  <line x1="122" y1="100" x2="196" y2="100" stroke="#555" stroke-width="1.6" marker-end="url(#arrW6a)"></line>
+  <line x1="242" y1="100" x2="296" y2="100" stroke="#555" stroke-width="1.6" marker-end="url(#arrW6a)"></line>
+  <line x1="352" y1="100" x2="396" y2="100" stroke="#555" stroke-width="1.6" marker-end="url(#arrW6a)"></line>
+  <text x="324" y="106" text-anchor="middle" font-size="20" fill="#555">…</text>
+  <line x1="100" y1="122" x2="100" y2="176" stroke="#555" stroke-width="1.6" marker-end="url(#arrW6a)"></line>
+  <line x1="220" y1="122" x2="220" y2="176" stroke="#555" stroke-width="1.6" marker-end="url(#arrW6a)"></line>
+  <line x1="420" y1="122" x2="420" y2="176" stroke="#555" stroke-width="1.6" marker-end="url(#arrW6a)"></line>
+  <circle cx="100" cy="100" r="22" fill="#C9E4DE" stroke="#57C7AE" stroke-width="2"></circle>
+  <circle cx="220" cy="100" r="22" fill="#C9E4DE" stroke="#57C7AE" stroke-width="2"></circle>
+  <circle cx="420" cy="100" r="22" fill="#C9E4DE" stroke="#57C7AE" stroke-width="2"></circle>
+  <text x="100" y="106" text-anchor="middle" font-size="17" fill="#207965">z1</text>
+  <text x="220" y="106" text-anchor="middle" font-size="17" fill="#207965">z2</text>
+  <text x="420" y="106" text-anchor="middle" font-size="17" fill="#207965">zT</text>
+  <circle cx="100" cy="200" r="22" fill="#5795C7" stroke="#205279" stroke-width="2"></circle>
+  <circle cx="220" cy="200" r="22" fill="#5795C7" stroke="#205279" stroke-width="2"></circle>
+  <circle cx="420" cy="200" r="22" fill="#5795C7" stroke="#205279" stroke-width="2"></circle>
+  <text x="100" y="206" text-anchor="middle" font-size="17" fill="#fff">x1</text>
+  <text x="220" y="206" text-anchor="middle" font-size="17" fill="#fff">x2</text>
+  <text x="420" y="206" text-anchor="middle" font-size="17" fill="#fff">xT</text>
+  <text x="324" y="206" text-anchor="middle" font-size="20" fill="#555">…</text>
+  <text x="480" y="106" text-anchor="start" font-size="15" fill="#207965">hidden</text>
+  <text x="480" y="206" text-anchor="start" font-size="15" fill="#205279">observed</text>
+</svg>
+</div>
+<p><strong>Figure 1.</strong> After the lecture’s HMM diagram. Hidden states (light) form a Markov chain; each emits one observation (shaded, because it is observed).</p>
+<p>Reading the graph with Week 2’s rules (<a href="week02.html#sec-cistructures" class="quarto-xref"><span>Conditional independence: three canonical structures</span></a> in Week 2): every path from the past to the future passes through the current hidden state <span class="math inline">z_t</span>, and <span class="math inline">z_t</span> is a chain or fork node on that path. So <strong>observing <span class="math inline">z_t</span> separates the past from the future</strong>. The recursions below use exactly this fact, in three forms:</p>
+<ul>
+<li><span class="math inline">x_t \perp x_{1:t-1} \mid z_t</span> (an observation depends only on its own state),</li>
+<li><span class="math inline">z_t \perp x_{1:t-1} \mid z_{t-1}</span> (the next state depends only on the current state),</li>
+<li><span class="math inline">x_{t+1:T} \perp x_{1:t} \mid z_t</span> (the future observations depend on the past only through <span class="math inline">z_t</span>).</li>
+</ul>
+<p>As in Week 5, we assume the model is <strong>homogeneous</strong> (stationary): the transition and emission distributions do not change with <span class="math inline">t</span>. With <span class="math inline">K</span> hidden states, <span class="math inline">z_t\in\{1,\dots,K\}</span>, the model is then specified by three sets of distributions.</p>
+<div class="definition-block">
+<p><strong>Definition.</strong> The parameters of a homogeneous HMM with <span class="math inline">K</span> hidden states are:</p>
+<ol type="1">
+<li>the <strong>initial distribution</strong> <span class="math inline">\pi(i) = p(z_1 = i)</span>, the probability that the first hidden state is <span class="math inline">i</span>;</li>
+<li>the <strong>transition matrix</strong> <span class="math inline">\Psi(i,j) = p(z_{t+1}=j\mid z_t=i)</span> for <span class="math inline">i,j\in\{1,\dots,K\}</span>, the probability of moving from hidden state <span class="math inline">i</span> to hidden state <span class="math inline">j</span>;</li>
+<li>the <strong>emission probabilities</strong> <span class="math inline">\psi_t(i) = p(x_t\mid z_t=i)</span>, the probability of the observed <span class="math inline">x_t</span> given the hidden state that emitted it.</li>
+</ol>
+</div>
+<p><span class="math inline">\Psi</span> is Week 5’s transition matrix <span class="math inline">A</span> under a new name (<a href="week05.html#sec-transition" class="quarto-xref"><span>Transition matrices and state transition diagrams</span></a> in Week 5): row <span class="math inline">i</span> is the distribution of the next state given state <span class="math inline">i</span>, so each row sums to 1.</p>
+<p>The emission vector <span class="math inline">\psi_t</span> is easy to misread. The observation <span class="math inline">x_t</span> is fixed (we have seen it), so <span class="math inline">\psi_t</span> is a vector of <span class="math inline">K</span> numbers, one per possible hidden state, each saying how well that state explains what we saw at time <span class="math inline">t</span>. As a function of <span class="math inline">i</span> it is a <strong>likelihood</strong>, not a distribution: its entries need not sum to 1. The subscript <span class="math inline">t</span> is there because the observed value changes with <span class="math inline">t</span>, not because the emission distribution does.</p>
+</section>
+<section id="sec-hmm-goals" class="level2">
+<h2 class="anchored" data-anchor-id="sec-hmm-goals">Two inference questions</h2>
+<p>Given the parameters and an observed sequence <span class="math inline">x_{1:T}</span>, the lecture asks two questions about the hidden states.</p>
+<ol type="1">
+<li><strong>Marginal posteriors.</strong> For each <span class="math inline">t</span>, what is <span class="math inline">p(z_t\mid x_{1:T})</span>, the distribution of the hidden state at time <span class="math inline">t</span> given all the observations, before and after <span class="math inline">t</span>? The <strong>forward-backward algorithm</strong> answers this.</li>
+<li><strong>The most probable sequence.</strong> Which whole hidden sequence is most probable given the observations, <span class="math display">z^\star = \arg\max_{z_{1:T}} p(z_{1:T}\mid x_{1:T})?</span> This is <strong><a href="https://en.wikipedia.org/wiki/Maximum_a_posteriori_estimation">maximum a posteriori (MAP)</a> inference</strong>, and the <strong>Viterbi algorithm</strong> answers it.</li>
+</ol>
+<p>Both could be answered by brute force: list all <span class="math inline">K^T</span> hidden sequences, compute the joint probability of each from the factorization, then sum or maximize. That is exponential in <span class="math inline">T</span>. Both algorithms below instead cost on the order of <span class="math inline">TK^2</span> operations, by working through the chain one step at a time.</p>
+</section>
+<section id="sec-forward" class="level2">
+<h2 class="anchored" data-anchor-id="sec-forward">The forward algorithm</h2>
+<p>We start with an easier question: the posterior of <span class="math inline">z_t</span> given only the observations <strong>up to</strong> time <span class="math inline">t</span>.</p>
+<div class="definition-block">
+<p><strong>Definition.</strong> The <strong>forward vector</strong> at time <span class="math inline">t</span> is the probability vector <span class="math display">\alpha_t(j) = p(z_t = j\mid x_{1:t}), \qquad j=1,\dots,K.</span></p>
+</div>
+<p>Computing <span class="math inline">\alpha_t</span> from left to right is often called <strong>filtering</strong>: at each step we update our belief about the current state using the newest observation.</p>
+<p>The recursion is written with one more piece of notation.</p>
+<div class="definition-block">
+<p><strong>Definition.</strong> The <strong><a href="https://en.wikipedia.org/wiki/Hadamard_product_(matrices)">Hadamard product</a></strong> <span class="math inline">u\odot v</span> of two vectors of the same length is their entrywise product, <span class="math inline">(u\odot v)(j) = u(j)\,v(j)</span>.</p>
+</div>
+<div class="boxed-eq">
+<p><span class="math display">\alpha_1 \propto \psi_1\odot\pi, \qquad \alpha_t \propto \psi_t\odot\left(\Psi^\top\alpha_{t-1}\right)\quad (t&gt;1).</span></p>
+</div>
+<p>Each <span class="math inline">\propto</span> means “rescale so the entries sum to 1”. In words: push yesterday’s belief one step through the chain (<span class="math inline">\Psi^\top\alpha_{t-1}</span>), then reweight each state by how well it explains today’s observation (<span class="math inline">\psi_t</span>), then renormalize. This is prediction followed by a Bayes-rule update.</p>
+<p><strong>Derivation, <span class="math inline">t=1</span>.</strong> By Bayes’ rule, for any state <span class="math inline">j</span>,</p>
+<p><span class="math display">\alpha_1(j) = p(z_1=j\mid x_1) = \frac{p(x_1\mid z_1=j)\,p(z_1=j)}{p(x_1)} \propto \psi_1(j)\,\pi(j).</span></p>
+<p>The denominator <span class="math inline">p(x_1)</span> does not depend on <span class="math inline">j</span>, so it is absorbed by the normalization.</p>
+<p><strong>Derivation, <span class="math inline">t&gt;1</span>.</strong> Bayes’ rule again, now treating <span class="math inline">x_{1:t-1}</span> as already given:</p>
+<p><span class="math display">
+\begin{aligned}
+\alpha_t(j) &amp;= p(z_t=j\mid x_{1:t}) \\
+&amp;\propto p(x_t\mid z_t=j)\;p(z_t=j\mid x_{1:t-1}).
+\end{aligned}
+</span></p>
+<p>The first factor dropped <span class="math inline">x_{1:t-1}</span> from the conditioning because <span class="math inline">x_t\perp x_{1:t-1}\mid z_t</span>, so it is <span class="math inline">\psi_t(j)</span>. For the second factor, sum over the previous state <span class="math inline">z_{t-1}=i</span>:</p>
+<p><span class="math display">
+\begin{aligned}
+p(z_t=j\mid x_{1:t-1}) &amp;= \sum_i p(z_t=j\mid z_{t-1}=i, x_{1:t-1})\,p(z_{t-1}=i\mid x_{1:t-1}) \\
+&amp;= \sum_i p(z_t=j\mid z_{t-1}=i)\;p(z_{t-1}=i\mid x_{1:t-1}) \\
+&amp;= \sum_i \Psi(i,j)\,\alpha_{t-1}(i).
+\end{aligned}
+</span></p>
+<p>The second line used <span class="math inline">z_t\perp x_{1:t-1}\mid z_{t-1}</span>, and the third recognizes the two factors as <span class="math inline">\Psi(i,j)</span> and <span class="math inline">\alpha_{t-1}(i)</span>. Putting the pieces together,</p>
+<p><span class="math display">\alpha_t(j) \propto \psi_t(j)\sum_i \Psi(i,j)\,\alpha_{t-1}(i).</span></p>
+<p>The sum <span class="math inline">\sum_i\Psi(i,j)\alpha_{t-1}(i)</span> is entry <span class="math inline">j</span> of <span class="math inline">\Psi^\top\alpha_{t-1}</span>, which is Week 5’s update <span class="math inline">p(x_t=j)=\sum_i A_{ij}\,p(x_{t-1}=i)</span> applied to beliefs instead of unconditional probabilities.</p>
+<p>Each step multiplies a <span class="math inline">K\times K</span> matrix by a vector, so filtering all <span class="math inline">T</span> steps costs on the order of <span class="math inline">TK^2</span> operations.</p>
+</section>
+<section id="sec-fb" class="level2">
+<h2 class="anchored" data-anchor-id="sec-fb">The forward-backward algorithm</h2>
+<p>The forward vector uses only the past. What we often actually want is the posterior of each hidden state given <strong>all</strong> the observations,</p>
+<p><span class="math display">\gamma_t(i) = p(z_t=i\mid x_{1:T}) \qquad\text{for every } t,</span></p>
+<p>assuming, as before, that <span class="math inline">\pi</span>, <span class="math inline">\Psi</span>, and the emissions are known. Computing <span class="math inline">\gamma_t</span> is often called <strong>smoothing</strong>. The later observations <span class="math inline">x_{t+1:T}</span> carry information about <span class="math inline">z_t</span>, so we need a second vector that summarizes them.</p>
+<div class="definition-block">
+<p><strong>Definition.</strong> The <strong>backward vector</strong> at time <span class="math inline">t</span> is <span class="math display">\beta_t(i) = p(x_{t+1:T}\mid z_t=i), \qquad i=1,\dots,K,</span> the probability of the future observations given that the hidden state at time <span class="math inline">t</span> is <span class="math inline">i</span>.</p>
+</div>
+<p>Like <span class="math inline">\psi_t</span>, <span class="math inline">\beta_t</span> is a likelihood in <span class="math inline">i</span>, not a distribution, so its entries need not sum to 1.</p>
+<div class="algorithm">
+<p><strong><a href="https://en.wikipedia.org/wiki/Forward%E2%80%93backward_algorithm">Forward-backward algorithm</a></strong></p>
+<ol type="1">
+<li><strong>Forward pass.</strong> Compute <span class="math inline">\alpha_1,\dots,\alpha_T</span> with the recursion of <a href="#sec-forward" class="quarto-xref"><span>The forward algorithm</span></a>.</li>
+<li><strong>Backward pass.</strong> Set <span class="math inline">\beta_T(i)=1</span> for all <span class="math inline">i</span>. For <span class="math inline">t=T-1,\dots,1</span>, compute <span class="math display">\beta_t = \Psi\left(\psi_{t+1}\odot\beta_{t+1}\right).</span></li>
+<li><strong>Combine.</strong> For any <span class="math inline">t</span>, <span class="math inline">\gamma_t \propto \alpha_t\odot\beta_t</span>, normalized to sum to 1.</li>
+</ol>
+</div>
+<p>The convention <span class="math inline">\beta_T(i)=1</span> says that there are no future observations to explain after time <span class="math inline">T</span>. Note the matrix in the backward step is <span class="math inline">\Psi</span>, not <span class="math inline">\Psi^\top</span>: the backward pass runs the chain in reverse, so it sums over the <strong>next</strong> state <span class="math inline">j</span> for each current state <span class="math inline">i</span>, along row <span class="math inline">i</span> of <span class="math inline">\Psi</span>.</p>
+<p><strong>Why <span class="math inline">\gamma_t\propto\alpha_t\odot\beta_t</span>.</strong> Split the observations into past-and-present <span class="math inline">x_{1:t}</span> and future <span class="math inline">x_{t+1:T}</span>:</p>
+<p><span class="math display">
+\begin{aligned}
+\gamma_t = p(z_t\mid x_{1:T}) &amp;= p(z_t, x_{1:T})/p(x_{1:T}) \\
+&amp;\propto p(z_t, x_{1:T}) \\
+&amp;= p(z_t, x_{1:t})\,p(x_{t+1:T}\mid z_t, x_{1:t}) \\
+&amp;= p(z_t, x_{1:t})\,p(x_{t+1:T}\mid z_t) \\
+&amp;\propto \alpha_t\odot\beta_t.
+\end{aligned}
+</span></p>
+<p>The fourth line used <span class="math inline">x_{t+1:T}\perp x_{1:t}\mid z_t</span>. In the last line, <span class="math inline">p(z_t, x_{1:t}) = \alpha_t\,p(x_{1:t})</span> and <span class="math inline">p(x_{1:t})</span> does not depend on <span class="math inline">z_t</span>, so it is absorbed by the normalization.</p>
+<p><strong>Why the backward recursion holds.</strong> Sum over the next state <span class="math inline">z_{t+1}=j</span> and peel off one observation:</p>
+<p><span class="math display">
+\begin{aligned}
+\beta_t(i) &amp;= p(x_{t+1:T}\mid z_t=i) = \sum_j p(z_{t+1}=j,\ x_{t+1:T}\mid z_t=i) \\
+&amp;= \sum_j p(x_{t+2:T}\mid z_{t+1}=j, z_t=i, x_{t+1}) \\
+&amp;\qquad\quad\times p(x_{t+1}\mid z_{t+1}=j, z_t=i)\;p(z_{t+1}=j\mid z_t=i) \\
+&amp;= \sum_j p(x_{t+2:T}\mid z_{t+1}=j)\;p(x_{t+1}\mid z_{t+1}=j)\;p(z_{t+1}=j\mid z_t=i) \\
+&amp;= \sum_j \beta_{t+1}(j)\,\psi_{t+1}(j)\,\Psi(i,j).
+\end{aligned}
+</span></p>
+<p>The second line is the chain rule. The third drops everything that <span class="math inline">z_{t+1}</span> separates: given <span class="math inline">z_{t+1}</span>, the later observations no longer depend on <span class="math inline">z_t</span> or <span class="math inline">x_{t+1}</span>, and <span class="math inline">x_{t+1}</span> no longer depends on <span class="math inline">z_t</span>. The last line is entry <span class="math inline">i</span> of <span class="math inline">\Psi(\psi_{t+1}\odot\beta_{t+1})</span>.</p>
+<p>Forward-backward is the sum-product belief propagation of Week 4 (<a href="week04.html#sec-bp" class="quarto-xref"><span>Belief propagation on trees</span></a> in Week 4) run on a chain. The HMM graph is a tree, so two passes (one in each direction) give every marginal exactly. The <span class="math inline">\alpha</span>’s are the messages flowing forward in time and the <span class="math inline">\beta</span>’s are the messages flowing backward.</p>
+</section>
+<section id="sec-hmm-example" class="level2">
+<h2 class="anchored" data-anchor-id="sec-hmm-example">Worked example: a two-state HMM</h2>
+<p>The lecture gives the recursions without numbers. Here is a small teaching example with invented parameters, worked by hand. Two hidden states <span class="math inline">\{1,2\}</span>, binary observations <span class="math inline">x_t\in\{0,1\}</span>, and <span class="math inline">T=3</span>:</p>
+<p><span class="math display">
+\pi = \begin{pmatrix}0.5\\0.5\end{pmatrix}, \qquad
+\Psi = \begin{pmatrix}0.8 &amp; 0.2\\ 0.3 &amp; 0.7\end{pmatrix}, \qquad
+\begin{array}{c|cc} &amp; x=0 &amp; x=1\\\hline z=1 &amp; 0.8 &amp; 0.2\\ z=2 &amp; 0.4 &amp; 0.6\end{array}
+</span></p>
+<p>State 1 tends to emit 0 and state 2 tends to emit 1. Both states tend to stay put. We observe <span class="math inline">x_{1:3} = (0, 1, 1)</span>, so the emission vectors are the matching columns of the table:</p>
+<p><span class="math display">\psi_1 = \begin{pmatrix}0.8\\0.4\end{pmatrix}, \qquad \psi_2 = \psi_3 = \begin{pmatrix}0.2\\0.6\end{pmatrix}.</span></p>
+<div class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+Note
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p><strong>Forward pass.</strong></p>
+<ul>
+<li><span class="math inline">t=1</span>: <span class="math inline">\psi_1\odot\pi = (0.4,\ 0.2)</span>. These sum to <span class="math inline">0.6</span>, so <span class="math inline">\alpha_1 = (2/3,\ 1/3)\approx(0.667,\ 0.333)</span>. The first observation was a 0, so state 1 is favoured.</li>
+<li><span class="math inline">t=2</span>: predict, <span class="math inline">\Psi^\top\alpha_1 = (0.8\cdot\tfrac23 + 0.3\cdot\tfrac13,\ \ 0.2\cdot\tfrac23 + 0.7\cdot\tfrac13) \approx (0.633,\ 0.367)</span>. Update, <span class="math inline">\psi_2\odot(\Psi^\top\alpha_1) \approx (0.127,\ 0.220)</span>, which sums to <span class="math inline">0.347</span>. So <span class="math inline">\alpha_2\approx(0.365,\ 0.635)</span>.</li>
+<li><span class="math inline">t=3</span>: predict, <span class="math inline">\Psi^\top\alpha_2\approx(0.483,\ 0.517)</span>. Update, <span class="math inline">\psi_3\odot(\Psi^\top\alpha_2)\approx(0.097,\ 0.310)</span>, which sums to <span class="math inline">0.407</span>. So <span class="math inline">\alpha_3\approx(0.237,\ 0.763)</span>.</li>
+</ul>
+<p><strong>Backward pass.</strong></p>
+<ul>
+<li><span class="math inline">\beta_3 = (1,\ 1)</span>.</li>
+<li><span class="math inline">\beta_2 = \Psi(\psi_3\odot\beta_3) = \Psi\,(0.2,\ 0.6)^\top = (0.8\cdot0.2+0.2\cdot0.6,\ \ 0.3\cdot0.2+0.7\cdot0.6) = (0.28,\ 0.48)</span>.</li>
+<li><span class="math inline">\beta_1 = \Psi(\psi_2\odot\beta_2) = \Psi\,(0.056,\ 0.288)^\top = (0.1024,\ 0.2184)</span>.</li>
+</ul>
+<p><strong>Combine.</strong></p>
+<ul>
+<li><span class="math inline">\gamma_1\propto\alpha_1\odot\beta_1 \approx (0.0683,\ 0.0728)</span>, so <span class="math inline">\gamma_1\approx(0.484,\ 0.516)</span>.</li>
+<li><span class="math inline">\gamma_2\propto\alpha_2\odot\beta_2 \approx (0.102,\ 0.305)</span>, so <span class="math inline">\gamma_2\approx(0.251,\ 0.749)</span>.</li>
+<li><span class="math inline">\gamma_3 = \alpha_3 \approx (0.237,\ 0.763)</span>, since <span class="math inline">\beta_3</span> is all ones.</li>
+</ul>
+</div>
+</div>
+<p>Compare <span class="math inline">\alpha_1</span> with <span class="math inline">\gamma_1</span>. Using only <span class="math inline">x_1=0</span>, state 1 was favoured two to one. Once the two later 1’s are taken into account, state 2 becomes slightly more probable at <span class="math inline">t=1</span>: the chain tends to stay put, and the later observations point strongly to state 2. This is what smoothing adds over filtering.</p>
+<p>Two checks on the arithmetic. First, the product of the three normalizers from the forward pass is the probability of the data, <span class="math inline">p(x_{1:3}) = 0.6\times0.347\times0.407\approx0.0846</span>, because each normalizer is <span class="math inline">p(x_t\mid x_{1:t-1})</span>. Second, the backward pass gives the same number: <span class="math inline">\sum_i \pi(i)\,\psi_1(i)\,\beta_1(i) = 0.4\cdot0.1024 + 0.2\cdot0.2184 = 0.08464</span>. Enumerating all <span class="math inline">2^3=8</span> hidden sequences by brute force reproduces every <span class="math inline">\gamma_t</span> above.</p>
+</section>
+<section id="sec-viterbi" class="level2">
+<h2 class="anchored" data-anchor-id="sec-viterbi">The Viterbi algorithm</h2>
+<p>The second question asks for the single most probable hidden sequence,</p>
+<p><span class="math display">\hat z = \arg\max_{z_{1:T}}\ p(z_{1:T}\mid x_{1:T}).</span></p>
+<p>Since <span class="math inline">p(z_{1:T}\mid x_{1:T}) = p(z_{1:T}, x_{1:T})/p(x_{1:T})</span> and the denominator does not depend on <span class="math inline">z</span>, we can maximize the joint <span class="math inline">p(z_{1:T}, x_{1:T})</span> instead. The <strong><a href="https://en.wikipedia.org/wiki/Viterbi_algorithm">Viterbi algorithm</a></strong> (Viterbi, 1967) does this with the same left-to-right structure as the forward algorithm, replacing each sum by a maximum.</p>
+<div class="definition-block">
+<p><strong>Definition.</strong> The <strong>Viterbi score</strong> <span class="math inline">\delta_t(j)</span> is the joint probability of the most likely hidden path that ends in state <span class="math inline">j</span> at time <span class="math inline">t</span>, together with the observations so far: <span class="math display">\delta_t(j) = \max_{z_{1:t-1}}\ p(z_{1:t-1},\ z_t=j,\ x_{1:t}).</span></p>
+</div>
+<p><strong>Derivation of the recursion (<span class="math inline">t&gt;1</span>).</strong> Split off the last step of the joint using the HMM factorization, then do the maximization in two stages, first over the second-to-last state <span class="math inline">z_{t-1}=i</span> and then over everything before it:</p>
+<p><span class="math display">
+\begin{aligned}
+\delta_t(j) &amp;= \max_{z_{1:t-1}}\ p(z_{1:t-1}, x_{1:t-1})\;p(z_t=j\mid z_{t-1})\;p(x_t\mid z_t=j) \\
+&amp;= p(x_t\mid z_t=j)\ \max_i\Big[p(z_t=j\mid z_{t-1}=i)\ \max_{z_{1:t-2}} p(z_{1:t-2},\ z_{t-1}=i,\ x_{1:t-1})\Big] \\
+&amp;= p(x_t\mid z_t=j)\ \max_i\big[\delta_{t-1}(i)\;p(z_t=j\mid z_{t-1}=i)\big] \\
+&amp;= \psi_t(j)\ \max_i\big[\delta_{t-1}(i)\,\Psi(i,j)\big].
+\end{aligned}
+</span></p>
+<p>The emission factor came out of the maximum because it does not depend on the earlier states. The inner maximum on the second line is <span class="math inline">\delta_{t-1}(i)</span> by definition. In words: the best path into <span class="math inline">j</span> at time <span class="math inline">t</span> is the best path into some <span class="math inline">i</span> at time <span class="math inline">t-1</span>, extended by one transition and one emission, with <span class="math inline">i</span> chosen to make that product largest.</p>
+<p>To recover the path itself, not only its probability, we remember which <span class="math inline">i</span> won each maximum.</p>
+<div class="algorithm">
+<p><strong>Viterbi algorithm</strong></p>
+<ol type="1">
+<li><strong>Initialization</strong> (<span class="math inline">t=1</span>). For each state <span class="math inline">j</span>, <span class="math inline">\delta_1(j) = p(z_1=j, x_1) = \pi(j)\,\psi_1(j)</span>.</li>
+<li><strong>Forward recursion</strong> (<span class="math inline">t=2,\dots,T</span>). For each state <span class="math inline">j</span>, compute <span class="math display">\delta_t(j) = \psi_t(j)\max_i\big[\delta_{t-1}(i)\,\Psi(i,j)\big]</span> and store the maximizing previous state, the <strong>back-pointer</strong> <span class="math display">\theta_t(j) = \arg\max_i\big[\delta_{t-1}(i)\,\Psi(i,j)\big].</span></li>
+<li><strong>Termination.</strong> The final state of the most probable path is <span class="math inline">z^*_T = \arg\max_j \delta_T(j)</span>.</li>
+<li><strong>Traceback.</strong> For <span class="math inline">t=T-1,\dots,1</span>, set <span class="math inline">z^*_t = \theta_{t+1}(z^*_{t+1})</span>.</li>
+</ol>
+</div>
+<p>The cost is again on the order of <span class="math inline">TK^2</span>. Viterbi is the max-product version of belief propagation from Week 4 (<a href="week04.html#sec-maxproduct" class="quarto-xref"><span>Max-product BP and MAP inference</span></a> in Week 4), specialized to a chain. Two practical remarks, both hedged: in long sequences the <span class="math inline">\delta</span>’s shrink toward zero, so implementations typically work with <span class="math inline">\log\delta</span> (products become sums, and the maximum is unchanged); and in general the most probable <em>sequence</em> need not agree, position by position, with the most probable state under each marginal <span class="math inline">\gamma_t</span>, because the two algorithms answer different questions.</p>
+<div class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+Note
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p><strong>Worked example: Viterbi on the two-state HMM.</strong> Same parameters and observations <span class="math inline">x_{1:3}=(0,1,1)</span> as <a href="#sec-hmm-example" class="quarto-xref"><span>Worked example: a two-state HMM</span></a>.</p>
+<ul>
+<li><span class="math inline">t=1</span>: <span class="math inline">\delta_1 = \pi\odot\psi_1 = (0.4,\ 0.2)</span>.</li>
+<li><span class="math inline">t=2</span>, <span class="math inline">j=1</span>: candidates <span class="math inline">\delta_1(1)\Psi(1,1) = 0.4\cdot0.8 = 0.32</span> and <span class="math inline">\delta_1(2)\Psi(2,1) = 0.2\cdot0.3 = 0.06</span>. The max is <span class="math inline">0.32</span> from <span class="math inline">i=1</span>, so <span class="math inline">\theta_2(1)=1</span> and <span class="math inline">\delta_2(1) = 0.2\cdot0.32 = 0.064</span>.</li>
+<li><span class="math inline">t=2</span>, <span class="math inline">j=2</span>: candidates <span class="math inline">0.4\cdot0.2 = 0.08</span> and <span class="math inline">0.2\cdot0.7 = 0.14</span>. The max is <span class="math inline">0.14</span> from <span class="math inline">i=2</span>, so <span class="math inline">\theta_2(2)=2</span> and <span class="math inline">\delta_2(2) = 0.6\cdot0.14 = 0.084</span>.</li>
+<li><span class="math inline">t=3</span>, <span class="math inline">j=1</span>: candidates <span class="math inline">0.064\cdot0.8 = 0.0512</span> and <span class="math inline">0.084\cdot0.3 = 0.0252</span>, so <span class="math inline">\theta_3(1)=1</span> and <span class="math inline">\delta_3(1) = 0.2\cdot0.0512 = 0.01024</span>.</li>
+<li><span class="math inline">t=3</span>, <span class="math inline">j=2</span>: candidates <span class="math inline">0.064\cdot0.2 = 0.0128</span> and <span class="math inline">0.084\cdot0.7 = 0.0588</span>, so <span class="math inline">\theta_3(2)=2</span> and <span class="math inline">\delta_3(2) = 0.6\cdot0.0588 = 0.03528</span>.</li>
+<li>Termination: <span class="math inline">\delta_3(2) &gt; \delta_3(1)</span>, so <span class="math inline">z^*_3 = 2</span>. Traceback: <span class="math inline">z^*_2 = \theta_3(2) = 2</span>, then <span class="math inline">z^*_1 = \theta_2(2) = 2</span>.</li>
+</ul>
+<p>The most probable path is <span class="math inline">(2,2,2)</span>, with joint probability <span class="math inline">p(z_{1:3}=(2,2,2), x_{1:3}) = 0.03528</span>. Dividing by <span class="math inline">p(x_{1:3})=0.08464</span> gives its posterior probability, about <span class="math inline">0.417</span>.</p>
+</div>
+</div>
+<div style="overflow-x:auto; margin:1.5rem 0;">
+<svg viewbox="0 0 520 300" width="100%" style="max-width:520px;display:block;margin:auto;font-family:Helvetica,'Helvetica Neue',Arial,sans-serif;" role="img" aria-label="Viterbi trellis with two states over three time steps. Thin grey arrows show all transitions. Thick arrows show the back-pointers. The path through state 2 at every step is highlighted as the most probable path.">
+  <defs>
+    <marker id="arrW6b" markerwidth="8" markerheight="8" refx="7" refy="4" orient="auto">
+      <path d="M0,0 L0,8 L8,4 z" fill="#888"></path>
+    </marker>
+    <marker id="arrW6c" markerwidth="8" markerheight="8" refx="7" refy="4" orient="auto">
+      <path d="M0,0 L0,8 L8,4 z" fill="#2e7d32"></path>
+    </marker>
+    <marker id="arrW6d" markerwidth="8" markerheight="8" refx="7" refy="4" orient="auto">
+      <path d="M0,0 L0,8 L8,4 z" fill="#555"></path>
+    </marker>
+  </defs>
+  <text x="260" y="32" text-anchor="middle" font-size="24" font-weight="600" fill="#333">Viterbi trellis for x = (0, 1, 1)</text>
+  <text x="140" y="74" text-anchor="middle" font-size="16" fill="#333">t = 1</text>
+  <text x="290" y="74" text-anchor="middle" font-size="16" fill="#333">t = 2</text>
+  <text x="440" y="74" text-anchor="middle" font-size="16" fill="#333">t = 3</text>
+  <text x="50" y="136" text-anchor="middle" font-size="16" fill="#333">state 1</text>
+  <text x="50" y="236" text-anchor="middle" font-size="16" fill="#333">state 2</text>
+  <line x1="162" y1="140" x2="262" y2="226" stroke="#888" stroke-width="1" stroke-dasharray="4,3" marker-end="url(#arrW6b)"></line>
+  <line x1="162" y1="220" x2="262" y2="136" stroke="#888" stroke-width="1" stroke-dasharray="4,3" marker-end="url(#arrW6b)"></line>
+  <line x1="312" y1="140" x2="412" y2="226" stroke="#888" stroke-width="1" stroke-dasharray="4,3" marker-end="url(#arrW6b)"></line>
+  <line x1="312" y1="220" x2="412" y2="136" stroke="#888" stroke-width="1" stroke-dasharray="4,3" marker-end="url(#arrW6b)"></line>
+  <line x1="164" y1="130" x2="262" y2="130" stroke="#555" stroke-width="2.5" marker-end="url(#arrW6d)"></line>
+  <line x1="314" y1="130" x2="412" y2="130" stroke="#555" stroke-width="2.5" marker-end="url(#arrW6d)"></line>
+  <line x1="164" y1="230" x2="262" y2="230" stroke="#2e7d32" stroke-width="3" marker-end="url(#arrW6c)"></line>
+  <line x1="314" y1="230" x2="412" y2="230" stroke="#2e7d32" stroke-width="3" marker-end="url(#arrW6c)"></line>
+  <circle cx="140" cy="130" r="22" fill="#C9E4DE" stroke="#57C7AE" stroke-width="2"></circle>
+  <circle cx="290" cy="130" r="22" fill="#C9E4DE" stroke="#57C7AE" stroke-width="2"></circle>
+  <circle cx="440" cy="130" r="22" fill="#C9E4DE" stroke="#57C7AE" stroke-width="2"></circle>
+  <circle cx="140" cy="230" r="22" fill="#C9E4DE" stroke="#2e7d32" stroke-width="3"></circle>
+  <circle cx="290" cy="230" r="22" fill="#C9E4DE" stroke="#2e7d32" stroke-width="3"></circle>
+  <circle cx="440" cy="230" r="22" fill="#C9E4DE" stroke="#2e7d32" stroke-width="3"></circle>
+  <text x="140" y="136" text-anchor="middle" font-size="16" fill="#207965">1</text>
+  <text x="290" y="136" text-anchor="middle" font-size="16" fill="#207965">1</text>
+  <text x="440" y="136" text-anchor="middle" font-size="16" fill="#207965">1</text>
+  <text x="140" y="236" text-anchor="middle" font-size="16" fill="#207965">2</text>
+  <text x="290" y="236" text-anchor="middle" font-size="16" fill="#207965">2</text>
+  <text x="440" y="236" text-anchor="middle" font-size="16" fill="#207965">2</text>
+  <text x="140" y="100" text-anchor="middle" font-size="15" fill="#796020">0.4</text>
+  <text x="290" y="100" text-anchor="middle" font-size="15" fill="#796020">0.064</text>
+  <text x="440" y="100" text-anchor="middle" font-size="15" fill="#796020">0.01024</text>
+  <text x="140" y="276" text-anchor="middle" font-size="15" fill="#796020">0.2</text>
+  <text x="290" y="276" text-anchor="middle" font-size="15" fill="#796020">0.084</text>
+  <text x="440" y="276" text-anchor="middle" font-size="15" fill="#796020">0.03528</text>
+</svg>
+</div>
+<p><strong>Figure 2.</strong> The Viterbi computation for the worked example. Each node shows its score <span class="math inline">\delta_t(j)</span>. Dashed arrows are transitions that lost their maximum; solid arrows are the back-pointers <span class="math inline">\theta_t</span>. The green path is the traceback from the larger final score, giving <span class="math inline">z^*=(2,2,2)</span>.</p>
+<p>At <span class="math inline">t=1</span> alone, state 1 had the larger score (<span class="math inline">0.4</span> against <span class="math inline">0.2</span>), yet the best path starts in state 2. The traceback, not the step-by-step leader, decides.</p>
+<p><strong>HMMs in one sentence.</strong> An HMM is a latent Markov chain with observations; forward-backward gives the posterior of each hidden state, Viterbi gives the MAP sequence, and both get their efficiency from recursions that follow the chain structure.</p>
+</section>
+<section id="sec-latent-post" class="level2">
+<h2 class="anchored" data-anchor-id="sec-latent-post">Posterior inference in latent variable models</h2>
+<p>The second half of the lecture asks what to do when no such recursion exists. We have worked with several latent variable models: the TrueSkill model of Week 4, a generative image model, and now HMMs. All of them have the factorization</p>
+<p><span class="math display">p(x, z) = p(z)\,p(x\mid z),</span></p>
+<p>where <span class="math inline">x</span> are the observations (the data) and <span class="math inline">z</span> are the unobserved latent variables.</p>
+<div class="definition-block">
+<p><strong>Definition.</strong> In a latent variable model <span class="math inline">p(x,z)=p(z)\,p(x\mid z)</span>:</p>
+<ul>
+<li><span class="math inline">p(z)</span> is the <strong><a href="https://en.wikipedia.org/wiki/Prior_probability">prior</a></strong>, what we believe about <span class="math inline">z</span> before seeing data;</li>
+<li><span class="math inline">p(x\mid z)</span> is the <strong><a href="https://en.wikipedia.org/wiki/Likelihood_function">likelihood</a></strong>, how probable the data are for each setting of <span class="math inline">z</span>;</li>
+<li><span class="math inline">p(z\mid x)</span> is the <strong><a href="https://en.wikipedia.org/wiki/Posterior_probability">posterior</a></strong>, the conditional distribution of the unobserved variables given the observed ones;</li>
+<li><span class="math inline">p(x) = \int p(x,z)\,dz</span> is the <strong><a href="https://en.wikipedia.org/wiki/Marginal_likelihood">evidence</a></strong> (or marginal likelihood), the probability of the data with <span class="math inline">z</span> integrated out.</li>
+</ul>
+</div>
+<p>Bayes’ rule connects them:</p>
+<p><span class="math display">p(z\mid x) = \frac{p(x\mid z)\,p(z)}{p(x)} = \frac{p(x\mid z)\,p(z)}{\int p(x,z)\,dz}.</span></p>
+<p>The numerator is easy: it is the model itself, evaluated at one <span class="math inline">z</span>. The denominator is the problem.</p>
+</section>
+<section id="sec-trueskill-post" class="level2">
+<h2 class="anchored" data-anchor-id="sec-trueskill-post">What the TrueSkill posterior looks like</h2>
+<p>The lecture illustrates with the two-player TrueSkill model of Week 4 (<a href="week04.html#sec-trueskill" class="quarto-xref"><span>Latent variables and the TrueSkill model</span></a> in Week 4): skills <span class="math inline">z_A, z_B</span> with independent Gaussian priors, and <span class="math inline">p(A\text{ beats }B\mid z_A,z_B) = \sigma(z_A-z_B)</span>. The slides plot contours of the joint density over <span class="math inline">(z_A, z_B)</span> at four stages.</p>
+<ol type="1">
+<li><strong>Prior.</strong> Round contours centred at the origin. The prior says we are very uncertain about both players’ skills.</li>
+<li><strong>Posterior after one game.</strong> The contours shift and tilt. The lecture’s point is that <strong>the posterior is not Gaussian anymore</strong>: multiplying a Gaussian prior by a logistic likelihood does not give a Gaussian.</li>
+<li><strong>Posterior after <span class="math inline">A</span> beats <span class="math inline">B</span> ten times.</strong> The posterior is now certain that <span class="math inline">A</span> is better than <span class="math inline">B</span>.</li>
+<li><strong>Posterior after each beats the other ten times.</strong> The posterior is certain that neither player is much better than the other, but still uncertain how good they both are in an absolute sense.</li>
+</ol>
+<p>The fourth picture has a direct explanation in the model. The likelihood of every game depends on the skills only through the difference <span class="math inline">z_A - z_B</span>. Data can therefore pin down the difference, but they say nothing about the sum <span class="math inline">z_A+z_B</span>, which stays as uncertain as the prior made it. The posterior is narrow across the line <span class="math inline">z_A=z_B</span> and wide along it.</p>
+<p>Assignment 2 asks for these contour plots, for its own numbers of games, together with questions about them. The specific plots and the probabilities read from them are left to the assignment.</p>
+</section>
+<section id="sec-hard-post" class="level2">
+<h2 class="anchored" data-anchor-id="sec-hard-post">Why the posterior is hard</h2>
+<p>What exactly is hard about the posterior? The evidence</p>
+<p><span class="math display">p(x) = \int p(x, z)\,dz</span></p>
+<p>is an integral over every latent variable at once. When <span class="math inline">z</span> is high dimensional, this integral is intractable, for the same reason Week 4 found the normalizing constant hard (<a href="week04.html#sec-hardz" class="quarto-xref"><span>Why the normalizing constant is hard</span></a> in Week 4): a grid fine enough to integrate accurately has exponentially many points. Without <span class="math inline">p(x)</span> we can neither evaluate the normalized posterior <span class="math inline">p(z\mid x)</span> at a given <span class="math inline">z</span> nor sample from it directly.</p>
+<p>Week 5’s MCMC is one way around this: it samples from <span class="math inline">p(z\mid x)</span> using only the unnormalized <span class="math inline">p(x,z)</span>. The rest of this lecture starts a second way, which replaces sampling with optimization.</p>
+</section>
+<section id="sec-vi" class="level2">
+<h2 class="anchored" data-anchor-id="sec-vi">Variational methods</h2>
+<p>The name comes from the <strong><a href="https://en.wikipedia.org/wiki/Calculus_of_variations">calculus of variations</a></strong>, developed in the 1700s by Euler and Lagrange, which optimizes over functions rather than over numbers. Here the functions are probability distributions.</p>
+<div class="definition-block">
+<p><strong>Definition.</strong> <strong><a href="https://en.wikipedia.org/wiki/Variational_Bayesian_methods">Variational inference</a> (VI)</strong> is an approximate inference method that replaces an intractable target distribution, typically the posterior <span class="math inline">p(z\mid x)</span>, by the closest member of a tractable family. It has three ingredients:</p>
+<ol type="1">
+<li>a <strong>variational family</strong> <span class="math inline">Q</span> of tractable distributions <span class="math inline">q(z)</span>, from which we choose the approximation;</li>
+<li>a measure of the difference between <span class="math inline">q</span> and <span class="math inline">p(z\mid x)</span> that can be estimated efficiently, usually the KL divergence;</li>
+<li>an optimization method, usually iterative, that minimizes this difference over <span class="math inline">q\in Q</span>.</li>
+</ol>
+</div>
+<p>For example, <span class="math inline">Q</span> could be all Gaussians, <span class="math inline">q(z) = \mathcal N(z\mid\mu,\Sigma)</span>, with the mean <span class="math inline">\mu</span> and covariance <span class="math inline">\Sigma</span> as the quantities we optimize. The art is to choose a <span class="math inline">Q</span> whose members are easy to work with but flexible enough that one of them is a good approximation to the true posterior.</p>
+<p>Whatever <span class="math inline">Q</span> we choose, there is usually no <span class="math inline">q\in Q</span> that matches the true posterior exactly. The TrueSkill posterior after one game is not Gaussian, so no Gaussian <span class="math inline">q</span> equals it. VI accepts this error on purpose: computing the true posterior is intractable, so a shortcut has to be taken somewhere, and VI takes it in the choice of <span class="math inline">Q</span>.</p>
+</section>
+<section id="sec-jensen" class="level2">
+<h2 class="anchored" data-anchor-id="sec-jensen">Jensen’s inequality</h2>
+<p>The properties of the KL divergence in the next section rest on one inequality about convex functions, which the tutorial uses without proof.</p>
+<div class="definition-block">
+<p><strong>Definition.</strong> A function <span class="math inline">\phi</span> is <strong><a href="https://en.wikipedia.org/wiki/Convex_function">convex</a></strong> if the chord between any two points on its graph lies on or above the graph: <span class="math inline">\phi(\lambda a + (1-\lambda)b) \le \lambda\phi(a) + (1-\lambda)\phi(b)</span> for all <span class="math inline">a,b</span> and <span class="math inline">\lambda\in[0,1]</span>. A twice-differentiable function is convex when <span class="math inline">\phi''\ge0</span>.</p>
+</div>
+<p>For example, <span class="math inline">-\log y</span> is convex on <span class="math inline">y&gt;0</span>, since its second derivative is <span class="math inline">1/y^2&gt;0</span>. Equivalently, <span class="math inline">\log</span> is concave.</p>
+<div class="definition-block">
+<p><strong>Definition.</strong> <strong><a href="https://en.wikipedia.org/wiki/Jensen%27s_inequality">Jensen’s inequality</a>.</strong> For any convex function <span class="math inline">\phi</span> and any probability distribution <span class="math inline">p</span>, <span class="math display">\mathbb{E}_p[\phi(y)] \ge \phi\big(\mathbb{E}_p[y]\big),</span> with equality if and only if <span class="math inline">y</span> is constant (with probability 1 under <span class="math inline">p</span>) or <span class="math inline">\phi</span> is linear on the range of <span class="math inline">y</span>.</p>
+</div>
+<p>The two-point case is the definition of convexity, with <span class="math inline">\lambda</span> and <span class="math inline">1-\lambda</span> as the probabilities of the two points. Averaging first and then applying a convex function gives a smaller value than applying it first and then averaging.</p>
+</section>
+<section id="sec-kl" class="level2">
+<h2 class="anchored" data-anchor-id="sec-kl">The KL divergence</h2>
+<p>How should we measure how far <span class="math inline">q</span> is from the posterior? The lecture uses the Kullback-Leibler divergence. Two information-theoretic quantities, recalled in the tutorial, help read it.</p>
+<div class="definition-block">
+<p><strong>Definition.</strong> For distributions <span class="math inline">p</span> and <span class="math inline">q</span> over the same discrete variable,</p>
+<ul>
+<li>the <strong><a href="https://en.wikipedia.org/wiki/Entropy_(information_theory)">entropy</a></strong> of <span class="math inline">p</span> is <span class="math inline">H(p) = -\sum_x p(x)\log p(x) = \mathbb{E}_{x\sim p}[-\log p(x)]</span>, which measures the uncertainty in <span class="math inline">p</span>;</li>
+<li>the <strong><a href="https://en.wikipedia.org/wiki/Cross-entropy">cross-entropy</a></strong> of <span class="math inline">q</span> relative to <span class="math inline">p</span> is <span class="math inline">H(p,q) = -\sum_x p(x)\log q(x)</span>.</li>
+</ul>
+<p>For continuous variables, the sums become integrals.</p>
+</div>
+<div class="definition-block">
+<p><strong>Definition.</strong> The <strong><a href="https://en.wikipedia.org/wiki/Kullback%E2%80%93Leibler_divergence">Kullback-Leibler (KL) divergence</a></strong> of <span class="math inline">q</span> from <span class="math inline">p</span> is <span class="math display">\mathrm{KL}(q\,\|\,p) = \int q(z)\log\frac{q(z)}{p(z)}\,dz = \mathbb{E}_{z\sim q}\left[\log\frac{q(z)}{p(z)}\right],</span> with a sum in place of the integral for discrete <span class="math inline">z</span>.</p>
+</div>
+<p>In VI, <span class="math inline">p</span> is the posterior, so the lecture writes <span class="math inline">\mathrm{KL}(q(z)\,\|\,p(z\mid x))</span>. The KL divergence is the average, under the first argument, of the log ratio between the two densities. Writing the other direction out with the definitions above, the tutorial shows</p>
+<p><span class="math display">\mathrm{KL}(p\,\|\,q) = \mathbb{E}_{p}[\log p(x)] - \mathbb{E}_{p}[\log q(x)] = H(p,q) - H(p),</span></p>
+<p>the extra cross-entropy we pay for describing data from <span class="math inline">p</span> with the distribution <span class="math inline">q</span>. With natural logarithms, as throughout these notes, the KL divergence is measured in <strong>nats</strong>.</p>
+<p>The lecture lists three properties.</p>
+<ol type="1">
+<li><span class="math inline">\mathrm{KL}(q\,\|\,p)\ge0</span>.</li>
+<li><span class="math inline">\mathrm{KL}(q\,\|\,p)=0</span> if and only if <span class="math inline">q=p</span>.</li>
+<li>In general <span class="math inline">\mathrm{KL}(q\,\|\,p)\ne\mathrm{KL}(p\,\|\,q)</span>.</li>
+</ol>
+<p>Because of property 3, the KL divergence is not a <strong>metric</strong> (a distance): a distance must be symmetric. It is still a useful measure of closeness because of properties 1 and 2.</p>
+<p><strong>Proof of property 1</strong> (from the tutorial). Write the log ratio upside down and apply Jensen’s inequality with the convex function <span class="math inline">-\log</span>:</p>
+<p><span class="math display">
+\begin{aligned}
+\mathrm{KL}(p\,\|\,q) = \mathbb{E}_p\left[-\log\frac{q(x)}{p(x)}\right]
+&amp;\ge -\log\mathbb{E}_p\left[\frac{q(x)}{p(x)}\right] \\
+&amp;= -\log\int p(x)\,\frac{q(x)}{p(x)}\,dx = -\log 1 = 0.
+\end{aligned}
+</span></p>
+<p>The same argument with <span class="math inline">p</span> and <span class="math inline">q</span> swapped gives <span class="math inline">\mathrm{KL}(q\,\|\,p)\ge0</span>.</p>
+<p><strong>Proof of property 2.</strong> If <span class="math inline">p=q</span> then <span class="math inline">\log(p/q)=0</span> everywhere, so the divergence is 0. Conversely, if the divergence is 0, the inequality in the proof above holds with equality. Since <span class="math inline">-\log</span> is not linear, Jensen’s equality condition forces <span class="math inline">q(x)/p(x)</span> to be constant, and two densities that each integrate to 1 can only have a constant ratio of 1. So <span class="math inline">p=q</span>.</p>
+<div class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+Note
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p><strong>Worked example: the two directions differ</strong> (from the tutorial). Let <span class="math inline">p</span> and <span class="math inline">q</span> be distributions on <span class="math inline">\{0,1\}</span> with <span class="math inline">p(0)=1/4</span>, <span class="math inline">p(1)=3/4</span> and <span class="math inline">q(0)=q(1)=1/2</span>. Then</p>
+<p><span class="math display">
+\begin{aligned}
+\mathrm{KL}(q\,\|\,p) &amp;= \tfrac12\log\frac{1/2}{1/4} + \tfrac12\log\frac{1/2}{3/4} = \tfrac12\log2 + \tfrac12\log\tfrac23 \approx 0.144, \\
+\mathrm{KL}(p\,\|\,q) &amp;= \tfrac14\log\frac{1/4}{1/2} + \tfrac34\log\frac{3/4}{1/2} = \tfrac14\log\tfrac12 + \tfrac34\log\tfrac32 \approx 0.131.
+\end{aligned}
+</span></p>
+<p>These are not equal. (The tutorial prints <span class="math inline">0.062</span> and <span class="math inline">0.057</span>, which are the same expressions with base-10 logarithms. The values above are in nats.)</p>
+</div>
+</div>
+</section>
+<section id="sec-projections" class="level2">
+<h2 class="anchored" data-anchor-id="sec-projections">Which direction? I-projection and M-projection</h2>
+<p>Since the two directions differ, we could minimize either one. Which should we choose? The lecture’s answer, “as always, we will go with the tractable one”, comes in <a href="#sec-why-iproj" class="quarto-xref"><span>Why variational inference uses the I-projection</span></a>. First we see what each direction does. In this section, as on the slides, <span class="math inline">p(x)</span> is any target distribution and <span class="math inline">q(x)</span> is the approximation.</p>
+<div class="definition-block">
+<p><strong>Definition.</strong> For a target <span class="math inline">p</span> and a family <span class="math inline">Q</span>:</p>
+<ul>
+<li>the <strong>information projection (I-projection)</strong> minimizes the <strong>reverse KL</strong>, <span class="math inline">q^* = \arg\min_{q\in Q}\mathrm{KL}(q\,\|\,p) = \arg\min_{q\in Q}\mathbb{E}_{x\sim q}\left[\log\frac{q(x)}{p(x)}\right]</span>;</li>
+<li>the <strong>moment projection (M-projection)</strong> minimizes the <strong>forward KL</strong>, <span class="math inline">q^* = \arg\min_{q\in Q}\mathrm{KL}(p\,\|\,q) = \arg\min_{q\in Q}\mathbb{E}_{x\sim p}\left[\log\frac{p(x)}{q(x)}\right]</span>.</li>
+</ul>
+</div>
+<p>If <span class="math inline">q</span> is close to <span class="math inline">p</span>, both divergences are small. They differ in which mistakes they punish.</p>
+<p><strong>The I-projection underestimates support.</strong> In <span class="math inline">\mathrm{KL}(q\,\|\,p)</span> the average is over <span class="math inline">q</span>. Where <span class="math inline">q</span> puts mass but <span class="math inline">p</span> is nearly zero, <span class="math inline">\log(q/p)</span> is very large, so <span class="math inline">q</span> is heavily penalized for putting mass where <span class="math inline">p</span> has none. Where <span class="math inline">p</span> has mass but <span class="math inline">q</span> does not, the integrand is weighted by <span class="math inline">q\approx0</span> and contributes almost nothing. So the I-projection prefers a <span class="math inline">q</span> that sits inside one high-density region of <span class="math inline">p</span> and ignores the rest. It also does not, in general, give the correct mean and covariance. This behaviour is often called <strong>mode-seeking</strong>.</p>
+<p><strong>The M-projection covers the mass.</strong> In <span class="math inline">\mathrm{KL}(p\,\|\,q)</span> the average is over <span class="math inline">p</span>. Where <span class="math inline">p</span> has mass but <span class="math inline">q</span> is nearly zero, <span class="math inline">\log(p/q)</span> is very large, so <span class="math inline">q</span> is heavily penalized for missing any region where <span class="math inline">p</span> has mass. The M-projection therefore spreads <span class="math inline">q</span> out to cover all of <span class="math inline">p</span>. The lecture states that when <span class="math inline">Q</span> is the family of Gaussians, the M-projection has exactly the mean and covariance of <span class="math inline">p</span>, which is where the name “moment projection” comes from.</p>
+<p>The slides show both on a target <span class="math inline">p</span> that is a mixture of two 2D Gaussians, with <span class="math inline">Q</span> the set of all 2D Gaussians with arbitrary covariance. The I-projection places a single Gaussian on one of the two components. There are two such solutions, one per component, and the slide calls them equally good. The M-projection is one broad Gaussian stretched over both components, putting much of its mass in the gap between them, where <span class="math inline">p</span> is small.</p>
+<section id="sec-proj-tutorial" class="level3">
+<h3 class="anchored" data-anchor-id="sec-proj-tutorial">Tutorial example: fitting a Gaussian to a two-component mixture</h3>
+<p>The tutorial repeats the comparison in one dimension. The target is the mixture</p>
+<p><span class="math display">p(z) = 0.3\,\mathcal N(z;\,-2,\ 0.8^2) + 0.7\,\mathcal N(z;\,3,\ 1.1^2),</span></p>
+<p>with a small mode near <span class="math inline">-2</span> holding 30% of the mass and a large mode near <span class="math inline">3</span> holding 70%. The family is all 1D Gaussians, <span class="math inline">q(z)=\mathcal N(z;\,\mu,\sigma^2)</span>. A single Gaussian has one mode, so no <span class="math inline">q</span> can match <span class="math inline">p</span>.</p>
+<p><strong>M-projection in closed form.</strong> Only <span class="math inline">q</span> depends on <span class="math inline">(\mu,\sigma^2)</span>, so minimizing <span class="math inline">\mathrm{KL}(p\,\|\,q) = H(p,q) - H(p)</span> means minimizing the cross-entropy <span class="math inline">-\mathbb{E}_p[\log q(z)]</span>:</p>
+<p><span class="math display">\min_{\mu,\sigma^2}\ \left[\frac12\log(2\pi\sigma^2) + \frac{\mathbb{E}_p[(z-\mu)^2]}{2\sigma^2}\right].</span></p>
+<p>Setting the derivatives to zero,</p>
+<p><span class="math display">
+\begin{aligned}
+\frac{\partial}{\partial\mu}: &amp;\quad \frac{\mu - \mathbb{E}_p[z]}{\sigma^2} = 0 &amp;&amp;\Rightarrow\ \mu^* = \mathbb{E}_p[z], \\
+\frac{\partial}{\partial\sigma^2}: &amp;\quad \frac{1}{2\sigma^2} - \frac{\mathbb{E}_p[(z-\mu)^2]}{2\sigma^4} = 0 &amp;&amp;\Rightarrow\ \sigma^{2*} = \mathrm{Var}_p(z).
+\end{aligned}
+</span></p>
+<p>So the M-projection matches the mean and variance of <span class="math inline">p</span>. For the mixture,</p>
+<p><span class="math display">
+\begin{aligned}
+\mu^* &amp;= 0.3(-2) + 0.7(3) = 1.5, \\
+\sigma^{2*} &amp;= 0.3\big(0.8^2 + (-2-1.5)^2\big) + 0.7\big(1.1^2 + (3-1.5)^2\big) \approx 6.289,
+\end{aligned}
+</span></p>
+<p>so <span class="math inline">q^*_{\text{M}} = \mathcal N(1.5,\ 2.51^2)</span>. The variance uses the rule that a mixture’s variance is the weighted average, over components, of each component’s variance plus its squared distance from the overall mean.</p>
+<p><strong>I-projection numerically.</strong> For the reverse KL the stationarity equations have no closed form when <span class="math inline">p</span> is a mixture. The tutorial minimizes a Monte Carlo estimate of <span class="math inline">\mathrm{KL}(q\,\|\,p)</span> by gradient descent over <span class="math inline">(\mu, \log\sigma)</span>, sampling from <span class="math inline">q</span> as <span class="math inline">z = \mu + \sigma\epsilon</span> with <span class="math inline">\epsilon\sim\mathcal N(0,1)</span> so that the samples are differentiable in <span class="math inline">(\mu,\sigma)</span>. It finds approximately <span class="math inline">q^*_{\text{I}} = \mathcal N(2.95,\ 1.17^2)</span>: almost exactly the large component <span class="math inline">\mathcal N(3,\ 1.1^2)</span>, ignoring the small one.</p>
+<div style="overflow-x:auto; margin:1.5rem 0;">
+<svg viewbox="0 0 600 310" width="100%" style="max-width:600px;display:block;margin:auto;font-family:Helvetica,'Helvetica Neue',Arial,sans-serif;" role="img" aria-label="A two-peaked target density with a small peak near minus 2 and a large peak near 3. The I-projection is a narrow Gaussian sitting on the large peak. The M-projection is a wide Gaussian centred at 1.5 spanning both peaks.">
+  <text x="300" y="30" text-anchor="middle" font-size="24" font-weight="600" fill="#333">Reverse KL vs forward KL</text>
+  <line x1="60" y1="250" x2="540" y2="250" stroke="#555" stroke-width="1.2"></line>
+  <line x1="60" y1="250" x2="60" y2="256" stroke="#555"></line><text x="60" y="274" text-anchor="middle" font-size="14" fill="#555">−6</text>
+  <line x1="128.6" y1="250" x2="128.6" y2="256" stroke="#555"></line><text x="128.6" y="274" text-anchor="middle" font-size="14" fill="#555">−4</text>
+  <line x1="197.1" y1="250" x2="197.1" y2="256" stroke="#555"></line><text x="197.1" y="274" text-anchor="middle" font-size="14" fill="#555">−2</text>
+  <line x1="265.7" y1="250" x2="265.7" y2="256" stroke="#555"></line><text x="265.7" y="274" text-anchor="middle" font-size="14" fill="#555">0</text>
+  <line x1="334.3" y1="250" x2="334.3" y2="256" stroke="#555"></line><text x="334.3" y="274" text-anchor="middle" font-size="14" fill="#555">2</text>
+  <line x1="402.9" y1="250" x2="402.9" y2="256" stroke="#555"></line><text x="402.9" y="274" text-anchor="middle" font-size="14" fill="#555">4</text>
+  <line x1="471.4" y1="250" x2="471.4" y2="256" stroke="#555"></line><text x="471.4" y="274" text-anchor="middle" font-size="14" fill="#555">6</text>
+  <line x1="540" y1="250" x2="540" y2="256" stroke="#555"></line><text x="540" y="274" text-anchor="middle" font-size="14" fill="#555">8</text>
+  <text x="300" y="300" text-anchor="middle" font-size="15" fill="#555">z</text>
+  <path d="M60.0,250.0 L63.4,250.0 L66.9,250.0 L70.3,250.0 L73.7,250.0 L77.1,250.0 L80.6,250.0 L84.0,250.0 L87.4,250.0 L90.9,250.0 L94.3,249.9 L97.7,249.9 L101.1,249.9 L104.6,249.8 L108.0,249.7 L111.4,249.5 L114.9,249.3 L118.3,248.9 L121.7,248.5 L125.1,247.9 L128.6,247.1 L132.0,246.0 L135.4,244.7 L138.9,243.0 L142.3,241.0 L145.7,238.5 L149.1,235.6 L152.6,232.2 L156.0,228.4 L159.4,224.2 L162.9,219.6 L166.3,214.7 L169.7,209.7 L173.1,204.7 L176.6,199.8 L180.0,195.3 L183.4,191.3 L186.9,188.0 L190.3,185.6 L193.7,184.0 L197.1,183.5 L200.6,184.0 L204.0,185.5 L207.4,188.0 L210.9,191.3 L214.3,195.3 L217.7,199.8 L221.1,204.6 L224.6,209.6 L228.0,214.6 L231.4,219.4 L234.9,224.0 L238.3,228.1 L241.7,231.8 L245.1,235.1 L248.6,237.8 L252.0,240.1 L255.4,241.8 L258.9,243.1 L262.3,243.9 L265.7,244.3 L269.1,244.4 L272.6,244.1 L276.0,243.4 L279.4,242.4 L282.9,241.0 L286.3,239.2 L289.7,237.1 L293.1,234.6 L296.6,231.7 L300.0,228.3 L303.4,224.6 L306.9,220.4 L310.3,215.8 L313.7,210.8 L317.1,205.5 L320.6,199.8 L324.0,193.9 L327.4,187.8 L330.9,181.6 L334.3,175.4 L337.7,169.3 L341.1,163.4 L344.6,157.8 L348.0,152.8 L351.4,148.2 L354.9,144.4 L358.3,141.3 L361.7,139.0 L365.1,137.6 L368.6,137.2 L372.0,137.6 L375.4,139.0 L378.9,141.3 L382.3,144.4 L385.7,148.2 L389.1,152.8 L392.6,157.8 L396.0,163.4 L399.4,169.3 L402.9,175.4 L406.3,181.6 L409.7,187.8 L413.1,193.9 L416.6,199.8 L420.0,205.5 L423.4,210.8 L426.9,215.8 L430.3,220.4 L433.7,224.6 L437.1,228.4 L440.6,231.8 L444.0,234.7 L447.4,237.3 L450.9,239.6 L454.3,241.5 L457.7,243.1 L461.1,244.5 L464.6,245.6 L468.0,246.5 L471.4,247.3 L474.9,247.9 L478.3,248.4 L481.7,248.7 L485.1,249.0 L488.6,249.3 L492.0,249.5 L495.4,249.6 L498.9,249.7 L502.3,249.8 L505.7,249.8 L509.1,249.9 L512.6,249.9 L516.0,249.9 L519.4,250.0 L522.9,250.0 L526.3,250.0 L529.7,250.0 L533.1,250.0 L536.6,250.0 L540.0,250.0" fill="#C6DEF1" fill-opacity="0.55" stroke="#5795C7" stroke-width="2.5"></path>
+  <path d="M60.0,249.2 L63.4,249.1 L66.9,249.0 L70.3,248.9 L73.7,248.7 L77.1,248.6 L80.6,248.4 L84.0,248.2 L87.4,248.0 L90.9,247.8 L94.3,247.5 L97.7,247.3 L101.1,247.0 L104.6,246.7 L108.0,246.3 L111.4,246.0 L114.9,245.6 L118.3,245.1 L121.7,244.7 L125.1,244.2 L128.6,243.6 L132.0,243.0 L135.4,242.4 L138.9,241.8 L142.3,241.1 L145.7,240.3 L149.1,239.5 L152.6,238.7 L156.0,237.8 L159.4,236.9 L162.9,235.9 L166.3,234.8 L169.7,233.7 L173.1,232.6 L176.6,231.4 L180.0,230.2 L183.4,228.9 L186.9,227.6 L190.3,226.2 L193.7,224.8 L197.1,223.3 L200.6,221.8 L204.0,220.3 L207.4,218.7 L210.9,217.1 L214.3,215.4 L217.7,213.8 L221.1,212.1 L224.6,210.4 L228.0,208.7 L231.4,207.0 L234.9,205.3 L238.3,203.6 L241.7,201.9 L245.1,200.2 L248.6,198.6 L252.0,196.9 L255.4,195.4 L258.9,193.8 L262.3,192.3 L265.7,190.9 L269.1,189.5 L272.6,188.2 L276.0,186.9 L279.4,185.8 L282.9,184.7 L286.3,183.7 L289.7,182.8 L293.1,182.0 L296.6,181.3 L300.0,180.7 L303.4,180.2 L306.9,179.8 L310.3,179.5 L313.7,179.4 L317.1,179.3 L320.6,179.4 L324.0,179.5 L327.4,179.8 L330.9,180.2 L334.3,180.7 L337.7,181.3 L341.1,182.0 L344.6,182.8 L348.0,183.7 L351.4,184.7 L354.9,185.8 L358.3,186.9 L361.7,188.2 L365.1,189.5 L368.6,190.9 L372.0,192.3 L375.4,193.8 L378.9,195.4 L382.3,196.9 L385.7,198.6 L389.1,200.2 L392.6,201.9 L396.0,203.6 L399.4,205.3 L402.9,207.0 L406.3,208.7 L409.7,210.4 L413.1,212.1 L416.6,213.8 L420.0,215.4 L423.4,217.1 L426.9,218.7 L430.3,220.3 L433.7,221.8 L437.1,223.3 L440.6,224.8 L444.0,226.2 L447.4,227.6 L450.9,228.9 L454.3,230.2 L457.7,231.4 L461.1,232.6 L464.6,233.7 L468.0,234.8 L471.4,235.9 L474.9,236.9 L478.3,237.8 L481.7,238.7 L485.1,239.5 L488.6,240.3 L492.0,241.1 L495.4,241.8 L498.9,242.4 L502.3,243.0 L505.7,243.6 L509.1,244.2 L512.6,244.7 L516.0,245.1 L519.4,245.6 L522.9,246.0 L526.3,246.3 L529.7,246.7 L533.1,247.0 L536.6,247.3 L540.0,247.5" fill="none" stroke="#C78557" stroke-width="2.5" stroke-dasharray="7,4"></path>
+  <path d="M60.0,250.0 L63.4,250.0 L66.9,250.0 L70.3,250.0 L73.7,250.0 L77.1,250.0 L80.6,250.0 L84.0,250.0 L87.4,250.0 L90.9,250.0 L94.3,250.0 L97.7,250.0 L101.1,250.0 L104.6,250.0 L108.0,250.0 L111.4,250.0 L114.9,250.0 L118.3,250.0 L121.7,250.0 L125.1,250.0 L128.6,250.0 L132.0,250.0 L135.4,250.0 L138.9,250.0 L142.3,250.0 L145.7,250.0 L149.1,250.0 L152.6,250.0 L156.0,250.0 L159.4,250.0 L162.9,250.0 L166.3,250.0 L169.7,250.0 L173.1,250.0 L176.6,250.0 L180.0,250.0 L183.4,250.0 L186.9,250.0 L190.3,250.0 L193.7,250.0 L197.1,250.0 L200.6,250.0 L204.0,250.0 L207.4,249.9 L210.9,249.9 L214.3,249.9 L217.7,249.9 L221.1,249.8 L224.6,249.7 L228.0,249.6 L231.4,249.5 L234.9,249.3 L238.3,249.1 L241.7,248.8 L245.1,248.5 L248.6,248.1 L252.0,247.5 L255.4,246.8 L258.9,246.0 L262.3,245.0 L265.7,243.7 L269.1,242.3 L272.6,240.5 L276.0,238.4 L279.4,236.0 L282.9,233.2 L286.3,229.9 L289.7,226.3 L293.1,222.1 L296.6,217.5 L300.0,212.3 L303.4,206.7 L306.9,200.6 L310.3,194.0 L313.7,187.1 L317.1,179.8 L320.6,172.2 L324.0,164.4 L327.4,156.5 L330.9,148.7 L334.3,140.9 L337.7,133.5 L341.1,126.5 L344.6,120.0 L348.0,114.1 L351.4,109.1 L354.9,104.9 L358.3,101.6 L361.7,99.4 L365.1,98.3 L368.6,98.3 L372.0,99.4 L375.4,101.6 L378.9,104.9 L382.3,109.1 L385.7,114.1 L389.1,120.0 L392.6,126.5 L396.0,133.5 L399.4,140.9 L402.9,148.7 L406.3,156.5 L409.7,164.4 L413.1,172.2 L416.6,179.8 L420.0,187.1 L423.4,194.0 L426.9,200.6 L430.3,206.7 L433.7,212.3 L437.1,217.5 L440.6,222.1 L444.0,226.3 L447.4,229.9 L450.9,233.2 L454.3,236.0 L457.7,238.4 L461.1,240.5 L464.6,242.3 L468.0,243.7 L471.4,245.0 L474.9,246.0 L478.3,246.8 L481.7,247.5 L485.1,248.1 L488.6,248.5 L492.0,248.8 L495.4,249.1 L498.9,249.3 L502.3,249.5 L505.7,249.6 L509.1,249.7 L512.6,249.8 L516.0,249.9 L519.4,249.9 L522.9,249.9 L526.3,249.9 L529.7,250.0 L533.1,250.0 L536.6,250.0 L540.0,250.0" fill="none" stroke="#C75794" stroke-width="2.5"></path>
+  <line x1="420" y1="66" x2="450" y2="66" stroke="#5795C7" stroke-width="2.5"></line>
+  <text x="458" y="71" font-size="15" fill="#205279">target p</text>
+  <line x1="420" y1="90" x2="450" y2="90" stroke="#C75794" stroke-width="2.5"></line>
+  <text x="458" y="95" font-size="15" fill="#792051">I-projection</text>
+  <line x1="420" y1="114" x2="450" y2="114" stroke="#C78557" stroke-width="2.5" stroke-dasharray="7,4"></line>
+  <text x="458" y="119" font-size="15" fill="#794520">M-projection</text>
+</svg>
+</div>
+<p><strong>Figure 3.</strong> The tutorial’s target <span class="math inline">p = 0.3\,\mathcal N(-2, 0.8^2) + 0.7\,\mathcal N(3, 1.1^2)</span> (shaded), its I-projection <span class="math inline">\mathcal N(2.95, 1.17^2)</span> (solid), and its M-projection <span class="math inline">\mathcal N(1.5, 2.51^2)</span> (dashed). Curves computed from these formulas for this figure.</p>
+<p>The figure shows the two behaviours side by side. The I-projection is narrow and confident, and assigns almost no probability to the region near <span class="math inline">-2</span> where <span class="math inline">p</span> has 30% of its mass. The M-projection covers both modes, but its peak sits at <span class="math inline">1.5</span>, in the valley between them, where <span class="math inline">p</span> itself is small. Neither is “the right answer”: each is the best Gaussian under a different definition of best.</p>
+<div class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+Note
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p><strong>Each fit wins its own contest.</strong> Computing both divergences for both fits by numerical integration (in nats, done for these notes; the tutorial’s own printed values are Monte Carlo estimates):</p>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th></th>
+<th><span class="math inline">\mathrm{KL}(q\Vert p)</span></th>
+<th><span class="math inline">\mathrm{KL}(p\Vert q)</span></th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>I-projection <span class="math inline">\mathcal N(2.95,\ 1.17^2)</span></td>
+<td><span class="math inline">0.345</span></td>
+<td><span class="math inline">2.13</span></td>
+</tr>
+<tr class="even">
+<td>M-projection <span class="math inline">\mathcal N(1.5,\ 2.51^2)</span></td>
+<td><span class="math inline">0.528</span></td>
+<td><span class="math inline">0.320</span></td>
+</tr>
+</tbody>
+</table>
+<p>The I-projection has the smaller reverse KL and the M-projection has the smaller forward KL, as their definitions require. The I-projection’s forward KL is large because it misses the small mode.</p>
+</div>
+</div>
+<p>The reverse KL also has a second, worse local minimum. Started near the small mode, the same optimization settles on approximately <span class="math inline">\mathcal N(-1.92,\ 0.89^2)</span>, with reverse KL about <span class="math inline">1.18</span>. This is the 1D version of the slide’s two I-projection solutions. In the slide the two components look alike, so the two solutions are equally good. Here the components carry different mass, so the one on the larger component is better. In both cases the optimization is not convex, and which solution we reach depends on where we start.</p>
+</section>
+</section>
+<section id="sec-why-iproj" class="level2">
+<h2 class="anchored" data-anchor-id="sec-why-iproj">Why variational inference uses the I-projection</h2>
+<p>Most variational inference algorithms use the I-projection. The reason is tractability. The M-projection’s objective <span class="math inline">\mathrm{KL}(p\,\|\,q) = \mathbb{E}_{x\sim p}[\log p(x)/q(x)]</span> is an expectation over <span class="math inline">p</span>. When <span class="math inline">p</span> is the posterior, that expectation needs either samples from <span class="math inline">p(z\mid x)</span> or its normalizing constant, the very things we cannot get. The I-projection’s objective is an expectation over <span class="math inline">q</span>, which we chose to be easy to sample from and evaluate. It still contains <span class="math inline">\log p(z\mid x)</span>, but <a href="#sec-elbo" class="quarto-xref"><span>Tutorial: reverse KL and the ELBO</span></a> shows that the troublesome constant <span class="math inline">\log p(x)</span> separates out and does not affect the minimizer.</p>
+<p>The lecture adds that the I-projection is closely related to maximizing the entropy of <span class="math inline">q</span>,</p>
+<p><span class="math display">H(q) = -\mathbb{E}_{x\sim q}[\log q(x)],</span></p>
+<p>which measures the uncertainty in <span class="math inline">q</span>. <a href="#sec-mf-mrf" class="quarto-xref"><span>Mean field for an MRF</span></a> makes this concrete: for an MRF target, minimizing <span class="math inline">\mathrm{KL}(q\,\|\,p)</span> becomes maximizing <span class="math inline">H(q)</span> plus an expected-potential term.</p>
+<p>The lecture mentions, without proof, a theorem connecting entropy to Week 1 (<a href="week01.html#sec-expfam" class="quarto-xref"><span>Exponential families</span></a> in Week 1). The problem</p>
+<p><span class="math display">\max_q\ H(q) \quad\text{subject to}\quad \mathbb{E}_{x\sim q}[f_i(x)] = t_i \quad\text{for } i=1,\dots,k</span></p>
+<p>is always maximized by an exponential family, with the <span class="math inline">f_i</span> as its sufficient statistics. This is the <strong><a href="https://en.wikipedia.org/wiki/Principle_of_maximum_entropy">principle of maximum entropy</a></strong>: among all distributions with the prescribed averages of <span class="math inline">f_1,\dots,f_k</span>, the least committal one, the one with the most uncertainty, has the exponential-family form <span class="math inline">\exp\{\sum_i\eta_i f_i(x) - A(\eta)\}</span>.</p>
+</section>
+<section id="sec-elbo" class="level2">
+<h2 class="anchored" data-anchor-id="sec-elbo">Tutorial: reverse KL and the ELBO</h2>
+<p>The tutorial makes the tractability argument exact. Return to the VI setting, where the target is the posterior <span class="math inline">p(z\mid x) = p(x,z)/p(x)</span> and the approximation <span class="math inline">q_\lambda(z)</span> has parameters <span class="math inline">\lambda</span> (for a Gaussian family, <span class="math inline">\lambda=(\mu,\Sigma)</span>). Expand the reverse KL with <span class="math inline">\log p(z\mid x) = \log p(x,z) - \log p(x)</span>:</p>
+<p><span class="math display">
+\begin{aligned}
+\mathrm{KL}\big(q_\lambda(z)\,\|\,p(z\mid x)\big) &amp;= \mathbb{E}_{q_\lambda}\left[\log\frac{q_\lambda(z)}{p(z\mid x)}\right] \\
+&amp;= \mathbb{E}_{q_\lambda}\big[\log q_\lambda(z) - \log p(x,z) + \log p(x)\big] \\
+&amp;= \log p(x) - \underbrace{\mathbb{E}_{q_\lambda}\big[\log p(x,z) - \log q_\lambda(z)\big]}_{\mathcal{L}(\lambda)}.
+\end{aligned}
+</span></p>
+<p>The term <span class="math inline">\log p(x)</span> came out of the expectation because it does not depend on <span class="math inline">z</span>.</p>
+<div class="definition-block">
+<p><strong>Definition.</strong> The <strong><a href="https://en.wikipedia.org/wiki/Evidence_lower_bound">evidence lower bound (ELBO)</a></strong> is <span class="math display">\mathcal{L}(\lambda) = \mathbb{E}_{z\sim q_\lambda}\big[\log p(x,z) - \log q_\lambda(z)\big].</span></p>
+</div>
+<p>Rearranging the expansion,</p>
+<p><span class="math display">\log p(x) = \mathcal{L}(\lambda) + \mathrm{KL}\big(q_\lambda(z)\,\|\,p(z\mid x)\big) \ \ge\ \mathcal{L}(\lambda),</span></p>
+<p>since the KL divergence is nonnegative. This explains the name: <span class="math inline">\mathcal L</span> is a lower bound on the log evidence <span class="math inline">\log p(x)</span>.</p>
+<p>Since <span class="math inline">\log p(x)</span> does not depend on <span class="math inline">\lambda</span>, the two terms on the right trade off one for one as <span class="math inline">\lambda</span> changes, and</p>
+<div class="boxed-eq">
+<p><span class="math display">\arg\max_\lambda\ \mathcal{L}(\lambda) = \arg\min_\lambda\ \mathrm{KL}\big(q_\lambda(z)\,\|\,p(z\mid x)\big).</span></p>
+</div>
+<p>Minimizing the reverse KL is the same as maximizing the ELBO. The ELBO needs only the joint <span class="math inline">p(x,z)</span>, which we can evaluate, and an expectation under <span class="math inline">q_\lambda</span>, which we can estimate by sampling from <span class="math inline">q_\lambda</span>. The intractable <span class="math inline">p(x)</span> never appears. By contrast, estimating the forward KL <span class="math inline">\mathbb{E}_{p(z\mid x)}[\log p(z\mid x)/q_\lambda(z)]</span> requires samples from <span class="math inline">p(z\mid x)</span>, which is the difficulty we started with. The lecture says more variational inference comes next week.</p>
+</section>
+<section id="sec-mf-mrf" class="level2">
+<h2 class="anchored" data-anchor-id="sec-mf-mrf">Mean field for an MRF</h2>
+<p>The lecture now applies the I-projection to a Markov random field from Week 3. In this section the target is the MRF distribution itself, written <span class="math inline">p(x\mid\theta)</span> over variables <span class="math inline">x</span>; there is no separate split into observed and latent variables. (If some variables were observed, conditioning on them gives another MRF over the rest, so the same method applies to a posterior.)</p>
+<p>Write an arbitrary MRF in exponential form,</p>
+<p><span class="math display">p(x\mid\theta) = \exp\Big\{\sum_{c\in C}\phi_c(x_c) - \log Z(\theta)\Big\},</span></p>
+<p>where <span class="math inline">C</span> is the set of cliques, <span class="math inline">x_c</span> are the variables in clique <span class="math inline">c</span>, and <span class="math inline">Z(\theta)</span> is the partition function.</p>
+<p>Here <span class="math inline">\phi_c</span> denotes the <strong>whole log-potential</strong> of clique <span class="math inline">c</span>, <span class="math inline">\phi_c(x_c) = \log\psi_c(x_c)</span>. This is not Week 3’s sufficient-statistic vector <span class="math inline">\phi_C</span> (<a href="week03.html#sec-mrf-expfam" class="quarto-xref"><span>MRFs as exponential families</span></a> in Week 3). In the log-linear case the two are related by <span class="math inline">\phi_c(x_c) = \theta_c^\top\phi_C(x_c)</span>, with the slide’s <span class="math inline">\phi_c</span> on the left and Week 3’s on the right.</p>
+<p>We look for <span class="math inline">q\in Q</span> by I-projection to <span class="math inline">p</span>. Substituting the MRF into the reverse KL,</p>
+<p><span class="math display">
+\begin{aligned}
+\mathrm{KL}(q\,\|\,p) &amp;= \mathbb{E}_{x\sim q}\left[\log\frac{q(x)}{p(x\mid\theta)}\right] \\
+&amp;= \mathbb{E}_{x\sim q}\Big[\log q(x) - \sum_{c\in C}\phi_c(x_c) + \log Z(\theta)\Big] \\
+&amp;= -H(q) - \sum_{c\in C}\mathbb{E}_q[\phi_c(x_c)] + \log Z(\theta).
+\end{aligned}
+</span></p>
+<p>The last term <span class="math inline">\log Z(\theta)</span> does not depend on <span class="math inline">q</span>, so it can be dropped from the optimization, and minimizing the result is the same as maximizing its negative:</p>
+<div class="boxed-eq">
+<p><span class="math display">q^* = \arg\min_{q\in Q}\mathrm{KL}(q\,\|\,p) = \arg\max_{q\in Q}\ \Big[\sum_{c\in C}\mathbb{E}_q[\phi_c(x_c)] + H(q)\Big].</span></p>
+</div>
+<p>The objective balances two pulls. The expected-potential term pulls <span class="math inline">q</span> toward configurations the MRF favours; the entropy term pulls <span class="math inline">q</span> toward spreading out. The intractable <span class="math inline">\log Z</span> has dropped out, exactly as <span class="math inline">\log p(x)</span> did in <a href="#sec-elbo" class="quarto-xref"><span>Tutorial: reverse KL and the ELBO</span></a>. Because the KL divergence is nonnegative, the bracketed objective is also a lower bound on <span class="math inline">\log Z(\theta)</span> for every <span class="math inline">q</span>, the MRF counterpart of the ELBO.</p>
+<p>For tractability we still need a nice set <span class="math inline">Q</span>: computing <span class="math inline">\mathbb{E}_q[\phi_c]</span> and <span class="math inline">H(q)</span> for an arbitrary <span class="math inline">q</span> over many variables is as hard as the original problem.</p>
+</section>
+<section id="sec-naive-mf" class="level2">
+<h2 class="anchored" data-anchor-id="sec-naive-mf">Naive mean field</h2>
+<p>The simplest choice of <span class="math inline">Q</span> makes every variable independent.</p>
+<div class="definition-block">
+<p><strong>Definition.</strong> The <strong>naive <a href="https://en.wikipedia.org/wiki/Mean-field_theory">mean-field</a> approximation</strong> restricts <span class="math inline">Q</span> to fully factorized distributions, <span class="math display">q(x) = \prod_{i\in V} q_i(x_i),</span> where <span class="math inline">V</span> is the set of nodes (variables) and each <span class="math inline">q_i</span> is a distribution over <span class="math inline">x_i</span> alone.</p>
+</div>
+<p>Two quantities in the objective now simplify.</p>
+<p><strong>Expected potentials.</strong> The expectation of <span class="math inline">\phi_c</span> involves only the variables in <span class="math inline">c</span>, and under a factorized <span class="math inline">q</span> their marginal is a product,</p>
+<p><span class="math display">\mathbb{E}_q[\phi_c(x_c)] = \sum_{x_c} q(x_c)\,\phi_c(x_c), \qquad q(x_c) = \prod_{i\in c} q_i(x_i).</span></p>
+<p><strong>Entropy.</strong> The entropy of a product splits into a sum of single-variable entropies. Since <span class="math inline">\log q(x) = \sum_i\log q_i(x_i)</span>,</p>
+<p><span class="math display">
+\begin{aligned}
+H(q) = -\sum_x q(x)\log q(x) &amp;= -\sum_x q(x)\sum_i\log q_i(x_i) \\
+&amp;= -\sum_i\sum_{x_i} q_i(x_i)\log q_i(x_i)\sum_{x\setminus x_i}\frac{q(x)}{q_i(x_i)} \\
+&amp;= -\sum_i\sum_{x_i} q_i(x_i)\log q_i(x_i) = \sum_i H(q_i).
+\end{aligned}
+</span></p>
+<p>The second line swaps the order of summation: for each <span class="math inline">i</span>, sum first over <span class="math inline">x_i</span> and then over all the other variables <span class="math inline">x\setminus x_i</span>. The inner sum <span class="math inline">\sum_{x\setminus x_i} q(x)/q_i(x_i) = \sum_{x\setminus x_i}\prod_{k\ne i}q_k(x_k)</span> is a product of distributions summed over all their values, which is 1.</p>
+<p>Putting both together, the naive mean-field problem is</p>
+<p><span class="math display">
+\begin{aligned}
+q^* = \arg\max_{q}\ &amp;\sum_{c\in C}\sum_{x_c}\phi_c(x_c)\prod_{i\in c}q_i(x_i) + \sum_i H(q_i) \\
+\text{subject to}\ \ &amp; q_i(x_i)\ge0\ \text{ and }\ \sum_{x_i}q_i(x_i)=1\ \text{ for every } i.
+\end{aligned}
+</span></p>
+<p>The constraints say each <span class="math inline">q_i</span> must be a probability distribution. Every term now involves only a handful of small tables, one per variable, instead of a table over all joint configurations.</p>
+</section>
+<section id="sec-coord-ascent" class="level2">
+<h2 class="anchored" data-anchor-id="sec-coord-ascent">Pairwise MRFs and coordinate ascent</h2>
+<p>The lecture simplifies further to a <strong>pairwise MRF</strong>, whose potentials live on the edges <span class="math inline">E</span> of the graph (Week 3’s Ising model, <a href="week03.html#sec-ising" class="quarto-xref"><span>The Ising model</span></a> in Week 3, is one). The problem becomes</p>
+<p><span class="math display">
+\begin{aligned}
+q^* = \arg\max_q\ &amp;\sum_{(i,j)\in E}\ \sum_{x_i,x_j}\phi_{ij}(x_i,x_j)\,q_i(x_i)\,q_j(x_j) - \sum_i\sum_{x_i}q_i(x_i)\log q_i(x_i) \\
+\text{subject to}\ \ &amp; q_i(x_i)\ge0\ \text{ and }\ \sum_{x_i}q_i(x_i)=1.
+\end{aligned}
+</span></p>
+<p>This problem is hard in general: the objective is not concave in all the <span class="math inline">q_i</span> jointly, and it has many local maxima. But it is easy in any <strong>one</strong> <span class="math inline">q_i</span> with the others held fixed, which suggests optimizing one block at a time.</p>
+<section id="sec-lagrange" class="level3">
+<h3 class="anchored" data-anchor-id="sec-lagrange">Lagrange multipliers</h3>
+<p>Maximizing over <span class="math inline">q_i</span> alone is a constrained problem: <span class="math inline">q_i</span> must sum to 1. The lecture’s one-line instruction, “write the Lagrangian, take the derivative, set to zero, and solve”, uses a standard tool.</p>
+<div class="definition-block">
+<p><strong>Definition.</strong> To maximize <span class="math inline">f(u)</span> subject to an equality constraint <span class="math inline">g(u)=0</span>, the method of <strong><a href="https://en.wikipedia.org/wiki/Lagrange_multiplier">Lagrange multipliers</a></strong> introduces a new variable <span class="math inline">\lambda</span> and the <strong>Lagrangian</strong> <span class="math inline">\mathcal{L}(u,\lambda) = f(u) + \lambda\,g(u)</span>. At a constrained optimum, the derivative of <span class="math inline">\mathcal L</span> with respect to every coordinate of <span class="math inline">u</span> is zero; <span class="math inline">\lambda</span> is then chosen so that the constraint holds.</p>
+</div>
+<p>The multiplier lets us differentiate as if there were no constraint, then fix up the constraint at the end. In mean field, <span class="math inline">\lambda</span> will turn out to be a normalizing constant.</p>
+</section>
+<section id="sec-mf-update" class="level3">
+<h3 class="anchored" data-anchor-id="sec-mf-update">The coordinate update</h3>
+<p>Fix every <span class="math inline">q_j</span> with <span class="math inline">j\ne i</span> and collect the terms of the objective that involve <span class="math inline">q_i</span>. To keep the notation short, write <span class="math inline">\phi_{ij}(x_i,x_j)</span> for the potential on edge <span class="math inline">\{i,j\}</span> whichever way round the edge was listed, so <span class="math inline">\phi_{ji}(x_j,x_i)=\phi_{ij}(x_i,x_j)</span>, and let <span class="math inline">N(i)</span> be the neighbours of <span class="math inline">i</span>. Then</p>
+<p><span class="math display">f(q_i) = \sum_{x_i}q_i(x_i)\sum_{j\in N(i)}\sum_{x_j}q_j(x_j)\,\phi_{ij}(x_i,x_j) - \sum_{x_i}q_i(x_i)\log q_i(x_i) + \text{const},</span></p>
+<p>where “const” collects terms that do not involve <span class="math inline">q_i</span>. Add a multiplier for <span class="math inline">\sum_{x_i}q_i(x_i) = 1</span> and differentiate with respect to one entry <span class="math inline">q_i(x_i)</span>:</p>
+<p><span class="math display">
+\begin{aligned}
+&amp;\frac{\partial}{\partial q_i(x_i)}\Big[f(q_i) + \lambda\Big(\sum_{x_i'}q_i(x_i')-1\Big)\Big] \\
+&amp;\qquad= \sum_{j\in N(i)}\sum_{x_j}q_j(x_j)\,\phi_{ij}(x_i,x_j) - \log q_i(x_i) - 1 + \lambda.
+\end{aligned}
+</span></p>
+<p>Setting this to zero and solving for <span class="math inline">q_i(x_i)</span> gives <span class="math inline">q_i(x_i) = e^{\lambda-1}\exp\{\cdots\}</span>. The factor <span class="math inline">e^{\lambda-1}</span> is the same for every <span class="math inline">x_i</span>, and choosing <span class="math inline">\lambda</span> to satisfy the constraint makes it the normalizer:</p>
+<div class="boxed-eq">
+<p><span class="math display">q_i(x_i) \propto \exp\Big\{\sum_{j\in N(i)}\sum_{x_j}q_j(x_j)\,\phi_{ij}(x_i,x_j)\Big\}.</span></p>
+</div>
+<p>Each variable’s new distribution is an exponential of its potentials <strong>averaged over its neighbours’ current distributions</strong>. This is where the name “mean field” comes from: each neighbour <span class="math inline">x_j</span> is replaced by its average effect under <span class="math inline">q_j</span>. The exponential is positive, so the constraint <span class="math inline">q_i(x_i)\ge0</span> holds automatically.</p>
+<div class="algorithm">
+<p><strong>Naive mean field by block coordinate ascent</strong></p>
+<ol type="1">
+<li>Initialize every <span class="math inline">q_i(x_i)</span> to the uniform distribution.</li>
+<li>Iterate over the nodes <span class="math inline">i\in V</span>. For each, greedily maximize the objective over <span class="math inline">q_i</span> with the others fixed, which is the update <span class="math display">q_i(x_i) \propto \exp\Big\{\sum_{j\in N(i)}\sum_{x_j}q_j(x_j)\,\phi_{ij}(x_i,x_j)\Big\}.</span></li>
+<li>Repeat until the <span class="math inline">q_i</span> stop changing.</li>
+</ol>
+</div>
+<p>This is <strong><a href="https://en.wikipedia.org/wiki/Coordinate_descent">coordinate ascent</a></strong> in blocks: each step exactly maximizes over one block <span class="math inline">q_i</span>. Each step can only increase the objective, which is bounded above by <span class="math inline">\log Z</span>, so the procedure is guaranteed to converge. Because the full objective has many local maxima, it can converge to a local optimum rather than the best <span class="math inline">q</span>, and different initializations can give different answers.</p>
+<div class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+Note
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p><strong>Worked example: two binary variables.</strong> A teaching example with invented numbers. Take two variables <span class="math inline">x_1,x_2\in\{0,1\}</span> joined by one edge, with potential <span class="math inline">\phi_{12}(x_1,x_2) = 2\,x_1x_2</span>, so the MRF favours both variables being 1. Write <span class="math inline">m_i = q_i(1)</span>. The update for <span class="math inline">q_1</span> is</p>
+<p><span class="math display">q_1(x_1)\propto\exp\Big\{\sum_{x_2}q_2(x_2)\cdot2x_1x_2\Big\} = \exp\{2x_1m_2\},</span></p>
+<p>so <span class="math inline">q_1(1) = e^{2m_2}/(1+e^{2m_2})</span>, which is the logistic function <span class="math inline">\sigma(2m_2)</span>. Likewise <span class="math inline">m_2\leftarrow\sigma(2m_1)</span>.</p>
+<ul>
+<li>Start uniform: <span class="math inline">m_1=m_2=0.5</span>.</li>
+<li>Update <span class="math inline">q_1</span>: <span class="math inline">m_1 = \sigma(1)\approx0.731</span>.</li>
+<li>Update <span class="math inline">q_2</span>: <span class="math inline">m_2 = \sigma(1.462)\approx0.812</span>.</li>
+<li>Update <span class="math inline">q_1</span>: <span class="math inline">m_1 = \sigma(1.624)\approx0.835</span>. Then <span class="math inline">m_2\approx0.842</span>.</li>
+<li>After a few more sweeps both settle at <span class="math inline">m_1=m_2\approx0.844</span>, where <span class="math inline">m=\sigma(2m)</span>.</li>
+</ul>
+<p>Compare with the exact MRF. Its four configurations have unnormalized probabilities <span class="math inline">1,1,1,e^2</span>, so the exact marginal is <span class="math inline">p(x_1=1) = (1+e^2)/(3+e^2)\approx0.807</span>. The mean-field marginal (<span class="math inline">0.844</span>) is more confident than the truth. The factorized <span class="math inline">q</span> also misplaces the joint: <span class="math inline">q(0,0) = (1-0.844)^2\approx0.024</span>, while the exact <span class="math inline">p(0,0) = 1/(3+e^2)\approx0.096</span>. This is the I-projection’s tendency from <a href="#sec-projections" class="quarto-xref"><span>Which direction? I-projection and M-projection</span></a>, under-covering the less probable configurations, showing up in a discrete model.</p>
+</div>
+</div>
+</section>
+</section>
+<section id="sec-summary6" class="level2">
+<h2 class="anchored" data-anchor-id="sec-summary6">Summary</h2>
+<div class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+Note
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p><strong>Key takeaways from Week 6:</strong></p>
+<ul>
+<li><strong>Hidden Markov models.</strong> An HMM is a latent Markov chain with observations: <span class="math inline">p(x_{1:T},z_{1:T}) = p(z_1)\prod_t p(z_t\mid z_{t-1})\prod_t p(x_t\mid z_t)</span>, specified by an initial distribution <span class="math inline">\pi</span>, a transition matrix <span class="math inline">\Psi</span>, and emission probabilities <span class="math inline">\psi_t</span>.</li>
+<li><strong>Forward-backward.</strong> Filtering <span class="math inline">\alpha_t\propto\psi_t\odot(\Psi^\top\alpha_{t-1})</span> and the backward recursion <span class="math inline">\beta_t = \Psi(\psi_{t+1}\odot\beta_{t+1})</span> combine into the smoothed posteriors <span class="math inline">\gamma_t = p(z_t\mid x_{1:T})\propto\alpha_t\odot\beta_t</span>.</li>
+<li><strong>Viterbi.</strong> Replacing the forward sum by a maximum, <span class="math inline">\delta_t(j) = \psi_t(j)\max_i\delta_{t-1}(i)\Psi(i,j)</span>, plus back-pointers and a traceback, gives the MAP hidden sequence. Both HMM algorithms cost on the order of <span class="math inline">TK^2</span> instead of <span class="math inline">K^T</span>, because they follow the chain structure.</li>
+<li><strong>Why VI.</strong> In general latent variable models the evidence <span class="math inline">p(x) = \int p(x,z)\,dz</span> is intractable, so the posterior is too. Variational inference approximates the posterior by the closest member of a tractable family <span class="math inline">Q</span>.</li>
+<li><strong>KL divergence.</strong> <span class="math inline">\mathrm{KL}(q\,\|\,p) = \mathbb{E}_q[\log q/p]</span> is nonnegative, zero only when <span class="math inline">q=p</span>, and not symmetric.</li>
+<li><strong>I- vs M-projection.</strong> Minimizing <span class="math inline">\mathrm{KL}(q\,\|\,p)</span> (I-projection) penalizes <span class="math inline">q</span> for mass where <span class="math inline">p</span> has none, so it is mode-seeking and underestimates support. Minimizing <span class="math inline">\mathrm{KL}(p\,\|\,q)</span> (M-projection) penalizes <span class="math inline">q</span> for missing mass, so it covers <span class="math inline">p</span> and, for Gaussian <span class="math inline">Q</span>, matches its mean and covariance. VI uses the I-projection because it needs only expectations under <span class="math inline">q</span>; equivalently, it maximizes the ELBO.</li>
+<li><strong>Naive mean field.</strong> For an MRF, the I-projection maximizes <span class="math inline">\sum_c\mathbb{E}_q[\phi_c] + H(q)</span>. With a fully factorized <span class="math inline">q=\prod_iq_i</span> the entropy splits as <span class="math inline">\sum_iH(q_i)</span>, and coordinate ascent updates <span class="math inline">q_i(x_i)\propto\exp\{\sum_{j\in N(i)}\sum_{x_j}q_j(x_j)\phi_{ij}(x_i,x_j)\}</span>. It always converges, possibly to a local optimum.</li>
+</ul>
+</div>
+</div>
+<p><strong>Next week:</strong> per the lecture’s closing slide, more variational inference. Reading week and the midterm follow.</p>
+</section>
+<section id="quick-self-check" class="level2">
+<h2 class="anchored" data-anchor-id="quick-self-check">Quick self-check</h2>
+<p>If you can explain, using only “hidden state,” “recursion,” and “conditional independence,” why forward-backward and Viterbi avoid enumerating all <span class="math inline">K^T</span> hidden sequences, and, using only “KL divergence,” “tractable family,” and “expectation under <span class="math inline">q</span>,” why variational inference minimizes <span class="math inline">\mathrm{KL}(q\,\|\,p)</span> rather than <span class="math inline">\mathrm{KL}(p\,\|\,q)</span>, you have understood the core of Week 6.</p>
+
+
+</section>
+
+</main> <!-- /main -->
+<script id="quarto-html-after-body" type="application/javascript">
+  window.document.addEventListener("DOMContentLoaded", function (event) {
+    const icon = "";
+    const anchorJS = new window.AnchorJS();
+    anchorJS.options = {
+      placement: 'right',
+      icon: icon
+    };
+    anchorJS.add('.anchored');
+    const isCodeAnnotation = (el) => {
+      for (const clz of el.classList) {
+        if (clz.startsWith('code-annotation-')) {                     
+          return true;
+        }
+      }
+      return false;
+    }
+    const onCopySuccess = function(e) {
+      // button target
+      const button = e.trigger;
+      // don't keep focus
+      button.blur();
+      // flash "checked"
+      button.classList.add('code-copy-button-checked');
+      var currentTitle = button.getAttribute("title");
+      button.setAttribute("title", "Copied!");
+      let tooltip;
+      if (window.bootstrap) {
+        button.setAttribute("data-bs-toggle", "tooltip");
+        button.setAttribute("data-bs-placement", "left");
+        button.setAttribute("data-bs-title", "Copied!");
+        tooltip = new bootstrap.Tooltip(button, 
+          { trigger: "manual", 
+            customClass: "code-copy-button-tooltip",
+            offset: [0, -8]});
+        tooltip.show();    
+      }
+      setTimeout(function() {
+        if (tooltip) {
+          tooltip.hide();
+          button.removeAttribute("data-bs-title");
+          button.removeAttribute("data-bs-toggle");
+          button.removeAttribute("data-bs-placement");
+        }
+        button.setAttribute("title", currentTitle);
+        button.classList.remove('code-copy-button-checked');
+      }, 1000);
+      // clear code selection
+      e.clearSelection();
+    }
+    const getTextToCopy = function(trigger) {
+      const outerScaffold = trigger.parentElement.cloneNode(true);
+      const codeEl = outerScaffold.querySelector('code');
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+    }
+    const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
+      text: getTextToCopy
+    });
+    clipboard.on('success', onCopySuccess);
+    if (window.document.getElementById('quarto-embedded-source-code-modal')) {
+      const clipboardModal = new window.ClipboardJS('.code-copy-button[data-in-quarto-modal]', {
+        text: getTextToCopy,
+        container: window.document.getElementById('quarto-embedded-source-code-modal')
+      });
+      clipboardModal.on('success', onCopySuccess);
+    }
+      var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+      var mailtoRegex = new RegExp(/^mailto:/);
+        var filterRegex = new RegExp('/' + window.location.host + '/');
+      var isInternal = (href) => {
+          return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+      }
+      // Inspect non-navigation links and adorn them if external
+     var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+      for (var i=0; i<links.length; i++) {
+        const link = links[i];
+        if (!isInternal(link.href)) {
+          // undo the damage that might have been done by quarto-nav.js in the case of
+          // links that we want to consider external
+          if (link.dataset.originalHref !== undefined) {
+            link.href = link.dataset.originalHref;
+          }
+            // target, if specified
+            link.setAttribute("target", "_blank");
+            if (link.getAttribute("rel") === null) {
+              link.setAttribute("rel", "noopener");
+            }
+        }
+      }
+    function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+      const config = {
+        allowHTML: true,
+        maxWidth: 500,
+        delay: 100,
+        arrow: false,
+        appendTo: function(el) {
+            return el.parentElement;
+        },
+        interactive: true,
+        interactiveBorder: 10,
+        theme: 'quarto',
+        placement: 'bottom-start',
+      };
+      if (contentFn) {
+        config.content = contentFn;
+      }
+      if (onTriggerFn) {
+        config.onTrigger = onTriggerFn;
+      }
+      if (onUntriggerFn) {
+        config.onUntrigger = onUntriggerFn;
+      }
+      window.tippy(el, config); 
+    }
+    const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+    for (var i=0; i<noterefs.length; i++) {
+      const ref = noterefs[i];
+      tippyHover(ref, function() {
+        // use id or data attribute instead here
+        let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+        try { href = new URL(href).hash; } catch {}
+        const id = href.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note) {
+          return note.innerHTML;
+        } else {
+          return "";
+        }
+      });
+    }
+    const xrefs = window.document.querySelectorAll('a.quarto-xref');
+    const processXRef = (id, note) => {
+      // Strip column container classes
+      const stripColumnClz = (el) => {
+        el.classList.remove("page-full", "page-columns");
+        if (el.children) {
+          for (const child of el.children) {
+            stripColumnClz(child);
+          }
+        }
+      }
+      stripColumnClz(note)
+      if (id === null || id.startsWith('sec-')) {
+        // Special case sections, only their first couple elements
+        const container = document.createElement("div");
+        if (note.children && note.children.length > 2) {
+          container.appendChild(note.children[0].cloneNode(true));
+          for (let i = 1; i < note.children.length; i++) {
+            const child = note.children[i];
+            if (child.tagName === "P" && child.innerText === "") {
+              continue;
+            } else {
+              container.appendChild(child.cloneNode(true));
+              break;
+            }
+          }
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(container);
+          }
+          return container.innerHTML
+        } else {
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(note);
+          }
+          return note.innerHTML;
+        }
+      } else {
+        // Remove any anchor links if they are present
+        const anchorLink = note.querySelector('a.anchorjs-link');
+        if (anchorLink) {
+          anchorLink.remove();
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        if (note.classList.contains("callout")) {
+          return note.outerHTML;
+        } else {
+          return note.innerHTML;
+        }
+      }
+    }
+    for (var i=0; i<xrefs.length; i++) {
+      const xref = xrefs[i];
+      tippyHover(xref, undefined, function(instance) {
+        instance.disable();
+        let url = xref.getAttribute('href');
+        let hash = undefined; 
+        if (url.startsWith('#')) {
+          hash = url;
+        } else {
+          try { hash = new URL(url).hash; } catch {}
+        }
+        if (hash) {
+          const id = hash.replace(/^#\/?/, "");
+          const note = window.document.getElementById(id);
+          if (note !== null) {
+            try {
+              const html = processXRef(id, note.cloneNode(true));
+              instance.setContent(html);
+            } finally {
+              instance.enable();
+              instance.show();
+            }
+          } else {
+            // See if we can fetch this
+            fetch(url.split('#')[0])
+            .then(res => res.text())
+            .then(html => {
+              const parser = new DOMParser();
+              const htmlDoc = parser.parseFromString(html, "text/html");
+              const note = htmlDoc.getElementById(id);
+              if (note !== null) {
+                const html = processXRef(id, note);
+                instance.setContent(html);
+              } 
+            }).finally(() => {
+              instance.enable();
+              instance.show();
+            });
+          }
+        } else {
+          // See if we can fetch a full url (with no hash to target)
+          // This is a special case and we should probably do some content thinning / targeting
+          fetch(url)
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.querySelector('main.content');
+            if (note !== null) {
+              // This should only happen for chapter cross references
+              // (since there is no id in the URL)
+              // remove the first header
+              if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+                note.children[0].remove();
+              }
+              const html = processXRef(null, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      }, function(instance) {
+      });
+    }
+        let selectedAnnoteEl;
+        const selectorForAnnotation = ( cell, annotation) => {
+          let cellAttr = 'data-code-cell="' + cell + '"';
+          let lineAttr = 'data-code-annotation="' +  annotation + '"';
+          const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+          return selector;
+        }
+        const selectCodeLines = (annoteEl) => {
+          const doc = window.document;
+          const targetCell = annoteEl.getAttribute("data-target-cell");
+          const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+          const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+          const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+          const lineIds = lines.map((line) => {
+            return targetCell + "-" + line;
+          })
+          let top = null;
+          let height = null;
+          let parent = null;
+          if (lineIds.length > 0) {
+              //compute the position of the single el (top and bottom and make a div)
+              const el = window.document.getElementById(lineIds[0]);
+              top = el.offsetTop;
+              height = el.offsetHeight;
+              parent = el.parentElement.parentElement;
+            if (lineIds.length > 1) {
+              const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+              const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+              height = bottom - top;
+            }
+            if (top !== null && height !== null && parent !== null) {
+              // cook up a div (if necessary) and position it 
+              let div = window.document.getElementById("code-annotation-line-highlight");
+              if (div === null) {
+                div = window.document.createElement("div");
+                div.setAttribute("id", "code-annotation-line-highlight");
+                div.style.position = 'absolute';
+                parent.appendChild(div);
+              }
+              div.style.top = top - 2 + "px";
+              div.style.height = height + 4 + "px";
+              div.style.left = 0;
+              let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+              if (gutterDiv === null) {
+                gutterDiv = window.document.createElement("div");
+                gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+                gutterDiv.style.position = 'absolute';
+                const codeCell = window.document.getElementById(targetCell);
+                const gutter = codeCell.querySelector('.code-annotation-gutter');
+                gutter.appendChild(gutterDiv);
+              }
+              gutterDiv.style.top = top - 2 + "px";
+              gutterDiv.style.height = height + 4 + "px";
+            }
+            selectedAnnoteEl = annoteEl;
+          }
+        };
+        const unselectCodeLines = () => {
+          const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+          elementsIds.forEach((elId) => {
+            const div = window.document.getElementById(elId);
+            if (div) {
+              div.remove();
+            }
+          });
+          selectedAnnoteEl = undefined;
+        };
+          // Handle positioning of the toggle
+      window.addEventListener(
+        "resize",
+        throttle(() => {
+          elRect = undefined;
+          if (selectedAnnoteEl) {
+            selectCodeLines(selectedAnnoteEl);
+          }
+        }, 10)
+      );
+      function throttle(fn, ms) {
+      let throttle = false;
+      let timer;
+        return (...args) => {
+          if(!throttle) { // first call gets through
+              fn.apply(this, args);
+              throttle = true;
+          } else { // all the others get throttled
+              if(timer) clearTimeout(timer); // cancel #2
+              timer = setTimeout(() => {
+                fn.apply(this, args);
+                timer = throttle = false;
+              }, ms);
+          }
+        };
+      }
+        // Attach click handler to the DT
+        const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+        for (const annoteDlNode of annoteDls) {
+          annoteDlNode.addEventListener('click', (event) => {
+            const clickedEl = event.target;
+            if (clickedEl !== selectedAnnoteEl) {
+              unselectCodeLines();
+              const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+              if (activeEl) {
+                activeEl.classList.remove('code-annotation-active');
+              }
+              selectCodeLines(clickedEl);
+              clickedEl.classList.add('code-annotation-active');
+            } else {
+              // Unselect the line
+              unselectCodeLines();
+              clickedEl.classList.remove('code-annotation-active');
+            }
+          });
+        }
+    const findCites = (el) => {
+      const parentEl = el.parentElement;
+      if (parentEl) {
+        const cites = parentEl.dataset.cites;
+        if (cites) {
+          return {
+            el,
+            cites: cites.split(' ')
+          };
+        } else {
+          return findCites(el.parentElement)
+        }
+      } else {
+        return undefined;
+      }
+    };
+    var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+    for (var i=0; i<bibliorefs.length; i++) {
+      const ref = bibliorefs[i];
+      const citeInfo = findCites(ref);
+      if (citeInfo) {
+        tippyHover(citeInfo.el, function() {
+          var popup = window.document.createElement('div');
+          citeInfo.cites.forEach(function(cite) {
+            var citeDiv = window.document.createElement('div');
+            citeDiv.classList.add('hanging-indent');
+            citeDiv.classList.add('csl-entry');
+            var biblioDiv = window.document.getElementById('ref-' + cite);
+            if (biblioDiv) {
+              citeDiv.innerHTML = biblioDiv.innerHTML;
+            }
+            popup.appendChild(citeDiv);
+          });
+          return popup.innerHTML;
+        });
+      }
+    }
+  });
+  </script>
+<nav class="page-navigation">
+  <div class="nav-page nav-page-previous">
+      <a href="../lectures/week05-practice.html" class="pagination-link" aria-label="Week 5 practice: Sampling with MCMC">
+        <i class="bi bi-arrow-left-short"></i> <span class="nav-page-text"><span class="chapter-title">Week 5 practice: Sampling with MCMC</span></span>
+      </a>          
+  </div>
+  <div class="nav-page nav-page-next">
+      <a href="../lectures/week06-practice.html" class="pagination-link" aria-label="Week 6 practice: HMMs and Variational Inference I">
+        <span class="nav-page-text"><span class="chapter-title">Week 6 practice: HMMs and Variational Inference I</span></span> <i class="bi bi-arrow-right-short"></i>
+      </a>
+  </div>
+</nav>
+</div> <!-- /content -->
+
+
+
+
+<script src="../site_libs/quarto-html/zenscroll-min.js"></script>
+</body></html>

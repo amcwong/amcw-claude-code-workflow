@@ -221,6 +221,16 @@ window.Quarto = {
 </li>
         <li class="sidebar-item">
   <div class="sidebar-item-container"> 
+  <a href="../lectures/week06.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Week 6: HMMs and Variational Inference I</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../lectures/week06-practice.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Week 6 practice: HMMs and Variational Inference I</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
   <a href="../glossary.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Glossary</span></a>
   </div>
 </li>
@@ -301,6 +311,34 @@ window.Quarto = {
 <p>Week 2’s chain rule (<a href="week02.html#sec-factoring" class="quarto-xref"><span>Why factor the joint</span></a> in Week 2) factorizes any joint distribution over a sequence without assumptions:</p>
 <p><span class="math display">p(x_{1:T}) = \prod_{t=1}^T p(x_t\mid x_{t-1},\dots,x_1), \qquad p(x_1\mid x_0) := p(x_1).</span></p>
 <p>The factor for <span class="math inline">x_t</span> conditions on all <span class="math inline">t-1</span> earlier values. If each <span class="math inline">x_t</span> takes <span class="math inline">K</span> values, specifying that factor as a table needs on the order of <span class="math inline">K^{t}</span> numbers, so the factorization is exact but quickly intractable. The same lesson as Week 2 applies: to get a usable model, we must assume some conditional independence.</p>
+<div class="clarification callout callout-style-default callout-tip callout-titled" title="Recap: From independent to dependent samples">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-1-contents" aria-controls="callout-1" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Recap: From independent to dependent samples
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-1" class="callout-1-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>What the symbols stand for:</p>
+<ul>
+<li><span class="math inline">x_{1:T} = \{x_1, \dots, x_T\}</span>: a sequence of <span class="math inline">T</span> values, indexed by time or position.</li>
+<li><span class="math inline">p(x_t \mid x_{t-1}, \dots, x_1)</span>: the distribution of the value at step <span class="math inline">t</span> given everything before it.</li>
+<li><span class="math inline">p(x_1 \mid x_0) := p(x_1)</span>: a convention so the first factor has nothing to condition on.</li>
+<li><span class="math inline">K</span>: the number of values each <span class="math inline">x_t</span> can take.</li>
+</ul>
+<p>Taking the chain rule apart:</p>
+<ul>
+<li>Each factor predicts one step from the whole history. Multiplying them in order rebuilds the joint exactly, with no assumptions.</li>
+<li>The factor for step <span class="math inline">t</span> has <span class="math inline">t - 1</span> conditioning variables, each with <span class="math inline">K</span> values, so its table has about <span class="math inline">K^{t}</span> entries. The tables grow with every step.</li>
+</ul>
+<p>A teaching example. Take <span class="math inline">K = 3</span> and <span class="math inline">T = 4</span>. The four factor tables have <span class="math inline">3</span>, <span class="math inline">3^2 = 9</span>, <span class="math inline">3^3 = 27</span>, and <span class="math inline">3^4 = 81</span> entries, for <span class="math inline">120</span> in total. A fifth step would add <span class="math inline">243</span> more. The next section’s Markov assumption caps every table after the first at <span class="math inline">3 \times 3 = 9</span> entries.</p>
+</div>
+</div>
+</div>
 </section>
 <section id="sec-markov" class="level2">
 <h2 class="anchored" data-anchor-id="sec-markov">Markov chains</h2>
@@ -322,6 +360,37 @@ window.Quarto = {
 <li><strong><span class="math inline">m</span>-th order:</strong> <span class="math inline">p(x_t\mid x_{1:t-1}) = p(x_t\mid x_{t-1:t-m})</span>.</li>
 </ul>
 <p>The rest of the lecture uses first-order chains.</p>
+<div class="clarification callout callout-style-default callout-tip callout-titled" title="Recap: Markov chains">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-2-contents" aria-controls="callout-2" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Recap: Markov chains
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-2" class="callout-2-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>What the symbols stand for:</p>
+<ul>
+<li><span class="math inline">x_t</span>: the state at time <span class="math inline">t</span>.</li>
+<li><span class="math inline">x_{1:t-1}</span>: the whole history before time <span class="math inline">t</span>.</li>
+<li><span class="math inline">p(x_t \mid x_{t-1})</span>: the one-step transition, how the next state depends on the current one.</li>
+<li><span class="math inline">m</span>: the order of a higher-order chain, how many past steps it remembers.</li>
+</ul>
+<p>Taking the equations apart:</p>
+<ul>
+<li><span class="math inline">p(x_t \mid x_{1:t-1}) = p(x_t \mid x_{t-1})</span>: of the whole history, only the most recent state matters.</li>
+<li><span class="math inline">p(x_{1:T}) = \prod_t p(x_t \mid x_{t-1})</span>: the joint of a sequence is the start probability times one transition per step.</li>
+<li>Stationary (homogeneous) chain: the same transition table is used at every step, so <span class="math inline">p(x_{t+1} = y \mid x_t = x)</span> does not depend on <span class="math inline">t</span>.</li>
+</ul>
+<p>A teaching example using the two-state chain of the next section (<span class="math inline">\alpha = 0.1</span>, <span class="math inline">\beta = 0.3</span>, so staying in state 1 has probability <span class="math inline">0.9</span>, moving 1 to 2 has <span class="math inline">0.1</span>, staying in 2 has <span class="math inline">0.7</span>). Start in each state with probability <span class="math inline">0.5</span>. The path <span class="math inline">1, 1, 2, 2</span> has probability</p>
+<p><span class="math display">p(1)\,p(1 \mid 1)\,p(2 \mid 1)\,p(2 \mid 2) = 0.5 \times 0.9 \times 0.1 \times 0.7 = 0.0315.</span></p>
+<p>The same table was reused at every step because the chain is stationary. A second-order chain on these two states would need a table of <span class="math inline">2^2 \times 2 = 8</span> entries (one row per pair of past states) instead of <span class="math inline">2 \times 2 = 4</span>.</p>
+</div>
+</div>
+</div>
 </section>
 <section id="sec-transition" class="level2">
 <h2 class="anchored" data-anchor-id="sec-transition">Transition matrices and state transition diagrams</h2>
@@ -365,6 +434,39 @@ window.Quarto = {
 <p>Row 1 says: from state 1, move to state 2 with probability <span class="math inline">\alpha</span>, otherwise stay. Row 2 says: from state 2, move to state 1 with probability <span class="math inline">\beta</span>, otherwise stay. We reuse this chain as the running example for the whole first half, sometimes with the numbers <span class="math inline">\alpha=0.1</span>, <span class="math inline">\beta=0.3</span>, which give</p>
 <p><span class="math display">A = \begin{pmatrix} 0.9 &amp; 0.1 \\ 0.3 &amp; 0.7\end{pmatrix}.</span></p>
 <p>In this chapter <span class="math inline">\alpha</span> and <span class="math inline">\beta</span> are always the two transition probabilities of this chain. (From <a href="#sec-mh" class="quarto-xref"><span>The Metropolis-Hastings algorithm</span></a> on, the same letter <span class="math inline">\alpha</span> is also used for an acceptance probability; we will say so each time.)</p>
+<div class="clarification callout callout-style-default callout-tip callout-titled" title="Recap: Transition matrices and state transition diagrams">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-3-contents" aria-controls="callout-3" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Recap: Transition matrices and state transition diagrams
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-3" class="callout-3-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>What the symbols stand for:</p>
+<ul>
+<li><span class="math inline">K</span>: the number of states.</li>
+<li><span class="math inline">A_{ij} = p(x_t = j \mid x_{t-1} = i)</span>: row <span class="math inline">i</span> (where we are), column <span class="math inline">j</span> (where we go next).</li>
+<li><span class="math inline">p(x_t = j)</span>: the probability of being in state <span class="math inline">j</span> at time <span class="math inline">t</span>.</li>
+<li><span class="math inline">\alpha</span>, <span class="math inline">\beta</span>: the two leave-probabilities of the running two-state chain.</li>
+</ul>
+<p>Taking the equations apart:</p>
+<ul>
+<li><span class="math inline">\sum_j A_{ij} = 1</span>: from state <span class="math inline">i</span> the chain must go somewhere, so each row is a distribution.</li>
+<li><span class="math inline">p(x_t = j) = \sum_i A_{ij}\,p(x_{t-1} = i)</span>: to be in <span class="math inline">j</span> now, the chain was in some <span class="math inline">i</span> a step ago and then moved to <span class="math inline">j</span>. Add up those routes.</li>
+</ul>
+<p>A teaching example with <span class="math inline">A = \begin{pmatrix} 0.9 &amp; 0.1 \\ 0.3 &amp; 0.7 \end{pmatrix}</span> and the chain equally likely to be in either state at time <span class="math inline">t-1</span>.</p>
+<ul>
+<li><span class="math inline">p(x_t = 1) = 0.5(0.9) + 0.5(0.3) = 0.6</span>.</li>
+<li><span class="math inline">p(x_t = 2) = 0.5(0.1) + 0.5(0.7) = 0.4</span>.</li>
+</ul>
+<p>One step moved probability toward state 1, which is easier to stay in. The column sums of <span class="math inline">A</span> (<span class="math inline">1.2</span> and <span class="math inline">0.8</span>) are not 1, and they do not need to be.</p>
+</div>
+</div>
+</div>
 </section>
 <section id="sec-nstep" class="level2">
 <h2 class="anchored" data-anchor-id="sec-nstep">n-step transitions and the Chapman-Kolmogorov equations</h2>
@@ -390,6 +492,36 @@ Note
 </div>
 <div class="callout-body-container callout-body">
 <p><strong>Worked example: two steps on the two-state chain.</strong> With <span class="math inline">\alpha=0.1</span>, <span class="math inline">\beta=0.3</span>, <span class="math display">A^2 = \begin{pmatrix} 0.9 &amp; 0.1 \\ 0.3 &amp; 0.7\end{pmatrix}\begin{pmatrix} 0.9 &amp; 0.1 \\ 0.3 &amp; 0.7\end{pmatrix}</span> <span class="math display">= \begin{pmatrix} 0.84 &amp; 0.16 \\ 0.48 &amp; 0.52\end{pmatrix}.</span> Check the top-right entry by the sum over intermediate states: from 1 to 2 in two steps, either stay at 1 then move (<span class="math inline">0.9\times0.1</span>) or move to 2 then stay (<span class="math inline">0.1\times0.7</span>), for a total of <span class="math inline">0.09+0.07=0.16</span>. Each row of <span class="math inline">A^2</span> still sums to 1, as it must.</p>
+</div>
+</div>
+<div class="clarification callout callout-style-default callout-tip callout-titled" title="Recap: n-step transitions and the Chapman-Kolmogorov equations">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-5-contents" aria-controls="callout-5" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Recap: n-step transitions and the Chapman-Kolmogorov equations
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-5" class="callout-5-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>What the symbols stand for:</p>
+<ul>
+<li><span class="math inline">A_{ij}(n) = p(x_{t+n} = j \mid x_t = i)</span>: the probability of going from <span class="math inline">i</span> to <span class="math inline">j</span> in exactly <span class="math inline">n</span> steps.</li>
+<li><span class="math inline">k</span>: an intermediate state, where the chain is after the first <span class="math inline">m</span> steps.</li>
+<li><span class="math inline">A^n</span>: the matrix <span class="math inline">A</span> multiplied by itself <span class="math inline">n</span> times.</li>
+</ul>
+<p>Taking the equation apart:</p>
+<p><span class="math display">A_{ij}(m+n) = \sum_k A_{ik}(m)\;A_{kj}(n)</span></p>
+<ul>
+<li>Every <span class="math inline">(m+n)</span>-step route from <span class="math inline">i</span> to <span class="math inline">j</span> passes through some state <span class="math inline">k</span> at step <span class="math inline">m</span>. Add up over all <span class="math inline">k</span>.</li>
+<li>That sum is exactly how a matrix product is computed, so <span class="math inline">A(m+n) = A(m)A(n)</span> and <span class="math inline">A(n) = A^n</span>.</li>
+</ul>
+<p>A teaching example: three steps from state 1 to state 2 with <span class="math inline">\alpha = 0.1</span>, <span class="math inline">\beta = 0.3</span>. Use <span class="math inline">m = 2</span> and <span class="math inline">n = 1</span> with <span class="math inline">A^2</span> from the worked example above:</p>
+<p><span class="math display">A_{12}(3) = A_{11}(2)\,A_{12} + A_{12}(2)\,A_{22} = 0.84(0.1) + 0.16(0.7) = 0.196.</span></p>
+<p>The full first row of <span class="math inline">A^3</span> is <span class="math inline">(0.804, 0.196)</span>. These numbers reappear in <a href="#sec-unique" class="quarto-xref"><span>When is the stationary distribution unique?</span></a> as the distribution after three steps from state 1.</p>
+</div>
 </div>
 </div>
 </section>
@@ -475,6 +607,41 @@ Note
 <p>These are the arrows of Figure 2. The fitted model then scores sentences, for example <span class="math display">p(\text{I don't like snails}) = \hat\pi_{\text{I}}\cdot\tfrac13\cdot1\cdot\tfrac13 = \tfrac19.</span></p>
 </div>
 </div>
+<div class="clarification callout callout-style-default callout-tip callout-titled" title="Recap: Application: Markov language models">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-7-contents" aria-controls="callout-7" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Recap: Application: Markov language models
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-7" class="callout-7-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>What the symbols stand for:</p>
+<ul>
+<li><span class="math inline">K</span>: the vocabulary size. <span class="math inline">x_t</span>: the <span class="math inline">t</span>-th word of a sentence.</li>
+<li><span class="math inline">\pi_j</span>: the probability that a sentence starts with word <span class="math inline">j</span>.</li>
+<li><span class="math inline">A_{jk}</span>: the probability that word <span class="math inline">k</span> comes right after word <span class="math inline">j</span>.</li>
+<li><span class="math inline">\mathbf{1}[\cdot]</span>: the indicator, 1 if the condition holds and 0 otherwise.</li>
+<li><span class="math inline">N^1_j</span>: how many sentences start with <span class="math inline">j</span>. <span class="math inline">N_{jk}</span>: how many times <span class="math inline">k</span> directly follows <span class="math inline">j</span> in the corpus.</li>
+</ul>
+<p>Taking the equations apart:</p>
+<ul>
+<li><span class="math inline">p(x_{1:T} \mid \theta) = \pi(x_1)\,A(x_1, x_2)\cdots A(x_{T-1}, x_T)</span>: a start probability, then one transition per later word.</li>
+<li>The indicator version raises every parameter to the power “how many times it is used”. Unused parameters get power 0 and contribute 1.</li>
+<li>The log-likelihood becomes counts times log-parameters, the Multinomial shape from Week 1, so each MLE is a count over a total.</li>
+</ul>
+<p>A teaching example with an invented four-sentence corpus: “I like snails”, “I like turtles”, “turtles like snails”, “I don’t like turtles”.</p>
+<ul>
+<li>Starts: “I” 3 times, “turtles” once, so <span class="math inline">\hat\pi_{\text{I}} = 0.75</span> and <span class="math inline">\hat\pi_{\text{turtles}} = 0.25</span>.</li>
+<li>After “I”: “like” 2, “don’t” 1, giving <span class="math inline">2/3</span> and <span class="math inline">1/3</span>. After “like”: “snails” 2, “turtles” 2, giving <span class="math inline">0.5</span> each. After “turtles” and after “don’t”: “like” every time, giving 1.</li>
+<li><span class="math inline">p(\text{turtles like snails}) = 0.25 \times 1 \times 0.5 = 0.125</span>.</li>
+</ul>
+</div>
+</div>
+</div>
 </section>
 <section id="sec-stationary" class="level2">
 <h2 class="anchored" data-anchor-id="sec-stationary">The stationary distribution</h2>
@@ -505,6 +672,40 @@ Note
 <div class="callout-body-container callout-body">
 <p><strong>Worked example: the two-state chain.</strong> With <span class="math inline">\alpha=0.1</span>, <span class="math inline">\beta=0.3</span>, <span class="math display">A^\top = \begin{pmatrix} 0.9 &amp; 0.3 \\ 0.1 &amp; 0.7\end{pmatrix}.</span> The vector <span class="math inline">v=(3,1)^\top</span> satisfies <span class="math inline">A^\top v=v</span>: <span class="math inline">0.9\cdot3+0.3\cdot1=3</span> and <span class="math inline">0.1\cdot3+0.7\cdot1=1</span>. Normalizing, <span class="math inline">\pi=(0.75,\ 0.25)</span>.</p>
 <p>For general <span class="math inline">\alpha,\beta&gt;0</span>, the second equation of <span class="math inline">A^\top\pi=\pi</span> reads <span class="math inline">\alpha\pi_1+(1-\beta)\pi_2=\pi_2</span>, that is <span class="math inline">\alpha\pi_1=\beta\pi_2</span>. Together with <span class="math inline">\pi_1+\pi_2=1</span>, <span class="math display">\pi = \Big(\frac{\beta}{\alpha+\beta},\ \frac{\alpha}{\alpha+\beta}\Big).</span> The chain spends more time in the state that is harder to leave: state 1 is left with probability <span class="math inline">\alpha=0.1</span> per step, state 2 with probability <span class="math inline">\beta=0.3</span>, so state 1 gets three times the long-run probability.</p>
+</div>
+</div>
+<div class="clarification callout callout-style-default callout-tip callout-titled" title="Recap: The stationary distribution">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-9-contents" aria-controls="callout-9" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Recap: The stationary distribution
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-9" class="callout-9-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>What the symbols stand for:</p>
+<ul>
+<li><span class="math inline">\pi_t</span>: a column vector, the distribution over states at time <span class="math inline">t</span>. <span class="math inline">\pi_0</span> is the starting distribution.</li>
+<li><span class="math inline">A^\top</span>: the transpose of <span class="math inline">A</span>, rows and columns swapped.</li>
+<li><span class="math inline">\pi</span>: a stationary distribution, one that one more step leaves unchanged.</li>
+<li><span class="math inline">v</span>: an eigenvector of <span class="math inline">A^\top</span> with eigenvalue 1, which we rescale to get <span class="math inline">\pi</span>.</li>
+</ul>
+<p>Taking the equations apart:</p>
+<ul>
+<li><span class="math inline">\pi_t = A^\top \pi_{t-1}</span>: the update from <a href="#sec-transition" class="quarto-xref"><span>Transition matrices and state transition diagrams</span></a> written for all states at once. The transpose appears because we sum over the “from” index of <span class="math inline">A</span>.</li>
+<li><span class="math inline">\pi = A^\top \pi</span>, or <span class="math inline">\pi_j = \sum_i \pi_i A_{ij}</span>: the probability flowing into each state equals the probability already there.</li>
+<li>Solving <span class="math inline">A^\top v = v</span> and dividing <span class="math inline">v</span> by its sum gives <span class="math inline">\pi</span>.</li>
+</ul>
+<p>A teaching example with a different two-state chain, <span class="math inline">\alpha = 0.4</span> and <span class="math inline">\beta = 0.1</span>, so <span class="math inline">A = \begin{pmatrix} 0.6 &amp; 0.4 \\ 0.1 &amp; 0.9 \end{pmatrix}</span>. The formula gives <span class="math inline">\pi = \big(\tfrac{0.1}{0.5}, \tfrac{0.4}{0.5}\big) = (0.2, 0.8)</span>. Check one step:</p>
+<ul>
+<li><span class="math inline">\pi_1' = 0.2(0.6) + 0.8(0.1) = 0.2</span>.</li>
+<li><span class="math inline">\pi_2' = 0.2(0.4) + 0.8(0.9) = 0.8</span>.</li>
+</ul>
+<p>Unchanged, so <span class="math inline">(0.2, 0.8)</span> is stationary. State 2 is now the sticky one (left with probability only <span class="math inline">0.1</span>), so it gets the larger share.</p>
+</div>
 </div>
 </div>
 </section>
@@ -550,6 +751,40 @@ Note
 </div>
 <div class="callout-body-container callout-body">
 <p><strong>Worked example: detailed balance on the two-state chain.</strong> There is only one pair of distinct states, so detailed balance is the single equation <span class="math inline">\pi_1\alpha=\pi_2\beta</span>. That is exactly the equation we solved in <a href="#sec-stationary" class="quarto-xref"><span>The stationary distribution</span></a>. With <span class="math inline">\alpha=0.1</span>, <span class="math inline">\beta=0.3</span> and <span class="math inline">\pi=(0.75,0.25)</span>: <span class="math inline">0.75\times0.1 = 0.075 = 0.25\times0.3</span>. Every two-state chain with <span class="math inline">\alpha,\beta&gt;0</span> is therefore time reversible.</p>
+</div>
+</div>
+<div class="clarification callout callout-style-default callout-tip callout-titled" title="Recap: Detailed balance">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-11-contents" aria-controls="callout-11" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Recap: Detailed balance
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-11" class="callout-11-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>What the symbols stand for:</p>
+<ul>
+<li><span class="math inline">\pi_i A_{ij}</span>: the probability of being in state <span class="math inline">i</span> and then stepping to <span class="math inline">j</span>, the flow from <span class="math inline">i</span> to <span class="math inline">j</span>.</li>
+<li><span class="math inline">\pi_j A_{ji}</span>: the flow in the opposite direction.</li>
+<li>(DB): the step in the proof that uses detailed balance.</li>
+</ul>
+<p>Taking the equations apart:</p>
+<ul>
+<li><span class="math inline">\pi_i A_{ij} = \pi_j A_{ji}</span>: for every pair of states, the two directions carry equal flow.</li>
+<li>The proof: the total flow into <span class="math inline">j</span> is <span class="math inline">\sum_i \pi_i A_{ij}</span>. Replace each term by its reverse flow <span class="math inline">\pi_j A_{ji}</span>. Pulling out <span class="math inline">\pi_j</span> leaves row <span class="math inline">j</span> of <span class="math inline">A</span>, which sums to 1. So the inflow equals <span class="math inline">\pi_j</span>, which is stationarity.</li>
+<li>It runs in the direction MCMC needs: pick <span class="math inline">\pi</span> first, then choose <span class="math inline">A</span> to satisfy one equation per pair.</li>
+</ul>
+<p>A teaching example: design a three-state chain whose stationary distribution is <span class="math inline">\pi = (0.5, 0.25, 0.25)</span>.</p>
+<ul>
+<li>Choose <span class="math inline">A_{12} = 0.1</span>. Detailed balance forces <span class="math inline">A_{21} = 0.5(0.1)/0.25 = 0.2</span>.</li>
+<li>Choose <span class="math inline">A_{13} = 0.1</span>, which forces <span class="math inline">A_{31} = 0.2</span>. Choose <span class="math inline">A_{23} = 0.3</span>, which forces <span class="math inline">A_{32} = 0.3</span>.</li>
+<li>Fill the diagonals so rows sum to 1: <span class="math inline">A_{11} = 0.8</span>, <span class="math inline">A_{22} = 0.5</span>, <span class="math inline">A_{33} = 0.5</span>.</li>
+</ul>
+<p>Check state 1: inflow <span class="math inline">= 0.5(0.8) + 0.25(0.2) + 0.25(0.2) = 0.5 = \pi_1</span>. We never solved an eigenvector problem; we built the chain pair by pair.</p>
+</div>
 </div>
 </div>
 </section>
@@ -601,6 +836,34 @@ Note
 </div>
 <div class="callout-body-container callout-body">
 <p><strong>Homework-relevant.</strong> Assignment 2’s TrueSkill question (<a href="week04.html#sec-trueskill" class="quarto-xref"><span>Latent variables and the TrueSkill model</span></a> in Week 4) approximates the posterior over player skills by MCMC and then summarizes it with sample averages: posterior means, standard deviations, and probabilities written as expectations of indicators (<a href="week04.html#sec-goals" class="quarto-xref"><span>What sampling is for</span></a> in Week 4). The ideas to bring to it are the ones above: the chain targets a posterior known only up to <span class="math inline">Z</span>, early samples are not yet from that posterior, and every summary is an average over the chain. The specific estimates are left to the assignment.</p>
+</div>
+</div>
+<div class="clarification callout callout-style-default callout-tip callout-titled" title="Recap: Why MCMC">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-13-contents" aria-controls="callout-13" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Recap: Why MCMC
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-13" class="callout-13-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>What the symbols stand for:</p>
+<ul>
+<li><span class="math inline">q(x' \mid x^{(t)})</span>: the local proposal, a distribution over candidate next states that depends on the current state.</li>
+<li><span class="math inline">x^{(t)}</span>: the state of the chain at iteration <span class="math inline">t</span> (the whole state, possibly a vector).</li>
+<li>Burn-in: the early iterations we throw away because the chain has not reached <span class="math inline">p</span> yet.</li>
+<li><span class="math inline">1.1^{-d}</span>: the rejection-sampling acceptance rate in the tutorial’s example, in <span class="math inline">d</span> dimensions.</li>
+</ul>
+<p>Taking the equations apart:</p>
+<ul>
+<li><span class="math inline">1.1^{-d}</span>: a proposal only 10% too wide per coordinate loses a factor of <span class="math inline">1.1</span> per dimension. At <span class="math inline">d = 10</span> that is about <span class="math inline">0.39</span>; at <span class="math inline">d = 100</span> it is about <span class="math inline">7 \times 10^{-5}</span>.</li>
+<li><span class="math inline">\mathbb{E}_p[\phi(x)] \approx \frac{1}{T}\sum_t \phi(x^{(t)})</span>: the same average as simple Monte Carlo, now over a chain. It still works, but the variance is no longer <span class="math inline">\mathrm{var}[\phi]/T</span>, because neighbouring samples are correlated.</li>
+</ul>
+<p>A teaching example using the two-state chain with <span class="math inline">\alpha = 0.1</span>, <span class="math inline">\beta = 0.3</span>, whose stationary distribution is <span class="math inline">(0.75, 0.25)</span>. Ten steps after burn-in visit states <span class="math inline">1, 1, 1, 2, 1, 1, 2, 2, 1, 1</span>. Take <span class="math inline">\phi(x) = \mathbf{1}[x = 1]</span>. The chain average is <span class="math inline">7/10 = 0.7</span>, an estimate of <span class="math inline">p(x = 1) = 0.75</span>. The 2s arrive in runs because the chain is sticky, which is the dependence that makes ten chain samples worth fewer than ten independent ones.</p>
+</div>
 </div>
 </div>
 </section>
@@ -660,6 +923,41 @@ Note
 <li><strong><span class="math inline">\sigma=0.2</span>:</strong> in between. The tutorial suggests that for a Gaussian random walk, an acceptance rate of roughly 25–40% is a good sign.</li>
 </ul>
 <p>So a high acceptance rate is not the goal in itself. What we want is a chain whose consecutive states are as uncorrelated as possible, because many nearly identical samples carry the information of far fewer independent ones. <a href="#sec-ess" class="quarto-xref"><span>Effective sample size</span></a> turns this into a number.</p>
+<div class="clarification callout callout-style-default callout-tip callout-titled" title="Recap: The Metropolis-Hastings algorithm">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-15-contents" aria-controls="callout-15" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Recap: The Metropolis-Hastings algorithm
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-15" class="callout-15-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>What the symbols stand for:</p>
+<ul>
+<li><span class="math inline">x^{(t)}</span>: the current state. <span class="math inline">x'</span>: the proposed candidate.</li>
+<li><span class="math inline">q(x' \mid x^{(t)})</span>: the probability of proposing <span class="math inline">x'</span> from <span class="math inline">x^{(t)}</span>. <span class="math inline">q(x^{(t)} \mid x')</span>: the probability of proposing the reverse move.</li>
+<li><span class="math inline">\alpha(x' \mid x^{(t)})</span>: the acceptance probability (here <span class="math inline">\alpha</span> is not the two-state chain’s transition probability).</li>
+<li>In the baseball example: <span class="math inline">\theta</span> is the hit probability, <span class="math inline">H</span> and <span class="math inline">N</span> are hits and at-bats, and <span class="math inline">\mathrm{Beta}(a, b)</span> is a distribution on <span class="math inline">(0,1)</span> with density proportional to <span class="math inline">\theta^{a-1}(1-\theta)^{b-1}</span>.</li>
+</ul>
+<p>Taking the acceptance probability apart:</p>
+<p><span class="math display">\alpha = \min\Bigg\{1,\ \frac{\tilde p(x')}{\tilde p(x^{(t)})}\;\frac{q(x^{(t)} \mid x')}{q(x' \mid x^{(t)})}\Bigg\}</span></p>
+<ul>
+<li>The first ratio uses only <span class="math inline">\tilde p</span>, so <span class="math inline">Z</span> cancels.</li>
+<li>The second ratio is 1 for a symmetric proposal (Metropolis).</li>
+<li><span class="math inline">\min\{1, \cdot\}</span> caps the value at 1: favourable moves are always taken.</li>
+<li>On rejection, the current state is recorded again.</li>
+</ul>
+<p>A teaching example on three states with <span class="math inline">\tilde p = (1, 2, 3)</span>.</p>
+<ul>
+<li>Symmetric proposal, current state 3, propose 1: <span class="math inline">\alpha = \min\{1, 1/3\} = 1/3</span>. Propose 2 from 1: <span class="math inline">\alpha = \min\{1, 2\} = 1</span>.</li>
+<li>Biased proposal with <span class="math inline">q(2 \mid 1) = 0.9</span> and <span class="math inline">q(1 \mid 2) = 0.3</span>. From 1, propose 2: <span class="math inline">\alpha = \min\{1,\ \tfrac{2}{1} \cdot \tfrac{0.3}{0.9}\} = 2/3</span>. The move is uphill, yet it is not always accepted, because the proposal already sends the chain toward 2 three times as eagerly as it sends it back.</li>
+</ul>
+</div>
+</div>
+</div>
 </section>
 </section>
 <section id="sec-mh-proof" class="level2">
@@ -676,6 +974,39 @@ Note
 <p><span class="math display">r(x\mid x')\,p(x') = p(x')\,q(x\mid x')\,\min\Big\{1,\ \frac{p(x)q(x'\mid x)}{p(x')q(x\mid x')}\Big\}</span> <span class="math display">= \min\big\{p(x')\,q(x\mid x'),\ p(x)\,q(x'\mid x)\big\}.</span></p>
 <p>The two minima contain the same two numbers, so they are equal. The MH chain satisfies detailed balance with respect to <span class="math inline">p</span>, so <span class="math inline">p</span> is a stationary distribution of the chain. The acceptance rule is shaped exactly so that the flow from <span class="math inline">x</span> to <span class="math inline">x'</span>, <span class="math inline">\min\{p(x)q(x'\mid x),\,p(x')q(x\mid x')\}</span>, is symmetric in <span class="math inline">x</span> and <span class="math inline">x'</span>.</p>
 <p>As <a href="#sec-detailed" class="quarto-xref"><span>Detailed balance</span></a> warned, detailed balance gives stationarity, not convergence. Whether the chain actually reaches <span class="math inline">p</span> from its starting point, and how fast, depends on the proposal; the step-size experiments above and the diagnostics of <a href="#sec-diagnostics" class="quarto-xref"><span>MCMC diagnostics</span></a> are the practical answer.</p>
+<div class="clarification callout callout-style-default callout-tip callout-titled" title="Recap: Why Metropolis-Hastings works">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-16-contents" aria-controls="callout-16" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Recap: Why Metropolis-Hastings works
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-16" class="callout-16-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>What the symbols stand for:</p>
+<ul>
+<li><span class="math inline">r(x' \mid x)</span>: the MH chain’s actual transition probability, propose and then accept or reject.</li>
+<li><span class="math inline">r(x \mid x)</span>: the stay-put probability.</li>
+<li><span class="math inline">x''</span>: any proposal other than <span class="math inline">x</span>, used inside the stay-put sum.</li>
+</ul>
+<p>Taking the proof apart:</p>
+<ul>
+<li>Moving to <span class="math inline">x' \neq x</span> needs two things in a row: propose it, then accept it. So <span class="math inline">r(x' \mid x) = q(x' \mid x)\,\alpha(x' \mid x)</span>.</li>
+<li>Staying at <span class="math inline">x</span> happens if we propose <span class="math inline">x</span> itself, or propose something else and reject it.</li>
+<li>Multiplying <span class="math inline">r(x' \mid x)</span> by <span class="math inline">p(x)</span> and pushing <span class="math inline">p(x)\,q(x' \mid x)</span> inside the minimum gives <span class="math inline">\min\{p(x)q(x' \mid x),\ p(x')q(x \mid x')\}</span>. Swapping <span class="math inline">x</span> and <span class="math inline">x'</span> gives the same two numbers, so the flows match.</li>
+</ul>
+<p>A teaching example. Target <span class="math inline">p = (\tfrac16, \tfrac26, \tfrac36)</span> on <span class="math inline">\{1, 2, 3\}</span>. From any state, propose each of the other two with probability <span class="math inline">\tfrac12</span>.</p>
+<ul>
+<li><span class="math inline">r(3 \mid 2) = \tfrac12 \min\{1, \tfrac32\} = \tfrac12</span> and <span class="math inline">r(2 \mid 3) = \tfrac12 \min\{1, \tfrac23\} = \tfrac13</span>.</li>
+<li>Flows: <span class="math inline">p(2)\,r(3 \mid 2) = \tfrac26 \cdot \tfrac12 = \tfrac16</span> and <span class="math inline">p(3)\,r(2 \mid 3) = \tfrac36 \cdot \tfrac13 = \tfrac16</span>. Equal, as the proof says.</li>
+<li>From state 3: <span class="math inline">r(1 \mid 3) = \tfrac12 \cdot \tfrac13 = \tfrac16</span> and <span class="math inline">r(2 \mid 3) = \tfrac13</span>, so <span class="math inline">r(3 \mid 3) = 1 - \tfrac16 - \tfrac13 = \tfrac12</span>. Half the time the chain stays at the most probable state, which is why rejected proposals must be recorded.</li>
+</ul>
+</div>
+</div>
+</div>
 </section>
 <section id="sec-gibbs" class="level2">
 <h2 class="anchored" data-anchor-id="sec-gibbs">Gibbs sampling</h2>
@@ -692,6 +1023,36 @@ Note
 </div>
 <p>There is <strong>no accept/reject step</strong>: every draw is accepted. Gibbs sampling is useful exactly when the joint <span class="math inline">p(x)</span> is hard to sample but every full conditional is easy. The lecture’s example of this is the Ising model (<a href="week03.html#sec-ising" class="quarto-xref"><span>The Ising model</span></a> in Week 3). In an MRF, the full conditional of one node depends only on its neighbours, so for a <span class="math inline">\pm1</span> spin it is a single coin flip whose probability is computed from a few neighbouring values. The partition function <span class="math inline">Z</span> never appears.</p>
 <p><em>A note from the reading (MLPP 24.3.2):</em> Gibbs sampling is a special case of Metropolis-Hastings. Updating coordinate <span class="math inline">j</span> is an MH step with proposal <span class="math inline">q(x'\mid x)=p(x'_j\mid x_{-j})</span> that leaves the other coordinates unchanged. Plugging this into the MH acceptance ratio, every factor cancels and the ratio is exactly 1, which is why every Gibbs draw is accepted. In particular, each Gibbs update satisfies detailed balance with respect to <span class="math inline">p</span> by <a href="#sec-mh-proof" class="quarto-xref"><span>Why Metropolis-Hastings works</span></a>.</p>
+<div class="clarification callout callout-style-default callout-tip callout-titled" title="Recap: Gibbs sampling">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-17-contents" aria-controls="callout-17" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Recap: Gibbs sampling
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-17" class="callout-17-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>What the symbols stand for:</p>
+<ul>
+<li><span class="math inline">x = (x_1, \dots, x_d)</span>: the state split into <span class="math inline">d</span> coordinates. The subscript is the coordinate, the superscript <span class="math inline">(t)</span> is the iteration.</li>
+<li><span class="math inline">x_{-j}</span>: every coordinate except <span class="math inline">x_j</span>, each at its most recent value.</li>
+<li><span class="math inline">p(x_j \mid x_{-j})</span>: the full conditional of coordinate <span class="math inline">j</span>.</li>
+</ul>
+<p>Taking the update apart:</p>
+<ul>
+<li>Cycle through the coordinates. For each one, hold all the others fixed and draw a fresh value from its full conditional.</li>
+<li>Coordinates already updated in this sweep are used at their new values.</li>
+<li>There is no accept/reject step: as an MH proposal, the acceptance ratio is exactly 1.</li>
+</ul>
+<p>A teaching example on an Ising chain <span class="math inline">x_1 - x_2 - x_3</span> with spins in <span class="math inline">\{-1, +1\}</span>, coupling <span class="math inline">J = 0.5</span>, and no field. To update <span class="math inline">x_2</span> we need only its neighbours. Suppose currently <span class="math inline">x_1 = +1</span> and <span class="math inline">x_3 = +1</span>. The terms with <span class="math inline">x_2</span> in the exponent are <span class="math inline">0.5\,x_1 x_2 + 0.5\,x_2 x_3 = x_2</span>, so</p>
+<p><span class="math display">p(x_2 = +1 \mid x_1, x_3) = \frac{e^{1}}{e^{1} + e^{-1}} \approx 0.88.</span></p>
+<p>If instead <span class="math inline">x_1 = +1</span> and <span class="math inline">x_3 = -1</span>, the two terms cancel and the conditional is <span class="math inline">0.5</span>. Each update is a single biased coin flip, and <span class="math inline">Z</span> never appears.</p>
+</div>
+</div>
+</div>
 </section>
 <section id="sec-gauss-cond" class="level2">
 <h2 class="anchored" data-anchor-id="sec-gauss-cond">The conditional distribution of a bivariate Gaussian</h2>
@@ -708,6 +1069,40 @@ Note
 <p>As a function of <span class="math inline">x_1</span> with <span class="math inline">x_2</span> fixed, complete the square: <span class="math inline">x_1^2-2\rho x_1x_2 = (x_1-\rho x_2)^2-\rho^2x_2^2</span>. The second term does not involve <span class="math inline">x_1</span>, so</p>
 <p><span class="math display">p(x_1\mid x_2)\propto\exp\Big\{-\frac{(x_1-\rho x_2)^2}{2(1-\rho^2)}\Big\},</span></p>
 <p>which is a Gaussian density in <span class="math inline">x_1</span> with mean <span class="math inline">\rho x_2</span> and variance <span class="math inline">1-\rho^2</span>. By symmetry the same holds with the roles of <span class="math inline">x_1</span> and <span class="math inline">x_2</span> swapped.</p>
+<div class="clarification callout callout-style-default callout-tip callout-titled" title="Recap: The conditional distribution of a bivariate Gaussian">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-18-contents" aria-controls="callout-18" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Recap: The conditional distribution of a bivariate Gaussian
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-18" class="callout-18-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>What the symbols stand for:</p>
+<ul>
+<li><span class="math inline">\mu = (\mu_1, \mu_2)</span>: the means of the two coordinates.</li>
+<li><span class="math inline">\rho</span>: their correlation, between <span class="math inline">-1</span> and <span class="math inline">1</span>. Each coordinate has variance 1.</li>
+<li><span class="math inline">X_1 \mid X_2 = x_2</span>: the distribution of <span class="math inline">X_1</span> once we know <span class="math inline">X_2</span>.</li>
+</ul>
+<p>Taking the conditional apart:</p>
+<p><span class="math display">X_1 \mid X_2 = x_2 \sim \mathcal{N}\big(\mu_1 + \rho\,(x_2 - \mu_2),\ 1 - \rho^2\big)</span></p>
+<ul>
+<li><span class="math inline">x_2 - \mu_2</span>: how surprising the observed <span class="math inline">x_2</span> is. The shift is <span class="math inline">\rho</span> times that surprise.</li>
+<li><span class="math inline">1 - \rho^2</span>: the variance after observing <span class="math inline">x_2</span>. The fraction <span class="math inline">\rho^2</span> of <span class="math inline">X_1</span>’s variance is explained by <span class="math inline">X_2</span>.</li>
+<li>With <span class="math inline">\rho = 0</span> nothing changes. As <span class="math inline">\rho</span> approaches <span class="math inline">\pm 1</span>, knowing <span class="math inline">x_2</span> almost fixes <span class="math inline">x_1</span>.</li>
+</ul>
+<p>A teaching example with <span class="math inline">\mu = (1, 2)</span> and an observed <span class="math inline">x_2 = 4</span>, two units above its mean.</p>
+<ul>
+<li><span class="math inline">\rho = 0.5</span>: mean <span class="math inline">1 + 0.5 \times 2 = 2</span>, variance <span class="math inline">1 - 0.25 = 0.75</span>.</li>
+<li><span class="math inline">\rho = 0.9</span>: mean <span class="math inline">1 + 0.9 \times 2 = 2.8</span>, variance <span class="math inline">1 - 0.81 = 0.19</span>.</li>
+</ul>
+<p>Stronger correlation moves the mean further toward “also above average” and narrows the spread.</p>
+</div>
+</div>
+</div>
 </section>
 <section id="sec-gibbs-gauss" class="level2">
 <h2 class="anchored" data-anchor-id="sec-gibbs-gauss">Example: Gibbs sampling a bivariate Gaussian</h2>
@@ -761,6 +1156,39 @@ Note
 </div>
 </div>
 <p><strong>When Gibbs is slow.</strong> Each move is parallel to a coordinate axis, with conditional standard deviation <span class="math inline">\sqrt{1-\rho^2}</span>. The target, though, stretches along the diagonal with standard deviation 1 in each coordinate. With <span class="math inline">\rho=0.8</span> the steps are <span class="math inline">0.6</span>, which is fine. With <span class="math inline">\rho=0.99</span> they shrink to about <span class="math inline">0.14</span>, and the chain needs many small zig-zags to travel along the ridge. Strongly correlated coordinates are the typical failure case of Gibbs sampling, and they motivate the next method.</p>
+<div class="clarification callout callout-style-default callout-tip callout-titled" title="Recap: Example: Gibbs sampling a bivariate Gaussian">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-20-contents" aria-controls="callout-20" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Recap: Example: Gibbs sampling a bivariate Gaussian
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-20" class="callout-20-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>What the symbols stand for:</p>
+<ul>
+<li><span class="math inline">X^{(t)}_1</span>, <span class="math inline">X^{(t)}_2</span>: the two coordinates at iteration <span class="math inline">t</span>.</li>
+<li><span class="math inline">x^{(t-1)}_2</span>: the old value of <span class="math inline">x_2</span>, used to update <span class="math inline">x_1</span>. <span class="math inline">x^{(t)}_1</span>: the new value of <span class="math inline">x_1</span>, used immediately to update <span class="math inline">x_2</span>.</li>
+<li><span class="math inline">\sqrt{1 - \rho^2}</span>: the standard deviation of each Gibbs move.</li>
+</ul>
+<p>Taking the two update lines apart:</p>
+<ul>
+<li>Line 1: draw <span class="math inline">x_1</span> from its conditional given the latest <span class="math inline">x_2</span>, as in <a href="#sec-gauss-cond" class="quarto-xref"><span>The conditional distribution of a bivariate Gaussian</span></a>.</li>
+<li>Line 2: draw <span class="math inline">x_2</span> from its conditional given the <span class="math inline">x_1</span> just drawn.</li>
+<li>Each line moves along one axis only, with step size about <span class="math inline">\sqrt{1-\rho^2}</span>.</li>
+</ul>
+<p>A teaching example with a nonzero mean: <span class="math inline">\mu = (1, -1)</span>, <span class="math inline">\rho = 0.5</span>, start <span class="math inline">x^{(0)} = (0, 0)</span>. Each conditional has variance <span class="math inline">0.75</span>.</p>
+<ul>
+<li>Update <span class="math inline">x_1</span> given <span class="math inline">x_2 = 0</span>: mean <span class="math inline">1 + 0.5(0 - (-1)) = 1.5</span>. Suppose the draw is <span class="math inline">2.0</span>.</li>
+<li>Update <span class="math inline">x_2</span> given <span class="math inline">x_1 = 2.0</span>: mean <span class="math inline">-1 + 0.5(2.0 - 1) = -0.5</span>. Suppose the draw is <span class="math inline">-0.8</span>.</li>
+</ul>
+<p>So <span class="math inline">x^{(1)} = (2.0, -0.8)</span>. Step sizes for other correlations: <span class="math inline">\sqrt{1 - \rho^2}</span> is <span class="math inline">0.87</span> at <span class="math inline">\rho = 0.5</span>, <span class="math inline">0.6</span> at <span class="math inline">\rho = 0.8</span>, and <span class="math inline">0.14</span> at <span class="math inline">\rho = 0.99</span>.</p>
+</div>
+</div>
+</div>
 </section>
 <section id="sec-hmc" class="level2">
 <h2 class="anchored" data-anchor-id="sec-hmc">Hamiltonian Monte Carlo</h2>
@@ -799,6 +1227,43 @@ Note
 <li>Accept or reject with the MH rule. With exact dynamics, energy is constant, so <span class="math inline">p(x,v)=p(x',v')=p(x',-v')</span> (flipping <span class="math inline">v'</span> does not change <span class="math inline">K</span>), and the acceptance probability would be 1.</li>
 </ol>
 <p>In practice the dynamics can only be simulated approximately, which is where the next section comes in.</p>
+<div class="clarification callout callout-style-default callout-tip callout-titled" title="Recap: Hamiltonian Monte Carlo">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-21-contents" aria-controls="callout-21" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Recap: Hamiltonian Monte Carlo
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-21" class="callout-21-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>What the symbols stand for:</p>
+<ul>
+<li><span class="math inline">x</span>: the position, the variable we want samples of.</li>
+<li><span class="math inline">E(x) = -\log\tilde p(x)</span>: the potential energy. Low energy means high probability.</li>
+<li><span class="math inline">v</span>: the momentum, an auxiliary variable of the same size as <span class="math inline">x</span>.</li>
+<li><span class="math inline">K(v) = \tfrac12\|v\|^2</span>: the kinetic energy.</li>
+<li><span class="math inline">H(x, v) = E(x) + K(v)</span>: the total energy.</li>
+<li><span class="math inline">t</span>: continuous time inside one simulated trajectory, not the chain’s iteration count.</li>
+</ul>
+<p>Taking the equations apart:</p>
+<ul>
+<li><span class="math inline">p(x, v) \propto e^{-E(x)}e^{-K(v)}</span>: the joint splits into a target part and a standard Gaussian part, so dropping <span class="math inline">v</span> leaves samples of <span class="math inline">x</span>.</li>
+<li><span class="math inline">dx/dt = v</span>: the position moves in the direction of the momentum.</li>
+<li><span class="math inline">dv/dt = -\nabla E(x)</span>: the momentum is pushed downhill in energy, which is uphill in probability.</li>
+<li><span class="math inline">dH/dt = 0</span>: the two effects exactly trade potential for kinetic energy, so the total stays constant.</li>
+</ul>
+<p>A teaching example with a standard Gaussian target in one dimension: <span class="math inline">\tilde p(x) = e^{-x^2/2}</span>, so <span class="math inline">E(x) = x^2/2</span> and <span class="math inline">\nabla E(x) = x</span>. Start at <span class="math inline">x = 1</span> with momentum <span class="math inline">v = 1</span>, so <span class="math inline">H = 0.5 + 0.5 = 1</span>. The exact solution of Hamilton’s equations is <span class="math inline">x(t) = \cos t + \sin t</span>, <span class="math inline">v(t) = \cos t - \sin t</span>.</p>
+<ul>
+<li>At <span class="math inline">t = \pi/4</span>: <span class="math inline">x = \sqrt{2} \approx 1.41</span>, <span class="math inline">v = 0</span>, so <span class="math inline">H = 1 + 0 = 1</span>. All the energy is potential.</li>
+<li>At <span class="math inline">t = \pi/2</span>: <span class="math inline">x = 1</span>, <span class="math inline">v = -1</span>, so <span class="math inline">H = 1</span>. The ball has rolled out and come back.</li>
+</ul>
+<p>The total stays at 1 throughout, which is why exact dynamics would always be accepted.</p>
+</div>
+</div>
+</div>
 </section>
 <section id="sec-leapfrog" class="level2">
 <h2 class="anchored" data-anchor-id="sec-leapfrog">The leapfrog integrator and the HMC algorithm</h2>
@@ -874,6 +1339,42 @@ Note
 <p><strong>Homework-relevant.</strong> Assignment 2 (Q2.3 and Q2.4) samples TrueSkill posteriors with HMC, first for two players and then for a chess data set. The pieces to understand before starting it are in this section and the previous one: the energy is minus the log of the unnormalized posterior (log-prior plus log-likelihood), its gradient drives the leapfrog steps (the assignment’s code writes them with the gradient of the log density, which is <span class="math inline">-\nabla E</span>), and the accept step corrects for leapfrog error. Writing the posterior, choosing what to plot, and interpreting the samples are left to the assignment.</p>
 </div>
 </div>
+<div class="clarification callout callout-style-default callout-tip callout-titled" title="Recap: The leapfrog integrator and the HMC algorithm">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-24-contents" aria-controls="callout-24" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Recap: The leapfrog integrator and the HMC algorithm
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-24" class="callout-24-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>What the symbols stand for:</p>
+<ul>
+<li><span class="math inline">\epsilon</span>: the leapfrog step size. <span class="math inline">L</span>: the number of leapfrog steps per proposal.</li>
+<li><span class="math inline">v(t + \tfrac\epsilon2)</span>: the momentum after a half step.</li>
+<li><span class="math inline">(x', v')</span>: the end of the trajectory. <span class="math inline">(x', -v')</span>: the proposal, with momentum flipped.</li>
+<li><span class="math inline">\Delta H = H(x', v') - H(x, v)</span>: the energy error from discretizing.</li>
+</ul>
+<p>Taking one leapfrog step apart:</p>
+<ul>
+<li>Half-kick: <span class="math inline">v \leftarrow v - \tfrac\epsilon2 \nabla E(x)</span>, the momentum feels the slope for half a step.</li>
+<li>Drift: <span class="math inline">x \leftarrow x + \epsilon\,v</span>, the position moves a full step at the half-step momentum.</li>
+<li>Half-kick: <span class="math inline">v \leftarrow v - \tfrac\epsilon2 \nabla E(x)</span>, using the slope at the new position.</li>
+<li>Accept with probability <span class="math inline">\min\{1, e^{-\Delta H}\}</span>. A small energy error means a probability near 1.</li>
+</ul>
+<p>A teaching example. Continue the 1D Gaussian from <a href="#sec-hmc" class="quarto-xref"><span>Hamiltonian Monte Carlo</span></a> (<span class="math inline">\nabla E(x) = x</span>), starting at <span class="math inline">x = 1</span>, <span class="math inline">v = 1</span> (so <span class="math inline">H = 1</span>), with one leapfrog step of size <span class="math inline">\epsilon = 0.5</span>.</p>
+<ul>
+<li>Half-kick: <span class="math inline">v = 1 - 0.25 \times 1 = 0.75</span>.</li>
+<li>Drift: <span class="math inline">x = 1 + 0.5 \times 0.75 = 1.375</span>.</li>
+<li>Half-kick: <span class="math inline">v = 0.75 - 0.25 \times 1.375 \approx 0.406</span>.</li>
+</ul>
+<p>The new energy is <span class="math inline">1.375^2/2 + 0.406^2/2 \approx 1.028</span>, so <span class="math inline">\Delta H \approx 0.028</span> and the acceptance probability is <span class="math inline">e^{-0.028} \approx 0.97</span>. The exact dynamics would have reached <span class="math inline">x \approx 1.357</span>, <span class="math inline">v \approx 0.398</span>, so leapfrog is close but not exact. The accept step absorbs the difference.</p>
+</div>
+</div>
+</div>
 </section>
 <section id="sec-diagnostics" class="level2">
 <h2 class="anchored" data-anchor-id="sec-diagnostics">MCMC diagnostics</h2>
@@ -937,6 +1438,39 @@ Note
 <p><em>Mixed.</em> Keep chain 1 and replace chain 2 by <span class="math inline">2,3,3,2</span>, with mean <span class="math inline">2.5</span> and sample variance <span class="math inline">\frac{0.25\times4}{3}=\frac13</span>. Now <span class="math inline">W=\frac12\big(\frac23+\frac13\big)=0.5</span>, the overall mean is <span class="math inline">2.25</span>, and <span class="math display">B=4\big[(0.25)^2+(0.25)^2\big]=0.5, \qquad \widehat{\mathrm{var}}^+ = \tfrac34\cdot0.5+\tfrac14\cdot0.5 = 0.5, \qquad \hat R = 1.</span> The within-chain spreads are similar in both cases; what drives <span class="math inline">\hat R</span> is how far apart the chain means are.</p>
 </div>
 </div>
+<div class="clarification callout callout-style-default callout-tip callout-titled" title="Recap: The R-hat statistic">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-26-contents" aria-controls="callout-26" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Recap: The R-hat statistic
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-26" class="callout-26-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>What the symbols stand for:</p>
+<ul>
+<li><span class="math inline">m</span>: the number of chains. <span class="math inline">n</span>: draws per chain after burn-in.</li>
+<li><span class="math inline">x_{ij}</span>: draw <span class="math inline">i</span> of chain <span class="math inline">j</span>.</li>
+<li><span class="math inline">\bar x_{\cdot j}</span>: the mean of chain <span class="math inline">j</span>. <span class="math inline">\bar x_{\cdot\cdot}</span>: the mean over all chains.</li>
+<li><span class="math inline">s_j^2</span>: the sample variance inside chain <span class="math inline">j</span>.</li>
+<li><span class="math inline">B</span>: the between-chain variance. <span class="math inline">W</span>: the average within-chain variance.</li>
+</ul>
+<p>Taking the equations apart:</p>
+<ul>
+<li><span class="math inline">B = \frac{n}{m-1}\sum_j (\bar x_{\cdot j} - \bar x_{\cdot\cdot})^2</span>: how far the chain means sit from the overall mean, scaled by <span class="math inline">n</span>.</li>
+<li><span class="math inline">W = \frac{1}{m}\sum_j s_j^2</span>: how spread out a typical chain is internally.</li>
+<li><span class="math inline">\widehat{\mathrm{var}}^+ = \frac{n-1}{n}W + \frac{1}{n}B</span>: a weighted mix of the two, mostly <span class="math inline">W</span>, plus a share of <span class="math inline">B</span>.</li>
+<li><span class="math inline">\hat R = \sqrt{\widehat{\mathrm{var}}^+ / W}</span>: if the chain means agree, <span class="math inline">B</span> adds little and <span class="math inline">\hat R \approx 1</span>.</li>
+</ul>
+<p>A teaching example, between the two cases of the worked example above. Two chains of three draws: chain 1 is <span class="math inline">1, 2, 3</span> and chain 2 is <span class="math inline">2, 3, 4</span>. Each has sample variance 1, so <span class="math inline">W = 1</span>. The chain means are 2 and 3 and the overall mean is <span class="math inline">2.5</span>, so <span class="math inline">B = \tfrac{3}{1}\big[(0.5)^2 + (0.5)^2\big] = 1.5</span>.</p>
+<p><span class="math display">\widehat{\mathrm{var}}^+ = \tfrac23(1) + \tfrac13(1.5) \approx 1.17, \qquad \hat R = \sqrt{1.17/1} \approx 1.08.</span></p>
+<p>The chains overlap but their centres differ by one unit, so <span class="math inline">\hat R</span> is slightly above 1: probably worth running longer.</p>
+</div>
+</div>
+</div>
 </section>
 <section id="sec-ess" class="level2">
 <h2 class="anchored" data-anchor-id="sec-ess">Effective sample size</h2>
@@ -960,6 +1494,36 @@ Note
 </div>
 <div class="callout-body-container callout-body">
 <p><strong>Worked example: what a correlation of 0.9 costs.</strong> Suppose, for illustration, that the autocorrelation decays geometrically, <span class="math inline">\rho_t=\rho^t</span> (an assumption, not something the lecture claims about any particular sampler). Then <span class="math inline">\sum_{t\ge1}\rho^t=\frac{\rho}{1-\rho}</span> and <span class="math display">1+\frac{2\rho}{1-\rho} = \frac{1+\rho}{1-\rho}.</span> With lag-one correlation <span class="math inline">\rho=0.9</span>, as for the tutorial’s tiny-step chain (<span class="math inline">\sigma=0.03</span>), this factor is <span class="math inline">1.9/0.1=19</span>. So 5000 such samples would be worth only about <span class="math inline">5000/19\approx260</span> independent ones. This is the number behind the tutorial’s warning that a high acceptance rate with tiny steps is not efficient.</p>
+</div>
+</div>
+<div class="clarification callout callout-style-default callout-tip callout-titled" title="Recap: Effective sample size">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-28-contents" aria-controls="callout-28" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Recap: Effective sample size
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-28" class="callout-28-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>What the symbols stand for:</p>
+<ul>
+<li><span class="math inline">\sigma^2</span>: the variance of a single draw.</li>
+<li><span class="math inline">\mathrm{corr}(x_i, x_j)</span>: the correlation between draws <span class="math inline">i</span> and <span class="math inline">j</span>. On the diagonal (<span class="math inline">i = j</span>) it is 1.</li>
+<li><span class="math inline">\rho_t</span>: the autocorrelation at lag <span class="math inline">t</span>, the correlation between draws <span class="math inline">t</span> steps apart.</li>
+<li><span class="math inline">n_{\text{eff}}</span>: the number of independent draws that would give the same accuracy.</li>
+</ul>
+<p>Taking the equations apart:</p>
+<ul>
+<li><span class="math inline">\mathrm{var}(\bar x) = \frac{\sigma^2}{n^2}\sum_{i,j}\mathrm{corr}(x_i, x_j)</span>: the variance of an average adds up every pair’s correlation, not just the diagonal.</li>
+<li>Matching this to <span class="math inline">\sigma^2 / n_{\text{eff}}</span> gives <span class="math inline">n_{\text{eff}} = n^2 / \sum_{i,j}\mathrm{corr}(x_i, x_j)</span>. Independent draws give <span class="math inline">n_{\text{eff}} = n</span>.</li>
+<li>For a long chain the double sum is about <span class="math inline">n(1 + 2\sum_t \rho_t)</span>: 1 for each draw with itself, and each lag counted twice (once above and once below the diagonal).</li>
+</ul>
+<p>A teaching example. Three draws with neighbouring correlation <span class="math inline">0.5</span> and lag-2 correlation <span class="math inline">0.25</span>. The <span class="math inline">3 \times 3</span> correlation table has three 1s on the diagonal, four entries of <span class="math inline">0.5</span>, and two of <span class="math inline">0.25</span>, summing to <span class="math inline">3 + 2 + 0.5 = 5.5</span>. So <span class="math inline">n_{\text{eff}} = 9/5.5 \approx 1.6</span>: three correlated draws are worth fewer than two independent ones.</p>
+<p>For a longer run: four chains of 1000 draws with <span class="math inline">\rho_1 = 0.5</span>, <span class="math inline">\rho_2 = 0.2</span>, and later lags near 0 give <span class="math inline">n_{\text{eff}} = 4000/(1 + 2 \times 0.7) = 4000/2.4 \approx 1667</span>.</p>
+</div>
 </div>
 </div>
 </section>

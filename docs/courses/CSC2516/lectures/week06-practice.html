@@ -1,0 +1,1619 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.10.18">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+
+<title>Week 6 practice: Recurrent Networks and Sequence-to-Sequence Learning – Neural Networks and Deep Learning</title>
+<style>
+/* Default styles provided by pandoc.
+** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
+*/
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: 1.5em;}
+div.column{flex: auto;}
+@media screen {
+div.columns{gap: min(4vw, 1.5em);}
+div.column{overflow-x: auto;}
+}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+/* CSS for syntax highlighting */
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+</style>
+
+
+<script src="../site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="../site_libs/quarto-nav/headroom.min.js"></script>
+<script src="../site_libs/clipboard/clipboard.min.js"></script>
+<script src="../site_libs/quarto-search/autocomplete.umd.js"></script>
+<script src="../site_libs/quarto-search/fuse.min.js"></script>
+<script src="../site_libs/quarto-search/quarto-search.js"></script>
+<meta name="quarto:offset" content="../">
+<link href="../glossary.html" rel="next">
+<link href="../lectures/week06.html" rel="prev">
+<script src="../site_libs/quarto-html/quarto.js" type="module"></script>
+<script src="../site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
+<script src="../site_libs/quarto-html/popper.min.js"></script>
+<script src="../site_libs/quarto-html/tippy.umd.min.js"></script>
+<script src="../site_libs/quarto-html/anchor.min.js"></script>
+<link href="../site_libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="../site_libs/quarto-html/quarto-syntax-highlighting-bb62276ab45c84d9efd712f51ff97b5a.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<script src="../site_libs/bootstrap/bootstrap.min.js"></script>
+<link href="../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="../site_libs/bootstrap/bootstrap-ce0958bf53307a1b0bb60f85d87db72f.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
+<script id="quarto-search-options" type="application/json">{
+  "location": "sidebar",
+  "copy-button": false,
+  "collapse-after": 3,
+  "panel-placement": "start",
+  "type": "textbox",
+  "limit": 50,
+  "keyboard-shortcut": [
+    "f",
+    "/",
+    "s"
+  ],
+  "show-item-context": false,
+  "language": {
+    "search-no-results-text": "No results",
+    "search-matching-documents-text": "matching documents",
+    "search-copy-link-title": "Copy link to search",
+    "search-hide-matches-text": "Hide additional matches",
+    "search-more-match-text": "more match in this document",
+    "search-more-matches-text": "more matches in this document",
+    "search-clear-button-title": "Clear",
+    "search-text-placeholder": "",
+    "search-detached-cancel-button-title": "Cancel",
+    "search-submit-button-title": "Submit",
+    "search-label": "Search"
+  }
+}</script>
+<style>html{ scroll-behavior: smooth; }</style>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+<link href="https://fonts.googleapis.com/css2?family=Source+Code+Pro:wght@400;600&amp;family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&amp;display=swap" rel="stylesheet">
+
+  <script>window.backupDefine = window.define; window.define = undefined;</script><script src="https://cdn.jsdelivr.net/npm/katex@latest/dist/katex.min.js"></script>
+  <script>document.addEventListener("DOMContentLoaded", function () {
+ var mathElements = document.getElementsByClassName("math");
+ var macros = [];
+ for (var i = 0; i < mathElements.length; i++) {
+  var texText = mathElements[i].firstChild;
+  if (mathElements[i].tagName == "SPAN") {
+   katex.render(texText.data, mathElements[i], {
+    displayMode: mathElements[i].classList.contains('display'),
+    throwOnError: false,
+    macros: macros,
+    fleqn: false
+   });
+}}});
+  </script>
+  <script>window.define = window.backupDefine; window.backupDefine = undefined;</script><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@latest/dist/katex.min.css">
+
+<script type="text/javascript">
+const typesetMath = (el) => {
+  if (window.MathJax) {
+    // MathJax Typeset
+    window.MathJax.typeset([el]);
+  } else if (window.katex) {
+    // KaTeX Render
+    var mathElements = el.getElementsByClassName("math");
+    var macros = [];
+    for (var i = 0; i < mathElements.length; i++) {
+      var texText = mathElements[i].firstChild;
+      if (mathElements[i].tagName == "SPAN" && texText && texText.data) {
+        window.katex.render(texText.data, mathElements[i], {
+          displayMode: mathElements[i].classList.contains('display'),
+          throwOnError: false,
+          macros: macros,
+          fleqn: false
+        });
+      }
+    }
+  }
+}
+window.Quarto = {
+  typesetMath
+};
+</script>
+
+<link rel="stylesheet" href="../styles/custom.css">
+</head>
+
+<body class="nav-sidebar floating quarto-light">
+
+<div id="quarto-search-results"></div>
+  <header id="quarto-header" class="headroom fixed-top">
+  <nav class="quarto-secondary-nav">
+    <div class="container-fluid d-flex">
+      <button type="button" class="quarto-btn-toggle btn" data-bs-toggle="collapse" role="button" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+        <i class="bi bi-layout-text-sidebar-reverse"></i>
+      </button>
+        <nav class="quarto-page-breadcrumbs" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../lectures/week06-practice.html"><span class="chapter-title">Week 6 practice: Recurrent Networks and Sequence-to-Sequence Learning</span></a></li></ol></nav>
+        <a class="flex-grow-1" role="navigation" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">      
+        </a>
+      <button type="button" class="btn quarto-search-button" aria-label="Search" onclick="window.quartoOpenSearch();">
+        <i class="bi bi-search"></i>
+      </button>
+    </div>
+  </nav>
+</header>
+<!-- content -->
+<div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-article">
+<!-- sidebar -->
+  <nav id="quarto-sidebar" class="sidebar collapse collapse-horizontal quarto-sidebar-collapse-item sidebar-navigation floating overflow-auto">
+    <div class="pt-lg-2 mt-2 text-left sidebar-header">
+    <div class="sidebar-title mb-0 py-0">
+      <a href="../">Neural Networks and Deep Learning</a> 
+        <div class="sidebar-tools-main">
+    <a href="https://amcwong.github.io/amcw-claude-code-workflow/" title="All course notes" class="quarto-navigation-tool px-1" aria-label="All course notes"><i class="bi bi-house-door"></i></a>
+</div>
+    </div>
+      </div>
+        <div class="mt-2 flex-shrink-0 align-items-center">
+        <div class="sidebar-search">
+        <div id="quarto-search" class="" title="Search"></div>
+        </div>
+        </div>
+    <div class="sidebar-menu-container"> 
+    <ul class="list-unstyled mt-1">
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../index.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">CSC413/2516 Neural Networks and Deep Learning</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../lectures/week01.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Week 1: Introduction, Linear &amp; Logistic Regression</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../lectures/week02.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Week 2: Multi-Layer Perceptrons &amp; Backpropagation</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../lectures/week03.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Week 3: Initialization, Autodiff, Overfitting &amp; Regularization</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../lectures/week03-practice.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Week 3 practice: Variance, Autodiff, and Regularization</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../lectures/week04.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Week 4: Gradient Descent and Adaptive Methods</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../lectures/week04-practice.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Week 4 practice: Gradient Descent, SGD, Momentum, and Adam</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../lectures/week05.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Week 5: Convolutional Networks, Normalization, and Residual Connections</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../lectures/week05-practice.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Week 5 practice: Convolutions, Batch Normalization, and Residual Connections</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../lectures/week06.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Week 6: Sequences, Recurrent Neural Networks, and Sequence-to-Sequence Learning</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../lectures/week06-practice.html" class="sidebar-item-text sidebar-link active"><span class="chapter-title">Week 6 practice: Recurrent Networks and Sequence-to-Sequence Learning</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../glossary.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Glossary</span></a>
+  </div>
+</li>
+    </ul>
+    </div>
+</nav>
+<div id="quarto-sidebar-glass" class="quarto-sidebar-collapse-item" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item"></div>
+<!-- margin-sidebar -->
+    <div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
+        <nav id="TOC" role="doc-toc" class="toc-active">
+    <h2 id="toc-title">On this page</h2>
+   
+  <ul>
+  <li><a href="#sec-w6p-equations" id="toc-sec-w6p-equations" class="nav-link active" data-scroll-target="#sec-w6p-equations">Equations to know for the quiz</a>
+  <ul class="collapse">
+  <li><a href="#sequences-and-text" id="toc-sequences-and-text" class="nav-link" data-scroll-target="#sequences-and-text">Sequences and text</a></li>
+  <li><a href="#the-vanilla-rnn" id="toc-the-vanilla-rnn" class="nav-link" data-scroll-target="#the-vanilla-rnn">The vanilla RNN</a></li>
+  <li><a href="#backpropagation-through-time" id="toc-backpropagation-through-time" class="nav-link" data-scroll-target="#backpropagation-through-time">Backpropagation through time</a></li>
+  <li><a href="#the-lstm" id="toc-the-lstm" class="nav-link" data-scroll-target="#the-lstm">The LSTM</a></li>
+  <li><a href="#sequence-to-sequence" id="toc-sequence-to-sequence" class="nav-link" data-scroll-target="#sequence-to-sequence">Sequence-to-sequence</a></li>
+  </ul></li>
+  <li><a href="#sec-w6p-text" id="toc-sec-w6p-text" class="nav-link" data-scroll-target="#sec-w6p-text">Part 1: Sequences and text</a>
+  <ul class="collapse">
+  <li><a href="#prb-1" id="toc-prb-1" class="nav-link" data-scroll-target="#prb-1">Problem 1: Which sentence is more probable?</a></li>
+  <li><a href="#prb-2" id="toc-prb-2" class="nav-link" data-scroll-target="#prb-2">Problem 2: Where a language model’s parameters live</a></li>
+  </ul></li>
+  <li><a href="#sec-w6p-rnn" id="toc-sec-w6p-rnn" class="nav-link" data-scroll-target="#sec-w6p-rnn">Part 2: The vanilla RNN and backpropagation through time</a>
+  <ul class="collapse">
+  <li><a href="#prb-3" id="toc-prb-3" class="nav-link" data-scroll-target="#prb-3">Problem 3: An early input that keeps showing up</a></li>
+  <li><a href="#prb-4" id="toc-prb-4" class="nav-link" data-scroll-target="#prb-4">Problem 4: A gradient when only the last step has a loss</a></li>
+  <li><a href="#prb-5" id="toc-prb-5" class="nav-link" data-scroll-target="#prb-5">Problem 5: Which direction survives twenty steps?</a></li>
+  </ul></li>
+  <li><a href="#sec-w6p-lstm" id="toc-sec-w6p-lstm" class="nav-link" data-scroll-target="#sec-w6p-lstm">Part 3: The LSTM and uses of sequence models</a>
+  <ul class="collapse">
+  <li><a href="#prb-6" id="toc-prb-6" class="nav-link" data-scroll-target="#prb-6">Problem 6: One LSTM step by hand</a></li>
+  <li><a href="#prb-7" id="toc-prb-7" class="nav-link" data-scroll-target="#prb-7">Problem 7: Training loop or generation loop?</a></li>
+  </ul></li>
+  <li><a href="#sec-w6p-official-quiz" id="toc-sec-w6p-official-quiz" class="nav-link" data-scroll-target="#sec-w6p-official-quiz">Part 4: Official Week 7 quiz practice</a>
+  <ul class="collapse">
+  <li><a href="#quiz-1" id="toc-quiz-1" class="nav-link" data-scroll-target="#quiz-1">Quiz question 1: A lookup-table autoregressive model (easy)</a></li>
+  <li><a href="#quiz-2" id="toc-quiz-2" class="nav-link" data-scroll-target="#quiz-2">Quiz question 2: Two ways to give an LSTM decoder the context (medium)</a></li>
+  <li><a href="#quiz-3" id="toc-quiz-3" class="nav-link" data-scroll-target="#quiz-3">Quiz question 3: How the first input reaches the loss (medium-hard)</a></li>
+  <li><a href="#quiz-4" id="toc-quiz-4" class="nav-link" data-scroll-target="#quiz-4">Quiz question 4: Backpropagation through time with a ReLU (hard)</a></li>
+  </ul></li>
+  </ul>
+</nav>
+    </div>
+<!-- main -->
+<main class="content" id="quarto-document-content">
+
+<header id="title-block-header" class="quarto-title-block default">
+<div class="quarto-title">
+<h1 class="title"><span class="chapter-title">Week 6 practice: Recurrent Networks and Sequence-to-Sequence Learning</span></h1>
+</div>
+
+
+
+<div class="quarto-title-meta">
+
+    
+  
+    
+  </div>
+  
+
+
+</header>
+
+
+<style>#title-block-header { display: none; }</style>
+<div class="lecture-header">
+  <h1>Week 6 practice: Recurrent Networks and Sequence-to-Sequence Learning</h1>
+</div>
+<p><strong>Overview.</strong> These problems drill <a href="../lectures/week06.html">Week 6</a>. Try each stem before opening the worked solution. Every solution starts from the equation it rests on, says where that equation comes from, and only then substitutes numbers. An equation sheet comes first, then four parts:</p>
+<ol type="1">
+<li><strong>Sequences and text.</strong> Two problems on scoring a sentence and counting a language model’s parameters.</li>
+<li><strong>The vanilla RNN and backpropagation through time.</strong> Three problems that run a recurrence forward, differentiate it by hand, and predict which directions of the hidden state survive many steps.</li>
+<li><strong>The LSTM and uses of sequence models.</strong> One LSTM cell update by hand, and one code-reading problem on teacher forcing.</li>
+<li><strong>Official Week 7 quiz practice.</strong> Four questions provided by the course, which test Week 6 material, reproduced with their answers.</li>
+</ol>
+<p>In Parts 1 to 3 the numbers and setups are invented for practice. Notation matches the week chapter: inputs <span class="math inline">\bm{x}_t</span>, hidden states <span class="math inline">\bm{h}_t</span>, recurrent weights <span class="math inline">\bm{W}_h</span>, and for the LSTM a cell <span class="math inline">\bm{c}_t</span> with gates <span class="math inline">\bm{i}_t</span>, <span class="math inline">\bm{f}_t</span>, <span class="math inline">\bm{o}_t</span>.</p>
+<section id="sec-w6p-equations" class="level2">
+<h2 class="anchored" data-anchor-id="sec-w6p-equations">Equations to know for the quiz</h2>
+<p>Every problem in this chapter, and every official quiz question in Part 4, can be solved with the equations below. They are collected from the <a href="../lectures/week06.html">Week 6</a> chapter, and each table says where the equation is explained. This is our own summary of the lecture, not a list published by the course. Results marked <em>(ours)</em> are short consequences worked out in this chapter, not lines from the lecture.</p>
+<section id="sequences-and-text" class="level3">
+<h3 class="anchored" data-anchor-id="sequences-and-text">Sequences and text</h3>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th>Equation</th>
+<th>What it says</th>
+<th>Where</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><span class="math inline">p(\bm{x}_1, \dots, \bm{x}_T) = \prod_{t=1}^{T} p(\bm{x}_t \mid \bm{x}_{t-1}, \dots, \bm{x}_1)</span></td>
+<td>chain rule of probability: a sequence’s probability is the product of its next-element probabilities</td>
+<td><a href="../lectures/week06.html#sec-chain-rule-prob">Chain rule of probability</a></td>
+</tr>
+<tr class="even">
+<td>$_k = $ column <span class="math inline">k</span> of <span class="math inline">\bm{W}</span></td>
+<td>a one-hot vector <span class="math inline">\bm{e}_k</span> looks up one column of the embedding matrix</td>
+<td><a href="../lectures/week06.html#sec-embeddings">Embeddings</a></td>
+</tr>
+<tr class="odd">
+<td><span class="math inline">K - 1</span> free parameters</td>
+<td>a categorical distribution over <span class="math inline">K</span> values has <span class="math inline">K</span> probabilities that must sum to <span class="math inline">1</span> <em>(ours)</em></td>
+<td><a href="#quiz-1">Quiz question 1</a></td>
+</tr>
+<tr class="even">
+<td><span class="math inline">1 + r + \dots + r^{n-1} = \dfrac{r^n - 1}{r - 1}</span></td>
+<td>the <a href="https://en.wikipedia.org/wiki/Geometric_series">geometric series</a>, for any <span class="math inline">r \neq 1</span> <em>(ours)</em></td>
+<td><a href="#quiz-1">Quiz question 1</a>, <a href="#quiz-3">Quiz question 3</a></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="the-vanilla-rnn" class="level3">
+<h3 class="anchored" data-anchor-id="the-vanilla-rnn">The vanilla RNN</h3>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th>Equation</th>
+<th>What it says</th>
+<th>Where</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><span class="math inline">\bm{h}_t = \sigma(\bm{W}_x \bm{x}_t + \bm{W}_h \bm{h}_{t-1} + \bm{b}_h)</span></td>
+<td>the hidden-state update, with the same weights at every step</td>
+<td><a href="../lectures/week06.html#sec-vanilla-rnn">Vanilla RNN</a></td>
+</tr>
+<tr class="even">
+<td><span class="math inline">\bm{o}_t = \bm{W}_o \bm{h}_t + \bm{b}_o</span></td>
+<td>output scores from the hidden state</td>
+<td><a href="../lectures/week06.html#sec-vanilla-rnn">Vanilla RNN</a></td>
+</tr>
+<tr class="odd">
+<td><span class="math inline">nm + n</span></td>
+<td>parameters of a dense layer <span class="math inline">\bm{W}\bm{x} + \bm{b}</span> from <span class="math inline">m</span> inputs to <span class="math inline">n</span> outputs <em>(ours)</em></td>
+<td><a href="#prb-2">Problem 2</a></td>
+</tr>
+<tr class="even">
+<td><span class="math inline">h_t = \sum_{k=1}^{t} w^{t-k} x_k</span></td>
+<td>a scalar linear RNN <span class="math inline">h_t = w h_{t-1} + x_t</span> with <span class="math inline">h_0 = 0</span>, unrolled <em>(ours)</em></td>
+<td><a href="#quiz-3">Quiz question 3</a></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="backpropagation-through-time" class="level3">
+<h3 class="anchored" data-anchor-id="backpropagation-through-time">Backpropagation through time</h3>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th>Equation</th>
+<th>What it says</th>
+<th>Where</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><span class="math inline">a_t = b_t + c_t\, a_{t-1}</span>, <span class="math inline">a_0 = 0</span></td>
+<td>the recurrent term <span class="math inline">a_t = d\bm{h}_t/d\bm{W}_h</span>: a direct path <span class="math inline">b_t = \partial f_t/\partial \bm{W}_h</span> plus the indirect path through <span class="math inline">\bm{h}_{t-1}</span> with <span class="math inline">c_t = \partial f_t/\partial \bm{h}_{t-1}</span></td>
+<td><a href="../lectures/week06.html#sec-bptt-term">The recurrent term</a></td>
+</tr>
+<tr class="even">
+<td><span class="math inline">a_t = b_t + \sum_{i=1}^{t-1} \big(\prod_{j=i+1}^{t} c_j\big) b_i</span></td>
+<td>the same recursion unrolled</td>
+<td><a href="../lectures/week06.html#sec-bptt-term">The recurrent term</a></td>
+</tr>
+<tr class="odd">
+<td>linear RNN: <span class="math inline">b_t = \bm{h}_{t-1}</span>, <span class="math inline">c_t = \bm{W}_h</span></td>
+<td>the product becomes a matrix power <span class="math inline">\bm{W}_h^{\,t-i}</span>, which explodes or vanishes</td>
+<td><a href="../lectures/week06.html#sec-exploding-vanishing">Why RNNs are hard to train</a></td>
+</tr>
+<tr class="even">
+<td>ReLU RNN: <span class="math inline">b_t = r_t h_{t-1}</span>, <span class="math inline">c_t = r_t w</span></td>
+<td><span class="math inline">r_t</span> is <span class="math inline">1</span> if the pre-activation at step <span class="math inline">t</span> is positive and <span class="math inline">0</span> otherwise <em>(ours)</em></td>
+<td><a href="#quiz-4">Quiz question 4</a></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="the-lstm" class="level3">
+<h3 class="anchored" data-anchor-id="the-lstm">The LSTM</h3>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th>Equation</th>
+<th>What it says</th>
+<th>Where</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><span class="math inline">\bm{g}_t = \sigma(\bm{W}_{xg} \bm{x}_t + \bm{W}_{hg} \bm{h}_{t-1} + \bm{b}_g)</span> for <span class="math inline">g \in \{i, f, o\}</span></td>
+<td>each gate is a sigmoid of a dense layer on <span class="math inline">\bm{x}_t</span> and <span class="math inline">\bm{h}_{t-1}</span>; the candidate <span class="math inline">\tilde{\bm{c}}_t</span> uses <span class="math inline">\tanh</span></td>
+<td><a href="../lectures/week06.html#sec-lstm">LSTM</a></td>
+</tr>
+<tr class="even">
+<td><span class="math inline">\bm{c}_t = \bm{f}_t \odot \bm{c}_{t-1} + \bm{i}_t \odot \tilde{\bm{c}}_t</span></td>
+<td>keep part of the old cell, write part of the candidate</td>
+<td><a href="../lectures/week06.html#sec-lstm">LSTM</a></td>
+</tr>
+<tr class="odd">
+<td><span class="math inline">\bm{h}_t = \bm{o}_t \odot \tanh(\bm{c}_t)</span></td>
+<td>read part of the cell out as the hidden state</td>
+<td><a href="../lectures/week06.html#sec-lstm">LSTM</a></td>
+</tr>
+<tr class="even">
+<td><span class="math inline">4\,(H d + H^2 + H)</span></td>
+<td>LSTM parameters for input size <span class="math inline">d</span> and hidden size <span class="math inline">H</span>: four blocks (three gates and the candidate), each with <span class="math inline">\bm{W}_x</span>, <span class="math inline">\bm{W}_h</span>, and a bias <em>(ours)</em></td>
+<td><a href="#quiz-2">Quiz question 2</a></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="sequence-to-sequence" class="level3">
+<h3 class="anchored" data-anchor-id="sequence-to-sequence">Sequence-to-sequence</h3>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th>Equation</th>
+<th>What it says</th>
+<th>Where</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><span class="math inline">\bm{c} = \bm{h}_T</span></td>
+<td>the context is the encoder’s final hidden state</td>
+<td><a href="../lectures/week06.html#sec-seq2seq">Seq2seq</a></td>
+</tr>
+<tr class="even">
+<td><span class="math inline">\bm{s}_{t'} = g(\bm{y}_{t'-1}, \bm{s}_{t'-1}, \bm{c})</span></td>
+<td>the decoder state uses the previous output, its previous state, and the context</td>
+<td><a href="../lectures/week06.html#sec-seq2seq">Seq2seq</a></td>
+</tr>
+<tr class="odd">
+<td>concat<span class="math inline">(\text{embed}(\bm{y}_{t'-1}), \bm{c})</span> or <span class="math inline">\bm{s}_0 = \bm{c}</span></td>
+<td>two ways to give the decoder the context</td>
+<td><a href="../lectures/week06.html#sec-seq2seq">Seq2seq</a></td>
+</tr>
+</tbody>
+</table>
+</section>
+</section>
+<section id="sec-w6p-text" class="level2">
+<h2 class="anchored" data-anchor-id="sec-w6p-text">Part 1: Sequences and text</h2>
+<section id="prb-1" class="level3">
+<h3 class="anchored" data-anchor-id="prb-1">Problem 1: Which sentence is more probable?</h3>
+<p>A language model gives these probabilities:</p>
+<ul>
+<li><span class="math inline">p(\text{the}) = 0.4</span>,</li>
+<li><span class="math inline">p(\text{cat} \mid \text{the}) = 0.25</span> and <span class="math inline">p(\text{dog} \mid \text{the}) = 0.2</span>,</li>
+<li><span class="math inline">p(\text{sat} \mid \text{the, cat}) = 0.3</span> and <span class="math inline">p(\text{sat} \mid \text{the, dog}) = 0.05</span>.</li>
+</ul>
+<p>What probability does the model give “the cat sat,” and what does it give “the dog sat”? How many times more probable is the first?</p>
+<div class="practice-answer callout callout-style-default callout-tip callout-titled" title="Worked solution">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-1-contents" aria-controls="callout-1" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Worked solution
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-1" class="callout-1-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>This uses <a href="../lectures/week06.html#sec-chain-rule-prob">Week 6, the chain rule of probability</a> and the use of a language model for <a href="../lectures/week06.html#sec-language-modeling">scoring</a>.</p>
+<p><strong>The base equation.</strong> Start from the definition of <a href="https://en.wikipedia.org/wiki/Conditional_probability">conditional probability</a>, rearranged:</p>
+<p><span class="math display">p(A, B) = p(A)\, p(B \mid A).</span></p>
+<p>In words: the probability that both happen is the probability of the first, times the probability of the second once we know the first happened. Applying it twice to a three-word sentence peels off one word at a time, from the end:</p>
+<p><span class="math display">
+\begin{aligned}
+p(\bm{x}_1, \bm{x}_2, \bm{x}_3) &amp;= p(\bm{x}_1, \bm{x}_2)\, p(\bm{x}_3 \mid \bm{x}_1, \bm{x}_2) \\
+&amp;= p(\bm{x}_1)\, p(\bm{x}_2 \mid \bm{x}_1)\, p(\bm{x}_3 \mid \bm{x}_1, \bm{x}_2).
+\end{aligned}
+</span></p>
+<p>This is the chain rule of probability for <span class="math inline">T = 3</span>. Every factor has the form “the next word, given all the words before it,” which is exactly what a language model outputs. So the stem already gives us every factor we need.</p>
+<p><strong>“the cat sat.”</strong> Set <span class="math inline">\bm{x}_1 = \text{the}</span>, <span class="math inline">\bm{x}_2 = \text{cat}</span>, <span class="math inline">\bm{x}_3 = \text{sat}</span>:</p>
+<p><span class="math display">p(\text{the})\, p(\text{cat} \mid \text{the})\, p(\text{sat} \mid \text{the, cat}) = 0.4 \times 0.25 \times 0.3 = 0.03.</span></p>
+<p><strong>“the dog sat.”</strong> Only <span class="math inline">\bm{x}_2</span> changes, but that also changes what the third factor is conditioned on:</p>
+<p><span class="math display">p(\text{the})\, p(\text{dog} \mid \text{the})\, p(\text{sat} \mid \text{the, dog}) = 0.4 \times 0.2 \times 0.05 = 0.004.</span></p>
+<p><strong>The ratio.</strong> Both products start with the same factor <span class="math inline">p(\text{the})</span>, so it cancels:</p>
+<p><span class="math display">
+\begin{aligned}
+\frac{p(\text{the cat sat})}{p(\text{the dog sat})}
+&amp;= \frac{p(\text{cat} \mid \text{the})}{p(\text{dog} \mid \text{the})} \cdot \frac{p(\text{sat} \mid \text{the, cat})}{p(\text{sat} \mid \text{the, dog})} \\
+&amp;= \frac{0.25}{0.2} \cdot \frac{0.3}{0.05} = 1.25 \times 6 = 7.5.
+\end{aligned}
+</span></p>
+<p>Writing the ratio factor by factor shows where the gap comes from: “cat” is only <span class="math inline">1.25</span> times as likely as “dog” after “the,” but “sat” is <span class="math inline">6</span> times as likely after “the cat” as after “the dog.”</p>
+<p>Scoring a sentence this way is one of the two uses of a language model in the week chapter; the other is sampling, which draws from these same conditionals one word at a time.</p>
+<p><strong>Answer:</strong> <span class="math inline">0.03</span> and <span class="math inline">0.004</span>; the first is <span class="math inline">7.5</span> times more probable.</p>
+</div>
+</div>
+</div>
+</section>
+<section id="prb-2" class="level3">
+<h3 class="anchored" data-anchor-id="prb-2">Problem 2: Where a language model’s parameters live</h3>
+<p>A word-level language model has a vocabulary of <span class="math inline">|V| = 10{,}000</span> words. Each token is looked up in an embedding matrix with <span class="math inline">64</span>-dimensional embeddings (no bias). The embeddings go into a vanilla RNN with hidden size <span class="math inline">128</span> (weights <span class="math inline">\bm{W}_x</span>, <span class="math inline">\bm{W}_h</span>, bias <span class="math inline">\bm{b}_h</span>). An output layer <span class="math inline">\bm{o}_t = \bm{W}_o \bm{h}_t + \bm{b}_o</span> produces one score per vocabulary word.</p>
+<p>How many parameters does each of the three parts have, and how many in total? Which part dominates? How does the total change if the model is used on sentences of length <span class="math inline">1{,}000</span> instead of <span class="math inline">20</span>?</p>
+<div class="practice-answer callout callout-style-default callout-tip callout-titled" title="Worked solution">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-2-contents" aria-controls="callout-2" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Worked solution
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-2" class="callout-2-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>This uses <a href="../lectures/week06.html#sec-embeddings">Week 6, Embeddings</a> and <a href="../lectures/week06.html#sec-vanilla-rnn">the vanilla RNN</a>.</p>
+<p><strong>The base rule: counting a dense layer.</strong> A dense layer <span class="math inline">\bm{y} = \bm{W}\bm{x} + \bm{b}</span> that takes an <span class="math inline">m</span>-dimensional input to an <span class="math inline">n</span>-dimensional output needs one weight for every (output, input) pair and one bias per output:</p>
+<p><span class="math display">\bm{W} \in \mathbb{R}^{n \times m}, \quad \bm{b} \in \mathbb{R}^{n} \qquad \Longrightarrow \qquad nm + n \text{ parameters.}</span></p>
+<p>The rule to remember is that the matrix has as many <strong>rows</strong> as outputs and as many <strong>columns</strong> as inputs, because row <span class="math inline">i</span> holds the weights that build output <span class="math inline">i</span>.</p>
+<p><strong>The model’s equations.</strong> Write <span class="math inline">d = 64</span> for the embedding size, <span class="math inline">H = 128</span> for the hidden size, and <span class="math inline">\bm{W}_e</span> for the embedding matrix (called <span class="math inline">\bm{W}</span> in the week chapter; the subscript keeps it apart from the RNN weights). If token <span class="math inline">\bm{x}_t</span> is word <span class="math inline">k</span>, one step of the model is</p>
+<p><span class="math display">
+\begin{aligned}
+\bm{v}_t &amp;= \bm{W}_e\, \bm{e}_k &amp;&amp; \text{(embedding lookup)} \\
+\bm{h}_t &amp;= \sigma(\bm{W}_x \bm{v}_t + \bm{W}_h \bm{h}_{t-1} + \bm{b}_h) &amp;&amp; \text{(recurrent core)} \\
+\bm{o}_t &amp;= \bm{W}_o \bm{h}_t + \bm{b}_o &amp;&amp; \text{(output layer)}
+\end{aligned}
+</span></p>
+<p>Every matrix and bias in these three lines is a parameter. Read each shape from what goes in and what comes out.</p>
+<p><strong>Embedding matrix.</strong> <span class="math inline">\bm{W}_e</span> takes a <span class="math inline">|V|</span>-dimensional one-hot vector to a <span class="math inline">d</span>-dimensional embedding, so <span class="math inline">\bm{W}_e \in \mathbb{R}^{d \times |V|}</span> and there is no bias: one <span class="math inline">64</span>-dimensional column per word.</p>
+<p><span class="math display">d\,|V| = 64 \times 10{,}000 = 640{,}000.</span></p>
+<p><strong>Recurrent core.</strong> <span class="math inline">\bm{W}_x</span> takes the <span class="math inline">d</span>-dimensional embedding to the <span class="math inline">H</span>-dimensional hidden state, <span class="math inline">\bm{W}_h</span> takes <span class="math inline">H</span> to <span class="math inline">H</span>, and <span class="math inline">\bm{b}_h</span> has one entry per hidden unit:</p>
+<p><span class="math display">Hd + H^2 + H = 128 \cdot 64 + 128 \cdot 128 + 128 = 8{,}192 + 16{,}384 + 128 = 24{,}704.</span></p>
+<p><strong>Output layer.</strong> <span class="math inline">\bm{W}_o</span> takes <span class="math inline">H</span> to one score per word, so it is <span class="math inline">|V| \times H</span>, plus a bias of length <span class="math inline">|V|</span>:</p>
+<p><span class="math display">|V|\,H + |V| = 10{,}000 \cdot 128 + 10{,}000 = 1{,}290{,}000.</span></p>
+<p><strong>Total.</strong> <span class="math inline">640{,}000 + 24{,}704 + 1{,}290{,}000 = 1{,}954{,}704</span>.</p>
+<p>The output layer holds about two thirds of the parameters and the embedding matrix about a third. The recurrent core, the part that actually reads the sequence, is about <span class="math inline">1\%</span>. Both large parts have a factor <span class="math inline">|V|</span>, which is why vocabulary size drives the size of small language models.</p>
+<p><strong>Sequence length.</strong> Look back at the equations: none of the shapes contains <span class="math inline">T</span>. The same <span class="math inline">\bm{W}_x</span>, <span class="math inline">\bm{W}_h</span>, <span class="math inline">\bm{b}_h</span> are reused at every step, so a longer sentence means running the same three lines more times, not storing more parameters. Longer sequences cost more computation, not more parameters.</p>
+<p><strong>Answer:</strong> <span class="math inline">640{,}000</span> (embedding), <span class="math inline">24{,}704</span> (RNN), <span class="math inline">1{,}290{,}000</span> (output), <span class="math inline">1{,}954{,}704</span> in total; the output layer dominates; the count is the same for any sequence length.</p>
+</div>
+</div>
+</div>
+</section>
+</section>
+<section id="sec-w6p-rnn" class="level2">
+<h2 class="anchored" data-anchor-id="sec-w6p-rnn">Part 2: The vanilla RNN and backpropagation through time</h2>
+<section id="prb-3" class="level3">
+<h3 class="anchored" data-anchor-id="prb-3">Problem 3: An early input that keeps showing up</h3>
+<p>A linear RNN with a 2-dimensional hidden state has no activation function and no bias:</p>
+<p><span class="math display">\bm{h}_t = \bm{W}_h \bm{h}_{t-1} + \bm{x}_t, \qquad \bm{W}_h = \begin{bmatrix} 0.5 &amp; 1 \\ 0 &amp; 0.5 \end{bmatrix}, \qquad \bm{h}_0 = \bm{0}.</span></p>
+<p>The inputs are <span class="math inline">\bm{x}_1 = (2, 0)</span>, <span class="math inline">\bm{x}_2 = (0, 1)</span>, and <span class="math inline">\bm{x}_3 = (0, 0)</span>. Compute <span class="math inline">\bm{h}_3</span>. How much of <span class="math inline">\bm{h}_3</span> comes from <span class="math inline">\bm{x}_1</span>?</p>
+<div class="practice-answer callout callout-style-default callout-tip callout-titled" title="Worked solution">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-3-contents" aria-controls="callout-3" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Worked solution
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-3" class="callout-3-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>This uses <a href="../lectures/week06.html#sec-vanilla-rnn">Week 6, the vanilla RNN</a>, with the activation removed so every step is a matrix multiply and an addition.</p>
+<p><strong>The base equation.</strong> The vanilla RNN update is <span class="math inline">\bm{h}_t = \sigma(\bm{W}_x \bm{x}_t + \bm{W}_h \bm{h}_{t-1} + \bm{b}_h)</span>. Here <span class="math inline">\sigma</span> is the identity, <span class="math inline">\bm{W}_x</span> is the identity, and <span class="math inline">\bm{b}_h = \bm{0}</span>, which leaves</p>
+<p><span class="math display">\bm{h}_t = \bm{W}_h \bm{h}_{t-1} + \bm{x}_t.</span></p>
+<p>Each step needs one matrix-vector product. Entry <span class="math inline">i</span> of <span class="math inline">\bm{W}\bm{v}</span> is row <span class="math inline">i</span> of <span class="math inline">\bm{W}</span> dotted with <span class="math inline">\bm{v}</span>:</p>
+<p><span class="math display">(\bm{W}\bm{v})_i = \sum_j W_{ij}\, v_j.</span></p>
+<p><strong>Step by step.</strong> Apply the update three times.</p>
+<ul>
+<li><span class="math inline">\bm{h}_1 = \bm{W}_h \bm{0} + (2, 0) = (2, 0)</span>.</li>
+<li><span class="math inline">\bm{h}_2 = \bm{W}_h (2, 0) + (0, 1)</span>. Row 1 gives <span class="math inline">0.5 \cdot 2 + 1 \cdot 0 = 1</span>, row 2 gives <span class="math inline">0 \cdot 2 + 0.5 \cdot 0 = 0</span>, so <span class="math inline">\bm{W}_h \bm{h}_1 = (1, 0)</span> and <span class="math inline">\bm{h}_2 = (1, 1)</span>.</li>
+<li><span class="math inline">\bm{h}_3 = \bm{W}_h (1, 1) + (0, 0)</span>. Row 1 gives <span class="math inline">0.5 + 1 = 1.5</span>, row 2 gives <span class="math inline">0 + 0.5 = 0.5</span>, so <span class="math inline">\bm{h}_3 = (1.5, 0.5)</span>.</li>
+</ul>
+<p><strong>Separating the inputs.</strong> To see where each input ended up, substitute the update into itself instead of plugging in numbers. Starting from <span class="math inline">\bm{h}_0 = \bm{0}</span>:</p>
+<p><span class="math display">
+\begin{aligned}
+\bm{h}_3 &amp;= \bm{W}_h \bm{h}_2 + \bm{x}_3 = \bm{W}_h(\bm{W}_h \bm{h}_1 + \bm{x}_2) + \bm{x}_3 \\
+&amp;= \bm{W}_h(\bm{W}_h \bm{x}_1 + \bm{x}_2) + \bm{x}_3 = \bm{W}_h^{\,2}\, \bm{x}_1 + \bm{W}_h\, \bm{x}_2 + \bm{x}_3.
+\end{aligned}
+</span></p>
+<p>Each input is multiplied by <span class="math inline">\bm{W}_h</span> once for every step since it entered: <span class="math inline">\bm{x}_1</span> twice, <span class="math inline">\bm{x}_2</span> once, <span class="math inline">\bm{x}_3</span> not at all. The general pattern is <span class="math inline">\bm{h}_t = \sum_{k=1}^{t} \bm{W}_h^{\,t-k} \bm{x}_k</span>.</p>
+<p>Now each term separately. First square the matrix. Entry <span class="math inline">(i, j)</span> of <span class="math inline">\bm{W}_h \bm{W}_h</span> is row <span class="math inline">i</span> dotted with column <span class="math inline">j</span>; for example, entry <span class="math inline">(1, 2)</span> is <span class="math inline">0.5 \cdot 1 + 1 \cdot 0.5 = 1</span>:</p>
+<p><span class="math display">\bm{W}_h^{\,2} = \bm{W}_h \bm{W}_h = \begin{bmatrix} 0.25 &amp; 1 \\ 0 &amp; 0.25 \end{bmatrix}.</span></p>
+<ul>
+<li>The <span class="math inline">\bm{x}_1</span> term: <span class="math inline">\bm{W}_h^{\,2}(2, 0) = (0.25 \cdot 2,\ 0) = (0.5, 0)</span>.</li>
+<li>The <span class="math inline">\bm{x}_2</span> term: <span class="math inline">\bm{W}_h(0, 1) = (1, 0.5)</span>.</li>
+<li>The <span class="math inline">\bm{x}_3</span> term: <span class="math inline">(0, 0)</span>.</li>
+</ul>
+<p>They add to <span class="math inline">(1.5, 0.5)</span>, matching the step-by-step result.</p>
+<p>The input <span class="math inline">\bm{x}_1</span> has shrunk from size <span class="math inline">2</span> to <span class="math inline">0.5</span> after two multiplications by <span class="math inline">\bm{W}_h</span>, a factor <span class="math inline">0.5</span> each time. This is the same matrix power <span class="math inline">\bm{W}_h^{\,k}</span> that appears in the gradient in <a href="../lectures/week06.html#sec-exploding-vanishing">Why recurrent networks are hard to train</a>: the forward pass and the backward pass both multiply by <span class="math inline">\bm{W}_h</span> once per step.</p>
+<p><strong>Answer:</strong> <span class="math inline">\bm{h}_3 = (1.5, 0.5)</span>, of which <span class="math inline">(0.5, 0)</span> comes from <span class="math inline">\bm{x}_1</span>.</p>
+</div>
+</div>
+</div>
+</section>
+<section id="prb-4" class="level3">
+<h3 class="anchored" data-anchor-id="prb-4">Problem 4: A gradient when only the last step has a loss</h3>
+<p>A scalar linear RNN has <span class="math inline">h_t = w\, h_{t-1} + x_t</span> with <span class="math inline">h_0 = 0</span> and <span class="math inline">w = 3</span>. The inputs are <span class="math inline">(x_1, x_2, x_3) = (1, 0, 2)</span>, and the loss is just the last hidden state, <span class="math inline">\mathcal{L} = h_3</span>. Compute <span class="math inline">d\mathcal{L}/dw</span> in two ways: by writing <span class="math inline">h_3</span> out as a function of <span class="math inline">w</span>, and with the backpropagation-through-time recursion <span class="math inline">a_t = b_t + c_t\, a_{t-1}</span>.</p>
+<div class="practice-answer callout callout-style-default callout-tip callout-titled" title="Worked solution">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-4-contents" aria-controls="callout-4" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Worked solution
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-4" class="callout-4-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>This uses <a href="../lectures/week06.html#sec-total-partial">Week 6, Total versus partial derivatives</a>, <a href="../lectures/week06.html#sec-bptt-term">The recurrent term</a>, and its linear special case in <a href="../lectures/week06.html#sec-exploding-vanishing">Why recurrent networks are hard to train</a>.</p>
+<p><strong>Way 1: expand, then differentiate.</strong> Substitute the update into itself, as in <a href="#prb-3">Problem 3</a>:</p>
+<p><span class="math display">
+\begin{aligned}
+h_3 &amp;= w\, h_2 + x_3 = w\,(w\, h_1 + x_2) + x_3 \\
+&amp;= w\,(w\, x_1 + x_2) + x_3 = w^2 x_1 + w\, x_2 + x_3.
+\end{aligned}
+</span></p>
+<p>Now <span class="math inline">h_3</span> is an ordinary polynomial in <span class="math inline">w</span>, with the inputs as constants. Differentiate term by term:</p>
+<p><span class="math display">\frac{dh_3}{dw} = 2w\, x_1 + x_2 = 2 \cdot 3 \cdot 1 + 0 = 6.</span></p>
+<p><strong>Way 2: the recursion, and where it comes from.</strong> Write one step as <span class="math inline">h_t = f(h_{t-1}, w)</span> with <span class="math inline">f(h, w) = w\,h + x_t</span>. The weight <span class="math inline">w</span> reaches <span class="math inline">h_t</span> along two paths:</p>
+<ul>
+<li><strong>directly</strong>, because <span class="math inline">w</span> appears in the formula for step <span class="math inline">t</span>;</li>
+<li><strong>indirectly</strong>, because <span class="math inline">w</span> was already used to compute <span class="math inline">h_{t-1}</span>, which step <span class="math inline">t</span> reads.</li>
+</ul>
+<p>The total derivative adds the two paths. The direct path is a partial derivative (hold <span class="math inline">h_{t-1}</span> fixed), and the indirect path is the chain rule through <span class="math inline">h_{t-1}</span>:</p>
+<p><span class="math display">\frac{dh_t}{dw} = \frac{\partial f}{\partial w} + \frac{\partial f}{\partial h_{t-1}} \cdot \frac{dh_{t-1}}{dw}.</span></p>
+<p>The week chapter abbreviates this as <span class="math inline">a_t = b_t + c_t\, a_{t-1}</span>, with <span class="math inline">a_t = dh_t/dw</span>, <span class="math inline">b_t = \partial f / \partial w</span>, and <span class="math inline">c_t = \partial f / \partial h_{t-1}</span>. For <span class="math inline">f = w\,h_{t-1} + x_t</span>:</p>
+<p><span class="math display">b_t = \frac{\partial}{\partial w}(w\, h_{t-1} + x_t) = h_{t-1}, \qquad c_t = \frac{\partial}{\partial h_{t-1}}(w\, h_{t-1} + x_t) = w.</span></p>
+<p>So <span class="math inline">a_t = h_{t-1} + w\, a_{t-1}</span>, starting from <span class="math inline">a_0 = 0</span> because <span class="math inline">h_0</span> is fixed and does not depend on <span class="math inline">w</span>.</p>
+<p>The recursion needs the <span class="math inline">h_{t-1}</span> values, so first run forward: <span class="math inline">h_1 = 1</span>, <span class="math inline">h_2 = 3 \cdot 1 + 0 = 3</span>, <span class="math inline">h_3 = 3 \cdot 3 + 2 = 11</span>. Then:</p>
+<ul>
+<li><span class="math inline">a_1 = h_0 + w\, a_0 = 0 + 3 \cdot 0 = 0</span>.</li>
+<li><span class="math inline">a_2 = h_1 + w\, a_1 = 1 + 3 \cdot 0 = 1</span>.</li>
+<li><span class="math inline">a_3 = h_2 + w\, a_2 = 3 + 3 \cdot 1 = 6</span>.</li>
+</ul>
+<p>The two ways agree. The recursion never needed the formula for <span class="math inline">h_3</span>, only values from the forward pass, which is why it is the method that scales to long sequences and to matrices.</p>
+<p>Since the loss is only at the last step, <span class="math inline">d\mathcal{L}/dw = a_3</span>. If the loss were a sum over steps, we would add up <span class="math inline">a_1 + a_2 + a_3</span> instead, as in <a href="#quiz-4">Quiz question 4</a>.</p>
+<p><strong>Answer:</strong> <span class="math inline">d\mathcal{L}/dw = 6</span>.</p>
+</div>
+</div>
+</div>
+</section>
+<section id="prb-5" class="level3">
+<h3 class="anchored" data-anchor-id="prb-5">Problem 5: Which direction survives twenty steps?</h3>
+<p>A linear RNN has recurrent weights <span class="math inline">\bm{W}_h = \begin{bmatrix} 0.5 &amp; 0 \\ 0 &amp; 1.2 \end{bmatrix}</span>. In the gradient <span class="math inline">d\bm{h}_t/d\bm{W}_h</span>, a contribution from <span class="math inline">20</span> steps back is multiplied by <span class="math inline">\bm{W}_h^{\,20}</span>. By what factor is each coordinate scaled? What does this predict about what the network can learn from inputs 20 steps in the past? Why is this worse than the vanishing and exploding gradients of a deep feed-forward network in Week 3?</p>
+<div class="practice-answer callout callout-style-default callout-tip callout-titled" title="Worked solution">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-5-contents" aria-controls="callout-5" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Worked solution
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-5" class="callout-5-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>This uses <a href="../lectures/week06.html#sec-exploding-vanishing">Week 6, Why recurrent networks are hard to train</a>, which points back to <a href="../lectures/week03.html#sec-vanishing">Week 3</a>.</p>
+<p><strong>The base equation.</strong> Unrolling <span class="math inline">a_t = b_t + c_t\, a_{t-1}</span> gives one term per earlier step <span class="math inline">i</span>, each carried forward by every <span class="math inline">c_j</span> between step <span class="math inline">i</span> and step <span class="math inline">t</span>:</p>
+<p><span class="math display">a_t = b_t + \sum_{i=1}^{t-1} \Big(\prod_{j=i+1}^{t} c_j\Big)\, b_i.</span></p>
+<p>For a linear RNN every <span class="math inline">c_j</span> is <span class="math inline">\bm{W}_h</span>, so the product of <span class="math inline">t - i</span> copies is the matrix power <span class="math inline">\bm{W}_h^{\,t-i}</span>. A contribution from <span class="math inline">20</span> steps back is multiplied by <span class="math inline">\bm{W}_h^{\,20}</span>, which is the number the question asks about.</p>
+<p><strong>Powers of a diagonal matrix.</strong> Multiplying two diagonal matrices just multiplies their matching diagonal entries, so</p>
+<p><span class="math display">\begin{bmatrix} \lambda_1 &amp; 0 \\ 0 &amp; \lambda_2 \end{bmatrix}^{k} = \begin{bmatrix} \lambda_1^{k} &amp; 0 \\ 0 &amp; \lambda_2^{k} \end{bmatrix}.</span></p>
+<p>Each coordinate is scaled on its own by a power of its diagonal entry. These entries are the matrix’s <a href="https://en.wikipedia.org/wiki/Eigenvalues_and_eigenvectors">eigenvalues</a>, and the coordinate axes are its eigenvectors. For a power <span class="math inline">\lambda^k</span>: if <span class="math inline">|\lambda| &lt; 1</span> it shrinks toward <span class="math inline">0</span> as <span class="math inline">k</span> grows, and if <span class="math inline">|\lambda| &gt; 1</span> it grows without bound.</p>
+<p><strong>The scaling.</strong> With <span class="math inline">\lambda_1 = 0.5</span> and <span class="math inline">\lambda_2 = 1.2</span>:</p>
+<ul>
+<li>First coordinate: <span class="math inline">0.5^{20} \approx 9.5 \times 10^{-7}</span>, about a millionth.</li>
+<li>Second coordinate: <span class="math inline">1.2^{20} \approx 38</span>.</li>
+</ul>
+<p><strong>The prediction.</strong> Along the first direction, the gradient contribution from 20 steps back is effectively zero, so the network gets almost no signal for adjusting how it uses information that old. It will struggle to learn dependencies between elements 20 steps apart: the gradient vanishes. Along the second direction the same contribution is <span class="math inline">38</span> times larger than a contribution from the current step, and it keeps growing with distance, so long sequences produce huge, unstable updates: the gradient explodes. One matrix can do both at once, in different directions.</p>
+<p><strong>Why this is worse than Week 3.</strong> In a feed-forward network the product is <span class="math inline">\bm{W}^{(L)} \cdots \bm{W}^{(2)}\bm{W}^{(1)}</span>, with a different matrix per layer, so stretching in one layer can be offset by shrinking in another, and no single eigenvalue decides the outcome. In an RNN the product is <span class="math inline">\bm{W}_h \cdots \bm{W}_h = \bm{W}_h^{\,k}</span>, the same matrix every time, so the same eigenvalues are raised to the power of the distance, with nothing to offset them. Eigenvalues only slightly away from <span class="math inline">1</span> already give large effects over long sequences.</p>
+</div>
+</div>
+</div>
+</section>
+</section>
+<section id="sec-w6p-lstm" class="level2">
+<h2 class="anchored" data-anchor-id="sec-w6p-lstm">Part 3: The LSTM and uses of sequence models</h2>
+<section id="prb-6" class="level3">
+<h3 class="anchored" data-anchor-id="prb-6">Problem 6: One LSTM step by hand</h3>
+<p>An LSTM has a 2-dimensional cell. At step <span class="math inline">t</span> the gates and candidate have already been computed:</p>
+<p><span class="math display">\bm{f}_t = (1, 0), \quad \bm{i}_t = (0, 1), \quad \tilde{\bm{c}}_t = (0.5, 0.8), \quad \bm{o}_t = (1, 0),</span></p>
+<p>and the previous cell is <span class="math inline">\bm{c}_{t-1} = (2, -1)</span>. Compute <span class="math inline">\bm{c}_t</span> and <span class="math inline">\bm{h}_t</span> (use <span class="math inline">\tanh(2) \approx 0.964</span>). For each entry of the cell, say whether it was kept, overwritten, or hidden from the output.</p>
+<div class="practice-answer callout callout-style-default callout-tip callout-titled" title="Worked solution">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-6-contents" aria-controls="callout-6" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Worked solution
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-6" class="callout-6-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>This uses <a href="../lectures/week06.html#sec-lstm">Week 6, Long Short-Term Memory</a>.</p>
+<p><strong>The base equations.</strong> One LSTM step computes three gates and a candidate from the same two inputs, <span class="math inline">\bm{x}_t</span> and <span class="math inline">\bm{h}_{t-1}</span> (here <span class="math inline">\sigma</span> is the sigmoid):</p>
+<p><span class="math display">
+\begin{aligned}
+\bm{i}_t &amp;= \sigma(\bm{W}_{xi}\bm{x}_t + \bm{W}_{hi}\bm{h}_{t-1} + \bm{b}_i), &amp;
+\bm{f}_t &amp;= \sigma(\bm{W}_{xf}\bm{x}_t + \bm{W}_{hf}\bm{h}_{t-1} + \bm{b}_f), \\
+\bm{o}_t &amp;= \sigma(\bm{W}_{xo}\bm{x}_t + \bm{W}_{ho}\bm{h}_{t-1} + \bm{b}_o), &amp;
+\tilde{\bm{c}}_t &amp;= \tanh(\bm{W}_{xc}\bm{x}_t + \bm{W}_{hc}\bm{h}_{t-1} + \bm{b}_c),
+\end{aligned}
+</span></p>
+<p>then combines them:</p>
+<p><span class="math display">\bm{c}_t = \bm{f}_t \odot \bm{c}_{t-1} + \bm{i}_t \odot \tilde{\bm{c}}_t, \qquad \bm{h}_t = \bm{o}_t \odot \tanh(\bm{c}_t).</span></p>
+<p>The symbol <span class="math inline">\odot</span> is elementwise multiplication, so each entry of the cell is handled separately. Because a sigmoid lies between <span class="math inline">0</span> and <span class="math inline">1</span>, each gate entry works like a dial: the forget gate sets how much of the old cell to keep, the input gate how much of the candidate to write, and the output gate how much of the cell to show in <span class="math inline">\bm{h}_t</span>. The stem skips the first four lines and hands us their outputs. Real gates are strictly between <span class="math inline">0</span> and <span class="math inline">1</span>; values of exactly <span class="math inline">0</span> and <span class="math inline">1</span> here make each gate’s role easy to see.</p>
+<p><strong>The cell update.</strong> Apply <span class="math inline">\bm{c}_t = \bm{f}_t \odot \bm{c}_{t-1} + \bm{i}_t \odot \tilde{\bm{c}}_t</span> one entry at a time:</p>
+<ul>
+<li>Entry 1: <span class="math inline">f \cdot c_{t-1} + i \cdot \tilde{c} = 1 \cdot 2 + 0 \cdot 0.5 = 2</span>.</li>
+<li>Entry 2: <span class="math inline">f \cdot c_{t-1} + i \cdot \tilde{c} = 0 \cdot (-1) + 1 \cdot 0.8 = 0.8</span>.</li>
+</ul>
+<p>So <span class="math inline">\bm{c}_t = (2, 0.8)</span>.</p>
+<p><strong>The hidden state.</strong> Apply <span class="math inline">\bm{h}_t = \bm{o}_t \odot \tanh(\bm{c}_t)</span> entry by entry:</p>
+<p><span class="math display">\bm{h}_t = (1 \cdot \tanh 2,\ 0 \cdot \tanh 0.8) \approx (0.964,\ 0).</span></p>
+<p><strong>Reading the gates.</strong></p>
+<ul>
+<li><strong>Entry 1 was kept.</strong> The forget gate is <span class="math inline">1</span> and the input gate <span class="math inline">0</span>, so the cell equation reduces to <span class="math inline">c_t = c_{t-1}</span>: the old value <span class="math inline">2</span> passes through unchanged and the candidate is ignored. This is the “remember” setting, which can carry a value across many steps.</li>
+<li><strong>Entry 2 was overwritten.</strong> The forget gate is <span class="math inline">0</span> and the input gate <span class="math inline">1</span>, so the cell equation reduces to <span class="math inline">c_t = \tilde{c}_t</span>: the old <span class="math inline">-1</span> is erased and the candidate <span class="math inline">0.8</span> is written in.</li>
+<li><strong>Entry 2 is also hidden from the output.</strong> Its output gate is <span class="math inline">0</span>, so <span class="math inline">\bm{h}_t</span> shows nothing of it, yet <span class="math inline">0.8</span> stays in the cell for later steps. The output gate appears only in the <span class="math inline">\bm{h}_t</span> equation, not in the <span class="math inline">\bm{c}_t</span> equation: it controls what is <em>read</em> now, not what is <em>stored</em>.</li>
+</ul>
+<p><strong>Answer:</strong> <span class="math inline">\bm{c}_t = (2, 0.8)</span> and <span class="math inline">\bm{h}_t \approx (0.964, 0)</span>; entry 1 kept, entry 2 overwritten and hidden.</p>
+</div>
+</div>
+</div>
+</section>
+<section id="prb-7" class="level3">
+<h3 class="anchored" data-anchor-id="prb-7">Problem 7: Training loop or generation loop?</h3>
+<p>Both loops below run the decoder of a sequence-to-sequence model. In each, <code>c</code> is the encoder’s context, <code>decoder_step</code> updates the decoder state, <code>W_o @ s</code> gives scores over the vocabulary, <code>BOS</code> and <code>EOS</code> are the special tokens, and <code>y</code> is the true output sequence.</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Loop A</span></span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>s, inp, loss <span class="op">=</span> c, BOS, <span class="dv">0</span></span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> t <span class="kw">in</span> <span class="bu">range</span>(<span class="bu">len</span>(y)):</span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>    s <span class="op">=</span> decoder_step(embed(inp), s)</span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a>    loss <span class="op">+=</span> cross_entropy(W_o <span class="op">@</span> s, y[t])</span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a>    inp <span class="op">=</span> y[t]</span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a><span class="co"># Loop B</span></span>
+<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a>s, inp, out <span class="op">=</span> c, BOS, []</span>
+<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a><span class="cf">while</span> inp <span class="op">!=</span> EOS:</span>
+<span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a>    s <span class="op">=</span> decoder_step(embed(inp), s)</span>
+<span id="cb1-12"><a href="#cb1-12" aria-hidden="true" tabindex="-1"></a>    inp <span class="op">=</span> sample(softmax(W_o <span class="op">@</span> s))</span>
+<span id="cb1-13"><a href="#cb1-13" aria-hidden="true" tabindex="-1"></a>    out.append(inp)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>Which loop uses teacher forcing? On the third pass through each loop, which token is fed in? Why may the encoder be bidirectional but not the decoder?</p>
+<div class="practice-answer callout callout-style-default callout-tip callout-titled" title="Worked solution">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-7-contents" aria-controls="callout-7" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Worked solution
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-7" class="callout-7-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>This uses <a href="../lectures/week06.html#sec-language-modeling">Week 6, Language modeling</a> (teacher forcing) and <a href="../lectures/week06.html#sec-seq2seq">Sequence-to-Sequence Learning</a>.</p>
+<p><strong>The base equations.</strong> The decoder models the output sentence with the chain rule of probability, now conditioned on the context <span class="math inline">\bm{c}</span>:</p>
+<p><span class="math display">p(\bm{y}_1, \dots, \bm{y}_{T'} \mid \bm{c}) = \prod_{t'=1}^{T'} p(\bm{y}_{t'} \mid \bm{y}_{1}, \dots, \bm{y}_{t'-1}, \bm{c}).</span></p>
+<p>Its state carries the previous output forward, <span class="math inline">\bm{s}_{t'} = g(\bm{y}_{t'-1}, \bm{s}_{t'-1}, \bm{c})</span>, and each factor is a softmax over the scores <span class="math inline">\bm{W}_o \bm{s}_{t'}</span>. Training minimizes the cross-entropy, which is the negative log of the product above:</p>
+<p><span class="math display">\mathcal{L} = -\sum_{t'=1}^{T'} \log p(\bm{y}_{t'} \mid \bm{y}_{1}, \dots, \bm{y}_{t'-1}, \bm{c}).</span></p>
+<p>The one question both loops must answer is: which <span class="math inline">\bm{y}_{t'-1}</span> goes into <span class="math inline">g</span>? Training can use the true one, because the target sentence is known. Generation has no target, so it must use the token it just produced.</p>
+<p><strong>Loop A is training with teacher forcing.</strong> Each pass adds one term of <span class="math inline">\mathcal{L}</span>: <code>cross_entropy(W_o @ s, y[t])</code> is <span class="math inline">-\log</span> of the softmax probability of the true token. It then sets <code>inp = y[t]</code>, so the next input is the <em>true</em> token, whatever the model predicted. That is the definition of teacher forcing.</p>
+<p><strong>Loop B is generation.</strong> It has no loss and no access to <code>y</code>. It samples a token from the model’s own distribution, <span class="math inline">\hat{\bm{y}}_{t'} \sim p(\cdot \mid \hat{\bm{y}}_1, \dots, \hat{\bm{y}}_{t'-1}, \bm{c})</span>, and feeds <em>that</em> back in. That is autoregressive sampling, and it stops when the model produces <code>EOS</code>.</p>
+<p><strong>The third pass.</strong> Both start by feeding <code>BOS</code>. Python counts from <span class="math inline">0</span>, so <code>y[0]</code> is <span class="math inline">\bm{y}_1</span>.</p>
+<ul>
+<li>Loop A: pass 1 feeds <code>BOS</code>, pass 2 feeds <code>y[0]</code>, pass 3 feeds <code>y[1]</code>, the true second output token.</li>
+<li>Loop B: pass 1 feeds <code>BOS</code>, pass 2 feeds the first sampled token, pass 3 feeds the second sampled token, which may differ from the true one.</li>
+</ul>
+<p><strong>Why only the encoder can be bidirectional.</strong> Look at what each factor of the product above conditions on: only the earlier outputs <span class="math inline">\bm{y}_1, \dots, \bm{y}_{t'-1}</span> and <span class="math inline">\bm{c}</span>. A backward pass over the decoder would make <span class="math inline">\bm{s}_{t'}</span> depend on later outputs <span class="math inline">\bm{y}_{t'+1}, \dots</span>, which are not in that factor and do not exist yet at generation time. The encoder has no such constraint: its whole input is available before decoding starts, so reading it backward as well as forward uses nothing that is not already known. During training the true future tokens are available, but a decoder trained to look at them would be relying on information it will not have at generation time.</p>
+<p><strong>Answer:</strong> Loop A uses teacher forcing; on the third pass it feeds the true <code>y[1]</code>, while Loop B feeds its own second sample; the decoder cannot read a future it has not generated yet.</p>
+</div>
+</div>
+</div>
+</section>
+</section>
+<section id="sec-w6p-official-quiz" class="level2">
+<h2 class="anchored" data-anchor-id="sec-w6p-official-quiz">Part 4: Official Week 7 quiz practice</h2>
+<p>The four questions below were provided by the course as Week 7 quiz practice, and they test Week 6 material. They are reproduced with the course’s own numbers, in increasing order of difficulty, with worked answers.</p>
+<section id="quiz-1" class="level3">
+<h3 class="anchored" data-anchor-id="quiz-1">Quiz question 1: A lookup-table autoregressive model (easy)</h3>
+<p>The vocabulary has <span class="math inline">3</span> words and every sequence has exactly <span class="math inline">4</span> words. An autoregressive model stores, for every possible prefix (including the empty prefix), a separate categorical distribution over the next word. A categorical distribution over <span class="math inline">3</span> words has <span class="math inline">2</span> free parameters. How many free parameters does the model have in total?</p>
+<div class="practice-answer callout callout-style-default callout-tip callout-titled" title="Worked solution">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-8-contents" aria-controls="callout-8" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Worked solution
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-8" class="callout-8-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>This uses <a href="../lectures/week06.html#sec-chain-rule-prob">Week 6, the chain rule of probability</a> and <a href="../lectures/week06.html#sec-autoregressive">Autoregressive sampling</a>, where the lecture explains why we want <em>one</em> model for every factor instead of a separate model for each.</p>
+<p><strong>The base equation.</strong> An autoregressive model is built on the chain rule of probability. For a sequence of <span class="math inline">T = 4</span> words:</p>
+<p><span class="math display">
+\begin{aligned}
+p(\bm{x}_1, \bm{x}_2, \bm{x}_3, \bm{x}_4) = {}&amp; p(\bm{x}_1)\, p(\bm{x}_2 \mid \bm{x}_1) \\
+&amp;\cdot p(\bm{x}_3 \mid \bm{x}_1, \bm{x}_2)\, p(\bm{x}_4 \mid \bm{x}_1, \bm{x}_2, \bm{x}_3).
+\end{aligned}
+</span></p>
+<p>Factor <span class="math inline">t</span> is a distribution over the next word <span class="math inline">\bm{x}_t</span> given the prefix <span class="math inline">\bm{x}_1, \dots, \bm{x}_{t-1}</span>, which has length <span class="math inline">t - 1</span>. A “lookup table” model stores a separate distribution for <strong>every value</strong> that prefix can take. So we need two counts: how many free parameters one distribution has, and how many prefixes there are.</p>
+<p><strong>Free parameters of one distribution.</strong> A <a href="https://en.wikipedia.org/wiki/Categorical_distribution">categorical distribution</a> over <span class="math inline">K</span> words is a list of <span class="math inline">K</span> probabilities with one constraint:</p>
+<p><span class="math display">p_1 + p_2 + \dots + p_K = 1.</span></p>
+<p>Once <span class="math inline">K - 1</span> of them are chosen, the last is forced: <span class="math inline">p_K = 1 - p_1 - \dots - p_{K-1}</span>. So only <span class="math inline">K - 1</span> numbers are free. With <span class="math inline">K = 3</span>, that is the stem’s <span class="math inline">2</span>.</p>
+<p><strong>Number of prefixes.</strong> Each position in a prefix can be any of the <span class="math inline">K</span> words, independently, so there are <span class="math inline">K^{\,t-1}</span> prefixes of length <span class="math inline">t - 1</span>. With <span class="math inline">K = 3</span>:</p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 25%">
+<col style="width: 25%">
+<col style="width: 25%">
+<col style="width: 25%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Factor</th>
+<th>Prefix</th>
+<th>Prefix length</th>
+<th>Number of prefixes</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><span class="math inline">p(\bm{x}_1)</span></td>
+<td>(empty)</td>
+<td>0</td>
+<td><span class="math inline">3^0 = 1</span></td>
+</tr>
+<tr class="even">
+<td><span class="math inline">p(\bm{x}_2 \mid \bm{x}_1)</span></td>
+<td><span class="math inline">\bm{x}_1</span></td>
+<td>1</td>
+<td><span class="math inline">3^1 = 3</span></td>
+</tr>
+<tr class="odd">
+<td><span class="math inline">p(\bm{x}_3 \mid \bm{x}_1, \bm{x}_2)</span></td>
+<td><span class="math inline">\bm{x}_1, \bm{x}_2</span></td>
+<td>2</td>
+<td><span class="math inline">3^2 = 9</span></td>
+</tr>
+<tr class="even">
+<td><span class="math inline">p(\bm{x}_4 \mid \bm{x}_1, \bm{x}_2, \bm{x}_3)</span></td>
+<td><span class="math inline">\bm{x}_1, \bm{x}_2, \bm{x}_3</span></td>
+<td>3</td>
+<td><span class="math inline">3^3 = 27</span></td>
+</tr>
+</tbody>
+</table>
+<p>A prefix of length <span class="math inline">4</span> is a finished sequence, and no factor conditions on it, so it needs no distribution.</p>
+<p><strong>Putting it together.</strong> Each prefix has its own distribution with <span class="math inline">K - 1</span> free parameters, so</p>
+<p><span class="math display">N = \sum_{t=1}^{T} (K - 1)\, K^{\,t-1} = (K - 1)\,(1 + K + K^2 + \dots + K^{T-1}).</span></p>
+<p>With <span class="math inline">K = 3</span> and <span class="math inline">T = 4</span>:</p>
+<p><span class="math display">N = 2 \times (1 + 3 + 9 + 27) = 2 \times 40 = 80.</span></p>
+<p><strong>A check with the geometric series.</strong> The bracket is a geometric series, <span class="math inline">1 + K + \dots + K^{T-1} = \dfrac{K^T - 1}{K - 1}</span>, so the <span class="math inline">(K - 1)</span> cancels:</p>
+<p><span class="math display">N = (K - 1) \cdot \frac{K^T - 1}{K - 1} = K^T - 1 = 3^4 - 1 = 80.</span></p>
+<p>This has a direct reading. There are <span class="math inline">K^T = 81</span> possible 4-word sequences, and simply listing a probability for each one takes <span class="math inline">81</span> numbers that sum to <span class="math inline">1</span>, so <span class="math inline">80</span> free parameters. The lookup-table model has exactly the same count: the chain rule only reorganizes that full table, it does not compress it.</p>
+<p>That is the problem the lecture raises. The count grows exponentially with <span class="math inline">T</span>, since each extra word multiplies the number of prefixes by <span class="math inline">K</span>. A recurrent network avoids this by sharing one set of weights across every prefix, so its parameter count does not depend on the length at all (<a href="#prb-2">Problem 2</a>).</p>
+<p><strong>Answer:</strong> <span class="math inline">80</span>.</p>
+</div>
+</div>
+</div>
+</section>
+<section id="quiz-2" class="level3">
+<h3 class="anchored" data-anchor-id="quiz-2">Quiz question 2: Two ways to give an LSTM decoder the context (medium)</h3>
+<p>The decoder of a sequence-to-sequence model is a single-layer LSTM with hidden size <span class="math inline">8</span> and <span class="math inline">5</span>-dimensional input embeddings, with biases everywhere. The encoder’s context vector <span class="math inline">\bm{c}</span> has dimension <span class="math inline">8</span>. In Option A, <span class="math inline">\bm{c}</span> is concatenated to the embedding of the previous output token at every step, and the initial hidden state is zero. In Option B, the inputs are just the embeddings, and the initial hidden state is set to <span class="math inline">\bm{c}</span>. How many more parameters does the LSTM have in Option A than in Option B?</p>
+<div class="practice-answer callout callout-style-default callout-tip callout-titled" title="Worked solution">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-9-contents" aria-controls="callout-9" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Worked solution
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-9" class="callout-9-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>This uses <a href="../lectures/week06.html#sec-lstm">Week 6, Long Short-Term Memory</a> for the parameter structure and <a href="../lectures/week06.html#sec-seq2seq">Sequence-to-Sequence Learning</a> for the two options.</p>
+<p><strong>The base equations.</strong> Write <span class="math inline">d</span> for the size of the LSTM’s input vector <span class="math inline">\bm{x}_t</span> and <span class="math inline">H</span> for the hidden size. One LSTM step is (with <span class="math inline">\sigma</span> the sigmoid):</p>
+<p><span class="math display">
+\begin{aligned}
+\bm{i}_t &amp;= \sigma(\bm{W}_{xi}\bm{x}_t + \bm{W}_{hi}\bm{h}_{t-1} + \bm{b}_i), &amp;
+\bm{f}_t &amp;= \sigma(\bm{W}_{xf}\bm{x}_t + \bm{W}_{hf}\bm{h}_{t-1} + \bm{b}_f), \\
+\bm{o}_t &amp;= \sigma(\bm{W}_{xo}\bm{x}_t + \bm{W}_{ho}\bm{h}_{t-1} + \bm{b}_o), &amp;
+\tilde{\bm{c}}_t &amp;= \tanh(\bm{W}_{xc}\bm{x}_t + \bm{W}_{hc}\bm{h}_{t-1} + \bm{b}_c),
+\end{aligned}
+</span></p>
+<p><span class="math display">\bm{c}_t = \bm{f}_t \odot \bm{c}_{t-1} + \bm{i}_t \odot \tilde{\bm{c}}_t, \qquad \bm{h}_t = \bm{o}_t \odot \tanh(\bm{c}_t).</span></p>
+<p><strong>Where the parameters are.</strong> The last two equations have no parameters: they only add and multiply vectors entry by entry. All the parameters sit in the first four lines, which have the same shape. Each is a dense layer whose output has size <span class="math inline">H</span>, fed by <span class="math inline">\bm{x}_t</span> (size <span class="math inline">d</span>) and <span class="math inline">\bm{h}_{t-1}</span> (size <span class="math inline">H</span>). Using the dense-layer rule from <a href="#prb-2">Problem 2</a> (rows = outputs, columns = inputs):</p>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th>Piece</th>
+<th>Shape</th>
+<th>Count</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><span class="math inline">\bm{W}_{x\cdot}</span></td>
+<td><span class="math inline">H \times d</span></td>
+<td><span class="math inline">Hd</span></td>
+</tr>
+<tr class="even">
+<td><span class="math inline">\bm{W}_{h\cdot}</span></td>
+<td><span class="math inline">H \times H</span></td>
+<td><span class="math inline">H^2</span></td>
+</tr>
+<tr class="odd">
+<td><span class="math inline">\bm{b}_{\cdot}</span></td>
+<td><span class="math inline">H</span></td>
+<td><span class="math inline">H</span></td>
+</tr>
+</tbody>
+</table>
+<p>Four blocks of this shape give</p>
+<p><span class="math display">N_{\text{LSTM}} = 4\,(Hd + H^2 + H).</span></p>
+<p>Only <span class="math inline">d</span> depends on the choice of input. That is the whole question: find <span class="math inline">d</span> in each option.</p>
+<p><strong>Option A.</strong> The input is the concatenation <span class="math inline">\bm{x}_t = [\,\text{embed}(\bm{y}_{t'-1});\ \bm{c}\,]</span>: the <span class="math inline">5</span> embedding entries stacked on top of the <span class="math inline">8</span> context entries, so <span class="math inline">d = 5 + 8 = 13</span>. With <span class="math inline">H = 8</span>:</p>
+<p><span class="math display">N_A = 4\,(8 \cdot 13 + 8^2 + 8) = 4\,(104 + 64 + 8) = 4 \times 176 = 704.</span></p>
+<p><strong>Option B.</strong> The input is just the embedding, so <span class="math inline">d = 5</span>:</p>
+<p><span class="math display">N_B = 4\,(8 \cdot 5 + 8^2 + 8) = 4\,(40 + 64 + 8) = 4 \times 112 = 448.</span></p>
+<p>Setting the initial state <span class="math inline">\bm{h}_0 = \bm{c}</span> adds no parameters: <span class="math inline">\bm{c}</span> is a value computed by the encoder, not a weight the decoder learns. It only works because <span class="math inline">\bm{c}</span> has the same size as the hidden state (<span class="math inline">8 = H</span>), which is why the question sets them equal.</p>
+<p><strong>The difference.</strong> Subtract the two formulas. The <span class="math inline">H^2</span> and <span class="math inline">H</span> terms are identical and cancel:</p>
+<p><span class="math display">N_A - N_B = 4H\,(d_A - d_B) = 4 \cdot 8 \cdot (13 - 5) = 256.</span></p>
+<p>In words: widening the input by the <span class="math inline">8</span> context entries adds <span class="math inline">8</span> columns to each of the four <span class="math inline">\bm{W}_{x\cdot}</span> matrices, which is <span class="math inline">8 \times 8 = 64</span> new weights per block. As a check, <span class="math inline">704 - 448 = 256</span>.</p>
+<p><strong>Answer:</strong> <span class="math inline">256</span>.</p>
+</div>
+</div>
+</div>
+</section>
+<section id="quiz-3" class="level3">
+<h3 class="anchored" data-anchor-id="quiz-3">Quiz question 3: How the first input reaches the loss (medium-hard)</h3>
+<p>A scalar linear RNN has <span class="math inline">h_t = w\, h_{t-1} + x_t</span> with <span class="math inline">w = -2</span> and <span class="math inline">h_0 = 0</span>. The loss is <span class="math inline">\mathcal{L} = \sum_{t=1}^{6} h_t</span>. What is <span class="math inline">\dfrac{\partial \mathcal{L}}{\partial x_1}</span>?</p>
+<div class="practice-answer callout callout-style-default callout-tip callout-titled" title="Worked solution">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-10-contents" aria-controls="callout-10" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Worked solution
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-10" class="callout-10-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>This uses <a href="../lectures/week06.html#sec-vanilla-rnn">Week 6, The Vanilla Recurrent Neural Network</a>, where <span class="math inline">\bm{h}_t</span> carries information about every past input, and the linear case in <a href="../lectures/week06.html#sec-exploding-vanishing">Why recurrent networks are hard to train</a>.</p>
+<p><strong>The base equation: unroll the recurrence.</strong> Substitute <span class="math inline">h_t = w\, h_{t-1} + x_t</span> into itself, starting from <span class="math inline">h_0 = 0</span>:</p>
+<p><span class="math display">
+\begin{aligned}
+h_1 &amp;= w \cdot 0 + x_1 = x_1, \\
+h_2 &amp;= w\, h_1 + x_2 = w\, x_1 + x_2, \\
+h_3 &amp;= w\, h_2 + x_3 = w^2 x_1 + w\, x_2 + x_3.
+\end{aligned}
+</span></p>
+<p>Each step multiplies everything already in <span class="math inline">h</span> by <span class="math inline">w</span> and adds the new input. So an input that entered at step <span class="math inline">k</span> has been multiplied by <span class="math inline">w</span> once for each of the <span class="math inline">t - k</span> steps since, giving the scalar version of the pattern in <a href="#prb-3">Problem 3</a>:</p>
+<p><span class="math display">h_t = \sum_{k=1}^{t} w^{\,t-k}\, x_k.</span></p>
+<p><strong>How <span class="math inline">x_1</span> reaches each <span class="math inline">h_t</span>.</strong> Only the <span class="math inline">k = 1</span> term contains <span class="math inline">x_1</span>, and it is <span class="math inline">w^{\,t-1} x_1</span>. Treating <span class="math inline">w</span> and the other inputs as constants:</p>
+<p><span class="math display">\frac{\partial h_t}{\partial x_1} = w^{\,t-1}.</span></p>
+<p><strong>Summing over the loss.</strong> The loss adds the six hidden states, and the derivative of a sum is the sum of the derivatives:</p>
+<p><span class="math display">\frac{\partial \mathcal{L}}{\partial x_1} = \sum_{t=1}^{6} \frac{\partial h_t}{\partial x_1} = \sum_{t=1}^{6} w^{\,t-1} = \sum_{t=1}^{6} (-2)^{t-1}.</span></p>
+<p><strong>The terms.</strong> For <span class="math inline">t = 1, \dots, 6</span> they are <span class="math inline">1,\ -2,\ 4,\ -8,\ 16,\ -32</span>. The sign alternates because each step multiplies by a negative number, and the size doubles because <span class="math inline">|w| = 2 &gt; 1</span>. The later terms dominate: this is a small exploding-gradient example, where an input’s influence on far-later steps grows instead of fading.</p>
+<p>Adding them: <span class="math inline">1 - 2 = -1</span>, then <span class="math inline">-1 + 4 = 3</span>, <span class="math inline">3 - 8 = -5</span>, <span class="math inline">-5 + 16 = 11</span>, <span class="math inline">11 - 32 = -21</span>.</p>
+<p><strong>Check 1: the geometric series.</strong> The sum is a geometric series with ratio <span class="math inline">r = w = -2</span> and <span class="math inline">n = 6</span> terms:</p>
+<p><span class="math display">\sum_{t=1}^{6} (-2)^{t-1} = \frac{(-2)^6 - 1}{-2 - 1} = \frac{64 - 1}{-3} = -21.</span></p>
+<p><strong>Check 2: the backward pass.</strong> Backpropagation computes the same number without unrolling, by passing the gradient backward one step at a time. Write <span class="math inline">g_t = d\mathcal{L}/dh_t</span>, counting every path from <span class="math inline">h_t</span> to the loss. The state <span class="math inline">h_t</span> reaches <span class="math inline">\mathcal{L}</span> along two paths: directly, since <span class="math inline">h_t</span> is one of the summed terms (contributing <span class="math inline">1</span>), and through <span class="math inline">h_{t+1} = w\, h_t + x_{t+1}</span> (contributing <span class="math inline">w</span> times <span class="math inline">g_{t+1}</span>). So</p>
+<p><span class="math display">g_t = 1 + w\, g_{t+1}, \qquad g_6 = 1,</span></p>
+<p>where <span class="math inline">g_6 = 1</span> because <span class="math inline">h_6</span> has no later step. Going backward with <span class="math inline">w = -2</span>:</p>
+<p><span class="math display">g_6 = 1,\quad g_5 = -1,\quad g_4 = 3,\quad g_3 = -5,\quad g_2 = 11,\quad g_1 = -21.</span></p>
+<p>Finally <span class="math inline">x_1</span> enters only through <span class="math inline">h_1 = w\, h_0 + x_1</span>, with <span class="math inline">\partial h_1 / \partial x_1 = 1</span>, so <span class="math inline">\partial \mathcal{L} / \partial x_1 = g_1 \cdot 1 = -21</span>. All three methods agree.</p>
+<p><strong>Answer:</strong> <span class="math inline">-21</span>.</p>
+</div>
+</div>
+</div>
+</section>
+<section id="quiz-4" class="level3">
+<h3 class="anchored" data-anchor-id="quiz-4">Quiz question 4: Backpropagation through time with a ReLU (hard)</h3>
+<p>A scalar ReLU RNN has <span class="math inline">h_t = \operatorname{ReLU}(w\, h_{t-1} + x_t)</span> with <span class="math inline">h_0 = 0</span> and <span class="math inline">w = 2</span>. The inputs are <span class="math inline">(x_1, \dots, x_6) = (1, 1, -8, 2, 1, 1)</span>, and the loss is <span class="math inline">\mathcal{L} = \sum_{t=1}^{6} h_t</span>. What is <span class="math inline">\dfrac{d\mathcal{L}}{dw}</span>? Use <span class="math inline">\operatorname{ReLU}'(z) = 1</span> for <span class="math inline">z &gt; 0</span> and <span class="math inline">0</span> for <span class="math inline">z &lt; 0</span>; no pre-activation here is exactly <span class="math inline">0</span>.</p>
+<div class="practice-answer callout callout-style-default callout-tip callout-titled" title="Worked solution">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-11-contents" aria-controls="callout-11" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Worked solution
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-11" class="callout-11-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>This uses <a href="../lectures/week06.html#sec-total-partial">Week 6, Total versus partial derivatives</a> and <a href="../lectures/week06.html#sec-bptt-term">The recurrent term</a>, with the <a href="https://en.wikipedia.org/wiki/Rectifier_(neural_networks)">ReLU</a> from Week 2 as the activation.</p>
+<p><strong>The base equations.</strong> Split each step into the pre-activation and the activation:</p>
+<p><span class="math display">z_t = w\, h_{t-1} + x_t, \qquad h_t = \operatorname{ReLU}(z_t) = \max(0, z_t).</span></p>
+<p>The loss is a sum, so its derivative is the sum of the derivatives of the hidden states:</p>
+<p><span class="math display">\frac{d\mathcal{L}}{dw} = \sum_{t=1}^{6} \frac{dh_t}{dw} = \sum_{t=1}^{6} a_t, \qquad a_t = \frac{dh_t}{dw}.</span></p>
+<p>So the job is to find each <span class="math inline">a_t</span>. These are total derivatives: they count every path from <span class="math inline">w</span> to <span class="math inline">h_t</span>.</p>
+<p><strong>Deriving the recursion for <span class="math inline">a_t</span>.</strong> Apply the calculus chain rule through the ReLU, then differentiate <span class="math inline">z_t</span>:</p>
+<p><span class="math display">a_t = \frac{dh_t}{dw} = \operatorname{ReLU}'(z_t) \cdot \frac{dz_t}{dw}.</span></p>
+<p>Write <span class="math inline">r_t = \operatorname{ReLU}'(z_t)</span>, which is <span class="math inline">1</span> when <span class="math inline">z_t &gt; 0</span> and <span class="math inline">0</span> when <span class="math inline">z_t &lt; 0</span>. In <span class="math inline">z_t = w\, h_{t-1} + x_t</span>, the input <span class="math inline">x_t</span> does not depend on <span class="math inline">w</span>, but <strong>both</strong> factors of <span class="math inline">w\, h_{t-1}</span> do, so the <a href="https://en.wikipedia.org/wiki/Product_rule">product rule</a> gives two terms:</p>
+<p><span class="math display">\frac{dz_t}{dw} = \frac{d}{dw}(w\, h_{t-1}) = 1 \cdot h_{t-1} + w \cdot \frac{dh_{t-1}}{dw} = h_{t-1} + w\, a_{t-1}.</span></p>
+<p>These are the two paths from the week chapter. The term <span class="math inline">h_{t-1}</span> is the direct path (<span class="math inline">w</span> used at step <span class="math inline">t</span>), and <span class="math inline">w\, a_{t-1}</span> is the indirect path (<span class="math inline">w</span> already changed <span class="math inline">h_{t-1}</span>). Together:</p>
+<p><span class="math display">a_t = r_t\,\big(h_{t-1} + w\, a_{t-1}\big), \qquad a_0 = 0.</span></p>
+<p>This is <span class="math inline">a_t = b_t + c_t\, a_{t-1}</span> with <span class="math inline">b_t = r_t\, h_{t-1}</span> and <span class="math inline">c_t = r_t\, w</span>. The ReLU’s slope <span class="math inline">r_t</span> multiplies both paths, so when a unit is off (<span class="math inline">r_t = 0</span>), no gradient passes through that step at all.</p>
+<p><strong>Forward pass.</strong> The recursion needs <span class="math inline">h_{t-1}</span> and <span class="math inline">r_t</span> at every step, so compute those first with <span class="math inline">w = 2</span>:</p>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th><span class="math inline">t</span></th>
+<th><span class="math inline">x_t</span></th>
+<th><span class="math inline">z_t = 2h_{t-1} + x_t</span></th>
+<th><span class="math inline">h_t = \max(0, z_t)</span></th>
+<th><span class="math inline">r_t</span></th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>1</td>
+<td>1</td>
+<td><span class="math inline">2 \cdot 0 + 1 = 1</span></td>
+<td>1</td>
+<td>1</td>
+</tr>
+<tr class="even">
+<td>2</td>
+<td>1</td>
+<td><span class="math inline">2 \cdot 1 + 1 = 3</span></td>
+<td>3</td>
+<td>1</td>
+</tr>
+<tr class="odd">
+<td>3</td>
+<td><span class="math inline">-8</span></td>
+<td><span class="math inline">2 \cdot 3 - 8 = -2</span></td>
+<td>0</td>
+<td>0</td>
+</tr>
+<tr class="even">
+<td>4</td>
+<td>2</td>
+<td><span class="math inline">2 \cdot 0 + 2 = 2</span></td>
+<td>2</td>
+<td>1</td>
+</tr>
+<tr class="odd">
+<td>5</td>
+<td>1</td>
+<td><span class="math inline">2 \cdot 2 + 1 = 5</span></td>
+<td>5</td>
+<td>1</td>
+</tr>
+<tr class="even">
+<td>6</td>
+<td>1</td>
+<td><span class="math inline">2 \cdot 5 + 1 = 11</span></td>
+<td>11</td>
+<td>1</td>
+</tr>
+</tbody>
+</table>
+<p><strong>The recursion, step by step.</strong> Now apply <span class="math inline">a_t = r_t\,(h_{t-1} + w\, a_{t-1})</span>, reading <span class="math inline">h_{t-1}</span> and <span class="math inline">r_t</span> from the table:</p>
+<ul>
+<li><span class="math inline">a_1 = 1 \cdot (h_0 + 2a_0) = 1 \cdot (0 + 0) = 0</span>.</li>
+<li><span class="math inline">a_2 = 1 \cdot (h_1 + 2a_1) = 1 \cdot (1 + 0) = 1</span>.</li>
+<li><span class="math inline">a_3 = 0 \cdot (h_2 + 2a_2) = 0 \cdot (3 + 2) = 0</span>.</li>
+<li><span class="math inline">a_4 = 1 \cdot (h_3 + 2a_3) = 1 \cdot (0 + 0) = 0</span>.</li>
+<li><span class="math inline">a_5 = 1 \cdot (h_4 + 2a_4) = 1 \cdot (2 + 0) = 2</span>.</li>
+<li><span class="math inline">a_6 = 1 \cdot (h_5 + 2a_5) = 1 \cdot (5 + 4) = 9</span>.</li>
+</ul>
+<p><strong>Why step 3 matters.</strong> At step 3 the pre-activation is negative, so the ReLU outputs <span class="math inline">0</span> and its slope is <span class="math inline">0</span>. That cuts the gradient twice: <span class="math inline">r_3 = 0</span> sets <span class="math inline">a_3 = 0</span>, wiping out everything carried from steps 1 and 2, and <span class="math inline">h_3 = 0</span> makes the direct term of step 4, <span class="math inline">h_3</span>, also <span class="math inline">0</span>. Changing <span class="math inline">w</span> slightly changes <span class="math inline">h_1</span> and <span class="math inline">h_2</span>, but <span class="math inline">h_3</span> stays <span class="math inline">0</span>, so nothing after it notices. The gradient restarts from step 4.</p>
+<p><strong>Summing over the loss.</strong></p>
+<p><span class="math display">\frac{d\mathcal{L}}{dw} = a_1 + a_2 + a_3 + a_4 + a_5 + a_6 = 0 + 1 + 0 + 0 + 2 + 9 = 12.</span></p>
+<p><strong>Check: expand and differentiate.</strong> For <span class="math inline">w</span> near <span class="math inline">2</span>, step 3 stays switched off, since <span class="math inline">z_3 = w(w + 1) - 8</span> is negative there. Each <span class="math inline">h_t</span> is then a polynomial in <span class="math inline">w</span>:</p>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th><span class="math inline">t</span></th>
+<th><span class="math inline">h_t</span> as a function of <span class="math inline">w</span></th>
+<th><span class="math inline">dh_t/dw</span></th>
+<th>at <span class="math inline">w = 2</span></th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>1</td>
+<td><span class="math inline">1</span></td>
+<td><span class="math inline">0</span></td>
+<td>0</td>
+</tr>
+<tr class="even">
+<td>2</td>
+<td><span class="math inline">w + 1</span></td>
+<td><span class="math inline">1</span></td>
+<td>1</td>
+</tr>
+<tr class="odd">
+<td>3</td>
+<td><span class="math inline">0</span></td>
+<td><span class="math inline">0</span></td>
+<td>0</td>
+</tr>
+<tr class="even">
+<td>4</td>
+<td><span class="math inline">w \cdot 0 + 2 = 2</span></td>
+<td><span class="math inline">0</span></td>
+<td>0</td>
+</tr>
+<tr class="odd">
+<td>5</td>
+<td><span class="math inline">2w + 1</span></td>
+<td><span class="math inline">2</span></td>
+<td>2</td>
+</tr>
+<tr class="even">
+<td>6</td>
+<td><span class="math inline">w(2w + 1) + 1 = 2w^2 + w + 1</span></td>
+<td><span class="math inline">4w + 1</span></td>
+<td>9</td>
+</tr>
+</tbody>
+</table>
+<p>The last column matches <span class="math inline">a_1, \dots, a_6</span> and sums to <span class="math inline">12</span>. The recursion is what we would use for a long sequence, but on a short one, expanding is a reliable way to check it.</p>
+<p><strong>Answer:</strong> <span class="math inline">12</span>.</p>
+</div>
+</div>
+</div>
+
+
+</section>
+</section>
+
+</main> <!-- /main -->
+<script id="quarto-html-after-body" type="application/javascript">
+  window.document.addEventListener("DOMContentLoaded", function (event) {
+    const icon = "";
+    const anchorJS = new window.AnchorJS();
+    anchorJS.options = {
+      placement: 'right',
+      icon: icon
+    };
+    anchorJS.add('.anchored');
+    const isCodeAnnotation = (el) => {
+      for (const clz of el.classList) {
+        if (clz.startsWith('code-annotation-')) {                     
+          return true;
+        }
+      }
+      return false;
+    }
+    const onCopySuccess = function(e) {
+      // button target
+      const button = e.trigger;
+      // don't keep focus
+      button.blur();
+      // flash "checked"
+      button.classList.add('code-copy-button-checked');
+      var currentTitle = button.getAttribute("title");
+      button.setAttribute("title", "Copied!");
+      let tooltip;
+      if (window.bootstrap) {
+        button.setAttribute("data-bs-toggle", "tooltip");
+        button.setAttribute("data-bs-placement", "left");
+        button.setAttribute("data-bs-title", "Copied!");
+        tooltip = new bootstrap.Tooltip(button, 
+          { trigger: "manual", 
+            customClass: "code-copy-button-tooltip",
+            offset: [0, -8]});
+        tooltip.show();    
+      }
+      setTimeout(function() {
+        if (tooltip) {
+          tooltip.hide();
+          button.removeAttribute("data-bs-title");
+          button.removeAttribute("data-bs-toggle");
+          button.removeAttribute("data-bs-placement");
+        }
+        button.setAttribute("title", currentTitle);
+        button.classList.remove('code-copy-button-checked');
+      }, 1000);
+      // clear code selection
+      e.clearSelection();
+    }
+    const getTextToCopy = function(trigger) {
+      const outerScaffold = trigger.parentElement.cloneNode(true);
+      const codeEl = outerScaffold.querySelector('code');
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+    }
+    const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
+      text: getTextToCopy
+    });
+    clipboard.on('success', onCopySuccess);
+    if (window.document.getElementById('quarto-embedded-source-code-modal')) {
+      const clipboardModal = new window.ClipboardJS('.code-copy-button[data-in-quarto-modal]', {
+        text: getTextToCopy,
+        container: window.document.getElementById('quarto-embedded-source-code-modal')
+      });
+      clipboardModal.on('success', onCopySuccess);
+    }
+      var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+      var mailtoRegex = new RegExp(/^mailto:/);
+        var filterRegex = new RegExp('/' + window.location.host + '/');
+      var isInternal = (href) => {
+          return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+      }
+      // Inspect non-navigation links and adorn them if external
+     var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+      for (var i=0; i<links.length; i++) {
+        const link = links[i];
+        if (!isInternal(link.href)) {
+          // undo the damage that might have been done by quarto-nav.js in the case of
+          // links that we want to consider external
+          if (link.dataset.originalHref !== undefined) {
+            link.href = link.dataset.originalHref;
+          }
+            // target, if specified
+            link.setAttribute("target", "_blank");
+            if (link.getAttribute("rel") === null) {
+              link.setAttribute("rel", "noopener");
+            }
+        }
+      }
+    function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+      const config = {
+        allowHTML: true,
+        maxWidth: 500,
+        delay: 100,
+        arrow: false,
+        appendTo: function(el) {
+            return el.parentElement;
+        },
+        interactive: true,
+        interactiveBorder: 10,
+        theme: 'quarto',
+        placement: 'bottom-start',
+      };
+      if (contentFn) {
+        config.content = contentFn;
+      }
+      if (onTriggerFn) {
+        config.onTrigger = onTriggerFn;
+      }
+      if (onUntriggerFn) {
+        config.onUntrigger = onUntriggerFn;
+      }
+      window.tippy(el, config); 
+    }
+    const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+    for (var i=0; i<noterefs.length; i++) {
+      const ref = noterefs[i];
+      tippyHover(ref, function() {
+        // use id or data attribute instead here
+        let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+        try { href = new URL(href).hash; } catch {}
+        const id = href.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note) {
+          return note.innerHTML;
+        } else {
+          return "";
+        }
+      });
+    }
+    const xrefs = window.document.querySelectorAll('a.quarto-xref');
+    const processXRef = (id, note) => {
+      // Strip column container classes
+      const stripColumnClz = (el) => {
+        el.classList.remove("page-full", "page-columns");
+        if (el.children) {
+          for (const child of el.children) {
+            stripColumnClz(child);
+          }
+        }
+      }
+      stripColumnClz(note)
+      if (id === null || id.startsWith('sec-')) {
+        // Special case sections, only their first couple elements
+        const container = document.createElement("div");
+        if (note.children && note.children.length > 2) {
+          container.appendChild(note.children[0].cloneNode(true));
+          for (let i = 1; i < note.children.length; i++) {
+            const child = note.children[i];
+            if (child.tagName === "P" && child.innerText === "") {
+              continue;
+            } else {
+              container.appendChild(child.cloneNode(true));
+              break;
+            }
+          }
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(container);
+          }
+          return container.innerHTML
+        } else {
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(note);
+          }
+          return note.innerHTML;
+        }
+      } else {
+        // Remove any anchor links if they are present
+        const anchorLink = note.querySelector('a.anchorjs-link');
+        if (anchorLink) {
+          anchorLink.remove();
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        if (note.classList.contains("callout")) {
+          return note.outerHTML;
+        } else {
+          return note.innerHTML;
+        }
+      }
+    }
+    for (var i=0; i<xrefs.length; i++) {
+      const xref = xrefs[i];
+      tippyHover(xref, undefined, function(instance) {
+        instance.disable();
+        let url = xref.getAttribute('href');
+        let hash = undefined; 
+        if (url.startsWith('#')) {
+          hash = url;
+        } else {
+          try { hash = new URL(url).hash; } catch {}
+        }
+        if (hash) {
+          const id = hash.replace(/^#\/?/, "");
+          const note = window.document.getElementById(id);
+          if (note !== null) {
+            try {
+              const html = processXRef(id, note.cloneNode(true));
+              instance.setContent(html);
+            } finally {
+              instance.enable();
+              instance.show();
+            }
+          } else {
+            // See if we can fetch this
+            fetch(url.split('#')[0])
+            .then(res => res.text())
+            .then(html => {
+              const parser = new DOMParser();
+              const htmlDoc = parser.parseFromString(html, "text/html");
+              const note = htmlDoc.getElementById(id);
+              if (note !== null) {
+                const html = processXRef(id, note);
+                instance.setContent(html);
+              } 
+            }).finally(() => {
+              instance.enable();
+              instance.show();
+            });
+          }
+        } else {
+          // See if we can fetch a full url (with no hash to target)
+          // This is a special case and we should probably do some content thinning / targeting
+          fetch(url)
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.querySelector('main.content');
+            if (note !== null) {
+              // This should only happen for chapter cross references
+              // (since there is no id in the URL)
+              // remove the first header
+              if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+                note.children[0].remove();
+              }
+              const html = processXRef(null, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      }, function(instance) {
+      });
+    }
+        let selectedAnnoteEl;
+        const selectorForAnnotation = ( cell, annotation) => {
+          let cellAttr = 'data-code-cell="' + cell + '"';
+          let lineAttr = 'data-code-annotation="' +  annotation + '"';
+          const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+          return selector;
+        }
+        const selectCodeLines = (annoteEl) => {
+          const doc = window.document;
+          const targetCell = annoteEl.getAttribute("data-target-cell");
+          const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+          const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+          const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+          const lineIds = lines.map((line) => {
+            return targetCell + "-" + line;
+          })
+          let top = null;
+          let height = null;
+          let parent = null;
+          if (lineIds.length > 0) {
+              //compute the position of the single el (top and bottom and make a div)
+              const el = window.document.getElementById(lineIds[0]);
+              top = el.offsetTop;
+              height = el.offsetHeight;
+              parent = el.parentElement.parentElement;
+            if (lineIds.length > 1) {
+              const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+              const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+              height = bottom - top;
+            }
+            if (top !== null && height !== null && parent !== null) {
+              // cook up a div (if necessary) and position it 
+              let div = window.document.getElementById("code-annotation-line-highlight");
+              if (div === null) {
+                div = window.document.createElement("div");
+                div.setAttribute("id", "code-annotation-line-highlight");
+                div.style.position = 'absolute';
+                parent.appendChild(div);
+              }
+              div.style.top = top - 2 + "px";
+              div.style.height = height + 4 + "px";
+              div.style.left = 0;
+              let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+              if (gutterDiv === null) {
+                gutterDiv = window.document.createElement("div");
+                gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+                gutterDiv.style.position = 'absolute';
+                const codeCell = window.document.getElementById(targetCell);
+                const gutter = codeCell.querySelector('.code-annotation-gutter');
+                gutter.appendChild(gutterDiv);
+              }
+              gutterDiv.style.top = top - 2 + "px";
+              gutterDiv.style.height = height + 4 + "px";
+            }
+            selectedAnnoteEl = annoteEl;
+          }
+        };
+        const unselectCodeLines = () => {
+          const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+          elementsIds.forEach((elId) => {
+            const div = window.document.getElementById(elId);
+            if (div) {
+              div.remove();
+            }
+          });
+          selectedAnnoteEl = undefined;
+        };
+          // Handle positioning of the toggle
+      window.addEventListener(
+        "resize",
+        throttle(() => {
+          elRect = undefined;
+          if (selectedAnnoteEl) {
+            selectCodeLines(selectedAnnoteEl);
+          }
+        }, 10)
+      );
+      function throttle(fn, ms) {
+      let throttle = false;
+      let timer;
+        return (...args) => {
+          if(!throttle) { // first call gets through
+              fn.apply(this, args);
+              throttle = true;
+          } else { // all the others get throttled
+              if(timer) clearTimeout(timer); // cancel #2
+              timer = setTimeout(() => {
+                fn.apply(this, args);
+                timer = throttle = false;
+              }, ms);
+          }
+        };
+      }
+        // Attach click handler to the DT
+        const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+        for (const annoteDlNode of annoteDls) {
+          annoteDlNode.addEventListener('click', (event) => {
+            const clickedEl = event.target;
+            if (clickedEl !== selectedAnnoteEl) {
+              unselectCodeLines();
+              const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+              if (activeEl) {
+                activeEl.classList.remove('code-annotation-active');
+              }
+              selectCodeLines(clickedEl);
+              clickedEl.classList.add('code-annotation-active');
+            } else {
+              // Unselect the line
+              unselectCodeLines();
+              clickedEl.classList.remove('code-annotation-active');
+            }
+          });
+        }
+    const findCites = (el) => {
+      const parentEl = el.parentElement;
+      if (parentEl) {
+        const cites = parentEl.dataset.cites;
+        if (cites) {
+          return {
+            el,
+            cites: cites.split(' ')
+          };
+        } else {
+          return findCites(el.parentElement)
+        }
+      } else {
+        return undefined;
+      }
+    };
+    var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+    for (var i=0; i<bibliorefs.length; i++) {
+      const ref = bibliorefs[i];
+      const citeInfo = findCites(ref);
+      if (citeInfo) {
+        tippyHover(citeInfo.el, function() {
+          var popup = window.document.createElement('div');
+          citeInfo.cites.forEach(function(cite) {
+            var citeDiv = window.document.createElement('div');
+            citeDiv.classList.add('hanging-indent');
+            citeDiv.classList.add('csl-entry');
+            var biblioDiv = window.document.getElementById('ref-' + cite);
+            if (biblioDiv) {
+              citeDiv.innerHTML = biblioDiv.innerHTML;
+            }
+            popup.appendChild(citeDiv);
+          });
+          return popup.innerHTML;
+        });
+      }
+    }
+  });
+  </script>
+<nav class="page-navigation">
+  <div class="nav-page nav-page-previous">
+      <a href="../lectures/week06.html" class="pagination-link" aria-label="Week 6: Sequences, Recurrent Neural Networks, and Sequence-to-Sequence Learning">
+        <i class="bi bi-arrow-left-short"></i> <span class="nav-page-text"><span class="chapter-title">Week 6: Sequences, Recurrent Neural Networks, and Sequence-to-Sequence Learning</span></span>
+      </a>          
+  </div>
+  <div class="nav-page nav-page-next">
+      <a href="../glossary.html" class="pagination-link" aria-label="Glossary">
+        <span class="nav-page-text"><span class="chapter-title">Glossary</span></span> <i class="bi bi-arrow-right-short"></i>
+      </a>
+  </div>
+</nav>
+</div> <!-- /content -->
+
+
+
+
+<script src="../site_libs/quarto-html/zenscroll-min.js"></script>
+</body></html>

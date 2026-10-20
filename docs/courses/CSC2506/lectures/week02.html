@@ -221,6 +221,16 @@ window.Quarto = {
 </li>
         <li class="sidebar-item">
   <div class="sidebar-item-container"> 
+  <a href="../lectures/week06.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Week 6: HMMs and Variational Inference I</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../lectures/week06-practice.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Week 6 practice: HMMs and Variational Inference I</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
   <a href="../glossary.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Glossary</span></a>
   </div>
 </li>
@@ -285,6 +295,35 @@ window.Quarto = {
 <p>Given a new image, one route to the class is Bayes’ theorem (<a href="week01.html#sec-bayes" class="quarto-xref"><span>Worked example: a diagnostic test</span></a>, Week 1):</p>
 <p><span class="math display">p(\mathcal{C}_k \mid x) = \frac{p(x \mid \mathcal{C}_k)\, p(\mathcal{C}_k)}{p(x)}.</span></p>
 <p>If our goal is to minimize the expected number of mistakes, this suggests picking whichever class has the largest posterior <span class="math inline">p(\mathcal{C}_k \mid x)</span>. The next section makes this precise, then asks whether “count of mistakes” is even the right thing to minimize.</p>
+<div class="clarification callout callout-style-default callout-tip callout-titled" title="Recap: From inference to decision">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-1-contents" aria-controls="callout-1" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Recap: From inference to decision
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-1" class="callout-1-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>What the symbols stand for:</p>
+<ul>
+<li><span class="math inline">x</span>: the input (the pixel intensities of one X-ray).</li>
+<li><span class="math inline">\mathcal{C}_k</span>: class <span class="math inline">k</span>. Here <span class="math inline">\mathcal{C}_1</span> is cancer present and <span class="math inline">\mathcal{C}_2</span> is cancer absent.</li>
+<li><span class="math inline">p(\mathcal{C}_k)</span>: the prior, how common class <span class="math inline">k</span> is before we look at the image.</li>
+<li><span class="math inline">p(x \mid \mathcal{C}_k)</span>: the class-conditional, how likely this image is if the class is <span class="math inline">k</span>.</li>
+<li><span class="math inline">p(\mathcal{C}_k \mid x)</span>: the posterior, how likely class <span class="math inline">k</span> is after seeing the image.</li>
+</ul>
+<p>Taking Bayes’ theorem apart:</p>
+<ul>
+<li>The numerator <span class="math inline">p(x \mid \mathcal{C}_k)\,p(\mathcal{C}_k)</span> is the joint <span class="math inline">p(x, \mathcal{C}_k)</span>: “this class, and this image”.</li>
+<li>The denominator <span class="math inline">p(x) = \sum_k p(x \mid \mathcal{C}_k)\,p(\mathcal{C}_k)</span> is the same for every class. It only rescales the numerators so the posteriors sum to 1, so it never changes which class is largest.</li>
+</ul>
+<p>A teaching example. Suppose for one image <span class="math inline">p(x \mid \mathcal{C}_1) = 0.3</span> with prior <span class="math inline">p(\mathcal{C}_1) = 0.1</span>, and <span class="math inline">p(x \mid \mathcal{C}_2) = 0.05</span> with prior <span class="math inline">p(\mathcal{C}_2) = 0.9</span>. The numerators are <span class="math inline">0.03</span> and <span class="math inline">0.045</span>, so <span class="math inline">p(x) = 0.075</span> and the posteriors are <span class="math inline">0.4</span> (cancer) and <span class="math inline">0.6</span> (no cancer). The image fits cancer six times better, but the low prior still leaves “no cancer” as the larger posterior. Whether we should <em>act</em> on that larger posterior is what the following sections examine.</p>
+</div>
+</div>
+</div>
 </section>
 <section id="sec-misclass" class="level2">
 <h2 class="anchored" data-anchor-id="sec-misclass">Misclassification rate</h2>
@@ -314,6 +353,41 @@ window.Quarto = {
 </svg>
 </div>
 <p><strong>Figure 1.</strong> Two overlapping class densities <span class="math inline">p(x,\mathcal{C}_1)</span> (blue) and <span class="math inline">p(x,\mathcal{C}_2)</span> (magenta). Moving the boundary changes how much of each tail falls on the wrong side; the misclassification-minimizing boundary sits where the two densities cross.</p>
+<div class="clarification callout callout-style-default callout-tip callout-titled" title="Recap: Misclassification rate">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-2-contents" aria-controls="callout-2" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Recap: Misclassification rate
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-2" class="callout-2-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>What the symbols stand for:</p>
+<ul>
+<li><span class="math inline">\mathcal{R}_1</span>, <span class="math inline">\mathcal{R}_2</span>: the decision regions, the inputs we label <span class="math inline">\mathcal{C}_1</span> and <span class="math inline">\mathcal{C}_2</span>.</li>
+<li><span class="math inline">\hat x</span>: the decision boundary between them, for a one-dimensional input.</li>
+<li><span class="math inline">p(x, \mathcal{C}_k)</span>: the joint density of seeing input <span class="math inline">x</span> with true class <span class="math inline">k</span>.</li>
+<li><span class="math inline">I_1</span>, <span class="math inline">I_2</span>: the two kinds of error probability.</li>
+</ul>
+<p>Taking the equations apart:</p>
+<ul>
+<li><span class="math inline">I_1 = \int_{\mathcal{R}_1} p(x, \mathcal{C}_2)\,dx</span>: integrate over the region where we say <span class="math inline">\mathcal{C}_1</span>, but use the density of the <em>other</em> class. That adds up the probability of every input we call <span class="math inline">\mathcal{C}_1</span> that is really <span class="math inline">\mathcal{C}_2</span>.</li>
+<li><span class="math inline">I_2</span> is the mirror image: inputs we call <span class="math inline">\mathcal{C}_2</span> that are really <span class="math inline">\mathcal{C}_1</span>.</li>
+<li><span class="math inline">p(\text{mistake}) = I_1 + I_2</span> because the two kinds of error cannot happen at once.</li>
+<li>Each <span class="math inline">x</span> lands in exactly one region, so the best choice can be made one <span class="math inline">x</span> at a time: put <span class="math inline">x</span> in the region of the class with the larger joint <span class="math inline">p(x, \mathcal{C}_k)</span>.</li>
+</ul>
+<p>A teaching example. Replace the continuous <span class="math inline">x</span> with three bins, so integrals become sums. The joint is <span class="math inline">p(x, \mathcal{C}_1) = 0.30, 0.20, 0.05</span> and <span class="math inline">p(x, \mathcal{C}_2) = 0.05, 0.10, 0.30</span> for bins 1, 2, 3 (all six numbers sum to 1).</p>
+<ul>
+<li>Boundary after bin 2, so <span class="math inline">\mathcal{R}_1 = \{1, 2\}</span>: <span class="math inline">I_1 = 0.05 + 0.10 = 0.15</span> and <span class="math inline">I_2 = 0.05</span>, so <span class="math inline">p(\text{mistake}) = 0.20</span>.</li>
+<li>Boundary after bin 1, so <span class="math inline">\mathcal{R}_1 = \{1\}</span>: <span class="math inline">I_1 = 0.05</span> and <span class="math inline">I_2 = 0.20 + 0.05 = 0.25</span>, so <span class="math inline">p(\text{mistake}) = 0.30</span>.</li>
+</ul>
+<p>Bin 2 has <span class="math inline">0.20 &gt; 0.10</span>, so it belongs with <span class="math inline">\mathcal{C}_1</span>. Moving the boundary past the crossing point costs <span class="math inline">0.10</span> of extra mistakes, exactly the gap in bin 2.</p>
+</div>
+</div>
+</div>
 </section>
 <section id="sec-loss" class="level2">
 <h2 class="anchored" data-anchor-id="sec-loss">Expected loss</h2>
@@ -358,6 +432,41 @@ window.Quarto = {
 <p>Plugging this matrix into the definition of <span class="math inline">\mathbb{E}[L]</span> leaves only two non-zero terms, since <span class="math inline">L_{\text{cancer},\text{cancer}} = L_{\text{normal},\text{normal}} = 0</span>:</p>
 <p><span class="math display">\mathbb{E}[L] = 1000 \int_{\mathcal{R}_{\text{normal}}} p(x,\mathcal{C}_{\text{cancer}})\,dx</span> <span class="math display">{}+ \int_{\mathcal{R}_{\text{cancer}}} p(x,\mathcal{C}_{\text{normal}})\,dx.</span></p>
 <p>The first term is the rate of missed cancers, weighted 1000 times over; the second is the rate of false alarms, weighted only once. A decision rule with a <em>higher</em> misclassification rate can still have <em>lower</em> expected loss than one with a lower misclassification rate, if it makes its mistakes on the cheap side (false alarms) rather than the expensive side (misses). This asymmetry pulls the optimal boundary toward calling more borderline cases “cancer”: every point <span class="math inline">x</span> shifted out of <span class="math inline">\mathcal{R}_{\text{normal}}</span> and into <span class="math inline">\mathcal{R}_{\text{cancer}}</span> trades a chance at a 1000-cost miss for at most a 1-cost false alarm, which is a good trade unless that <span class="math inline">x</span> is overwhelmingly more likely to be a true negative.</p>
+<div class="clarification callout callout-style-default callout-tip callout-titled" title="Recap: Expected loss">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-3-contents" aria-controls="callout-3" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Recap: Expected loss
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-3" class="callout-3-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>What the symbols stand for:</p>
+<ul>
+<li><span class="math inline">k</span>: the true class. <span class="math inline">j</span>: the class we decide.</li>
+<li><span class="math inline">L_{kj}</span>: the cost of deciding <span class="math inline">j</span> when the truth is <span class="math inline">k</span>. Row <span class="math inline">k</span>, column <span class="math inline">j</span> of the loss matrix. Correct calls (<span class="math inline">k = j</span>) usually cost 0.</li>
+<li><span class="math inline">\mathcal{R}_j</span>: the region of inputs where we decide class <span class="math inline">j</span>.</li>
+<li><span class="math inline">\mathbb{E}[L]</span>: the average cost per case if we use these regions on many inputs.</li>
+</ul>
+<p>Taking the equation apart, from the inside out:</p>
+<ul>
+<li><span class="math inline">\int_{\mathcal{R}_j} p(x, \mathcal{C}_k)\,dx</span>: the probability that a case is truly <span class="math inline">k</span> and we decide <span class="math inline">j</span>.</li>
+<li><span class="math inline">L_{kj} \times</span> that probability: the average cost contributed by this one (truth, decision) combination.</li>
+<li><span class="math inline">\sum_k \sum_j</span>: add the contributions of every cell of the loss matrix.</li>
+</ul>
+<p>With every error costing 1 and every correct call costing 0, <span class="math inline">\mathbb{E}[L]</span> becomes <span class="math inline">p(\text{mistake})</span> from <a href="#sec-misclass" class="quarto-xref"><span>Misclassification rate</span></a>.</p>
+<p>A teaching example. Use a milder matrix than the lecture’s: a missed cancer costs 10, a false alarm costs 1. Three bins of <span class="math inline">x</span> have <span class="math inline">p(x, \text{cancer}) = 0.02, 0.03, 0.05</span> and <span class="math inline">p(x, \text{normal}) = 0.60, 0.20, 0.10</span>.</p>
+<ul>
+<li>Rule A calls cancer only in bin 3. Misses: <span class="math inline">0.02 + 0.03 = 0.05</span>. False alarms: <span class="math inline">0.10</span>. <span class="math inline">\mathbb{E}[L] = 10(0.05) + 1(0.10) = 0.60</span>, with a mistake rate of <span class="math inline">0.15</span>.</li>
+<li>Rule B calls cancer in bins 2 and 3. Misses: <span class="math inline">0.02</span>. False alarms: <span class="math inline">0.20 + 0.10 = 0.30</span>. <span class="math inline">\mathbb{E}[L] = 10(0.02) + 1(0.30) = 0.50</span>, with a mistake rate of <span class="math inline">0.32</span>.</li>
+</ul>
+<p>Rule B makes more than twice as many mistakes, yet it costs less, because it moves its mistakes to the cheap side.</p>
+</div>
+</div>
+</div>
 </section>
 <section id="sec-discriminant" class="level2">
 <h2 class="anchored" data-anchor-id="sec-discriminant">The discriminant rule and the reject option</h2>
@@ -394,6 +503,39 @@ Note
 <p><strong>Practice question.</strong> Return to the cancer-screening loss matrix from <a href="#sec-loss" class="quarto-xref"><span>Expected loss</span></a>. For a particular X-ray, the estimated posteriors are <span class="math inline">p(\mathcal{C}_{\text{cancer}} \mid x) = 0.2</span> and <span class="math inline">p(\mathcal{C}_{\text{normal}} \mid x) = 0.8</span>. Which decision does the discriminant rule make? Compare this to what the plain misclassification-rate rule from <a href="#sec-misclass" class="quarto-xref"><span>Misclassification rate</span></a> would decide.</p>
 <p><strong>Solution.</strong> The discriminant rule compares the two costs <span class="math inline">\sum_k L_{kj}\,p(\mathcal{C}_k\mid x)</span>, one for each candidate decision <span class="math inline">j</span>: <span class="math display">\text{cost(decide cancer)} = L_{\text{cancer,cancer}}(0.2) + L_{\text{normal,cancer}}(0.8) = 0(0.2) + 1(0.8) = 0.8,</span> <span class="math display">\text{cost(decide normal)} = L_{\text{cancer,normal}}(0.2) + L_{\text{normal,normal}}(0.8) = 1000(0.2) + 0(0.8) = 200.</span> The rule picks whichever cost is smaller, so it decides <strong>cancer</strong>, even though <span class="math inline">p(\mathcal{C}_{\text{cancer}}\mid x) = 0.2</span> is well under one half. The misclassification-rate rule, which only compares posteriors directly, would have decided <strong>normal</strong> since <span class="math inline">0.8 &gt; 0.2</span>. The two rules disagree precisely because the loss matrix charges 1000 times more for a missed cancer than for a false alarm, so a small chance of cancer is still worth acting on.</p>
 <p>Now suppose a second X-ray gives posteriors <span class="math inline">p(\mathcal{C}_{\text{cancer}}\mid x) = 0.48</span> and <span class="math inline">p(\mathcal{C}_{\text{normal}}\mid x) = 0.52</span>, with a reject threshold <span class="math inline">\theta = 0.6</span>. Neither posterior clears <span class="math inline">\theta</span>, so the reject option applies: rather than force a call, we decline to decide and send the case for a second test.</p>
+</div>
+</div>
+<div class="clarification callout callout-style-default callout-tip callout-titled" title="Recap: The discriminant rule and the reject option">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-6-contents" aria-controls="callout-6" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Recap: The discriminant rule and the reject option
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-6" class="callout-6-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>What the symbols stand for:</p>
+<ul>
+<li><span class="math inline">g_j(x) = \sum_k L_{kj}\,p(x, \mathcal{C}_k)</span>: the expected-loss contribution at input <span class="math inline">x</span> if we decide <span class="math inline">j</span> there.</li>
+<li><span class="math inline">\sum_k L_{kj}\,p(\mathcal{C}_k \mid x)</span>: the same quantity divided by <span class="math inline">p(x)</span>. It is the expected cost of deciding <span class="math inline">j</span> for this particular input.</li>
+<li><span class="math inline">\theta</span>: the reject threshold, the smallest top posterior we are willing to act on. (This <span class="math inline">\theta</span> is a threshold, not the model parameter <span class="math inline">\theta</span> from Week 1.)</li>
+</ul>
+<p>Taking the rule apart:</p>
+<ul>
+<li>For each candidate decision <span class="math inline">j</span>, walk down column <span class="math inline">j</span> of the loss matrix. Multiply each cost <span class="math inline">L_{kj}</span> by how likely that true class is, then add.</li>
+<li>Pick the column with the smallest total. That is the decision with the lowest expected cost for this input.</li>
+<li>The reject option sits on top: if <span class="math inline">\max_k p(\mathcal{C}_k \mid x) &lt; \theta</span>, make no decision at all.</li>
+</ul>
+<p>A teaching example. Use a matrix where a missed cancer costs 10 and a false alarm costs 1. Write <span class="math inline">p = p(\text{cancer} \mid x)</span>.</p>
+<ul>
+<li>Cost of deciding cancer: <span class="math inline">1 \cdot (1-p)</span>, paid only if the patient is normal.</li>
+<li>Cost of deciding normal: <span class="math inline">10 \cdot p</span>, paid only if the patient has cancer.</li>
+</ul>
+<p>Deciding cancer is cheaper when <span class="math inline">1 - p &lt; 10p</span>, which is <span class="math inline">p &gt; 1/11 \approx 0.091</span>. So a posterior of <span class="math inline">p = 0.15</span> gives costs <span class="math inline">0.85</span> (cancer) against <span class="math inline">1.5</span> (normal), and the rule calls cancer. The loss matrix has moved the cut-off from <span class="math inline">0.5</span> to about <span class="math inline">0.09</span>. With a reject threshold <span class="math inline">\theta = 0.7</span>, an image with posteriors <span class="math inline">0.65</span> and <span class="math inline">0.35</span> would be rejected, because neither reaches <span class="math inline">0.7</span>.</p>
+</div>
 </div>
 </div>
 </section>
@@ -440,6 +582,38 @@ Note
 <p><strong>Solution.</strong> First compute the conditional mean: <span class="math inline">\mathbb{E}[t\mid x] = \tfrac{1}{3}(2+4+9) = 5</span>. For <span class="math inline">y(x)=4</span>, <span class="math display">\mathbb{E}[L] = \tfrac{1}{3}\big[(4-2)^2+(4-4)^2+(4-9)^2\big] = \tfrac{1}{3}(4+0+25) = \tfrac{29}{3} \approx 9.67.</span> For <span class="math inline">y(x)=\mathbb{E}[t\mid x]=5</span>, <span class="math display">\mathbb{E}[L] = \tfrac{1}{3}\big[(5-2)^2+(5-4)^2+(5-9)^2\big] = \tfrac{1}{3}(9+1+16) = \tfrac{26}{3} \approx 8.67.</span> The conditional mean gives the smaller expected loss, as the theorem guarantees it must for <em>any</em> competing choice of <span class="math inline">y(x)</span>, not only <span class="math inline">y(x)=4</span>.</p>
 </div>
 </div>
+<div class="clarification callout callout-style-default callout-tip callout-titled" title="Recap: Loss functions for regression">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-8-contents" aria-controls="callout-8" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Recap: Loss functions for regression
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-8" class="callout-8-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>What the symbols stand for:</p>
+<ul>
+<li><span class="math inline">t</span>: the continuous target we want to predict.</li>
+<li><span class="math inline">y(x)</span>: our prediction for input <span class="math inline">x</span>, the regression function.</li>
+<li><span class="math inline">(y(x) - t)^2</span>: the squared loss for one case.</li>
+<li><span class="math inline">p(x, t)</span>: the joint density of inputs and targets.</li>
+<li><span class="math inline">\mathbb{E}[t \mid x] = \int t\,p(t \mid x)\,dt</span>: the conditional mean, the average target among cases with input <span class="math inline">x</span>.</li>
+<li><span class="math inline">u = y(x) - \mathbb{E}[t \mid x]</span>: how far our prediction is from that average. <span class="math inline">v = \mathbb{E}[t \mid x] - t</span>: how far a real target is from the average.</li>
+</ul>
+<p>Taking the final decomposition apart:</p>
+<p><span class="math display">\mathbb{E}[L] = \int\!\!\int u^2\, p(x,t)\,dx\,dt + \int\!\!\int v^2\, p(x,t)\,dx\,dt</span></p>
+<ul>
+<li>The first term is zero when <span class="math inline">y(x) = \mathbb{E}[t \mid x]</span> and positive otherwise.</li>
+<li>The second term is the spread of <span class="math inline">t</span> around its conditional mean. No predictor can reduce it.</li>
+<li>The cross term <span class="math inline">2\int\!\!\int uv\,p\,dx\,dt</span> vanished because <span class="math inline">v</span> averages to zero for every fixed <span class="math inline">x</span>.</li>
+</ul>
+<p>A teaching example. Fix one input <span class="math inline">x</span>. Its target is <span class="math inline">1</span>, <span class="math inline">3</span>, or <span class="math inline">8</span> with probabilities <span class="math inline">0.5</span>, <span class="math inline">0.3</span>, <span class="math inline">0.2</span>. The conditional mean is <span class="math inline">0.5 + 0.9 + 1.6 = 3</span>. The noise term is <span class="math inline">0.5(1-3)^2 + 0.3(3-3)^2 + 0.2(8-3)^2 = 2 + 0 + 5 = 7</span>. Now predict <span class="math inline">y = 2</span> instead. Its expected loss is <span class="math inline">0.5(2-1)^2 + 0.3(2-3)^2 + 0.2(2-8)^2 = 0.5 + 0.3 + 7.2 = 8</span>. That is the noise <span class="math inline">7</span> plus our own error <span class="math inline">(2-3)^2 = 1</span>, exactly as the decomposition says.</p>
+</div>
+</div>
+</div>
 </section>
 <section id="sec-freeparams" class="level2">
 <h2 class="anchored" data-anchor-id="sec-freeparams">Free parameters and the cost of the full joint</h2>
@@ -447,6 +621,33 @@ Note
 <p>Not every entry in that table can be chosen freely, though. A <strong>free parameter</strong> is a number we are actually at liberty to set, independent of the others already fixed. Since all <span class="math inline">2^N</span> table entries are probabilities that must sum to 1, only <span class="math inline">2^N-1</span> of them are free: once any <span class="math inline">2^N-1</span> entries are chosen, the last one is forced, because the whole table still has to add up to 1. So the joint over <span class="math inline">N</span> binary variables costs <span class="math inline">2^N-1</span> free parameters, not <span class="math inline">2^N</span>.</p>
 <p>Calling this a “cost” is not just a figure of speech. Every free parameter is a number that has to come from somewhere in practice: it is estimated from data (as in Week 1’s maximum likelihood estimation, <a href="week01.html#sec-mle" class="quarto-xref"><span>Maximum likelihood estimation</span></a>), stored somewhere, and used every time the model computes a probability. A table of <span class="math inline">2^N-1</span> free parameters needs enough data to pin down each of those numbers reliably, enough memory to hold the table, and enough computation to look values up in it or sum over it. When <span class="math inline">N</span> is even modestly large this is not a minor inconvenience: at <span class="math inline">N=20</span> binary variables, <span class="math inline">2^{20}-1</span> is already over a million free parameters, far more than any realistic dataset could estimate.</p>
 <p>This is why we generally want <em>fewer</em> free parameters, not more, for the same reason Week 1 restricted attention to parametric families in the first place (<a href="week01.html#sec-parametric" class="quarto-xref"><span>Parametric models and the likelihood</span></a>): fewer parameters are cheaper to estimate and cheaper to compute with. But fewer is not automatically better without limit. Every free parameter removed from the full table corresponds to an assumption that some variables do not depend on some others. If that assumption is false, that is, if the variables really do depend on each other in the way the removed parameter would have captured, the resulting model misrepresents the true distribution no matter how much data we feed it. So the goal is not to drive the parameter count as low as possible, but to spend free parameters only on the dependencies we actually believe exist, and drop the rest. The next section takes the first step toward doing that.</p>
+<div class="clarification callout callout-style-default callout-tip callout-titled" title="Recap: Free parameters and the cost of the full joint">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-9-contents" aria-controls="callout-9" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Recap: Free parameters and the cost of the full joint
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-9" class="callout-9-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>What the symbols stand for:</p>
+<ul>
+<li><span class="math inline">N</span>: the number of binary variables <span class="math inline">x_1, \dots, x_N</span>.</li>
+<li><span class="math inline">2^N</span>: the number of rows in the full joint table, one per combination of 0s and 1s.</li>
+<li><span class="math inline">2^N - 1</span>: the number of free parameters, the rows we may set independently.</li>
+</ul>
+<p>Taking the count apart:</p>
+<ul>
+<li>Each variable has 2 values, and the choices multiply, so <span class="math inline">N</span> variables give <span class="math inline">2 \times 2 \times \cdots \times 2 = 2^N</span> combinations.</li>
+<li>The rows must sum to 1. That one constraint fixes the last row once the others are chosen, which removes one free parameter.</li>
+</ul>
+<p>A teaching example. Take <span class="math inline">N = 3</span>. The table has <span class="math inline">2^3 = 8</span> rows. Suppose we fill in seven of them as <span class="math inline">0.10, 0.05, 0.20, 0.10, 0.15, 0.10, 0.05</span>. These add to <span class="math inline">0.75</span>, so the eighth row has no freedom left: it must be <span class="math inline">0.25</span>. That is <span class="math inline">8 - 1 = 7</span> free parameters. With <span class="math inline">N = 10</span> the same count gives <span class="math inline">2^{10} - 1 = 1023</span>, and each extra variable roughly doubles it.</p>
+</div>
+</div>
+</div>
 </section>
 <section id="sec-factoring" class="level2">
 <h2 class="anchored" data-anchor-id="sec-factoring">Why factor the joint</h2>
@@ -470,6 +671,35 @@ Note
 <p><strong>Solution.</strong> With no assumptions, the chain rule gives <span class="math inline">p(x_1)p(x_2\mid x_1)p(x_3\mid x_1,x_2)p(x_4\mid x_1,x_2,x_3)</span>, whose tables need <span class="math inline">1 + 2 + 4 + 8 = 15</span> parameters, matching <span class="math inline">2^4-1=15</span> exactly, since nothing has been assumed away yet. Replacing the last factor with <span class="math inline">p(x_4\mid x_3)</span> shrinks its table from <span class="math inline">2^3=8</span> parameters (one per configuration of three parents) to <span class="math inline">2^1=2</span> (one per configuration of a single parent), for a new total of <span class="math inline">1+2+4+2=9</span> parameters. Dropping the dependence on just two conditioning variables in the last factor already saves 6 parameters out of 15, and the saving grows quickly with <span class="math inline">N</span> since the dropped table shrinks exponentially in the number of variables removed.</p>
 </div>
 </div>
+<div class="clarification callout callout-style-default callout-tip callout-titled" title="Recap: Why factor the joint">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-11-contents" aria-controls="callout-11" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Recap: Why factor the joint
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-11" class="callout-11-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>What the symbols stand for:</p>
+<ul>
+<li><span class="math inline">\prod_{j=1}^N</span>: multiply the factors for <span class="math inline">j = 1, 2, \dots, N</span>.</li>
+<li><span class="math inline">p(x_j \mid x_1, \dots, x_{j-1})</span>: the distribution of variable <span class="math inline">j</span> given every variable before it in the chosen order.</li>
+<li><span class="math inline">p(x_1 \mid x_0) := p(x_1)</span>: a convention so the first factor, which has nothing before it, is just a marginal.</li>
+</ul>
+<p>Taking the chain rule apart:</p>
+<p><span class="math display">p(x_1, x_2, x_3) = p(x_1)\;p(x_2 \mid x_1)\;p(x_3 \mid x_1, x_2)</span></p>
+<ul>
+<li>Each factor is a conditional of the kind defined in Week 1, so the product is just “joint = marginal times conditional” applied repeatedly.</li>
+<li>Factor <span class="math inline">j</span> has <span class="math inline">j - 1</span> binary conditioning variables, so it needs <span class="math inline">2^{j-1}</span> rows, each with one free number.</li>
+<li>The row counts <span class="math inline">1 + 2 + 4 + \cdots + 2^{N-1}</span> add to <span class="math inline">2^N - 1</span>, the same as the full table.</li>
+</ul>
+<p>A teaching example. Take <span class="math inline">N = 3</span> with <span class="math inline">p(x_1{=}1) = 0.5</span>, <span class="math inline">p(x_2{=}1 \mid x_1{=}1) = 0.4</span>, and <span class="math inline">p(x_3{=}1 \mid x_1{=}1, x_2{=}1) = 0.25</span>. Then one joint entry is <span class="math inline">p(1,1,1) = 0.5 \times 0.4 \times 0.25 = 0.05</span>. Filling the whole table this way uses <span class="math inline">1 + 2 + 4 = 7</span> numbers, the same <span class="math inline">2^3 - 1</span> as listing the table directly. The savings only appear when we shorten a conditioning list, as in the practice question above.</p>
+</div>
+</div>
+</div>
 </section>
 <section id="sec-dag" class="level2">
 <h2 class="anchored" data-anchor-id="sec-dag">Directed graphical models</h2>
@@ -478,7 +708,7 @@ Note
 </div>
 <p>This is the same chain-rule factorization as <a href="#sec-factoring" class="quarto-xref"><span>Why factor the joint</span></a>, restricted so that each <span class="math inline">x_i</span>’s conditioning set is only its parents rather than every variable before it in some ordering. A <strong>conditional probability table</strong> (CPT) stores <span class="math inline">p(x_i \mid \text{parents}(x_i))</span>: for binary variables, a node with <span class="math inline">K_i</span> parents needs <span class="math inline">2^{K_i}</span> free parameters (one probability per parent configuration, since the two outcomes sum to 1). The total across the graph is roughly <span class="math inline">N \cdot 2^{\max_i K_i}</span>, which is far smaller than <span class="math inline">2^N - 1</span> whenever the graph is sparse. Restricting every node to a small number of parents is what buys the savings; a fully-connected DAG recovers the general chain rule and its full <span class="math inline">2^N-1</span> parameter cost, with no savings at all.</p>
 <div class="clarification callout callout-style-default callout-tip callout-titled" title="Question: Does an arrow in a DAG mean implication, causation, or dependence?">
-<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-5-contents" aria-controls="callout-5" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-12-contents" aria-controls="callout-12" aria-expanded="false" aria-label="Toggle callout">
 <div class="callout-icon-container">
 <i class="callout-icon"></i>
 </div>
@@ -487,7 +717,7 @@ Note
 </div>
 <div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
 </div>
-<div id="callout-5" class="callout-5-contents callout-collapse collapse">
+<div id="callout-12" class="callout-12-contents callout-collapse collapse">
 <div class="callout-body-container callout-body">
 <p>An arrow <span class="math inline">A\to B</span> means different things in different places, and none of them is by itself a statement about independence. The lecture’s examples (low pressure, rain, traffic, a ballgame, a project deadline, busy forums, a full lab) separate three meanings.</p>
 <p><strong>1. Logical implication between events.</strong> If <span class="math inline">A</span> and <span class="math inline">B</span> are events, <span class="math inline">A\Rightarrow B</span> means <span class="math inline">A\subseteq B</span>: whenever <span class="math inline">A</span> happens, <span class="math inline">B</span> happens. If rain always caused heavy traffic, the event “rain” would be contained in the event “traffic”, and <span class="math display">P(\text{traffic}\mid\text{rain}) = \frac{P(\text{rain}\cap\text{traffic})}{P(\text{rain})} = \frac{P(\text{rain})}{P(\text{rain})} = 1.</span> Independence would need <span class="math inline">P(\text{traffic}\mid\text{rain}) = P(\text{traffic})</span>, which then forces <span class="math inline">P(\text{traffic})=1</span> (or <span class="math inline">P(\text{rain})=0</span>). So implication is close to the opposite of independence: <span class="math inline">A</span> tells us everything about <span class="math inline">B</span>.</p>
@@ -546,6 +776,35 @@ Note
 <p><strong>Solution.</strong> Read the parent count straight off the arrows into each node: <span class="math inline">x_1</span> has no parents (<span class="math inline">K=0</span>, so <span class="math inline">2^0=1</span> parameter); <span class="math inline">x_2</span> and <span class="math inline">x_3</span> each have one parent, <span class="math inline">x_1</span> (<span class="math inline">K=1</span>, <span class="math inline">2^1=2</span> parameters each); <span class="math inline">x_4</span> has one parent, <span class="math inline">x_2</span> (<span class="math inline">2</span> parameters); <span class="math inline">x_5</span> has one parent, <span class="math inline">x_3</span> (<span class="math inline">2</span> parameters); <span class="math inline">x_6</span> has two parents, <span class="math inline">x_2</span> and <span class="math inline">x_5</span> (<span class="math inline">K=2</span>, <span class="math inline">2^2=4</span> parameters). Summing these, <span class="math inline">1+2+2+2+2+4=13</span> parameters for the whole graph, against <span class="math inline">2^6-1=63</span> for the fully-connected case. Compared with the chain rule in the order <span class="math inline">x_1,\dots,x_6</span> (costs <span class="math inline">1,2,4,8,16,32</span>), every node from <span class="math inline">x_3</span> on has fewer parents (costs <span class="math inline">1,2,2,2,2,4</span>). The largest single saving is <span class="math inline">x_6</span>’s CPT, 32 down to 4: it depends on <span class="math inline">x_2</span> and <span class="math inline">x_5</span> but not on <span class="math inline">x_1</span>, <span class="math inline">x_3</span>, or <span class="math inline">x_4</span>, which is exactly the kind of assumption <a href="#sec-factoring" class="quarto-xref"><span>Why factor the joint</span></a> said was the only way to cut the parameter count.</p>
 </div>
 </div>
+<div class="clarification callout callout-style-default callout-tip callout-titled" title="Recap: Directed graphical models">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-14-contents" aria-controls="callout-14" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Recap: Directed graphical models
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-14" class="callout-14-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>What the symbols stand for:</p>
+<ul>
+<li>A node: one random variable. An arrow <span class="math inline">x_a \to x_b</span>: <span class="math inline">x_a</span> is a parent of <span class="math inline">x_b</span>.</li>
+<li><span class="math inline">\text{parents}(x_i)</span>: the set of nodes with an arrow into <span class="math inline">x_i</span>. It may be empty.</li>
+<li>CPT: the conditional probability table storing <span class="math inline">p(x_i \mid \text{parents}(x_i))</span>.</li>
+<li><span class="math inline">K_i</span>: the number of parents of node <span class="math inline">i</span>. A binary node then needs <span class="math inline">2^{K_i}</span> free numbers.</li>
+</ul>
+<p>Taking the factorization apart:</p>
+<ul>
+<li><span class="math inline">\prod_i p(x_i \mid \text{parents}(x_i))</span> is the chain rule with each conditioning list cut down to the parents.</li>
+<li>Every arrow that is missing is a conditioning variable dropped from some factor, and every dropped variable halves that factor’s table.</li>
+<li>Total cost: <span class="math inline">\sum_i 2^{K_i}</span>, compared with <span class="math inline">2^N - 1</span> for the full joint.</li>
+</ul>
+<p>A teaching example. Take three binary nodes with <span class="math inline">x_1 \to x_2</span> and <span class="math inline">x_1 \to x_3</span> and no arrow between <span class="math inline">x_2</span> and <span class="math inline">x_3</span>. The factorization is <span class="math inline">p(x_1)\,p(x_2 \mid x_1)\,p(x_3 \mid x_1)</span>, costing <span class="math inline">1 + 2 + 2 = 5</span> numbers instead of <span class="math inline">7</span>. With <span class="math inline">p(x_1{=}1) = 0.3</span>, <span class="math inline">p(x_2{=}1 \mid x_1{=}1) = 0.9</span>, and <span class="math inline">p(x_3{=}1 \mid x_1{=}1) = 0.5</span>, one entry of the joint is <span class="math inline">p(1,1,1) = 0.3 \times 0.9 \times 0.5 = 0.135</span>. The factor for <span class="math inline">x_3</span> never asks about <span class="math inline">x_2</span>, which is the assumption the missing arrow encodes.</p>
+</div>
+</div>
+</div>
 </section>
 <section id="sec-cistructures" class="level2">
 <h2 class="anchored" data-anchor-id="sec-cistructures">Conditional independence: three canonical structures</h2>
@@ -557,7 +816,7 @@ Note
 <p><strong>Common cause</strong> (<span class="math inline">X \leftarrow Y \rightarrow Z</span>). The joint factors as <span class="math inline">p(y)p(x\mid y)p(z\mid y)</span>, so <span class="math display">p(x,z\mid y) = \frac{p(y)p(x\mid y)p(z\mid y)}{p(y)} = p(x\mid y)\,p(z\mid y).</span> Again <span class="math inline">X \perp Z \mid Y</span>: two effects of a shared cause become independent once that cause is observed.</p>
 <p><strong>Explaining away</strong> (<span class="math inline">X \to Y \leftarrow Z</span>). The joint factors as <span class="math inline">p(x)p(z)p(y\mid x,z)</span>, and now <span class="math display">p(z\mid x,y) = \frac{p(x)p(z)p(y\mid x,z)}{p(x)p(y\mid x)} = \frac{p(z)p(y\mid x,z)}{p(y\mid x)} \neq p(z\mid y)</span> in general. <span class="math inline">X</span> and <span class="math inline">Z</span> are marginally independent (with <span class="math inline">Y</span> unobserved), but conditioning on their common effect <span class="math inline">Y</span> can make them dependent: learning that it rained (<span class="math inline">X</span>) makes a ballgame (<span class="math inline">Z</span>) a less likely explanation for heavy traffic (<span class="math inline">Y</span>), even though rain and ballgames have nothing to do with each other on their own.</p>
 <div class="clarification callout callout-style-default callout-tip callout-titled" title="Question: How big is the explaining-away effect in numbers?">
-<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-7-contents" aria-controls="callout-7" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-15-contents" aria-controls="callout-15" aria-expanded="false" aria-label="Toggle callout">
 <div class="callout-icon-container">
 <i class="callout-icon"></i>
 </div>
@@ -566,7 +825,7 @@ Note
 </div>
 <div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
 </div>
-<div id="callout-7" class="callout-7-contents callout-collapse collapse">
+<div id="callout-15" class="callout-15-contents callout-collapse collapse">
 <div class="callout-body-container callout-body">
 <p>Take invented numbers for rain <span class="math inline">X</span>, a ballgame <span class="math inline">Z</span>, and heavy traffic <span class="math inline">Y</span>: <span class="math inline">p(X=1)=0.1</span>, <span class="math inline">p(Z=1)=0.2</span>, and <span class="math inline">p(Y=1\mid x,z)</span> equal to <span class="math inline">0.05</span>, <span class="math inline">0.8</span>, <span class="math inline">0.7</span>, <span class="math inline">0.9</span> for <span class="math inline">(x,z)=(0,0),(1,0),(0,1),(1,1)</span>. The joint with heavy traffic observed is <span class="math inline">p(x)\,p(z)\,p(Y=1\mid x,z)</span>:</p>
 <table class="caption-top table">
@@ -627,6 +886,39 @@ Note
 <li><strong>Common cause.</strong> Marginally, <span class="math inline">X</span> and <span class="math inline">Z</span> are dependent: busy forums are a signal that the deadline is near, which makes a full lab more likely too, so the two are correlated through the shared cause even though neither directly affects the other. Conditioned on <span class="math inline">Y</span> (we already know whether the deadline is near), that shared explanation is used up, and <span class="math inline">X \perp Z \mid Y</span>.</li>
 <li><strong>Explaining away.</strong> Marginally, <span class="math inline">X</span> and <span class="math inline">Z</span> are independent: whether it rains has nothing to do with whether there is a ballgame. But conditioned on <span class="math inline">Y</span> (we observe heavy traffic), they become dependent: learning it rained makes the ballgame a less likely explanation for the traffic, and vice versa. This is the one structure where conditioning on the middle node <em>creates</em> a dependency rather than removing one, which is why it is the case worth double-checking whenever a homework or the Bayes Ball algorithm below asks about a head-to-head node.</li>
 </ol>
+</div>
+</div>
+<div class="clarification callout callout-style-default callout-tip callout-titled" title="Recap: Conditional independence: three canonical structures">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-17-contents" aria-controls="callout-17" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Recap: Conditional independence: three canonical structures
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-17" class="callout-17-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>What the symbols stand for:</p>
+<ul>
+<li><span class="math inline">x_A</span>, <span class="math inline">x_B</span>, <span class="math inline">x_C</span>: three disjoint groups of variables.</li>
+<li><span class="math inline">x_A \perp x_B \mid x_C</span>: once <span class="math inline">x_C</span> is known, learning <span class="math inline">x_B</span> tells us nothing more about <span class="math inline">x_A</span>.</li>
+<li><span class="math inline">X</span>, <span class="math inline">Y</span>, <span class="math inline">Z</span>: the three nodes of each small structure, with <span class="math inline">Y</span> in the middle.</li>
+</ul>
+<p>Taking the definition apart:</p>
+<ul>
+<li><span class="math inline">p(x_A, x_B \mid x_C) = p(x_A \mid x_C)\,p(x_B \mid x_C)</span>: given <span class="math inline">x_C</span>, the joint of <span class="math inline">A</span> and <span class="math inline">B</span> splits into a product, just like ordinary independence.</li>
+<li><span class="math inline">p(x_A \mid x_B, x_C) = p(x_A \mid x_C)</span>: adding <span class="math inline">x_B</span> to what we condition on leaves the distribution of <span class="math inline">x_A</span> unchanged. This is the form used in each check above.</li>
+<li>Chain and common cause: observing <span class="math inline">Y</span> blocks the dependence. Explaining away: observing <span class="math inline">Y</span> creates it.</li>
+</ul>
+<p>A teaching example for the chain <span class="math inline">X \to Y \to Z</span>. Let <span class="math inline">p(X{=}1) = 0.5</span>, <span class="math inline">p(Y{=}1 \mid X{=}1) = 0.8</span>, <span class="math inline">p(Y{=}1 \mid X{=}0) = 0.2</span>, <span class="math inline">p(Z{=}1 \mid Y{=}1) = 0.9</span>, <span class="math inline">p(Z{=}1 \mid Y{=}0) = 0.1</span>.</p>
+<ul>
+<li>Without <span class="math inline">Y</span>: <span class="math inline">p(Z{=}1 \mid X{=}1) = 0.8(0.9) + 0.2(0.1) = 0.74</span>, but <span class="math inline">p(Z{=}1 \mid X{=}0) = 0.2(0.9) + 0.8(0.1) = 0.26</span>. Knowing <span class="math inline">X</span> changes our belief about <span class="math inline">Z</span>, so they are dependent.</li>
+<li>With <span class="math inline">Y{=}1</span> known: <span class="math inline">p(Z{=}1 \mid X, Y{=}1) = 0.9</span> whatever <span class="math inline">X</span> is, because the factor <span class="math inline">p(z \mid y)</span> never looks at <span class="math inline">x</span>. So <span class="math inline">X \perp Z \mid Y</span>.</li>
+</ul>
+<p>For a numeric explaining-away case, see the dropdown on its size earlier in this section.</p>
+</div>
 </div>
 </div>
 </section>
@@ -737,6 +1029,42 @@ Note
 </div>
 <p><strong>The assumption.</strong> Naive Bayes removes every edge between the <span class="math inline">X_i</span>’s and keeps only the edges from <span class="math inline">C</span>: <span class="math inline">p(X_i \mid X_1,\dots,X_{i-1}, C) = p(X_i \mid C)</span>, i.e.&nbsp;<span class="math inline">X_i \perp X_j \mid C</span> for every <span class="math inline">j \neq i</span>. This is an instance of the common-cause structure from <a href="#sec-cistructures" class="quarto-xref"><span>Conditional independence: three canonical structures</span></a>, with <span class="math inline">C</span> as the shared cause of every word’s appearance. The factorization becomes <span class="math display">p(X,C) = p(C)\prod_{i=1}^d p(X_i \mid C),</span> with <span class="math inline">1 + 2d</span> parameters: linear in <span class="math inline">d</span> instead of exponential. The assumption is not literally true (word co-occurrences do carry information about topic), but it is a Week-1-style parametric simplification: it trades some accuracy in the model for a tractable number of parameters to estimate.</p>
 <p><strong>Maximum likelihood.</strong> Parameterize <span class="math inline">p(C{=}1) = \pi</span> and <span class="math inline">p(X_j{=}1\mid C{=}c) = \theta_{jc}</span>. Given <span class="math inline">N</span> i.i.d. labelled texts <span class="math inline">(x^{(i)}, c^{(i)})</span>, the log-likelihood factors, by the same independence assumption, into a sum of Bernoulli log-likelihoods: one for the labels (governed by <span class="math inline">\pi</span>) and one per word per class (governed by <span class="math inline">\theta_{jc}</span>): <span class="math display">\ell(\theta) = \sum_{i=1}^N \log p(c^{(i)}) \;+\; \sum_{j=1}^d \sum_{i=1}^N \log p(x_j^{(i)} \mid c^{(i)}).</span> Each piece is a Bernoulli log-likelihood of exactly the shape solved in Week 1 (<a href="week01.html#sec-mle" class="quarto-xref"><span>Maximum likelihood estimation</span></a>): <span class="math inline">p(c^{(i)}) = \pi^{c^{(i)}}(1-\pi)^{1-c^{(i)}}</span> and <span class="math inline">p(x_j^{(i)}\mid c) = \theta_{jc}^{x_j^{(i)}}(1-\theta_{jc})^{1-x_j^{(i)}}</span>. Setting each derivative to zero reproduces the Week 1 pattern, <span class="math inline">\hat\theta_{\text{MLE}} = \frac{1}{N}\sum_i x^{(i)}</span>, applied separately to each piece: <span class="math display">\hat\pi = \frac{\sum_i \mathbb{1}[c^{(i)}=1]}{N} = \frac{\#\text{ spam texts}}{\#\text{ texts}},</span> <span class="math display">\hat\theta_{jc} = \frac{\sum_i \mathbb{1}[x_j^{(i)}=1 \,\&amp;\, c^{(i)}=c]}{\sum_i \mathbb{1}[c^{(i)}=c]}.</span> In words, <span class="math inline">\hat\theta_{jc}</span> is the fraction of class-<span class="math inline">c</span> texts in which word <span class="math inline">j</span> appears. Each MLE is again an observed relative frequency, exactly as in the Bernoulli case: the independence assumption did not change <em>how</em> we estimate parameters, only <em>how many</em> there are to estimate.</p>
+<div class="clarification callout callout-style-default callout-tip callout-titled" title="Recap: Naive Bayes as a graphical model">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-20-contents" aria-controls="callout-20" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Recap: Naive Bayes as a graphical model
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-20" class="callout-20-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>What the symbols stand for:</p>
+<ul>
+<li><span class="math inline">C</span>: the class label, <span class="math inline">1</span> for spam and <span class="math inline">0</span> for not spam.</li>
+<li><span class="math inline">X = (X_1, \dots, X_d)</span>: the bag-of-words vector. <span class="math inline">X_j = 1</span> if dictionary word <span class="math inline">j</span> appears in the text.</li>
+<li><span class="math inline">d</span>: the dictionary size. <span class="math inline">N</span>: the number of labelled training texts.</li>
+<li><span class="math inline">\pi = p(C{=}1)</span>: the prior probability of spam.</li>
+<li><span class="math inline">\theta_{jc} = p(X_j{=}1 \mid C{=}c)</span>: the probability that word <span class="math inline">j</span> appears in a text of class <span class="math inline">c</span>.</li>
+<li><span class="math inline">\mathbb{1}[\cdot]</span>: the indicator, 1 if the condition holds and 0 otherwise.</li>
+</ul>
+<p>Taking the equations apart:</p>
+<ul>
+<li><span class="math inline">p(X, C) = p(C)\prod_j p(X_j \mid C)</span>: pick the class, then let each word appear or not on its own, using only the class. This is the common-cause structure with <span class="math inline">C</span> as the cause.</li>
+<li>The log-likelihood splits into one Bernoulli piece for the labels and one Bernoulli piece per (word, class) pair, so each parameter is fitted separately.</li>
+<li><span class="math inline">\hat\pi</span> = fraction of texts that are spam. <span class="math inline">\hat\theta_{jc}</span> = among class-<span class="math inline">c</span> texts, the fraction containing word <span class="math inline">j</span>.</li>
+</ul>
+<p>A teaching example. Six texts, two dictionary words (“free”, “meeting”). Three are spam: “free” appears in two of them and “meeting” in one. Three are not spam: “free” appears in one and “meeting” in two. The MLEs are <span class="math inline">\hat\pi = 3/6 = 0.5</span>, <span class="math inline">\hat\theta_{\text{free},1} = 2/3</span>, <span class="math inline">\hat\theta_{\text{meeting},1} = 1/3</span>, <span class="math inline">\hat\theta_{\text{free},0} = 1/3</span>, <span class="math inline">\hat\theta_{\text{meeting},0} = 2/3</span>, which is <span class="math inline">1 + 2d = 5</span> numbers. A new text contains “free” but not “meeting”.</p>
+<ul>
+<li>Spam: <span class="math inline">0.5 \times \tfrac{2}{3} \times (1 - \tfrac{1}{3}) = \tfrac{4}{18}</span>.</li>
+<li>Not spam: <span class="math inline">0.5 \times \tfrac{1}{3} \times (1 - \tfrac{2}{3}) = \tfrac{1}{18}</span>.</li>
+</ul>
+<p>Normalizing, <span class="math inline">p(C{=}1 \mid X) = 4/5 = 0.8</span>. An absent word still counts, through the factor <span class="math inline">1 - \theta_{jc}</span>.</p>
+</div>
+</div>
+</div>
 </section>
 <section id="sec-wilddgm" class="level2">
 <h2 class="anchored" data-anchor-id="sec-wilddgm">DGMs in the wild, briefly</h2>
@@ -746,6 +1074,34 @@ Note
 <li><strong>Hidden Markov models (HMMs).</strong> A chain of unobserved (hidden) states <span class="math inline">Z_t</span>, each taking one of <span class="math inline">K</span> discrete values, each emitting an observed <span class="math inline">X_t</span>: <span class="math inline">p(X_{1:T}, Z_{1:T}) = p(Z_1)\prod_{t=2}^T p(Z_t\mid Z_{t-1}) \prod_{t=1}^T p(X_t\mid Z_t)</span>. This is a Markov chain over the hidden layer, with an emission model attached to each step.</li>
 <li><strong>Medical diagnosis networks.</strong> The Quick Medical Reference network is a bipartite DAG: hidden disease nodes as parents, observed symptom nodes as children, with a <strong>noisy-OR</strong> conditional probability table (any positive parent disease tends to make a symptom positive). The Alarm network is a hand-built DAG of 37 ICU-monitoring variables; because it is sparse, it needs only 509 parameters (the tutorial quotes 504), against far more than <span class="math inline">2^{37}-1</span> for a full joint table, since most of its variables have three or four states, and its edges are drawn from known causal relationships in medicine rather than fit as a generic template.</li>
 </ul>
+<div class="clarification callout callout-style-default callout-tip callout-titled" title="Recap: DGMs in the wild, briefly">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-21-contents" aria-controls="callout-21" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Recap: DGMs in the wild, briefly
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-21" class="callout-21-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>What the symbols stand for:</p>
+<ul>
+<li><span class="math inline">x_{1:T}</span>: the sequence <span class="math inline">x_1, x_2, \dots, x_T</span> of states over <span class="math inline">T</span> time steps.</li>
+<li><span class="math inline">p(x_t \mid x_{t-1})</span>: the transition probability, how the state at time <span class="math inline">t</span> depends on the state just before it.</li>
+<li><span class="math inline">Z_t</span>: the hidden state at time <span class="math inline">t</span> in an HMM, one of <span class="math inline">K</span> values. <span class="math inline">X_t</span>: what we observe at time <span class="math inline">t</span>.</li>
+<li><span class="math inline">p(X_t \mid Z_t)</span>: the emission probability, how the hidden state produces the observation.</li>
+</ul>
+<p>Taking the factorizations apart:</p>
+<ul>
+<li>Markov chain: <span class="math inline">p(x_1)</span> starts the sequence, then each factor <span class="math inline">p(x_t \mid x_{t-1})</span> steps it forward one time step. Each node has one parent, the previous step.</li>
+<li>HMM: the same chain runs on the hidden <span class="math inline">Z</span>’s, and each step adds one factor <span class="math inline">p(X_t \mid Z_t)</span> for the observation. Each <span class="math inline">X_t</span> has one parent, its own <span class="math inline">Z_t</span>.</li>
+</ul>
+<p>A teaching example. A binary chain with states rain and dry has <span class="math inline">p(x_1 = \text{rain}) = 0.3</span>, <span class="math inline">p(\text{rain} \mid \text{rain}) = 0.6</span>, <span class="math inline">p(\text{rain} \mid \text{dry}) = 0.2</span>. The sequence rain, rain, dry has probability <span class="math inline">0.3 \times 0.6 \times (1 - 0.6) = 0.072</span>. If the transition table is shared across time steps, this chain is fully described by 3 numbers for any length <span class="math inline">T</span>, whereas a full joint over <span class="math inline">T</span> binary steps needs <span class="math inline">2^T - 1</span>.</p>
+</div>
+</div>
+</div>
 </section>
 <section id="sec-summary2" class="level2">
 <h2 class="anchored" data-anchor-id="sec-summary2">Summary</h2>

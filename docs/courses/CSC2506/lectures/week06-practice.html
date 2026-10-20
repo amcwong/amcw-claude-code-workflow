@@ -1,0 +1,2045 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.10.18">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+
+<title>Week 6 practice: HMMs and Variational Inference I – CSC412/2506: Probabilistic Machine Learning notes</title>
+<style>
+/* Default styles provided by pandoc.
+** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
+*/
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: 1.5em;}
+div.column{flex: auto;}
+@media screen {
+div.columns{gap: min(4vw, 1.5em);}
+div.column{overflow-x: auto;}
+}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+/* CSS for syntax highlighting */
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+</style>
+
+
+<script src="../site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="../site_libs/quarto-nav/headroom.min.js"></script>
+<script src="../site_libs/clipboard/clipboard.min.js"></script>
+<script src="../site_libs/quarto-search/autocomplete.umd.js"></script>
+<script src="../site_libs/quarto-search/fuse.min.js"></script>
+<script src="../site_libs/quarto-search/quarto-search.js"></script>
+<meta name="quarto:offset" content="../">
+<link href="../glossary.html" rel="next">
+<link href="../lectures/week06.html" rel="prev">
+<script src="../site_libs/quarto-html/quarto.js" type="module"></script>
+<script src="../site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
+<script src="../site_libs/quarto-html/popper.min.js"></script>
+<script src="../site_libs/quarto-html/tippy.umd.min.js"></script>
+<script src="../site_libs/quarto-html/anchor.min.js"></script>
+<link href="../site_libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="../site_libs/quarto-html/quarto-syntax-highlighting-bb62276ab45c84d9efd712f51ff97b5a.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<script src="../site_libs/bootstrap/bootstrap.min.js"></script>
+<link href="../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="../site_libs/bootstrap/bootstrap-ce0958bf53307a1b0bb60f85d87db72f.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
+<script id="quarto-search-options" type="application/json">{
+  "location": "sidebar",
+  "copy-button": false,
+  "collapse-after": 3,
+  "panel-placement": "start",
+  "type": "textbox",
+  "limit": 50,
+  "keyboard-shortcut": [
+    "f",
+    "/",
+    "s"
+  ],
+  "show-item-context": false,
+  "language": {
+    "search-no-results-text": "No results",
+    "search-matching-documents-text": "matching documents",
+    "search-copy-link-title": "Copy link to search",
+    "search-hide-matches-text": "Hide additional matches",
+    "search-more-match-text": "more match in this document",
+    "search-more-matches-text": "more matches in this document",
+    "search-clear-button-title": "Clear",
+    "search-text-placeholder": "",
+    "search-detached-cancel-button-title": "Cancel",
+    "search-submit-button-title": "Submit",
+    "search-label": "Search"
+  }
+}</script>
+<style>html{ scroll-behavior: smooth; }</style>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+<link href="https://fonts.googleapis.com/css2?family=Source+Code+Pro:wght@400;600&amp;family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&amp;display=swap" rel="stylesheet">
+
+  <script>window.backupDefine = window.define; window.define = undefined;</script><script src="https://cdn.jsdelivr.net/npm/katex@latest/dist/katex.min.js"></script>
+  <script>document.addEventListener("DOMContentLoaded", function () {
+ var mathElements = document.getElementsByClassName("math");
+ var macros = [];
+ for (var i = 0; i < mathElements.length; i++) {
+  var texText = mathElements[i].firstChild;
+  if (mathElements[i].tagName == "SPAN") {
+   katex.render(texText.data, mathElements[i], {
+    displayMode: mathElements[i].classList.contains('display'),
+    throwOnError: false,
+    macros: macros,
+    fleqn: false
+   });
+}}});
+  </script>
+  <script>window.define = window.backupDefine; window.backupDefine = undefined;</script><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@latest/dist/katex.min.css">
+
+<script type="text/javascript">
+const typesetMath = (el) => {
+  if (window.MathJax) {
+    // MathJax Typeset
+    window.MathJax.typeset([el]);
+  } else if (window.katex) {
+    // KaTeX Render
+    var mathElements = el.getElementsByClassName("math");
+    var macros = [];
+    for (var i = 0; i < mathElements.length; i++) {
+      var texText = mathElements[i].firstChild;
+      if (mathElements[i].tagName == "SPAN" && texText && texText.data) {
+        window.katex.render(texText.data, mathElements[i], {
+          displayMode: mathElements[i].classList.contains('display'),
+          throwOnError: false,
+          macros: macros,
+          fleqn: false
+        });
+      }
+    }
+  }
+}
+window.Quarto = {
+  typesetMath
+};
+</script>
+
+<link rel="stylesheet" href="../styles/custom.css">
+</head>
+
+<body class="nav-sidebar floating quarto-light">
+
+<div id="quarto-search-results"></div>
+  <header id="quarto-header" class="headroom fixed-top">
+  <nav class="quarto-secondary-nav">
+    <div class="container-fluid d-flex">
+      <button type="button" class="quarto-btn-toggle btn" data-bs-toggle="collapse" role="button" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+        <i class="bi bi-layout-text-sidebar-reverse"></i>
+      </button>
+        <nav class="quarto-page-breadcrumbs" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../lectures/week06-practice.html"><span class="chapter-title">Week 6 practice: HMMs and Variational Inference I</span></a></li></ol></nav>
+        <a class="flex-grow-1" role="navigation" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">      
+        </a>
+      <button type="button" class="btn quarto-search-button" aria-label="Search" onclick="window.quartoOpenSearch();">
+        <i class="bi bi-search"></i>
+      </button>
+    </div>
+  </nav>
+</header>
+<!-- content -->
+<div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-article">
+<!-- sidebar -->
+  <nav id="quarto-sidebar" class="sidebar collapse collapse-horizontal quarto-sidebar-collapse-item sidebar-navigation floating overflow-auto">
+    <div class="pt-lg-2 mt-2 text-left sidebar-header">
+    <div class="sidebar-title mb-0 py-0">
+      <a href="../">CSC412/2506: Probabilistic Machine Learning notes</a> 
+        <div class="sidebar-tools-main">
+    <a href="https://amcwong.github.io/amcw-claude-code-workflow/" title="All course notes" class="quarto-navigation-tool px-1" aria-label="All course notes"><i class="bi bi-house-door"></i></a>
+</div>
+    </div>
+      </div>
+        <div class="mt-2 flex-shrink-0 align-items-center">
+        <div class="sidebar-search">
+        <div id="quarto-search" class="" title="Search"></div>
+        </div>
+        </div>
+    <div class="sidebar-menu-container"> 
+    <ul class="list-unstyled mt-1">
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../index.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">CSC412/2506 Probabilistic Machine Learning</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../lectures/week01.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Week 1: Introduction and Probabilistic Models</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../lectures/week01-practice.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Week 1 practice: Introduction and probabilistic models</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../lectures/week02.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Week 2: Decision Theory and Graphical Models</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../lectures/week02-practice.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Week 2 practice: Decision theory and graphical models</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../lectures/week03.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Week 3: Markov Random Fields and Exact Inference</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../lectures/week03-practice.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Week 3 practice: Markov random fields and exact inference</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../lectures/week04.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Week 4: Message Passing and Monte Carlo</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../lectures/week04-practice.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Week 4 practice: Message passing and Monte Carlo</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../lectures/week05.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Week 5: Sampling with MCMC</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../lectures/week05-practice.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Week 5 practice: Sampling with MCMC</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../lectures/week06.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Week 6: HMMs and Variational Inference I</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../lectures/week06-practice.html" class="sidebar-item-text sidebar-link active"><span class="chapter-title">Week 6 practice: HMMs and Variational Inference I</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../glossary.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Glossary</span></a>
+  </div>
+</li>
+    </ul>
+    </div>
+</nav>
+<div id="quarto-sidebar-glass" class="quarto-sidebar-collapse-item" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item"></div>
+<!-- margin-sidebar -->
+    <div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
+        <nav id="TOC" role="doc-toc" class="toc-active">
+    <h2 id="toc-title">On this page</h2>
+   
+  <ul>
+  <li><a href="#sec-w6p-motivate" id="toc-sec-w6p-motivate" class="nav-link active" data-scroll-target="#sec-w6p-motivate">From Markov chains to hidden states</a>
+  <ul class="collapse">
+  <li><a href="#prb-1" id="toc-prb-1" class="nav-link" data-scroll-target="#prb-1">Problem 1: Hidden structure makes the observations non-Markov</a></li>
+  <li><a href="#prb-2" id="toc-prb-2" class="nav-link" data-scroll-target="#prb-2">Problem 2: Counting parameters</a></li>
+  </ul></li>
+  <li><a href="#sec-w6p-hmm" id="toc-sec-w6p-hmm" class="nav-link" data-scroll-target="#sec-w6p-hmm">Hidden Markov models</a>
+  <ul class="collapse">
+  <li><a href="#prb-3" id="toc-prb-3" class="nav-link" data-scroll-target="#prb-3">Problem 3: The joint probability of one configuration</a></li>
+  <li><a href="#prb-4" id="toc-prb-4" class="nav-link" data-scroll-target="#prb-4">Problem 4: The emission vector is not a distribution</a></li>
+  <li><a href="#prb-5" id="toc-prb-5" class="nav-link" data-scroll-target="#prb-5">Problem 5: Reading independences off the HMM graph</a></li>
+  </ul></li>
+  <li><a href="#sec-w6p-goals" id="toc-sec-w6p-goals" class="nav-link" data-scroll-target="#sec-w6p-goals">Two inference questions</a>
+  <ul class="collapse">
+  <li><a href="#prb-6" id="toc-prb-6" class="nav-link" data-scroll-target="#prb-6">Problem 6: Brute force versus recursion, and which question is being asked</a></li>
+  </ul></li>
+  <li><a href="#sec-w6p-forward" id="toc-sec-w6p-forward" class="nav-link" data-scroll-target="#sec-w6p-forward">The forward algorithm</a>
+  <ul class="collapse">
+  <li><a href="#prb-7" id="toc-prb-7" class="nav-link" data-scroll-target="#prb-7">Problem 7: A forward pass on HMM-B</a></li>
+  <li><a href="#prb-8" id="toc-prb-8" class="nav-link" data-scroll-target="#prb-8">Problem 8: A transposition bug</a></li>
+  <li><a href="#prb-9" id="toc-prb-9" class="nav-link" data-scroll-target="#prb-9">Problem 9: The probability of the data from the normalizers</a></li>
+  </ul></li>
+  <li><a href="#sec-w6p-fb" id="toc-sec-w6p-fb" class="nav-link" data-scroll-target="#sec-w6p-fb">The forward-backward algorithm</a>
+  <ul class="collapse">
+  <li><a href="#prb-10" id="toc-prb-10" class="nav-link" data-scroll-target="#prb-10">Problem 10: Smoothing HMM-B</a></li>
+  <li><a href="#prb-11" id="toc-prb-11" class="nav-link" data-scroll-target="#prb-11">Problem 11: What the backward vector carries</a></li>
+  </ul></li>
+  <li><a href="#sec-w6p-example" id="toc-sec-w6p-example" class="nav-link" data-scroll-target="#sec-w6p-example">Worked example: a two-state HMM</a>
+  <ul class="collapse">
+  <li><a href="#prb-12" id="toc-prb-12" class="nav-link" data-scroll-target="#prb-12">Problem 12: Remove the chain’s memory</a></li>
+  </ul></li>
+  <li><a href="#sec-w6p-viterbi" id="toc-sec-w6p-viterbi" class="nav-link" data-scroll-target="#sec-w6p-viterbi">The Viterbi algorithm</a>
+  <ul class="collapse">
+  <li><a href="#prb-13" id="toc-prb-13" class="nav-link" data-scroll-target="#prb-13">Problem 13: Viterbi on HMM-B</a></li>
+  <li><a href="#prb-14" id="toc-prb-14" class="nav-link" data-scroll-target="#prb-14">Problem 14: When the best sequence is not built from the best states</a></li>
+  <li><a href="#prb-15" id="toc-prb-15" class="nav-link" data-scroll-target="#prb-15">Problem 15: Reading a Viterbi implementation</a></li>
+  </ul></li>
+  <li><a href="#sec-w6p-latent" id="toc-sec-w6p-latent" class="nav-link" data-scroll-target="#sec-w6p-latent">Posterior inference in latent variable models</a>
+  <ul class="collapse">
+  <li><a href="#prb-16" id="toc-prb-16" class="nav-link" data-scroll-target="#prb-16">Problem 16: Naming and computing the four pieces</a></li>
+  </ul></li>
+  <li><a href="#sec-w6p-trueskill" id="toc-sec-w6p-trueskill" class="nav-link" data-scroll-target="#sec-w6p-trueskill">What the TrueSkill posterior looks like</a>
+  <ul class="collapse">
+  <li><a href="#prb-17" id="toc-prb-17" class="nav-link" data-scroll-target="#prb-17">Problem 17: What game outcomes cannot tell us</a></li>
+  </ul></li>
+  <li><a href="#sec-w6p-hard" id="toc-sec-w6p-hard" class="nav-link" data-scroll-target="#sec-w6p-hard">Why the posterior is hard</a>
+  <ul class="collapse">
+  <li><a href="#prb-18" id="toc-prb-18" class="nav-link" data-scroll-target="#prb-18">Problem 18: Grids in high dimension, and why HMMs escaped</a></li>
+  </ul></li>
+  <li><a href="#sec-w6p-vi" id="toc-sec-w6p-vi" class="nav-link" data-scroll-target="#sec-w6p-vi">Variational methods</a>
+  <ul class="collapse">
+  <li><a href="#prb-19" id="toc-prb-19" class="nav-link" data-scroll-target="#prb-19">Problem 19: A family that cannot represent correlation</a></li>
+  </ul></li>
+  <li><a href="#sec-w6p-jensen" id="toc-sec-w6p-jensen" class="nav-link" data-scroll-target="#sec-w6p-jensen">Jensen’s inequality</a>
+  <ul class="collapse">
+  <li><a href="#prb-20" id="toc-prb-20" class="nav-link" data-scroll-target="#prb-20">Problem 20: Checking Jensen with numbers</a></li>
+  <li><a href="#prb-21" id="toc-prb-21" class="nav-link" data-scroll-target="#prb-21">Problem 21: Which way does the inequality point for a concave function?</a></li>
+  </ul></li>
+  <li><a href="#sec-w6p-kl" id="toc-sec-w6p-kl" class="nav-link" data-scroll-target="#sec-w6p-kl">The KL divergence</a>
+  <ul class="collapse">
+  <li><a href="#prb-22" id="toc-prb-22" class="nav-link" data-scroll-target="#prb-22">Problem 22: Both directions on three outcomes</a></li>
+  <li><a href="#prb-23" id="toc-prb-23" class="nav-link" data-scroll-target="#prb-23">Problem 23: When one direction is infinite</a></li>
+  <li><a href="#prb-24" id="toc-prb-24" class="nav-link" data-scroll-target="#prb-24">Problem 24: KL between two Gaussians with the same variance (stretch)</a></li>
+  </ul></li>
+  <li><a href="#sec-w6p-projections" id="toc-sec-w6p-projections" class="nav-link" data-scroll-target="#sec-w6p-projections">Which direction? I-projection and M-projection</a>
+  <ul class="collapse">
+  <li><a href="#prb-25" id="toc-prb-25" class="nav-link" data-scroll-target="#prb-25">Problem 25: The M-projection of a symmetric mixture</a></li>
+  <li><a href="#prb-26" id="toc-prb-26" class="nav-link" data-scroll-target="#prb-26">Problem 26: Projecting onto point masses</a></li>
+  <li><a href="#prb-27" id="toc-prb-27" class="nav-link" data-scroll-target="#prb-27">Problem 27: Predicting the projections for three bumps</a></li>
+  </ul></li>
+  <li><a href="#sec-w6p-why-iproj" id="toc-sec-w6p-why-iproj" class="nav-link" data-scroll-target="#sec-w6p-why-iproj">Why variational inference uses the I-projection</a>
+  <ul class="collapse">
+  <li><a href="#prb-28" id="toc-prb-28" class="nav-link" data-scroll-target="#prb-28">Problem 28: Which objective survives an unknown normalizer?</a></li>
+  <li><a href="#prb-29" id="toc-prb-29" class="nav-link" data-scroll-target="#prb-29">Problem 29: Maximum entropy gives an exponential family (stretch)</a></li>
+  </ul></li>
+  <li><a href="#sec-w6p-elbo" id="toc-sec-w6p-elbo" class="nav-link" data-scroll-target="#sec-w6p-elbo">Tutorial: reverse KL and the ELBO</a>
+  <ul class="collapse">
+  <li><a href="#prb-30" id="toc-prb-30" class="nav-link" data-scroll-target="#prb-30">Problem 30: Checking the ELBO identity</a></li>
+  <li><a href="#prb-31" id="toc-prb-31" class="nav-link" data-scroll-target="#prb-31">Problem 31: A sign error in a Monte Carlo ELBO</a></li>
+  </ul></li>
+  <li><a href="#sec-w6p-mf-mrf" id="toc-sec-w6p-mf-mrf" class="nav-link" data-scroll-target="#sec-w6p-mf-mrf">Mean field for an MRF</a>
+  <ul class="collapse">
+  <li><a href="#prb-32" id="toc-prb-32" class="nav-link" data-scroll-target="#prb-32">Problem 32: The objective is a lower bound on log Z</a></li>
+  <li><a href="#prb-33" id="toc-prb-33" class="nav-link" data-scroll-target="#prb-33">Problem 33: Two meanings of phi</a></li>
+  </ul></li>
+  <li><a href="#sec-w6p-naive-mf" id="toc-sec-w6p-naive-mf" class="nav-link" data-scroll-target="#sec-w6p-naive-mf">Naive mean field</a>
+  <ul class="collapse">
+  <li><a href="#prb-34" id="toc-prb-34" class="nav-link" data-scroll-target="#prb-34">Problem 34: Entropy of products and of correlated distributions</a></li>
+  <li><a href="#prb-35" id="toc-prb-35" class="nav-link" data-scroll-target="#prb-35">Problem 35: When naive mean field is exact</a></li>
+  </ul></li>
+  <li><a href="#sec-w6p-coord" id="toc-sec-w6p-coord" class="nav-link" data-scroll-target="#sec-w6p-coord">Pairwise MRFs and coordinate ascent</a>
+  <ul class="collapse">
+  <li><a href="#prb-36" id="toc-prb-36" class="nav-link" data-scroll-target="#prb-36">Problem 36: The Lagrange step in isolation</a></li>
+  <li><a href="#prb-37" id="toc-prb-37" class="nav-link" data-scroll-target="#prb-37">Problem 37: Two sweeps on a three-node chain</a></li>
+  <li><a href="#prb-38" id="toc-prb-38" class="nav-link" data-scroll-target="#prb-38">Problem 38: Unary terms, and a fixed point that is not a maximum (stretch)</a></li>
+  </ul></li>
+  </ul>
+</nav>
+    </div>
+<!-- main -->
+<main class="content" id="quarto-document-content">
+
+<header id="title-block-header" class="quarto-title-block default">
+<div class="quarto-title">
+<h1 class="title"><span class="chapter-title">Week 6 practice: HMMs and Variational Inference I</span></h1>
+</div>
+
+
+
+<div class="quarto-title-meta">
+
+    
+  
+    
+  </div>
+  
+
+
+</header>
+
+
+<style>#title-block-header { display: none; }</style>
+<div class="lecture-header">
+  <h1>Week 6 practice: HMMs and Variational Inference I</h1>
+</div>
+<p><strong>Overview.</strong> These problems drill <a href="../lectures/week06.html">Week 6</a> section by section. Each heading below matches a section of the week chapter, in the same order, and its problems test only that section and what came before it. Try each stem before opening the worked solution. Every HMM, distribution, MRF, and code snippet here is invented for practice; none is a homework item, and none reuses the week’s two worked examples except where a problem says it is modifying one. Notation matches the week chapter: <span class="math inline">\pi</span> is the initial distribution, <span class="math inline">\Psi(i,j)=p(z_{t+1}=j\mid z_t=i)</span> the transition matrix, <span class="math inline">\psi_t(i)=p(x_t\mid z_t=i)</span> the emission vector, and logarithms are natural (KL values in nats).</p>
+<p>Several HMM problems share one model, which we call <strong>HMM-B</strong>: two hidden states <span class="math inline">\{1,2\}</span>, binary observations, and</p>
+<p><span class="math display">
+\pi = \begin{pmatrix}0.6\\0.4\end{pmatrix}, \qquad
+\Psi = \begin{pmatrix}0.7 &amp; 0.3\\ 0.4 &amp; 0.6\end{pmatrix}, \qquad
+\begin{array}{c|cc} &amp; x=0 &amp; x=1\\\hline z=1 &amp; 0.9 &amp; 0.1\\ z=2 &amp; 0.2 &amp; 0.8\end{array}
+</span></p>
+<p>with observed sequence <span class="math inline">x_{1:3}=(1,0,1)</span>.</p>
+<section id="sec-w6p-motivate" class="level2">
+<h2 class="anchored" data-anchor-id="sec-w6p-motivate">From Markov chains to hidden states</h2>
+<section id="prb-1" class="level3">
+<h3 class="anchored" data-anchor-id="prb-1">Problem 1: Hidden structure makes the observations non-Markov</h3>
+<p>An HMM with two hidden states has <span class="math inline">\pi=(0.4,\ 0.6)</span>, a sticky transition matrix <span class="math inline">\Psi=\begin{pmatrix}0.9&amp;0.1\\0.1&amp;0.9\end{pmatrix}</span>, and emissions <span class="math inline">p(x=0\mid z=1)=0.8</span>, <span class="math inline">p(x=0\mid z=2)=0.2</span> (so state 1 mostly emits 0 and state 2 mostly emits 1).</p>
+<ol type="1">
+<li>Compute <span class="math inline">p(x_3=0\mid x_2=0,\ x_1=0)</span> and <span class="math inline">p(x_3=0\mid x_2=0,\ x_1=1)</span>. Use filtering: find <span class="math inline">p(z_2\mid x_{1:2})</span>, push it one step through the chain, then average the emission probability.</li>
+<li>Are the observations <span class="math inline">x_1,x_2,x_3</span> a first-order Markov chain on their own?</li>
+</ol>
+<div class="practice-answer callout callout-style-default callout-tip callout-titled" title="Worked solution">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-1-contents" aria-controls="callout-1" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Worked solution
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-1" class="callout-1-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>This uses <a href="../lectures/week06.html#sec-hmm-motivate">Week 6, From Markov chains to hidden states</a> and the forward recursion of <a href="../lectures/week06.html#sec-forward">The forward algorithm</a>.</p>
+<p><strong>History <span class="math inline">x_{1:2}=(0,0)</span>.</strong></p>
+<ul>
+<li><span class="math inline">\psi_1=(0.8,\ 0.2)</span>, so <span class="math inline">\psi_1\odot\pi = (0.32,\ 0.12)</span> and <span class="math inline">\alpha_1 = (0.727,\ 0.273)</span>.</li>
+<li>Predict: <span class="math inline">\Psi^\top\alpha_1 = (0.9\cdot0.727+0.1\cdot0.273,\ \ 0.1\cdot0.727+0.9\cdot0.273) = (0.682,\ 0.318)</span>.</li>
+<li>Update with <span class="math inline">\psi_2=(0.8,\ 0.2)</span> and normalize: <span class="math inline">\alpha_2 = (0.896,\ 0.104)</span>.</li>
+<li>Predict <span class="math inline">z_3</span>: <span class="math inline">\Psi^\top\alpha_2 = (0.816,\ 0.184)</span>.</li>
+<li>So <span class="math inline">p(x_3=0\mid x_{1:2}) = 0.8\cdot0.816 + 0.2\cdot0.184 \approx 0.690</span>.</li>
+</ul>
+<p><strong>History <span class="math inline">x_{1:2}=(1,0)</span>.</strong></p>
+<ul>
+<li><span class="math inline">\psi_1=(0.2,\ 0.8)</span>, so <span class="math inline">\psi_1\odot\pi = (0.08,\ 0.48)</span> and <span class="math inline">\alpha_1=(0.143,\ 0.857)</span>.</li>
+<li>Predict: <span class="math inline">(0.214,\ 0.786)</span>. Update with <span class="math inline">(0.8,\ 0.2)</span>: <span class="math inline">\alpha_2 = (0.522,\ 0.478)</span>.</li>
+<li>Predict <span class="math inline">z_3</span>: <span class="math inline">(0.517,\ 0.483)</span>.</li>
+<li>So <span class="math inline">p(x_3=0\mid x_{1:2}) = 0.8\cdot0.517+0.2\cdot0.483\approx0.510</span>.</li>
+</ul>
+<p>Both histories end in <span class="math inline">x_2=0</span>, yet the prediction for <span class="math inline">x_3</span> differs. The earlier observation <span class="math inline">x_1</span> changes our belief about the hidden state <span class="math inline">z_2</span>, and through the sticky chain that belief carries forward. If the observations were Markov, <span class="math inline">x_1</span> could not matter once <span class="math inline">x_2</span> is known.</p>
+<p><strong>Answer.</strong> (1) About <span class="math inline">0.690</span> and <span class="math inline">0.510</span>. (2) No: <span class="math inline">p(x_3\mid x_2,x_1)</span> depends on <span class="math inline">x_1</span>, so the observations alone are not a first-order Markov chain, even though the hidden states are.</p>
+</div>
+</div>
+</div>
+</section>
+<section id="prb-2" class="level3">
+<h3 class="anchored" data-anchor-id="prb-2">Problem 2: Counting parameters</h3>
+<p>Observations take <span class="math inline">M=10</span> values. Compare the number of free parameters in:</p>
+<ol type="1">
+<li>a homogeneous HMM with <span class="math inline">K=3</span> hidden states;</li>
+<li>a homogeneous second-order Markov chain directly on the observations, <span class="math inline">p(x_t\mid x_{t-1},x_{t-2})</span> (count only the transition table).</li>
+</ol>
+<p>Then say how each count grows if we want dependence on the last <span class="math inline">m</span> observations instead of two.</p>
+<div class="practice-answer callout callout-style-default callout-tip callout-titled" title="Worked solution">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-2-contents" aria-controls="callout-2" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Worked solution
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-2" class="callout-2-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>This uses <a href="../lectures/week06.html#sec-hmm-motivate">Week 6, From Markov chains to hidden states</a> and the parameter list in <a href="../lectures/week06.html#sec-hmm">Hidden Markov models</a>. A distribution over <span class="math inline">n</span> values has <span class="math inline">n-1</span> free numbers, since they must sum to 1.</p>
+<ol type="1">
+<li>HMM: <span class="math inline">\pi</span> has <span class="math inline">K-1=2</span>; <span class="math inline">\Psi</span> has <span class="math inline">K</span> rows of <span class="math inline">K-1</span>, so <span class="math inline">3\cdot2=6</span>; the emissions have <span class="math inline">K</span> rows of <span class="math inline">M-1</span>, so <span class="math inline">3\cdot9=27</span>. Total <span class="math inline">2+6+27=35</span>.</li>
+<li>Second-order chain: one distribution over <span class="math inline">M</span> values for each of the <span class="math inline">M^2</span> pairs <span class="math inline">(x_{t-1},x_{t-2})</span>, so <span class="math inline">M^2(M-1) = 100\cdot9 = 900</span>.</li>
+</ol>
+<p>An order-<span class="math inline">m</span> chain needs <span class="math inline">M^m(M-1)</span> transition numbers, which grows exponentially in <span class="math inline">m</span>. The HMM count does not depend on how far back the dependence reaches: Problem 1 showed that the HMM’s observations depend on the whole past through the hidden state. This is the trade the lecture describes, keeping the temporal dependence in a small unobserved state.</p>
+<p><strong>Answer.</strong> (1) <span class="math inline">35</span>. (2) <span class="math inline">900</span>. An order-<span class="math inline">m</span> chain needs <span class="math inline">M^m(M-1)</span>; the HMM stays at <span class="math inline">(K-1)+K(K-1)+K(M-1)</span>.</p>
+</div>
+</div>
+</div>
+</section>
+</section>
+<section id="sec-w6p-hmm" class="level2">
+<h2 class="anchored" data-anchor-id="sec-w6p-hmm">Hidden Markov models</h2>
+<section id="prb-3" class="level3">
+<h3 class="anchored" data-anchor-id="prb-3">Problem 3: The joint probability of one configuration</h3>
+<p>Under HMM-B with observations <span class="math inline">x_{1:3}=(1,0,1)</span>, compute <span class="math inline">p(z_{1:3}=(1,1,2),\ x_{1:3})</span> from the HMM factorization. Name each factor.</p>
+<div class="practice-answer callout callout-style-default callout-tip callout-titled" title="Worked solution">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-3-contents" aria-controls="callout-3" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Worked solution
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-3" class="callout-3-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>This uses <a href="../lectures/week06.html#sec-hmm">Week 6, Hidden Markov models</a>. The factorization is <span class="math inline">p(z_1)\prod_{t\ge2}p(z_t\mid z_{t-1})\prod_t p(x_t\mid z_t)</span>. Group the factors by time step:</p>
+<ul>
+<li><span class="math inline">t=1</span>: initial <span class="math inline">\pi(1)=0.6</span> times emission <span class="math inline">p(x_1=1\mid z_1=1)=0.1</span>, giving <span class="math inline">0.06</span>.</li>
+<li><span class="math inline">t=2</span>: transition <span class="math inline">\Psi(1,1)=0.7</span> times emission <span class="math inline">p(x_2=0\mid z_2=1)=0.9</span>, giving <span class="math inline">0.63</span>.</li>
+<li><span class="math inline">t=3</span>: transition <span class="math inline">\Psi(1,2)=0.3</span> times emission <span class="math inline">p(x_3=1\mid z_3=2)=0.8</span>, giving <span class="math inline">0.24</span>.</li>
+</ul>
+<p>Multiply: <span class="math inline">0.06\times0.63\times0.24</span>.</p>
+<p><strong>Answer.</strong> <span class="math inline">p(z_{1:3}=(1,1,2), x_{1:3}) = 0.009072</span>.</p>
+</div>
+</div>
+</div>
+</section>
+<section id="prb-4" class="level3">
+<h3 class="anchored" data-anchor-id="prb-4">Problem 4: The emission vector is not a distribution</h3>
+<p>In HMM-B the observation at <span class="math inline">t=2</span> is <span class="math inline">x_2=0</span>. A student writes “<span class="math inline">\psi_2 = (0.9,\ 0.1)</span>, and since it is a probability vector its entries sum to 1.” What is <span class="math inline">\psi_2</span> actually, and what is wrong with the claim?</p>
+<div class="practice-answer callout callout-style-default callout-tip callout-titled" title="Worked solution">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-4-contents" aria-controls="callout-4" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Worked solution
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-4" class="callout-4-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>This uses the definition of <span class="math inline">\psi_t</span> in <a href="../lectures/week06.html#sec-hmm">Week 6, Hidden Markov models</a>. <span class="math inline">\psi_t(i)=p(x_t\mid z_t=i)</span> with <span class="math inline">x_t</span> fixed at its observed value. So we read the <strong>column</strong> of the emission table for <span class="math inline">x=0</span>, one entry per hidden state: <span class="math inline">\psi_2 = (p(x=0\mid z=1),\ p(x=0\mid z=2)) = (0.9,\ 0.2)</span>.</p>
+<p>The student read the <strong>row</strong> for <span class="math inline">z=1</span>, which is a distribution over <span class="math inline">x</span> and does sum to 1. The column is a likelihood over hidden states: each entry comes from a different conditional distribution, so nothing forces them to sum to 1. Here they sum to <span class="math inline">1.1</span>.</p>
+<p><strong>Answer.</strong> <span class="math inline">\psi_2=(0.9,\ 0.2)</span>, a likelihood over states whose entries sum to <span class="math inline">1.1</span>; the student took a row of the emission table instead of the column for the observed value.</p>
+</div>
+</div>
+</div>
+</section>
+<section id="prb-5" class="level3">
+<h3 class="anchored" data-anchor-id="prb-5">Problem 5: Reading independences off the HMM graph</h3>
+<p>For a general HMM, mark each statement true or false and give the reason.</p>
+<ol type="1">
+<li><span class="math inline">x_1\perp x_3\mid z_2</span></li>
+<li><span class="math inline">x_1\perp x_3\mid x_2</span></li>
+<li><span class="math inline">z_1\perp z_3\mid z_2</span></li>
+<li><span class="math inline">z_1\perp z_3\mid x_2</span></li>
+<li><span class="math inline">x_2\perp z_1\mid z_2</span></li>
+</ol>
+<div class="practice-answer callout callout-style-default callout-tip callout-titled" title="Worked solution">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-5-contents" aria-controls="callout-5" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Worked solution
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-5" class="callout-5-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>This uses the separation argument in <a href="../lectures/week06.html#sec-hmm">Week 6, Hidden Markov models</a>, which is Week 2’s d-separation applied to Figure 1 of the week chapter. Every path between past and future runs along the hidden chain, and each hidden node on such a path is a chain or fork node, so observing it blocks the path.</p>
+<ol type="1">
+<li><strong>True.</strong> The only path is <span class="math inline">x_1\leftarrow z_1\to z_2\to z_3\to x_3</span>, and it passes through the observed <span class="math inline">z_2</span>.</li>
+<li><strong>False.</strong> The same path avoids <span class="math inline">x_2</span> entirely. <span class="math inline">x_2</span> is a child of <span class="math inline">z_2</span>, not on the path, so observing it does not block anything (Problem 1 showed this numerically).</li>
+<li><strong>True.</strong> <span class="math inline">z_2</span> is the middle of the chain <span class="math inline">z_1\to z_2\to z_3</span>.</li>
+<li><strong>False.</strong> <span class="math inline">z_2</span> is unobserved, so the chain <span class="math inline">z_1\to z_2\to z_3</span> stays open.</li>
+<li><strong>True.</strong> The only path is <span class="math inline">x_2\leftarrow z_2\leftarrow z_1</span>, blocked at <span class="math inline">z_2</span>.</li>
+</ol>
+<p><strong>Answer.</strong> True, false, true, false, true.</p>
+</div>
+</div>
+</div>
+</section>
+</section>
+<section id="sec-w6p-goals" class="level2">
+<h2 class="anchored" data-anchor-id="sec-w6p-goals">Two inference questions</h2>
+<section id="prb-6" class="level3">
+<h3 class="anchored" data-anchor-id="prb-6">Problem 6: Brute force versus recursion, and which question is being asked</h3>
+<ol type="1">
+<li>An HMM has <span class="math inline">K=4</span> hidden states and <span class="math inline">T=20</span> time steps. How many hidden sequences would brute-force enumeration visit, and roughly how many basic operations does one pass of the forward recursion need?</li>
+<li>For each request, say whether it asks for the marginal posteriors <span class="math inline">p(z_t\mid x_{1:T})</span> or the MAP sequence:
+<ol type="a">
+<li>“How probable is it that the hidden state at time 7 was state 3?”</li>
+<li>“Give the single most probable explanation of the whole sequence.”</li>
+<li>“At each time step separately, report the most probable state.”</li>
+</ol></li>
+</ol>
+<div class="practice-answer callout callout-style-default callout-tip callout-titled" title="Worked solution">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-6-contents" aria-controls="callout-6" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Worked solution
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-6" class="callout-6-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>This uses <a href="../lectures/week06.html#sec-hmm-goals">Week 6, Two inference questions</a>.</p>
+<ol type="1">
+<li>Each of the <span class="math inline">T</span> hidden variables takes <span class="math inline">K</span> values, so there are <span class="math inline">K^T = 4^{20}\approx1.1\times10^{12}</span> sequences. The forward recursion does a <span class="math inline">K\times K</span> matrix-vector product per step, about <span class="math inline">TK^2 = 20\cdot16=320</span> multiply-adds.</li>
+<li><ol type="a">
+<li>A single marginal <span class="math inline">\gamma_7(3)</span>: forward-backward. (b) The jointly most probable sequence: Viterbi. (c) This is the argmax of each <span class="math inline">\gamma_t</span> separately, which comes from forward-backward. It is <strong>not</strong> the same as (b): the most probable sequence need not be built from the individually most probable states (Problem 14 constructs an example).</li>
+</ol></li>
+</ol>
+<p><strong>Answer.</strong> (1) About <span class="math inline">1.1\times10^{12}</span> sequences against about <span class="math inline">320</span> operations. (2) Marginal, MAP, marginal.</p>
+</div>
+</div>
+</div>
+</section>
+</section>
+<section id="sec-w6p-forward" class="level2">
+<h2 class="anchored" data-anchor-id="sec-w6p-forward">The forward algorithm</h2>
+<section id="prb-7" class="level3">
+<h3 class="anchored" data-anchor-id="prb-7">Problem 7: A forward pass on HMM-B</h3>
+<p>Run the forward recursion on HMM-B with <span class="math inline">x_{1:3}=(1,0,1)</span>. Report <span class="math inline">\alpha_1,\alpha_2,\alpha_3</span> and each normalizer.</p>
+<div class="practice-answer callout callout-style-default callout-tip callout-titled" title="Worked solution">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-7-contents" aria-controls="callout-7" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Worked solution
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-7" class="callout-7-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>This uses <a href="../lectures/week06.html#sec-forward">Week 6, The forward algorithm</a>: <span class="math inline">\alpha_1\propto\psi_1\odot\pi</span> and <span class="math inline">\alpha_t\propto\psi_t\odot(\Psi^\top\alpha_{t-1})</span>. The emission vectors are the table columns for the observed values: <span class="math inline">\psi_1=\psi_3=(0.1,\ 0.8)</span> and <span class="math inline">\psi_2=(0.9,\ 0.2)</span>.</p>
+<ul>
+<li><span class="math inline">t=1</span>: <span class="math inline">\psi_1\odot\pi = (0.06,\ 0.32)</span>. Normalizer <span class="math inline">0.38</span>, so <span class="math inline">\alpha_1\approx(0.158,\ 0.842)</span>.</li>
+<li><span class="math inline">t=2</span>: predict <span class="math inline">\Psi^\top\alpha_1 = (0.7\cdot0.158+0.4\cdot0.842,\ \ 0.3\cdot0.158+0.6\cdot0.842)\approx(0.447,\ 0.553)</span>. Update: <span class="math inline">(0.9\cdot0.447,\ 0.2\cdot0.553)\approx(0.403,\ 0.111)</span>. Normalizer <span class="math inline">\approx0.513</span>, so <span class="math inline">\alpha_2\approx(0.785,\ 0.215)</span>.</li>
+<li><span class="math inline">t=3</span>: predict <span class="math inline">\Psi^\top\alpha_2\approx(0.635,\ 0.365)</span>. Update: <span class="math inline">(0.1\cdot0.635,\ 0.8\cdot0.365)\approx(0.064,\ 0.292)</span>. Normalizer <span class="math inline">\approx0.355</span>, so <span class="math inline">\alpha_3\approx(0.179,\ 0.821)</span>.</li>
+</ul>
+<p>Each step follows the observation: a 1 favours state 2, a 0 favours state 1, and the chain’s tendency to stay put softens each swing.</p>
+<p><strong>Answer.</strong> <span class="math inline">\alpha_1\approx(0.158,0.842)</span>, <span class="math inline">\alpha_2\approx(0.785,0.215)</span>, <span class="math inline">\alpha_3\approx(0.179,0.821)</span>; normalizers <span class="math inline">0.38</span>, <span class="math inline">0.513</span>, <span class="math inline">0.355</span>.</p>
+</div>
+</div>
+</div>
+</section>
+<section id="prb-8" class="level3">
+<h3 class="anchored" data-anchor-id="prb-8">Problem 8: A transposition bug</h3>
+<p>A student implements the forward step as <code>alpha = psi_t * (Psi @ alpha_prev)</code>, that is <span class="math inline">\alpha_t\propto\psi_t\odot(\Psi\,\alpha_{t-1})</span>. Using HMM-B’s <span class="math inline">\alpha_1</span> from Problem 7, compute what the student’s code gives for <span class="math inline">\alpha_2</span>, explain why it is wrong, and give one quick check that would have caught it.</p>
+<div class="practice-answer callout callout-style-default callout-tip callout-titled" title="Worked solution">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-8-contents" aria-controls="callout-8" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Worked solution
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-8" class="callout-8-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>This uses the derivation in <a href="../lectures/week06.html#sec-forward">Week 6, The forward algorithm</a>. The prediction step is <span class="math inline">p(z_t=j\mid x_{1:t-1})=\sum_i\Psi(i,j)\alpha_{t-1}(i)</span>: we sum down <strong>column</strong> <span class="math inline">j</span> of <span class="math inline">\Psi</span>, over where the chain came from. That is <span class="math inline">(\Psi^\top\alpha_{t-1})(j)</span>.</p>
+<p>The student’s <span class="math inline">(\Psi\alpha_{t-1})(i)=\sum_j\Psi(i,j)\alpha_{t-1}(j)</span> sums along <strong>row</strong> <span class="math inline">i</span>, weighting the probabilities of leaving <span class="math inline">i</span> by beliefs about other states. It has no probabilistic meaning here (it has the shape of the backward recursion instead).</p>
+<p>With <span class="math inline">\alpha_1\approx(0.158,\ 0.842)</span>: <span class="math inline">\Psi\alpha_1 \approx(0.7\cdot0.158+0.3\cdot0.842,\ \ 0.4\cdot0.158+0.6\cdot0.842)=(0.363,\ 0.568)</span>. Multiply by <span class="math inline">\psi_2=(0.9,0.2)</span> and normalize: <span class="math inline">\alpha_2\approx(0.742,\ 0.258)</span>, against the correct <span class="math inline">(0.785,\ 0.215)</span>.</p>
+<p>The quick check: a predicted distribution must sum to 1. <span class="math inline">\Psi^\top\alpha_1</span> always does (each row of <span class="math inline">\Psi</span> sums to 1), but <span class="math inline">\Psi\alpha_1</span> sums to <span class="math inline">0.932</span> here. The bug is invisible when <span class="math inline">\Psi</span> is symmetric, which is why it should be tested on a non-symmetric <span class="math inline">\Psi</span>.</p>
+<p><strong>Answer.</strong> The bug gives <span class="math inline">\alpha_2\approx(0.742,0.258)</span> instead of <span class="math inline">(0.785,0.215)</span>. Check that the predicted vector sums to 1 before multiplying by <span class="math inline">\psi_t</span>.</p>
+</div>
+</div>
+</div>
+</section>
+<section id="prb-9" class="level3">
+<h3 class="anchored" data-anchor-id="prb-9">Problem 9: The probability of the data from the normalizers</h3>
+<p>Using the normalizers from Problem 7, compute <span class="math inline">p(x_{1:2})</span> for HMM-B. Then check it by summing the joint over all four hidden pairs <span class="math inline">(z_1,z_2)</span>.</p>
+<div class="practice-answer callout callout-style-default callout-tip callout-titled" title="Worked solution">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-9-contents" aria-controls="callout-9" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Worked solution
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-9" class="callout-9-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>This uses <a href="../lectures/week06.html#sec-forward">Week 6, The forward algorithm</a> and the arithmetic check in <a href="../lectures/week06.html#sec-hmm-example">Worked example: a two-state HMM</a>. The normalizer at step <span class="math inline">t</span> is <span class="math inline">\sum_j\psi_t(j)\,p(z_t=j\mid x_{1:t-1}) = p(x_t\mid x_{1:t-1})</span>, so by the chain rule the product of the first two normalizers is <span class="math inline">p(x_1)\,p(x_2\mid x_1)=p(x_{1:2})</span>:</p>
+<p><span class="math display">p(x_{1:2}) = 0.38\times0.513\approx0.195.</span></p>
+<p>Brute force with <span class="math inline">x_{1:2}=(1,0)</span>, each term <span class="math inline">\pi(z_1)\,\psi_1(z_1)\,\Psi(z_1,z_2)\,\psi_2(z_2)</span>:</p>
+<ul>
+<li><span class="math inline">(1,1)</span>: <span class="math inline">0.6\cdot0.1\cdot0.7\cdot0.9 = 0.0378</span></li>
+<li><span class="math inline">(1,2)</span>: <span class="math inline">0.6\cdot0.1\cdot0.3\cdot0.2 = 0.0036</span></li>
+<li><span class="math inline">(2,1)</span>: <span class="math inline">0.4\cdot0.8\cdot0.4\cdot0.9 = 0.1152</span></li>
+<li><span class="math inline">(2,2)</span>: <span class="math inline">0.4\cdot0.8\cdot0.6\cdot0.2 = 0.0384</span></li>
+</ul>
+<p>The sum is <span class="math inline">0.195</span>.</p>
+<p><strong>Answer.</strong> <span class="math inline">p(x_{1:2})=0.195</span> both ways.</p>
+</div>
+</div>
+</div>
+</section>
+</section>
+<section id="sec-w6p-fb" class="level2">
+<h2 class="anchored" data-anchor-id="sec-w6p-fb">The forward-backward algorithm</h2>
+<section id="prb-10" class="level3">
+<h3 class="anchored" data-anchor-id="prb-10">Problem 10: Smoothing HMM-B</h3>
+<p>Finish forward-backward on HMM-B: compute <span class="math inline">\beta_3,\beta_2,\beta_1</span>, then <span class="math inline">\gamma_1,\gamma_2,\gamma_3</span>. Compare <span class="math inline">\gamma_1</span> with <span class="math inline">\alpha_1</span>.</p>
+<div class="practice-answer callout callout-style-default callout-tip callout-titled" title="Worked solution">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-10-contents" aria-controls="callout-10" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Worked solution
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-10" class="callout-10-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>This uses <a href="../lectures/week06.html#sec-fb">Week 6, The forward-backward algorithm</a>: <span class="math inline">\beta_T=\mathbf 1</span>, <span class="math inline">\beta_t=\Psi(\psi_{t+1}\odot\beta_{t+1})</span>, and <span class="math inline">\gamma_t\propto\alpha_t\odot\beta_t</span>. The <span class="math inline">\alpha</span>’s come from Problem 7.</p>
+<p><strong>Backward pass.</strong></p>
+<ul>
+<li><span class="math inline">\beta_3=(1,\ 1)</span>.</li>
+<li><span class="math inline">\beta_2 = \Psi(\psi_3\odot\beta_3) = \Psi\,(0.1,\ 0.8)^\top = (0.07+0.24,\ \ 0.04+0.48) = (0.31,\ 0.52)</span>.</li>
+<li><span class="math inline">\beta_1 = \Psi(\psi_2\odot\beta_2) = \Psi\,(0.279,\ 0.104)^\top = (0.7\cdot0.279+0.3\cdot0.104,\ \ 0.4\cdot0.279+0.6\cdot0.104) = (0.2265,\ 0.174)</span>.</li>
+</ul>
+<p><strong>Combine.</strong></p>
+<ul>
+<li><span class="math inline">\gamma_1\propto(0.158\cdot0.2265,\ 0.842\cdot0.174)\approx(0.0358,\ 0.1465)</span>, so <span class="math inline">\gamma_1\approx(0.196,\ 0.804)</span>.</li>
+<li><span class="math inline">\gamma_2\propto(0.785\cdot0.31,\ 0.215\cdot0.52)\approx(0.243,\ 0.112)</span>, so <span class="math inline">\gamma_2\approx(0.685,\ 0.315)</span>.</li>
+<li><span class="math inline">\gamma_3=\alpha_3\approx(0.179,\ 0.821)</span>.</li>
+</ul>
+<p><span class="math inline">\gamma_1</span> is close to <span class="math inline">\alpha_1=(0.158,0.842)</span> but shifted toward state 1: the next observation is a 0, which favours state 1 at <span class="math inline">t=2</span>, and the chain makes state 1 at <span class="math inline">t=1</span> a little more plausible as a result. Enumerating all 8 hidden sequences gives the same <span class="math inline">\gamma</span>’s.</p>
+<p><strong>Answer.</strong> <span class="math inline">\beta_2=(0.31,0.52)</span>, <span class="math inline">\beta_1=(0.2265,0.174)</span>; <span class="math inline">\gamma_1\approx(0.196,0.804)</span>, <span class="math inline">\gamma_2\approx(0.685,0.315)</span>, <span class="math inline">\gamma_3\approx(0.179,0.821)</span>.</p>
+</div>
+</div>
+</div>
+</section>
+<section id="prb-11" class="level3">
+<h3 class="anchored" data-anchor-id="prb-11">Problem 11: What the backward vector carries</h3>
+<ol type="1">
+<li>Suppose every emission is uninformative: <span class="math inline">p(x\mid z=i)</span> is the same for all states <span class="math inline">i</span>, for every observed <span class="math inline">x</span>. Predict <span class="math inline">\beta_t</span> and <span class="math inline">\gamma_t</span> without computing.</li>
+<li>Show that for every <span class="math inline">t</span>, <span class="math inline">\;p(x_{1:t})\sum_i\alpha_t(i)\beta_t(i) = p(x_{1:T})</span>. Check it on HMM-B at <span class="math inline">t=1</span>, <span class="math inline">t=2</span>, and <span class="math inline">t=3</span>.</li>
+</ol>
+<div class="practice-answer callout callout-style-default callout-tip callout-titled" title="Worked solution">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-11-contents" aria-controls="callout-11" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Worked solution
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-11" class="callout-11-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>This uses the definitions of <span class="math inline">\alpha_t</span> and <span class="math inline">\beta_t</span> in <a href="../lectures/week06.html#sec-forward">Week 6, The forward algorithm</a> and <a href="../lectures/week06.html#sec-fb">The forward-backward algorithm</a>.</p>
+<ol type="1">
+<li>If <span class="math inline">\psi_{t+1}(j)=c_{t+1}</span> for all <span class="math inline">j</span>, then <span class="math inline">\beta_t=\Psi(c_{t+1}\beta_{t+1})</span>. Starting from <span class="math inline">\beta_T=\mathbf 1</span> and using that each row of <span class="math inline">\Psi</span> sums to 1, every <span class="math inline">\beta_t</span> is a constant vector. A constant vector disappears in the normalization, so <span class="math inline">\gamma_t=\alpha_t</span>. The future observations carry no information about which state we were in. In the same way, the <span class="math inline">\psi</span>’s in the forward pass are constant, so <span class="math inline">\alpha_t</span> is just the chain’s own marginal <span class="math inline">p(z_t)</span>: the observations tell us nothing at all.</li>
+<li>From the definitions, <span class="math inline">\alpha_t(i)\,p(x_{1:t}) = p(z_t=i, x_{1:t})</span>, and multiplying by <span class="math inline">\beta_t(i)=p(x_{t+1:T}\mid z_t=i)=p(x_{t+1:T}\mid z_t=i, x_{1:t})</span> gives <span class="math inline">p(z_t=i, x_{1:T})</span>. Summing over <span class="math inline">i</span> leaves <span class="math inline">p(x_{1:T})</span>, whatever <span class="math inline">t</span> is.</li>
+</ol>
+<p>On HMM-B:</p>
+<ul>
+<li><span class="math inline">t=1</span>: <span class="math inline">0.38\times(0.158\cdot0.2265+0.842\cdot0.174)\approx0.38\times0.1823\approx0.0693</span>.</li>
+<li><span class="math inline">t=2</span>: <span class="math inline">0.195\times(0.785\cdot0.31+0.215\cdot0.52)\approx0.195\times0.3552\approx0.0693</span>.</li>
+<li><span class="math inline">t=3</span>: <span class="math inline">0.0693\times(0.179+0.821)=0.0693</span>.</li>
+</ul>
+<p><strong>Answer.</strong> (1) Every <span class="math inline">\beta_t</span> is constant and <span class="math inline">\gamma_t=\alpha_t</span>. (2) The sum equals <span class="math inline">p(x_{1:3})\approx0.0693</span> at each <span class="math inline">t</span>, which is a useful bug check for an implementation.</p>
+</div>
+</div>
+</div>
+</section>
+</section>
+<section id="sec-w6p-example" class="level2">
+<h2 class="anchored" data-anchor-id="sec-w6p-example">Worked example: a two-state HMM</h2>
+<section id="prb-12" class="level3">
+<h3 class="anchored" data-anchor-id="prb-12">Problem 12: Remove the chain’s memory</h3>
+<p>Take the week’s worked example (same <span class="math inline">\pi</span>, emissions, and observations <span class="math inline">(0,1,1)</span>) but replace the transition matrix with <span class="math inline">\Psi=\begin{pmatrix}0.5&amp;0.5\\0.5&amp;0.5\end{pmatrix}</span>. Predict <span class="math inline">\gamma_1,\gamma_2,\gamma_3</span> before computing, then verify with forward-backward. Why did the original worked example’s <span class="math inline">\gamma_1</span> differ from <span class="math inline">\alpha_1</span>, and why can that not happen here?</p>
+<div class="practice-answer callout callout-style-default callout-tip callout-titled" title="Worked solution">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-12-contents" aria-controls="callout-12" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Worked solution
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-12" class="callout-12-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>This modifies <a href="../lectures/week06.html#sec-hmm-example">Week 6, Worked example: a two-state HMM</a>. With every row of <span class="math inline">\Psi</span> equal to <span class="math inline">(0.5,0.5)</span>, the next state ignores the current one, so the hidden states are independent and each <span class="math inline">z_t</span> is uniform. Then <span class="math inline">z_t</span> can only learn from its own observation: <span class="math inline">\gamma_t\propto\psi_t</span>.</p>
+<p>Verify. <span class="math inline">\psi_1=(0.8,\ 0.4)</span> and <span class="math inline">\psi_2=\psi_3=(0.2,\ 0.6)</span>.</p>
+<ul>
+<li>Forward: <span class="math inline">\alpha_1\propto(0.4,0.2)</span>, so <span class="math inline">(0.667,0.333)</span>. Prediction is <span class="math inline">\Psi^\top\alpha_1=(0.5,0.5)</span> whatever <span class="math inline">\alpha_1</span> is, so <span class="math inline">\alpha_2=\alpha_3\propto(0.2,0.6)</span>, which is <span class="math inline">(0.25,0.75)</span>.</li>
+<li>Backward: <span class="math inline">\beta_3=(1,1)</span>; <span class="math inline">\beta_2=\Psi(0.2,0.6)^\top=(0.4,0.4)</span>; <span class="math inline">\beta_1=\Psi(0.08,0.24)^\top=(0.16,0.16)</span>. Every <span class="math inline">\beta_t</span> is constant.</li>
+<li>So <span class="math inline">\gamma_t=\alpha_t</span>: <span class="math inline">\gamma_1=(0.667,0.333)</span>, <span class="math inline">\gamma_2=\gamma_3=(0.25,0.75)</span>, which is each <span class="math inline">\psi_t</span> normalized.</li>
+</ul>
+<p>In the original example the sticky chain linked <span class="math inline">z_1</span> to <span class="math inline">z_2</span> and <span class="math inline">z_3</span>, so the two later 1’s pulled <span class="math inline">\gamma_1</span> toward state 2. Smoothing adds information only through dependence between hidden states. Without it, <span class="math inline">\beta_t</span> is constant and the future observations say nothing about <span class="math inline">z_t</span>.</p>
+<p><strong>Answer.</strong> <span class="math inline">\gamma_1\approx(0.667,0.333)</span>, <span class="math inline">\gamma_2=\gamma_3=(0.25,0.75)</span>; each equals the normalized emission vector, and <span class="math inline">\gamma_t=\alpha_t</span> because the hidden states are independent.</p>
+</div>
+</div>
+</div>
+</section>
+</section>
+<section id="sec-w6p-viterbi" class="level2">
+<h2 class="anchored" data-anchor-id="sec-w6p-viterbi">The Viterbi algorithm</h2>
+<section id="prb-13" class="level3">
+<h3 class="anchored" data-anchor-id="prb-13">Problem 13: Viterbi on HMM-B</h3>
+<p>Run the Viterbi algorithm on HMM-B with <span class="math inline">x_{1:3}=(1,0,1)</span>. Report every <span class="math inline">\delta_t</span>, every back-pointer, the MAP sequence, and its posterior probability (use <span class="math inline">p(x_{1:3})\approx0.06927</span> from Problem 11).</p>
+<div class="practice-answer callout callout-style-default callout-tip callout-titled" title="Worked solution">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-13-contents" aria-controls="callout-13" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Worked solution
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-13" class="callout-13-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>This uses <a href="../lectures/week06.html#sec-viterbi">Week 6, The Viterbi algorithm</a>.</p>
+<ul>
+<li><span class="math inline">t=1</span>: <span class="math inline">\delta_1=\pi\odot\psi_1=(0.06,\ 0.32)</span>.</li>
+<li><span class="math inline">t=2</span>, <span class="math inline">j=1</span>: candidates <span class="math inline">0.06\cdot0.7=0.042</span> and <span class="math inline">0.32\cdot0.4=0.128</span>. Winner <span class="math inline">i=2</span>, so <span class="math inline">\theta_2(1)=2</span> and <span class="math inline">\delta_2(1)=0.9\cdot0.128=0.1152</span>.</li>
+<li><span class="math inline">t=2</span>, <span class="math inline">j=2</span>: candidates <span class="math inline">0.06\cdot0.3=0.018</span> and <span class="math inline">0.32\cdot0.6=0.192</span>. Winner <span class="math inline">i=2</span>, so <span class="math inline">\theta_2(2)=2</span> and <span class="math inline">\delta_2(2)=0.2\cdot0.192=0.0384</span>.</li>
+<li><span class="math inline">t=3</span>, <span class="math inline">j=1</span>: candidates <span class="math inline">0.1152\cdot0.7=0.08064</span> and <span class="math inline">0.0384\cdot0.4=0.01536</span>. Winner <span class="math inline">i=1</span>, so <span class="math inline">\theta_3(1)=1</span> and <span class="math inline">\delta_3(1)=0.1\cdot0.08064=0.008064</span>.</li>
+<li><span class="math inline">t=3</span>, <span class="math inline">j=2</span>: candidates <span class="math inline">0.1152\cdot0.3=0.03456</span> and <span class="math inline">0.0384\cdot0.6=0.02304</span>. Winner <span class="math inline">i=1</span>, so <span class="math inline">\theta_3(2)=1</span> and <span class="math inline">\delta_3(2)=0.8\cdot0.03456=0.027648</span>.</li>
+<li>Termination: <span class="math inline">z^*_3=2</span>. Traceback: <span class="math inline">z^*_2=\theta_3(2)=1</span>, <span class="math inline">z^*_1=\theta_2(1)=2</span>.</li>
+</ul>
+<p>Its posterior probability is <span class="math inline">0.027648/0.06927\approx0.399</span>. Here the MAP sequence agrees with the per-step argmaxes of the <span class="math inline">\gamma</span>’s from Problem 10, but that is a property of this example, not a rule.</p>
+<p><strong>Answer.</strong> MAP sequence <span class="math inline">(2,1,2)</span>, joint probability <span class="math inline">0.027648</span>, posterior probability about <span class="math inline">0.40</span>.</p>
+</div>
+</div>
+</div>
+</section>
+<section id="prb-14" class="level3">
+<h3 class="anchored" data-anchor-id="prb-14">Problem 14: When the best sequence is not built from the best states</h3>
+<p>An HMM has <span class="math inline">\pi=(0.1,\ 0.9)</span>, <span class="math inline">\Psi=\begin{pmatrix}0.7&amp;0.3\\0.3&amp;0.7\end{pmatrix}</span>, and <span class="math inline">p(x=0\mid z=1)=0.8</span>, <span class="math inline">p(x=0\mid z=2)=0.4</span>. We observe <span class="math inline">x_{1:2}=(0,0)</span>.</p>
+<ol type="1">
+<li>Compute the joint <span class="math inline">p(z_{1:2},x_{1:2})</span> for all four hidden pairs and normalize.</li>
+<li>Find the MAP sequence and the argmax of each marginal <span class="math inline">p(z_t\mid x_{1:2})</span>.</li>
+<li>Explain the difference.</li>
+</ol>
+<div class="practice-answer callout callout-style-default callout-tip callout-titled" title="Worked solution">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-14-contents" aria-controls="callout-14" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Worked solution
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-14" class="callout-14-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>This uses <a href="../lectures/week06.html#sec-hmm-goals">Week 6, Two inference questions</a> and the remark in <a href="../lectures/week06.html#sec-viterbi">The Viterbi algorithm</a> that the most probable sequence need not agree with the marginals.</p>
+<ol type="1">
+<li>Each term is <span class="math inline">\pi(z_1)\,p(x_1=0\mid z_1)\,\Psi(z_1,z_2)\,p(x_2=0\mid z_2)</span>:
+<ul>
+<li><span class="math inline">(1,1)</span>: <span class="math inline">0.1\cdot0.8\cdot0.7\cdot0.8=0.0448</span></li>
+<li><span class="math inline">(1,2)</span>: <span class="math inline">0.1\cdot0.8\cdot0.3\cdot0.4=0.0096</span></li>
+<li><span class="math inline">(2,1)</span>: <span class="math inline">0.9\cdot0.4\cdot0.3\cdot0.8=0.0864</span></li>
+<li><span class="math inline">(2,2)</span>: <span class="math inline">0.9\cdot0.4\cdot0.7\cdot0.4=0.1008</span></li>
+</ul>
+The total is <span class="math inline">0.2416</span>, so the posteriors are about <span class="math inline">0.185</span>, <span class="math inline">0.040</span>, <span class="math inline">0.358</span>, <span class="math inline">0.417</span>.</li>
+<li>The MAP sequence is <span class="math inline">(2,2)</span>, with probability <span class="math inline">0.417</span>. Marginally, <span class="math inline">p(z_1=2\mid x)=0.358+0.417=0.775</span>, so the best <span class="math inline">z_1</span> is 2; <span class="math inline">p(z_2=1\mid x)=0.185+0.358=0.543</span>, so the best <span class="math inline">z_2</span> is 1. The per-step answer is <span class="math inline">(2,1)</span>, with probability only <span class="math inline">0.358</span>.</li>
+<li>The marginal of <span class="math inline">z_2</span> adds probability from two different sequences, <span class="math inline">(1,1)</span> and <span class="math inline">(2,1)</span>, which disagree about <span class="math inline">z_1</span>. Neither alone beats <span class="math inline">(2,2)</span>, but together they make state 1 the better guess for <span class="math inline">z_2</span>. Viterbi asks for one coherent sequence; forward-backward asks about each position separately. Both answers are correct, for different questions.</li>
+</ol>
+<p><strong>Answer.</strong> MAP sequence <span class="math inline">(2,2)</span>; per-step marginal argmaxes <span class="math inline">(2,1)</span>.</p>
+</div>
+</div>
+</div>
+</section>
+<section id="prb-15" class="level3">
+<h3 class="anchored" data-anchor-id="prb-15">Problem 15: Reading a Viterbi implementation</h3>
+<p>The following log-space Viterbi is run on HMM-B with <span class="math inline">x_{1:3}=(1,0,1)</span>. States are 0-indexed in code, so code state 0 is state 1.</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> numpy <span class="im">as</span> np</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> viterbi(log_pi, log_Psi, log_psi):     <span class="co"># log_psi has shape (T, K)</span></span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>    T, K <span class="op">=</span> log_psi.shape</span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a>    d <span class="op">=</span> log_pi <span class="op">+</span> log_psi[<span class="dv">0</span>]</span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a>    back <span class="op">=</span> np.zeros((T, K), dtype<span class="op">=</span><span class="bu">int</span>)</span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> t <span class="kw">in</span> <span class="bu">range</span>(<span class="dv">1</span>, T):</span>
+<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a>        cand <span class="op">=</span> d[:, <span class="va">None</span>] <span class="op">+</span> log_Psi        <span class="co"># cand[i, j] = d[i] + log Psi(i, j)</span></span>
+<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a>        back[t] <span class="op">=</span> cand.argmax(axis<span class="op">=</span><span class="dv">0</span>)</span>
+<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a>        d <span class="op">=</span> log_psi[t] <span class="op">+</span> cand.<span class="bu">max</span>(axis<span class="op">=</span><span class="dv">0</span>)</span>
+<span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a>    z <span class="op">=</span> [<span class="bu">int</span>(d.argmax())]</span>
+<span id="cb1-12"><a href="#cb1-12" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> t <span class="kw">in</span> <span class="bu">range</span>(T <span class="op">-</span> <span class="dv">1</span>, <span class="dv">0</span>, <span class="op">-</span><span class="dv">1</span>):</span>
+<span id="cb1-13"><a href="#cb1-13" aria-hidden="true" tabindex="-1"></a>        z.append(<span class="bu">int</span>(back[t <span class="op">-</span> <span class="dv">1</span>][z[<span class="op">-</span><span class="dv">1</span>]]))</span>
+<span id="cb1-14"><a href="#cb1-14" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> z[::<span class="op">-</span><span class="dv">1</span>]</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<ol type="1">
+<li>Why does the code add logs instead of multiplying probabilities, and why does that not change the answer?</li>
+<li>What does <code>back</code> contain after the loop?</li>
+<li>What does the function return, and what should it return? Fix the buggy line.</li>
+</ol>
+<div class="practice-answer callout callout-style-default callout-tip callout-titled" title="Worked solution">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-15-contents" aria-controls="callout-15" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Worked solution
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-15" class="callout-15-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>This uses the algorithm block in <a href="../lectures/week06.html#sec-viterbi">Week 6, The Viterbi algorithm</a>, with the back-pointers from Problem 13.</p>
+<ol type="1">
+<li><p>Products of many probabilities underflow toward zero in long sequences. Since <span class="math inline">\log</span> is increasing, <span class="math inline">\log\max = \max\log</span>, and the log of a product is the sum of the logs, so every comparison picks the same winner.</p></li>
+<li><p>Row <code>back[t]</code> stores <span class="math inline">\theta_{t+1}</span> in 0-indexed form. From Problem 13, <span class="math inline">\theta_2=(2,2)</span> and <span class="math inline">\theta_3=(1,1)</span>, so <code>back = [[0,0],[1,1],[0,0]]</code>. Row 0 is never filled and stays zero.</p></li>
+<li><p>The final <code>d</code> is largest at index 1, so <code>z = [1]</code>. The traceback loop runs <span class="math inline">t=2</span> then <span class="math inline">t=1</span>:</p>
+<ul>
+<li><span class="math inline">t=2</span>: it reads <code>back[1][1] = 1</code> (it should read <code>back[2][1] = 0</code>), so it appends 1.</li>
+<li><span class="math inline">t=1</span>: it reads <code>back[0][1] = 0</code>, the unfilled row, so it appends 0.</li>
+</ul>
+<p>Reversed, it returns <code>[0, 1, 1]</code>, the sequence <span class="math inline">(1,2,2)</span>. The correct MAP sequence is <span class="math inline">(2,1,2)</span>, which is <code>[1, 0, 1]</code>. The traceback uses the back-pointer stored at the <strong>later</strong> time step, <span class="math inline">z^*_t=\theta_{t+1}(z^*_{t+1})</span>, and in this code <span class="math inline">\theta_{t+1}</span> lives in <code>back[t]</code> when the loop variable is <span class="math inline">t</span>. Since the loop index runs from <span class="math inline">T-1</span>, it should read <code>back[t]</code>:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>z.append(<span class="bu">int</span>(back[t][z[<span class="op">-</span><span class="dv">1</span>]]))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div></li>
+</ol>
+<p><strong>Answer.</strong> Buggy output <code>[0, 1, 1]</code>; correct output <code>[1, 0, 1]</code>, after changing <code>back[t - 1]</code> to <code>back[t]</code>.</p>
+</div>
+</div>
+</div>
+</section>
+</section>
+<section id="sec-w6p-latent" class="level2">
+<h2 class="anchored" data-anchor-id="sec-w6p-latent">Posterior inference in latent variable models</h2>
+<section id="prb-16" class="level3">
+<h3 class="anchored" data-anchor-id="prb-16">Problem 16: Naming and computing the four pieces</h3>
+<p>A latent variable <span class="math inline">z\in\{1,2,3\}</span> has prior <span class="math inline">p(z)=(0.5,\ 0.3,\ 0.2)</span>. For the observed <span class="math inline">x</span>, the likelihood is <span class="math inline">p(x\mid z)=(0.1,\ 0.4,\ 0.8)</span> for <span class="math inline">z=1,2,3</span>. Compute the evidence and the posterior, and say which value of <span class="math inline">z</span> is favoured before and after seeing <span class="math inline">x</span>.</p>
+<div class="practice-answer callout callout-style-default callout-tip callout-titled" title="Worked solution">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-16-contents" aria-controls="callout-16" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Worked solution
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-16" class="callout-16-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>This uses <a href="../lectures/week06.html#sec-latent-post">Week 6, Posterior inference in latent variable models</a>.</p>
+<ul>
+<li>Joint <span class="math inline">p(x,z)=p(z)\,p(x\mid z)</span>: <span class="math inline">(0.05,\ 0.12,\ 0.16)</span>.</li>
+<li>Evidence <span class="math inline">p(x)=\sum_z p(x,z) = 0.33</span>. With three values of <span class="math inline">z</span>, the sum is three terms; with a high-dimensional continuous <span class="math inline">z</span>, it is the intractable integral of the week chapter.</li>
+<li>Posterior <span class="math inline">p(z\mid x)=p(x,z)/p(x)\approx(0.152,\ 0.364,\ 0.485)</span>.</li>
+</ul>
+<p>Before the data the prior favours <span class="math inline">z=1</span>; the likelihood is eight times larger at <span class="math inline">z=3</span> than at <span class="math inline">z=1</span>, enough to overturn a prior that was only 2.5 times larger the other way.</p>
+<p><strong>Answer.</strong> <span class="math inline">p(x)=0.33</span>; posterior <span class="math inline">\approx(0.152,\ 0.364,\ 0.485)</span>; the favoured value moves from <span class="math inline">z=1</span> to <span class="math inline">z=3</span>.</p>
+</div>
+</div>
+</div>
+</section>
+</section>
+<section id="sec-w6p-trueskill" class="level2">
+<h2 class="anchored" data-anchor-id="sec-w6p-trueskill">What the TrueSkill posterior looks like</h2>
+<section id="prb-17" class="level3">
+<h3 class="anchored" data-anchor-id="prb-17">Problem 17: What game outcomes cannot tell us</h3>
+<p>Three players have skills <span class="math inline">z_A,z_B,z_C</span> with independent <span class="math inline">\mathcal N(0,\sigma^2)</span> priors and the course’s TrueSkill likelihood <span class="math inline">p(i\text{ beats }j\mid z_i,z_j)=\sigma(z_i-z_j)</span>. We observe that <span class="math inline">A</span> beat <span class="math inline">B</span> and <span class="math inline">B</span> beat <span class="math inline">C</span>.</p>
+<ol type="1">
+<li>Show that the likelihood is unchanged if we add the same constant <span class="math inline">c</span> to all three skills.</li>
+<li>Which combination of skills is left exactly as uncertain as the prior made it? (Hint: write the skills as their average <span class="math inline">\bar z=(z_A+z_B+z_C)/3</span> plus deviations from it, and use that, for independent equal-variance Gaussians, the average is independent of the deviations.)</li>
+</ol>
+<div class="practice-answer callout callout-style-default callout-tip callout-titled" title="Worked solution">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-17-contents" aria-controls="callout-17" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Worked solution
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-17" class="callout-17-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>This uses <a href="../lectures/week06.html#sec-trueskill-post">Week 6, What the TrueSkill posterior looks like</a> and the model in Week 4.</p>
+<ol type="1">
+<li>The likelihood is <span class="math inline">\sigma(z_A-z_B)\,\sigma(z_B-z_C)</span>. Adding <span class="math inline">c</span> to every skill leaves each difference unchanged, so the likelihood is unchanged.</li>
+<li>The likelihood depends only on the deviations <span class="math inline">z_A-\bar z</span>, <span class="math inline">z_B-\bar z</span>, <span class="math inline">z_C-\bar z</span> (the pairwise differences are differences of deviations). Under the prior, <span class="math inline">\bar z\sim\mathcal N(0,\sigma^2/3)</span> and <span class="math inline">\bar z</span> is independent of the deviations. So the posterior factorizes into (prior on <span class="math inline">\bar z</span>) times (something depending only on the deviations), and the posterior of <span class="math inline">\bar z</span> is exactly its prior, <span class="math inline">\mathcal N(0,\sigma^2/3)</span>, however many games we observe.</li>
+</ol>
+<p>This is the three-player form of the lecture’s fourth picture: game outcomes can pin down how players compare, never how good they all are in an absolute sense. Only the prior fixes the overall level.</p>
+<p><strong>Answer.</strong> (1) Every pairwise difference is unchanged. (2) The average skill <span class="math inline">\bar z</span> keeps its prior <span class="math inline">\mathcal N(0,\sigma^2/3)</span>.</p>
+</div>
+</div>
+</div>
+</section>
+</section>
+<section id="sec-w6p-hard" class="level2">
+<h2 class="anchored" data-anchor-id="sec-w6p-hard">Why the posterior is hard</h2>
+<section id="prb-18" class="level3">
+<h3 class="anchored" data-anchor-id="prb-18">Problem 18: Grids in high dimension, and why HMMs escaped</h3>
+<ol type="1">
+<li>We approximate <span class="math inline">p(x)=\int p(x,z)\,dz</span> on a grid with 100 points per dimension. How many evaluations of <span class="math inline">p(x,z)</span> are needed when <span class="math inline">z</span> has dimension 2, and when it has dimension 50 (say, a TrueSkill model with 50 players)?</li>
+<li>An HMM with <span class="math inline">T=50</span> binary hidden states also has an evidence that is a sum over <span class="math inline">2^{50}</span> terms, yet forward-backward computes it easily. Name the structural difference that lets the HMM escape and that a fully connected 50-player TrueSkill posterior lacks.</li>
+</ol>
+<div class="practice-answer callout callout-style-default callout-tip callout-titled" title="Worked solution">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-18-contents" aria-controls="callout-18" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Worked solution
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-18" class="callout-18-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>This uses <a href="../lectures/week06.html#sec-hard-post">Week 6, Why the posterior is hard</a> and the forward recursion.</p>
+<ol type="1">
+<li>A grid with 100 points per axis in <span class="math inline">d</span> dimensions has <span class="math inline">100^d</span> points: <span class="math inline">10^4</span> for <span class="math inline">d=2</span> and <span class="math inline">10^{100}</span> for <span class="math inline">d=50</span>. The first is trivial; the second is beyond any computer.</li>
+<li>In an HMM each hidden variable interacts only with its two neighbours in a chain, so the sum can be pushed inside one variable at a time; the forward normalizers multiply to <span class="math inline">p(x_{1:T})</span> in about <span class="math inline">TK^2</span> steps (Problem 9). After many games among 50 players, the posterior couples most pairs of skills (Week 4’s explaining away), so there is no chain or tree to eliminate along, and the variables are continuous with logistic factors that have no closed-form integral. Exact elimination is unavailable, which is why the course turns to sampling (Week 5) and variational methods (this week).</li>
+</ol>
+<p><strong>Answer.</strong> (1) <span class="math inline">10^4</span> and <span class="math inline">10^{100}</span>. (2) The HMM’s chain structure (a tree) lets the recursion eliminate one variable at a time; the coupled TrueSkill posterior has no such structure.</p>
+</div>
+</div>
+</div>
+</section>
+</section>
+<section id="sec-w6p-vi" class="level2">
+<h2 class="anchored" data-anchor-id="sec-w6p-vi">Variational methods</h2>
+<section id="prb-19" class="level3">
+<h3 class="anchored" data-anchor-id="prb-19">Problem 19: A family that cannot represent correlation</h3>
+<p>The true posterior over <span class="math inline">z=(z_1,z_2)</span> is a Gaussian with correlation <span class="math inline">0.8</span> between <span class="math inline">z_1</span> and <span class="math inline">z_2</span>. We run variational inference with two different families: <span class="math inline">Q_{\text{full}}</span>, all 2D Gaussians, and <span class="math inline">Q_{\text{diag}}</span>, 2D Gaussians with diagonal covariance (independent coordinates). For each family, can the minimum KL divergence be zero? What does the answer illustrate about choosing <span class="math inline">Q</span>?</p>
+<div class="practice-answer callout callout-style-default callout-tip callout-titled" title="Worked solution">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-19-contents" aria-controls="callout-19" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Worked solution
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-19" class="callout-19-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>This uses <a href="../lectures/week06.html#sec-vi">Week 6, Variational methods</a> and property 2 of the KL divergence in <a href="../lectures/week06.html#sec-kl">The KL divergence</a>.</p>
+<ul>
+<li><span class="math inline">Q_{\text{full}}</span> contains the posterior itself, so the minimum KL is <span class="math inline">0</span> and VI is exact.</li>
+<li>Every member of <span class="math inline">Q_{\text{diag}}</span> has zero correlation, so none equals the posterior. Since <span class="math inline">\mathrm{KL}(q\Vert p)=0</span> only when <span class="math inline">q=p</span>, the minimum KL is strictly positive.</li>
+</ul>
+<p>This is the trade the week chapter describes. A smaller family is cheaper to work with (here, two independent 1D Gaussians), but it builds in an error we accept on purpose. The diagonal family is the Gaussian case of the mean-field restriction later in the week.</p>
+<p><strong>Answer.</strong> Zero for <span class="math inline">Q_{\text{full}}</span>, strictly positive for <span class="math inline">Q_{\text{diag}}</span>: the choice of <span class="math inline">Q</span> sets a floor on how good the approximation can be.</p>
+</div>
+</div>
+</div>
+</section>
+</section>
+<section id="sec-w6p-jensen" class="level2">
+<h2 class="anchored" data-anchor-id="sec-w6p-jensen">Jensen’s inequality</h2>
+<section id="prb-20" class="level3">
+<h3 class="anchored" data-anchor-id="prb-20">Problem 20: Checking Jensen with numbers</h3>
+<p>A random variable <span class="math inline">y</span> equals <span class="math inline">1</span> or <span class="math inline">4</span>, each with probability <span class="math inline">1/2</span>. With <span class="math inline">\phi(y)=-\log y</span>, compute <span class="math inline">\mathbb{E}[\phi(y)]</span> and <span class="math inline">\phi(\mathbb{E}[y])</span>, check <a href="https://en.wikipedia.org/wiki/Jensen%27s_inequality">Jensen’s inequality</a>, and say how to change <span class="math inline">y</span>’s distribution so the two sides are equal.</p>
+<div class="practice-answer callout callout-style-default callout-tip callout-titled" title="Worked solution">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-20-contents" aria-controls="callout-20" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Worked solution
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-20" class="callout-20-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>This uses <a href="../lectures/week06.html#sec-jensen">Week 6, Jensen’s inequality</a>. <span class="math inline">\phi=-\log</span> is convex because <span class="math inline">\phi''(y)=1/y^2&gt;0</span>.</p>
+<ul>
+<li><span class="math inline">\mathbb{E}[\phi(y)] = \tfrac12(-\log1) + \tfrac12(-\log4) = -\tfrac12\log4 = -\log2\approx-0.693</span>.</li>
+<li><span class="math inline">\mathbb{E}[y]=2.5</span>, so <span class="math inline">\phi(\mathbb{E}[y]) = -\log2.5\approx-0.916</span>.</li>
+</ul>
+<p>Indeed <span class="math inline">-0.693\ge-0.916</span>. Equality requires <span class="math inline">y</span> to be constant (since <span class="math inline">-\log</span> is not linear), for example <span class="math inline">y=2.5</span> with probability 1, where both sides equal <span class="math inline">-\log2.5</span>.</p>
+<p><strong>Answer.</strong> <span class="math inline">-0.693\ge-0.916</span>, as Jensen requires; the sides are equal only when <span class="math inline">y</span> is constant.</p>
+</div>
+</div>
+</div>
+</section>
+<section id="prb-21" class="level3">
+<h3 class="anchored" data-anchor-id="prb-21">Problem 21: Which way does the inequality point for a concave function?</h3>
+<p>Use Jensen’s inequality to decide which is larger, <span class="math inline">\log\mathbb{E}[y]</span> or <span class="math inline">\mathbb{E}[\log y]</span>, for any positive random variable <span class="math inline">y</span>. Then explain in one or two sentences how this same inequality is behind the ELBO being a <em>lower</em> bound.</p>
+<div class="practice-answer callout callout-style-default callout-tip callout-titled" title="Worked solution">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-21-contents" aria-controls="callout-21" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Worked solution
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-21" class="callout-21-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>This uses <a href="../lectures/week06.html#sec-jensen">Week 6, Jensen’s inequality</a> and <a href="../lectures/week06.html#sec-elbo">Tutorial: reverse KL and the ELBO</a>.</p>
+<p>Apply Jensen to the convex <span class="math inline">\phi=-\log</span>: <span class="math inline">\mathbb{E}[-\log y]\ge-\log\mathbb{E}[y]</span>. Multiplying by <span class="math inline">-1</span> flips the inequality: <span class="math inline">\mathbb{E}[\log y]\le\log\mathbb{E}[y]</span>. For a concave function, the average of the function is at most the function of the average. With Problem 20’s numbers: <span class="math inline">\log2\approx0.693\le\log2.5\approx0.916</span>.</p>
+<p>For the ELBO, take <span class="math inline">y=p(x,z)/q(z)</span> with <span class="math inline">z\sim q</span>. Then <span class="math inline">\mathbb{E}_q[y]=\int p(x,z)\,dz = p(x)</span>, so</p>
+<p><span class="math display">\mathcal L = \mathbb{E}_q[\log y] \le \log\mathbb{E}_q[y] = \log p(x).</span></p>
+<p>The week chapter reached the same bound through <span class="math inline">\mathrm{KL}\ge0</span>, which is itself proved with Jensen.</p>
+<p><strong>Answer.</strong> <span class="math inline">\mathbb{E}[\log y]\le\log\mathbb{E}[y]</span>; applied to <span class="math inline">y=p(x,z)/q(z)</span> it gives <span class="math inline">\mathcal L\le\log p(x)</span>.</p>
+</div>
+</div>
+</div>
+</section>
+</section>
+<section id="sec-w6p-kl" class="level2">
+<h2 class="anchored" data-anchor-id="sec-w6p-kl">The KL divergence</h2>
+<section id="prb-22" class="level3">
+<h3 class="anchored" data-anchor-id="prb-22">Problem 22: Both directions on three outcomes</h3>
+<p>On <span class="math inline">\{1,2,3\}</span> let <span class="math inline">p=(0.5,\ 0.3,\ 0.2)</span> and <span class="math inline">q=(0.2,\ 0.4,\ 0.4)</span>. Compute <span class="math inline">\mathrm{KL}(p\Vert q)</span> and <span class="math inline">\mathrm{KL}(q\Vert p)</span> in nats, term by term.</p>
+<div class="practice-answer callout callout-style-default callout-tip callout-titled" title="Worked solution">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-22-contents" aria-controls="callout-22" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Worked solution
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-22" class="callout-22-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>This uses the definition in <a href="../lectures/week06.html#sec-kl">Week 6, The KL divergence</a>, with a sum for discrete variables.</p>
+<p><span class="math inline">\mathrm{KL}(p\Vert q)=\sum_x p(x)\log\frac{p(x)}{q(x)}</span>:</p>
+<ul>
+<li><span class="math inline">x=1</span>: <span class="math inline">0.5\log2.5\approx0.458</span></li>
+<li><span class="math inline">x=2</span>: <span class="math inline">0.3\log0.75\approx-0.086</span></li>
+<li><span class="math inline">x=3</span>: <span class="math inline">0.2\log0.5\approx-0.139</span></li>
+</ul>
+<p>Total <span class="math inline">\approx0.233</span>. Individual terms can be negative; only the total must be nonnegative.</p>
+<p><span class="math inline">\mathrm{KL}(q\Vert p)=\sum_x q(x)\log\frac{q(x)}{p(x)}</span>:</p>
+<ul>
+<li><span class="math inline">x=1</span>: <span class="math inline">0.2\log0.4\approx-0.183</span></li>
+<li><span class="math inline">x=2</span>: <span class="math inline">0.4\log(4/3)\approx0.115</span></li>
+<li><span class="math inline">x=3</span>: <span class="math inline">0.4\log2\approx0.277</span></li>
+</ul>
+<p>Total <span class="math inline">\approx0.209</span>.</p>
+<p><strong>Answer.</strong> <span class="math inline">\mathrm{KL}(p\Vert q)\approx0.233</span> and <span class="math inline">\mathrm{KL}(q\Vert p)\approx0.209</span>: both positive, and different.</p>
+</div>
+</div>
+</div>
+</section>
+<section id="prb-23" class="level3">
+<h3 class="anchored" data-anchor-id="prb-23">Problem 23: When one direction is infinite</h3>
+<p>Let <span class="math inline">p=(0.5,\ 0.5,\ 0)</span> and <span class="math inline">q=(0.25,\ 0.25,\ 0.5)</span> on <span class="math inline">\{1,2,3\}</span>. Compute both KL divergences. (Use the convention <span class="math inline">0\log\frac{0}{a}=0</span>.) Which direction punishes <span class="math inline">q</span> for putting mass where <span class="math inline">p</span> has none?</p>
+<div class="practice-answer callout callout-style-default callout-tip callout-titled" title="Worked solution">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-23-contents" aria-controls="callout-23" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Worked solution
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-23" class="callout-23-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>This uses <a href="../lectures/week06.html#sec-kl">Week 6, The KL divergence</a> and previews <a href="../lectures/week06.html#sec-projections">Which direction? I-projection and M-projection</a>.</p>
+<ul>
+<li><span class="math inline">\mathrm{KL}(p\Vert q) = 0.5\log2+0.5\log2+0 = \log2\approx0.693</span>. The third term is weighted by <span class="math inline">p(3)=0</span> and vanishes.</li>
+<li><span class="math inline">\mathrm{KL}(q\Vert p)</span> includes <span class="math inline">q(3)\log\frac{q(3)}{p(3)} = 0.5\log\frac{0.5}{0}=+\infty</span>.</li>
+</ul>
+<p>So <span class="math inline">\mathrm{KL}(q\Vert p)</span>, the reverse KL with the average over <span class="math inline">q</span>, punishes <span class="math inline">q</span> for any mass where <span class="math inline">p</span> is zero, infinitely so when <span class="math inline">p</span> is exactly zero. This is why the I-projection avoids regions where <span class="math inline">p</span> is small and tends to underestimate support.</p>
+<p><strong>Answer.</strong> <span class="math inline">\mathrm{KL}(p\Vert q)=\log2\approx0.693</span> and <span class="math inline">\mathrm{KL}(q\Vert p)=\infty</span>; the reverse direction <span class="math inline">\mathrm{KL}(q\Vert p)</span> does the punishing.</p>
+</div>
+</div>
+</div>
+</section>
+<section id="prb-24" class="level3">
+<h3 class="anchored" data-anchor-id="prb-24">Problem 24: KL between two Gaussians with the same variance (stretch)</h3>
+<p>Show that</p>
+<p><span class="math display">\mathrm{KL}\big(\mathcal N(\mu_1,\sigma^2)\,\Vert\,\mathcal N(\mu_2,\sigma^2)\big) = \frac{(\mu_1-\mu_2)^2}{2\sigma^2}.</span></p>
+<p>Is the KL divergence symmetric for this pair? Does that contradict property 3?</p>
+<div class="practice-answer callout callout-style-default callout-tip callout-titled" title="Worked solution">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-24-contents" aria-controls="callout-24" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Worked solution
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-24" class="callout-24-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>This uses the definition in <a href="../lectures/week06.html#sec-kl">Week 6, The KL divergence</a>. Write <span class="math inline">p_1=\mathcal N(\mu_1,\sigma^2)</span>, <span class="math inline">p_2=\mathcal N(\mu_2,\sigma^2)</span>. The normalizing constants <span class="math inline">1/\sqrt{2\pi\sigma^2}</span> are equal and cancel in the log ratio:</p>
+<p><span class="math display">\log\frac{p_1(z)}{p_2(z)} = \frac{(z-\mu_2)^2-(z-\mu_1)^2}{2\sigma^2}.</span></p>
+<p>Take the expectation with <span class="math inline">z\sim p_1</span>. Use <span class="math inline">\mathbb{E}[(z-\mu_1)^2]=\sigma^2</span> and, writing <span class="math inline">z-\mu_2=(z-\mu_1)+(\mu_1-\mu_2)</span>, <span class="math inline">\mathbb{E}[(z-\mu_2)^2]=\sigma^2+(\mu_1-\mu_2)^2</span> (the cross term has mean zero). The difference is <span class="math inline">(\mu_1-\mu_2)^2</span>, which gives the formula.</p>
+<p>Swapping the two distributions gives <span class="math inline">(\mu_2-\mu_1)^2/(2\sigma^2)</span>, the same number. This does not contradict property 3: the property says the two directions are not equal <em>in general</em>, and Problem 22 is an example where they differ. Particular pairs can still give equal values, but symmetry for every pair is what a metric would need.</p>
+<p><strong>Answer.</strong> The formula holds; for this pair the KL is symmetric, which is allowed because property 3 is a statement about general pairs.</p>
+</div>
+</div>
+</div>
+</section>
+</section>
+<section id="sec-w6p-projections" class="level2">
+<h2 class="anchored" data-anchor-id="sec-w6p-projections">Which direction? I-projection and M-projection</h2>
+<section id="prb-25" class="level3">
+<h3 class="anchored" data-anchor-id="prb-25">Problem 25: The M-projection of a symmetric mixture</h3>
+<p>The target is <span class="math inline">p(z)=0.5\,\mathcal N(z;-1,\ 0.5^2)+0.5\,\mathcal N(z;\ 1,\ 0.5^2)</span> and <span class="math inline">Q</span> is all 1D Gaussians.</p>
+<ol type="1">
+<li>Find the M-projection.</li>
+<li>Compare the density of <span class="math inline">p</span> and of the M-projection at <span class="math inline">z=0</span>. What does this say about where the M-projection puts mass?</li>
+</ol>
+<div class="practice-answer callout callout-style-default callout-tip callout-titled" title="Worked solution">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-25-contents" aria-controls="callout-25" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Worked solution
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-25" class="callout-25-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>This uses <a href="../lectures/week06.html#sec-proj-tutorial">Week 6, Tutorial example: fitting a Gaussian to a two-component mixture</a>, where the M-projection onto Gaussians matches the mean and variance of <span class="math inline">p</span>.</p>
+<ol type="1">
+<li>Mean: <span class="math inline">0.5(-1)+0.5(1)=0</span>. Variance, using each component’s variance plus its squared distance from the overall mean: <span class="math inline">0.5(0.25+1)+0.5(0.25+1)=1.25</span>. So <span class="math inline">q^*_{\text{M}}=\mathcal N(0,\ 1.25)</span>, standard deviation about <span class="math inline">1.118</span>.</li>
+<li>At <span class="math inline">z=0</span>, each component is two of its standard deviations from its mean, so <span class="math inline">p(0)=\frac{1}{0.5\sqrt{2\pi}}e^{-2}\approx0.798\times0.135\approx0.108</span>. The M-projection has its peak there: <span class="math inline">q(0)=\frac{1}{1.118\sqrt{2\pi}}\approx0.357</span>, more than three times larger.</li>
+</ol>
+<p>The M-projection is penalized for missing either bump, so it covers both and, being a single Gaussian, puts its highest density in the valley between them, where <span class="math inline">p</span> is low.</p>
+<p><strong>Answer.</strong> <span class="math inline">q^*_{\text{M}}=\mathcal N(0,1.25)</span>; at <span class="math inline">z=0</span> it has density about <span class="math inline">0.357</span> against <span class="math inline">p</span>’s <span class="math inline">0.108</span>.</p>
+</div>
+</div>
+</div>
+</section>
+<section id="prb-26" class="level3">
+<h3 class="anchored" data-anchor-id="prb-26">Problem 26: Projecting onto point masses</h3>
+<p>On <span class="math inline">\{1,2,3\}</span> let <span class="math inline">p=(0.5,\ 0.3,\ 0.2)</span>, and let <span class="math inline">Q=\{\delta_1,\delta_2,\delta_3\}</span>, where <span class="math inline">\delta_k</span> puts all its mass on outcome <span class="math inline">k</span>. Find the I-projection and the M-projection of <span class="math inline">p</span> onto <span class="math inline">Q</span>.</p>
+<div class="practice-answer callout callout-style-default callout-tip callout-titled" title="Worked solution">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-26-contents" aria-controls="callout-26" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Worked solution
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-26" class="callout-26-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>This uses the definitions in <a href="../lectures/week06.html#sec-projections">Week 6, Which direction? I-projection and M-projection</a>.</p>
+<p><strong>I-projection.</strong> <span class="math inline">\mathrm{KL}(\delta_k\Vert p)=\sum_x\delta_k(x)\log\frac{\delta_k(x)}{p(x)}</span> has one nonzero term, <span class="math inline">1\cdot\log\frac{1}{p(k)}=-\log p(k)</span>. The values are <span class="math inline">-\log0.5\approx0.693</span>, <span class="math inline">-\log0.3\approx1.204</span>, <span class="math inline">-\log0.2\approx1.609</span>. The smallest is at <span class="math inline">k=1</span>, the mode of <span class="math inline">p</span>.</p>
+<p><strong>M-projection.</strong> <span class="math inline">\mathrm{KL}(p\Vert\delta_k)</span> contains terms <span class="math inline">p(x)\log\frac{p(x)}{0}</span> for every <span class="math inline">x\ne k</span>, and <span class="math inline">p(x)&gt;0</span> for all three outcomes. Every member of <span class="math inline">Q</span> has infinite forward KL, so the M-projection does not exist as a finite minimum.</p>
+<p>This is the two behaviours in their sharpest form. The reverse KL is satisfied by a <span class="math inline">q</span> that sits on the mode and ignores the rest; the forward KL refuses any <span class="math inline">q</span> that misses part of <span class="math inline">p</span>’s support.</p>
+<p><strong>Answer.</strong> The I-projection is <span class="math inline">\delta_1</span> (KL <span class="math inline">\approx0.693</span>); every <span class="math inline">\delta_k</span> has infinite forward KL, so there is no finite M-projection.</p>
+</div>
+</div>
+</div>
+</section>
+<section id="prb-27" class="level3">
+<h3 class="anchored" data-anchor-id="prb-27">Problem 27: Predicting the projections for three bumps</h3>
+<p>A 1D target is an equal-weight mixture of three narrow Gaussians centred at <span class="math inline">-6</span>, <span class="math inline">0</span>, and <span class="math inline">6</span>, each with standard deviation <span class="math inline">0.5</span>. <span class="math inline">Q</span> is all 1D Gaussians. Without computing, describe:</p>
+<ol type="1">
+<li>the M-projection (mean and roughly how wide);</li>
+<li>the I-projection, including how many local optima gradient-based minimization of the reverse KL might find, and how their KL values compare.</li>
+</ol>
+<div class="practice-answer callout callout-style-default callout-tip callout-titled" title="Worked solution">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-27-contents" aria-controls="callout-27" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Worked solution
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-27" class="callout-27-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>This uses <a href="../lectures/week06.html#sec-projections">Week 6, Which direction? I-projection and M-projection</a> and the local-minimum discussion after Figure 3 of the week chapter.</p>
+<ol type="1">
+<li>The M-projection matches the mean and variance of <span class="math inline">p</span>. By symmetry the mean is <span class="math inline">0</span>. The variance is <span class="math inline">0.25+\frac13(36+0+36)=24.25</span>, so the standard deviation is about <span class="math inline">4.9</span>: one wide Gaussian covering all three bumps and a lot of empty space between them.</li>
+<li>The I-projection prefers to sit on one bump. Starting near any of the three components, the optimization will typically settle on a Gaussian close to that component, giving three local optima. Because the weights and widths are equal, the three should have (essentially) equal reverse KL, about <span class="math inline">\log3</span> each, since <span class="math inline">q</span> captures one third of <span class="math inline">p</span>’s mass. This is the three-bump version of the slide’s “two equivalently good solutions”. The optimization is not convex, and the starting point decides which one we get.</li>
+</ol>
+<p><strong>Answer.</strong> (1) <span class="math inline">\mathcal N(0,\ 24.25)</span>, a broad Gaussian over all three bumps. (2) Three roughly equally good local optima, each a narrow Gaussian on one bump.</p>
+</div>
+</div>
+</div>
+</section>
+</section>
+<section id="sec-w6p-why-iproj" class="level2">
+<h2 class="anchored" data-anchor-id="sec-w6p-why-iproj">Why variational inference uses the I-projection</h2>
+<section id="prb-28" class="level3">
+<h3 class="anchored" data-anchor-id="prb-28">Problem 28: Which objective survives an unknown normalizer?</h3>
+<p>We can evaluate <span class="math inline">\tilde p(z)</span>, where <span class="math inline">p(z)=\tilde p(z)/Z</span> and <span class="math inline">Z</span> is unknown, and we can draw samples from our own <span class="math inline">q</span>. For each of <span class="math inline">\mathrm{KL}(q\Vert p)</span> and <span class="math inline">\mathrm{KL}(p\Vert q)</span>, say whether we can minimize it over <span class="math inline">q</span>, and why.</p>
+<div class="practice-answer callout callout-style-default callout-tip callout-titled" title="Worked solution">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-28-contents" aria-controls="callout-28" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Worked solution
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-28" class="callout-28-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>This uses <a href="../lectures/week06.html#sec-why-iproj">Week 6, Why variational inference uses the I-projection</a>.</p>
+<p><strong>Reverse KL.</strong> Substitute <span class="math inline">\log p=\log\tilde p-\log Z</span>:</p>
+<p><span class="math display">\mathrm{KL}(q\Vert p)=\mathbb{E}_q[\log q(z)-\log\tilde p(z)]+\log Z.</span></p>
+<p>The expectation is over <span class="math inline">q</span>, so we can estimate it by averaging <span class="math inline">\log q-\log\tilde p</span> over samples from <span class="math inline">q</span>, and both functions can be evaluated. The unknown <span class="math inline">\log Z</span> is a constant that does not change which <span class="math inline">q</span> is best. So we can minimize it.</p>
+<p><strong>Forward KL.</strong> <span class="math inline">\mathrm{KL}(p\Vert q)=\mathbb{E}_p[\log p]-\mathbb{E}_p[\log q]</span>. The first term does not depend on <span class="math inline">q</span>, but the second is an expectation under <span class="math inline">p</span>, which needs samples from <span class="math inline">p</span> (or its normalizer for importance weights). Those are exactly what we lack. So we cannot easily minimize it.</p>
+<p><strong>Answer.</strong> Reverse KL: yes, using samples from <span class="math inline">q</span>; <span class="math inline">\log Z</span> only shifts the objective. Forward KL: not directly, because it needs expectations under <span class="math inline">p</span>.</p>
+</div>
+</div>
+</div>
+</section>
+<section id="prb-29" class="level3">
+<h3 class="anchored" data-anchor-id="prb-29">Problem 29: Maximum entropy gives an exponential family (stretch)</h3>
+<p>Among all distributions <span class="math inline">p</span> on <span class="math inline">\{0,1,2\}</span> with mean <span class="math inline">\mathbb{E}_p[x]=t</span>, find the form of the one with maximum entropy, using a <a href="https://en.wikipedia.org/wiki/Lagrange_multiplier">Lagrange multiplier</a> for each constraint. What is the answer when <span class="math inline">t=1</span>?</p>
+<div class="practice-answer callout callout-style-default callout-tip callout-titled" title="Worked solution">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-29-contents" aria-controls="callout-29" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Worked solution
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-29" class="callout-29-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>This uses the maximum-entropy remark in <a href="../lectures/week06.html#sec-why-iproj">Week 6, Why variational inference uses the I-projection</a> and the method of <a href="../lectures/week06.html#sec-lagrange">Lagrange multipliers</a>.</p>
+<p>Maximize <span class="math inline">H(p)=-\sum_x p(x)\log p(x)</span> subject to <span class="math inline">\sum_x p(x)x=t</span> and <span class="math inline">\sum_x p(x)=1</span>. The Lagrangian is</p>
+<p><span class="math display">-\sum_x p(x)\log p(x) + \eta\Big(\sum_x p(x)\,x - t\Big) + \lambda\Big(\sum_x p(x)-1\Big).</span></p>
+<p>Differentiate with respect to one <span class="math inline">p(x)</span> and set to zero: <span class="math inline">-\log p(x)-1+\eta x+\lambda=0</span>, so <span class="math inline">p(x)=e^{\lambda-1}e^{\eta x}\propto e^{\eta x}</span>. This is an exponential family with sufficient statistic <span class="math inline">x</span> and natural parameter <span class="math inline">\eta</span> (Week 1’s form), with <span class="math inline">\eta</span> chosen so the mean is <span class="math inline">t</span>.</p>
+<p>For <span class="math inline">t=1</span>, the middle of <span class="math inline">\{0,1,2\}</span>: by symmetry, <span class="math inline">\eta=0</span> gives mean exactly 1, so <span class="math inline">p</span> is uniform, <span class="math inline">(1/3,1/3,1/3)</span>. A constraint that the uniform distribution already satisfies costs no entropy.</p>
+<p><strong>Answer.</strong> <span class="math inline">p(x)\propto e^{\eta x}</span> with <span class="math inline">\eta</span> set by the mean constraint; for <span class="math inline">t=1</span>, <span class="math inline">\eta=0</span> and <span class="math inline">p</span> is uniform.</p>
+</div>
+</div>
+</div>
+</section>
+</section>
+<section id="sec-w6p-elbo" class="level2">
+<h2 class="anchored" data-anchor-id="sec-w6p-elbo">Tutorial: reverse KL and the ELBO</h2>
+<section id="prb-30" class="level3">
+<h3 class="anchored" data-anchor-id="prb-30">Problem 30: Checking the ELBO identity</h3>
+<p>A binary latent <span class="math inline">z\in\{1,2\}</span> and a fixed observation <span class="math inline">x</span> have <span class="math inline">p(x,z=1)=0.12</span> and <span class="math inline">p(x,z=2)=0.28</span>.</p>
+<ol type="1">
+<li>Compute <span class="math inline">\log p(x)</span> and the posterior <span class="math inline">p(z\mid x)</span>.</li>
+<li>For <span class="math inline">q=(0.5,\ 0.5)</span>, compute the ELBO and <span class="math inline">\mathrm{KL}(q\Vert p(z\mid x))</span>, and check that they add up to <span class="math inline">\log p(x)</span>.</li>
+<li>Compute the ELBO at <span class="math inline">q=p(z\mid x)</span>.</li>
+</ol>
+<div class="practice-answer callout callout-style-default callout-tip callout-titled" title="Worked solution">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-30-contents" aria-controls="callout-30" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Worked solution
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-30" class="callout-30-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>This uses <a href="../lectures/week06.html#sec-elbo">Week 6, Tutorial: reverse KL and the ELBO</a>.</p>
+<ol type="1">
+<li><p><span class="math inline">p(x)=0.12+0.28=0.4</span>, so <span class="math inline">\log p(x)\approx-0.916</span>. The posterior is <span class="math inline">(0.3,\ 0.7)</span>.</p></li>
+<li><p>ELBO <span class="math inline">=\sum_z q(z)[\log p(x,z)-\log q(z)] = 0.5\log\frac{0.12}{0.5}+0.5\log\frac{0.28}{0.5} = 0.5\log0.24+0.5\log0.56\approx-0.713-0.290=-1.003</span>.</p>
+<p>KL <span class="math inline">=0.5\log\frac{0.5}{0.3}+0.5\log\frac{0.5}{0.7}\approx0.255-0.168=0.087</span>.</p>
+<p>Sum: <span class="math inline">-1.003+0.087=-0.916=\log p(x)</span>.</p></li>
+<li><p>At <span class="math inline">q=(0.3,0.7)</span>, both ratios <span class="math inline">p(x,z)/q(z)</span> equal <span class="math inline">0.4</span>, so the ELBO is <span class="math inline">\log0.4=\log p(x)</span> and the KL is <span class="math inline">0</span>. The bound is tight exactly at the true posterior.</p></li>
+</ol>
+<p><strong>Answer.</strong> <span class="math inline">\log p(x)\approx-0.916</span>; at <span class="math inline">q=(0.5,0.5)</span>, ELBO <span class="math inline">\approx-1.003</span> and KL <span class="math inline">\approx0.087</span>, summing to <span class="math inline">\log p(x)</span>; at the posterior, ELBO <span class="math inline">=\log p(x)</span>.</p>
+</div>
+</div>
+</div>
+</section>
+<section id="prb-31" class="level3">
+<h3 class="anchored" data-anchor-id="prb-31">Problem 31: A sign error in a Monte Carlo ELBO</h3>
+<p>A student estimates the ELBO for a 1D Gaussian <span class="math inline">q=\mathcal N(\mu,\sigma^2)</span>, where <code>log_q(z)</code> evaluates <span class="math inline">\log q(z)</span> and <code>log_joint(z)</code> evaluates <span class="math inline">\log p(x,z)</span>:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>z <span class="op">=</span> rng.normal(mu, sigma, size<span class="op">=</span><span class="dv">10_000</span>)       <span class="co"># samples from q</span></span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a>elbo <span class="op">=</span> np.mean(log_q(z) <span class="op">-</span> log_joint(z))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>They then use an optimizer to <strong>maximize</strong> <code>elbo</code> over <span class="math inline">(\mu,\sigma)</span>. What quantity does the code actually estimate, in terms of <span class="math inline">\log p(x)</span> and the KL divergence? What happens to <span class="math inline">q</span> during the optimization? Fix the line.</p>
+<div class="practice-answer callout callout-style-default callout-tip callout-titled" title="Worked solution">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-31-contents" aria-controls="callout-31" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Worked solution
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-31" class="callout-31-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>This uses <a href="../lectures/week06.html#sec-elbo">Week 6, Tutorial: reverse KL and the ELBO</a>. The ELBO is <span class="math inline">\mathbb{E}_q[\log p(x,z)-\log q(z)]</span>; the code averages the negative of that integrand, so it estimates</p>
+<p><span class="math display">-\mathcal L = \mathrm{KL}(q\Vert p(z\mid x)) - \log p(x).</span></p>
+<p>Since <span class="math inline">\log p(x)</span> is a constant, maximizing this maximizes the KL divergence. The optimizer pushes <span class="math inline">q</span> as far from the posterior as it can, for example by moving <span class="math inline">\mu</span> into regions where <span class="math inline">p(x,z)</span> is tiny, and the estimate grows without settling. Sampling from <span class="math inline">q</span> was correct; only the sign was wrong.</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>elbo <span class="op">=</span> np.mean(log_joint(z) <span class="op">-</span> log_q(z))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>(Equivalently, keep the original line and <strong>minimize</strong> it, since it estimates <span class="math inline">\mathrm{KL}(q\Vert p(z\mid x))</span> up to a constant.)</p>
+<p><strong>Answer.</strong> It estimates <span class="math inline">\mathrm{KL}(q\Vert p(z\mid x))-\log p(x)</span>; maximizing it drives <span class="math inline">q</span> away from the posterior. Swap the two terms.</p>
+</div>
+</div>
+</div>
+</section>
+</section>
+<section id="sec-w6p-mf-mrf" class="level2">
+<h2 class="anchored" data-anchor-id="sec-w6p-mf-mrf">Mean field for an MRF</h2>
+<section id="prb-32" class="level3">
+<h3 class="anchored" data-anchor-id="prb-32">Problem 32: The objective is a lower bound on log Z</h3>
+<p>Two binary variables <span class="math inline">x_1,x_2\in\{0,1\}</span> form an MRF with one log-potential <span class="math inline">\phi_{12}(x_1,x_2)=\log3</span> if <span class="math inline">x_1=x_2</span> and <span class="math inline">0</span> otherwise.</p>
+<ol type="1">
+<li>Compute <span class="math inline">Z</span> and <span class="math inline">\log Z</span>.</li>
+<li>For the product <span class="math inline">q</span> with <span class="math inline">q_1</span> and <span class="math inline">q_2</span> both uniform, compute <span class="math inline">\mathbb{E}_q[\phi_{12}]+H(q)</span> and check it is at most <span class="math inline">\log Z</span>.</li>
+<li>The gap equals <span class="math inline">\mathrm{KL}(q\Vert p)</span>. Compute that KL directly and confirm.</li>
+</ol>
+<div class="practice-answer callout callout-style-default callout-tip callout-titled" title="Worked solution">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-32-contents" aria-controls="callout-32" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Worked solution
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-32" class="callout-32-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>This uses <a href="../lectures/week06.html#sec-mf-mrf">Week 6, Mean field for an MRF</a>, where <span class="math inline">\mathrm{KL}(q\Vert p) = \log Z - \big(\sum_c\mathbb{E}_q[\phi_c]+H(q)\big)</span>.</p>
+<ol type="1">
+<li>The unnormalized probabilities <span class="math inline">e^{\phi_{12}}</span> are <span class="math inline">3</span> for <span class="math inline">(0,0)</span> and <span class="math inline">(1,1)</span> and <span class="math inline">1</span> for the two mixed pairs. So <span class="math inline">Z=8</span> and <span class="math inline">\log Z\approx2.079</span>.</li>
+<li>Under the uniform product, <span class="math inline">P(x_1=x_2)=0.5</span>, so <span class="math inline">\mathbb{E}_q[\phi_{12}]=0.5\log3\approx0.549</span>. Each <span class="math inline">q_i</span> has entropy <span class="math inline">\log2</span>, so <span class="math inline">H(q)=2\log2\approx1.386</span>. The objective is about <span class="math inline">1.935\le2.079</span>.</li>
+<li><span class="math inline">p=(3/8,\ 1/8,\ 1/8,\ 3/8)</span> and <span class="math inline">q=(1/4,1/4,1/4,1/4)</span>, so <span class="math display">
+\begin{aligned}
+\mathrm{KL}(q\Vert p) &amp;= 2\cdot\tfrac14\log\tfrac{1/4}{3/8}+2\cdot\tfrac14\log\tfrac{1/4}{1/8} \\
+&amp;= \tfrac12\log\tfrac23+\tfrac12\log2 = \tfrac12\log\tfrac43\approx0.144,
+\end{aligned}
+</span> which matches <span class="math inline">2.079-1.935</span>.</li>
+</ol>
+<p><strong>Answer.</strong> <span class="math inline">\log Z=\log8\approx2.079</span>; the objective is about <span class="math inline">1.935</span>; the gap <span class="math inline">\approx0.144</span> is <span class="math inline">\mathrm{KL}(q\Vert p)</span>.</p>
+</div>
+</div>
+</div>
+</section>
+<section id="prb-33" class="level3">
+<h3 class="anchored" data-anchor-id="prb-33">Problem 33: Two meanings of phi</h3>
+<p>Week 3’s Ising model has <span class="math inline">p(x)\propto\exp\{\sum_{s\sim t}J_{st}x_sx_t+\sum_sb_sx_s\}</span> with <span class="math inline">x_s\in\{-1,+1\}</span>, written as a log-linear exponential family <span class="math inline">\log\psi_C=\theta_C^\top\phi_C(x_C)</span>. For an edge <span class="math inline">(s,t)</span>:</p>
+<ol type="1">
+<li>What are Week 3’s parameter <span class="math inline">\theta_{st}</span> and sufficient statistic <span class="math inline">\phi_{st}</span>?</li>
+<li>What is this week’s log-potential <span class="math inline">\phi_{st}(x_s,x_t)</span> in the mean-field formulas?</li>
+<li>Where do the field terms <span class="math inline">b_sx_s</span> go in this week’s notation?</li>
+</ol>
+<div class="practice-answer callout callout-style-default callout-tip callout-titled" title="Worked solution">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-33-contents" aria-controls="callout-33" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Worked solution
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-33" class="callout-33-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>This uses the notation note in <a href="../lectures/week06.html#sec-mf-mrf">Week 6, Mean field for an MRF</a> and Week 3’s Ising model.</p>
+<ol type="1">
+<li>In Week 3’s log-linear form, the edge parameter is <span class="math inline">\theta_{st}=J_{st}</span> and the sufficient statistic is <span class="math inline">\phi_{st}(x_s,x_t)=x_sx_t</span>, a feature with no parameter in it.</li>
+<li>This week’s <span class="math inline">\phi_{st}</span> is the whole log-potential, <span class="math inline">\log\psi_{st}(x_s,x_t)=J_{st}x_sx_t</span>: Week 3’s parameter times Week 3’s statistic.</li>
+<li>They are single-variable cliques, with log-potentials <span class="math inline">\phi_s(x_s)=b_sx_s</span>. The slide’s pairwise objective and update leave unary terms out; Problem 38 adds them back.</li>
+</ol>
+<p><strong>Answer.</strong> (1) <span class="math inline">\theta_{st}=J_{st}</span> and <span class="math inline">\phi_{st}=x_sx_t</span>. (2) <span class="math inline">\phi_{st}=J_{st}x_sx_t</span>. (3) As unary log-potentials <span class="math inline">\phi_s(x_s)=b_sx_s</span>.</p>
+</div>
+</div>
+</div>
+</section>
+</section>
+<section id="sec-w6p-naive-mf" class="level2">
+<h2 class="anchored" data-anchor-id="sec-w6p-naive-mf">Naive mean field</h2>
+<section id="prb-34" class="level3">
+<h3 class="anchored" data-anchor-id="prb-34">Problem 34: Entropy of products and of correlated distributions</h3>
+<ol type="1">
+<li>Let <span class="math inline">q_1=(0.5,\ 0.5)</span> and <span class="math inline">q_2=(0.8,\ 0.2)</span> on <span class="math inline">\{0,1\}</span>, and <span class="math inline">q=q_1q_2</span>. Compute <span class="math inline">H(q)</span> from the four joint probabilities and check that it equals <span class="math inline">H(q_1)+H(q_2)</span>.</li>
+<li>Now take the correlated joint <span class="math inline">r</span> with <span class="math inline">r(0,0)=r(1,1)=0.4</span> and <span class="math inline">r(0,1)=r(1,0)=0.1</span>. Compute its marginals and compare <span class="math inline">H(r)</span> with the sum of the marginal entropies.</li>
+</ol>
+<div class="practice-answer callout callout-style-default callout-tip callout-titled" title="Worked solution">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-34-contents" aria-controls="callout-34" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Worked solution
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-34" class="callout-34-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>This uses the entropy decomposition in <a href="../lectures/week06.html#sec-naive-mf">Week 6, Naive mean field</a>.</p>
+<ol type="1">
+<li><span class="math inline">H(q_1)=\log2\approx0.693</span> and <span class="math inline">H(q_2)=-(0.8\log0.8+0.2\log0.2)\approx0.500</span>, summing to <span class="math inline">1.194</span>. The joint is <span class="math inline">q(x_1,x_2)</span>: <span class="math inline">(0,0)=0.4</span>, <span class="math inline">(0,1)=0.1</span>, <span class="math inline">(1,0)=0.4</span>, <span class="math inline">(1,1)=0.1</span>, so <span class="math inline">H(q)=-2(0.4\log0.4+0.1\log0.1)\approx-2(-0.367-0.230)=1.194</span>. They agree, as the decomposition says.</li>
+<li>Both marginals of <span class="math inline">r</span> are <span class="math inline">(0.5,0.5)</span>, so the marginal entropies sum to <span class="math inline">2\log2\approx1.386</span>. But <span class="math inline">r</span> has the same four numbers as <span class="math inline">q</span> in part 1, rearranged, so <span class="math inline">H(r)\approx1.194&lt;1.386</span>.</li>
+</ol>
+<p>A product of marginals is the most spread-out joint with those marginals; correlation removes uncertainty. When mean field replaces <span class="math inline">p</span> by a product, the entropy it computes, <span class="math inline">\sum_iH(q_i)</span>, is exact for <span class="math inline">q</span> but describes a joint with no correlation at all.</p>
+<p><strong>Answer.</strong> (1) <span class="math inline">H(q)\approx1.194=H(q_1)+H(q_2)</span>. (2) <span class="math inline">H(r)\approx1.194&lt;1.386</span>, the sum of its marginal entropies.</p>
+</div>
+</div>
+</div>
+</section>
+<section id="prb-35" class="level3">
+<h3 class="anchored" data-anchor-id="prb-35">Problem 35: When naive mean field is exact</h3>
+<ol type="1">
+<li>An MRF has unary potentials only, no edges: <span class="math inline">p(x)\propto\exp\{\sum_i\phi_i(x_i)\}</span>. Show that the naive mean-field optimum equals <span class="math inline">p</span>.</li>
+<li>Now the MRF has at least one edge whose potential really couples its two variables (so <span class="math inline">p</span> is not a product). Can naive mean field ever give <span class="math inline">q=p</span>? What is the smallest KL it can reach?</li>
+</ol>
+<div class="practice-answer callout callout-style-default callout-tip callout-titled" title="Worked solution">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-35-contents" aria-controls="callout-35" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Worked solution
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-35" class="callout-35-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>This uses <a href="../lectures/week06.html#sec-naive-mf">Week 6, Naive mean field</a> and property 2 of the KL divergence.</p>
+<ol type="1">
+<li>Without edges, <span class="math inline">p(x)=\prod_i\big(e^{\phi_i(x_i)}/Z_i\big)</span> is already a product of single-variable distributions, so it is a member of the mean-field family <span class="math inline">Q</span>. The I-projection minimizes <span class="math inline">\mathrm{KL}(q\Vert p)</span>, which reaches <span class="math inline">0</span> at <span class="math inline">q=p</span>. So the optimum is <span class="math inline">p</span>.</li>
+<li>If <span class="math inline">p</span> is not a product, no member of <span class="math inline">Q</span> equals <span class="math inline">p</span>, so <span class="math inline">\mathrm{KL}(q\Vert p)&gt;0</span> for every <span class="math inline">q\in Q</span>. The best mean field can do is a strictly positive KL, which is also the gap between the mean-field objective and <span class="math inline">\log Z</span> (Problem 32). The week’s two-variable worked example shows this: the mean-field marginal came out more confident than the exact one.</li>
+</ol>
+<p><strong>Answer.</strong> (1) Exact, because <span class="math inline">p</span> itself factorizes. (2) Never exact; the minimum KL is strictly positive.</p>
+</div>
+</div>
+</div>
+</section>
+</section>
+<section id="sec-w6p-coord" class="level2">
+<h2 class="anchored" data-anchor-id="sec-w6p-coord">Pairwise MRFs and coordinate ascent</h2>
+<section id="prb-36" class="level3">
+<h3 class="anchored" data-anchor-id="prb-36">Problem 36: The Lagrange step in isolation</h3>
+<p>On <span class="math inline">\{1,2,3\}</span>, maximize <span class="math inline">\;\sum_x q(x)\,a(x) + H(q)\;</span> over distributions <span class="math inline">q</span>, where <span class="math inline">a=(0,\ \log2,\ \log3)</span>. Use a Lagrange multiplier for <span class="math inline">\sum_xq(x)=1</span>. Report <span class="math inline">q^*</span> and the maximum value.</p>
+<div class="practice-answer callout callout-style-default callout-tip callout-titled" title="Worked solution">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-36-contents" aria-controls="callout-36" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Worked solution
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-36" class="callout-36-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>This uses <a href="../lectures/week06.html#sec-lagrange">Week 6, Lagrange multipliers</a> and <a href="../lectures/week06.html#sec-mf-update">The coordinate update</a>, which solves exactly this problem with <span class="math inline">a(x_i)=\sum_{j}\sum_{x_j}q_j(x_j)\phi_{ij}(x_i,x_j)</span>.</p>
+<p>The Lagrangian is <span class="math inline">\sum_xq(x)a(x)-\sum_xq(x)\log q(x)+\lambda(\sum_xq(x)-1)</span>. Differentiating with respect to <span class="math inline">q(x)</span>: <span class="math inline">a(x)-\log q(x)-1+\lambda=0</span>, so <span class="math inline">q(x)=e^{\lambda-1}e^{a(x)}\propto e^{a(x)}</span>. Here <span class="math inline">e^{a}=(1,2,3)</span>, so <span class="math inline">q^*=(1/6,\ 2/6,\ 3/6)</span>.</p>
+<p>The value: <span class="math inline">\log q^*(x)=a(x)-\log6</span>, so <span class="math display">\sum_xq^*(x)a(x)+H(q^*)=\sum_xq^*(x)a(x)-\sum_xq^*(x)\big(a(x)-\log6\big)=\log6\approx1.792.</span></p>
+<p>The mean-field update is this computation, one variable at a time, with <span class="math inline">a</span> supplied by the neighbours.</p>
+<p><strong>Answer.</strong> <span class="math inline">q^*=(1/6,\ 1/3,\ 1/2)</span>, and the maximum value is <span class="math inline">\log6\approx1.792</span>.</p>
+</div>
+</div>
+</div>
+</section>
+<section id="prb-37" class="level3">
+<h3 class="anchored" data-anchor-id="prb-37">Problem 37: Two sweeps on a three-node chain</h3>
+<p>Three binary variables <span class="math inline">x_1-x_2-x_3</span>, each in <span class="math inline">\{0,1\}</span>, form a chain MRF with <span class="math inline">\phi_{12}=x_1x_2</span> and <span class="math inline">\phi_{23}=x_2x_3</span>. Write <span class="math inline">m_i=q_i(1)</span> and <span class="math inline">\sigma(y)=1/(1+e^{-y})</span>.</p>
+<ol type="1">
+<li>Derive the coordinate updates for <span class="math inline">m_1</span>, <span class="math inline">m_2</span>, <span class="math inline">m_3</span>.</li>
+<li>Starting uniform, run two sweeps in the order <span class="math inline">1,2,3</span>.</li>
+<li>The fixed point is about <span class="math inline">(0.690,\ 0.799,\ 0.690)</span>, and the exact marginals are about <span class="math inline">(0.679,\ 0.776,\ 0.679)</span>. Comment.</li>
+</ol>
+<div class="practice-answer callout callout-style-default callout-tip callout-titled" title="Worked solution">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-37-contents" aria-controls="callout-37" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Worked solution
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-37" class="callout-37-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>This uses <a href="../lectures/week06.html#sec-mf-update">Week 6, The coordinate update</a>.</p>
+<ol type="1">
+<li>For node 1 (one neighbour): <span class="math inline">q_1(x_1)\propto\exp\{\sum_{x_2}q_2(x_2)\,x_1x_2\}=\exp\{x_1m_2\}</span>, so <span class="math inline">m_1=e^{m_2}/(1+e^{m_2})=\sigma(m_2)</span>. Likewise <span class="math inline">m_3=\sigma(m_2)</span>. Node 2 has two neighbours, whose averaged potentials add: <span class="math inline">m_2=\sigma(m_1+m_3)</span>.</li>
+<li>Start <span class="math inline">m=(0.5,0.5,0.5)</span>.
+<ul>
+<li>Sweep 1: <span class="math inline">m_1=\sigma(0.5)\approx0.623</span>; <span class="math inline">m_2=\sigma(0.623+0.5)=\sigma(1.123)\approx0.754</span>; <span class="math inline">m_3=\sigma(0.754)\approx0.680</span>.</li>
+<li>Sweep 2: <span class="math inline">m_1=\sigma(0.754)\approx0.680</span>; <span class="math inline">m_2=\sigma(0.680+0.680)\approx0.796</span>; <span class="math inline">m_3=\sigma(0.796)\approx0.689</span>.</li>
+</ul>
+Each update uses the newest values of the neighbours, which is what makes this coordinate ascent rather than a simultaneous update.</li>
+<li>The middle node has two attractive neighbours, so it ends up the most confident in both. Mean field overstates every marginal a little, the same direction as the week’s two-variable example: replacing the neighbours by their averages ignores the joint configurations in which they are both 0.</li>
+</ol>
+<p><strong>Answer.</strong> (1) <span class="math inline">m_1=\sigma(m_2)</span>, <span class="math inline">m_2=\sigma(m_1+m_3)</span>, <span class="math inline">m_3=\sigma(m_2)</span>. (2) After two sweeps, <span class="math inline">m\approx(0.680,\ 0.796,\ 0.689)</span>. (3) Close to exact, slightly overconfident.</p>
+</div>
+</div>
+</div>
+</section>
+<section id="prb-38" class="level3">
+<h3 class="anchored" data-anchor-id="prb-38">Problem 38: Unary terms, and a fixed point that is not a maximum (stretch)</h3>
+<ol type="1">
+<li>Add unary log-potentials <span class="math inline">\phi_i(x_i)</span> to the pairwise MRF. Rederive the coordinate update.</li>
+<li>Two spins <span class="math inline">x_1,x_2\in\{-1,+1\}</span> have only the pairwise potential <span class="math inline">\phi_{12}=Jx_1x_2</span> with <span class="math inline">J=2</span>, and no unary terms. Write <span class="math inline">m_i=\mathbb{E}_{q_i}[x_i]</span> and show the update is <span class="math inline">m_1\leftarrow\tanh(Jm_2)</span>, <span class="math inline">m_2\leftarrow\tanh(Jm_1)</span>.</li>
+<li>Run the updates from a uniform start (<span class="math inline">m_1=m_2=0</span>), and from a start with <span class="math inline">m_2=0.2</span>. What happens in each case?</li>
+<li>The exact marginals are uniform by symmetry. What does mean field get wrong, and how is it related to the I-projection?</li>
+</ol>
+<div class="practice-answer callout callout-style-default callout-tip callout-titled" title="Worked solution">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-38-contents" aria-controls="callout-38" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Worked solution
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-38" class="callout-38-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>This uses <a href="../lectures/week06.html#sec-mf-update">Week 6, The coordinate update</a> and the mode-seeking behaviour from <a href="../lectures/week06.html#sec-projections">Which direction? I-projection and M-projection</a>.</p>
+<ol type="1">
+<li><p>A unary term adds <span class="math inline">\sum_{x_i}q_i(x_i)\phi_i(x_i)</span> to the part of the objective involving <span class="math inline">q_i</span>. Its derivative with respect to <span class="math inline">q_i(x_i)</span> is <span class="math inline">\phi_i(x_i)</span>, so the stationarity condition gains that term and <span class="math display">q_i(x_i)\propto\exp\Big\{\phi_i(x_i)+\sum_{j\in N(i)}\sum_{x_j}q_j(x_j)\phi_{ij}(x_i,x_j)\Big\}.</span></p></li>
+<li><p><span class="math inline">\sum_{x_2}q_2(x_2)Jx_1x_2=Jx_1m_2</span>, so <span class="math inline">q_1(x_1)\propto e^{Jx_1m_2}</span> and <span class="math inline">m_1=\frac{e^{Jm_2}-e^{-Jm_2}}{e^{Jm_2}+e^{-Jm_2}}=\tanh(Jm_2)</span>. The same for <span class="math inline">m_2</span>.</p></li>
+<li><p>From <span class="math inline">m_1=m_2=0</span>: <span class="math inline">\tanh(0)=0</span>, so nothing ever moves; uniform is a fixed point. From <span class="math inline">m_2=0.2</span>: <span class="math inline">m_1=\tanh(0.4)\approx0.380</span>, <span class="math inline">m_2=\tanh(0.760)\approx0.641</span>, then <span class="math inline">0.857</span>, <span class="math inline">0.937</span>, and the values settle at <span class="math inline">m\approx0.957</span>, the positive solution of <span class="math inline">m=\tanh(2m)</span>. Starting from <span class="math inline">m_2=-0.2</span> gives <span class="math inline">m\approx-0.957</span> by symmetry.</p>
+<p>Compare objective values, <span class="math inline">\mathbb{E}_q[Jx_1x_2]+H(q_1)+H(q_2)=Jm_1m_2+H(q_1)+H(q_2)</span>. The uniform point gives <span class="math inline">0+2\log2\approx1.386</span>; the tilted fixed point gives about <span class="math inline">2(0.957)^2+2(0.104)\approx2.039</span>. Both are below <span class="math inline">\log Z=\log(2e^2+2e^{-2})\approx2.711</span>. So the uniform point is a fixed point of the updates but not a maximum: coordinate ascent can get stuck at it only because the start was exactly symmetric.</p></li>
+<li><p>The exact <span class="math inline">p</span> puts almost all its mass on <span class="math inline">(+1,+1)</span> and <span class="math inline">(-1,-1)</span> equally, so each exact marginal is uniform. A product <span class="math inline">q</span> cannot put mass on both of those corners without also putting mass on the mixed corners, which <span class="math inline">p</span> penalizes. So the best product picks one corner, like the I-projection picking one bump of a mixture. The resulting marginals (<span class="math inline">q_i(+1)\approx0.98</span>) are confidently wrong about each spin, even though the objective is as high as a product can get.</p></li>
+</ol>
+<p><strong>Answer.</strong> (1) Add <span class="math inline">\phi_i(x_i)</span> inside the exponent. (2) <span class="math inline">m_i\leftarrow\tanh(Jm_j)</span>. (3) Stuck at <span class="math inline">0</span> from a uniform start; from <span class="math inline">m_2=0.2</span>, converges to <span class="math inline">m\approx0.957</span> (or <span class="math inline">-0.957</span> from the opposite start). (4) Mean field breaks the symmetry and picks one mode, as the I-projection does.</p>
+</div>
+</div>
+</div>
+
+
+</section>
+</section>
+
+</main> <!-- /main -->
+<script id="quarto-html-after-body" type="application/javascript">
+  window.document.addEventListener("DOMContentLoaded", function (event) {
+    const icon = "";
+    const anchorJS = new window.AnchorJS();
+    anchorJS.options = {
+      placement: 'right',
+      icon: icon
+    };
+    anchorJS.add('.anchored');
+    const isCodeAnnotation = (el) => {
+      for (const clz of el.classList) {
+        if (clz.startsWith('code-annotation-')) {                     
+          return true;
+        }
+      }
+      return false;
+    }
+    const onCopySuccess = function(e) {
+      // button target
+      const button = e.trigger;
+      // don't keep focus
+      button.blur();
+      // flash "checked"
+      button.classList.add('code-copy-button-checked');
+      var currentTitle = button.getAttribute("title");
+      button.setAttribute("title", "Copied!");
+      let tooltip;
+      if (window.bootstrap) {
+        button.setAttribute("data-bs-toggle", "tooltip");
+        button.setAttribute("data-bs-placement", "left");
+        button.setAttribute("data-bs-title", "Copied!");
+        tooltip = new bootstrap.Tooltip(button, 
+          { trigger: "manual", 
+            customClass: "code-copy-button-tooltip",
+            offset: [0, -8]});
+        tooltip.show();    
+      }
+      setTimeout(function() {
+        if (tooltip) {
+          tooltip.hide();
+          button.removeAttribute("data-bs-title");
+          button.removeAttribute("data-bs-toggle");
+          button.removeAttribute("data-bs-placement");
+        }
+        button.setAttribute("title", currentTitle);
+        button.classList.remove('code-copy-button-checked');
+      }, 1000);
+      // clear code selection
+      e.clearSelection();
+    }
+    const getTextToCopy = function(trigger) {
+      const outerScaffold = trigger.parentElement.cloneNode(true);
+      const codeEl = outerScaffold.querySelector('code');
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+    }
+    const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
+      text: getTextToCopy
+    });
+    clipboard.on('success', onCopySuccess);
+    if (window.document.getElementById('quarto-embedded-source-code-modal')) {
+      const clipboardModal = new window.ClipboardJS('.code-copy-button[data-in-quarto-modal]', {
+        text: getTextToCopy,
+        container: window.document.getElementById('quarto-embedded-source-code-modal')
+      });
+      clipboardModal.on('success', onCopySuccess);
+    }
+      var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+      var mailtoRegex = new RegExp(/^mailto:/);
+        var filterRegex = new RegExp('/' + window.location.host + '/');
+      var isInternal = (href) => {
+          return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+      }
+      // Inspect non-navigation links and adorn them if external
+     var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+      for (var i=0; i<links.length; i++) {
+        const link = links[i];
+        if (!isInternal(link.href)) {
+          // undo the damage that might have been done by quarto-nav.js in the case of
+          // links that we want to consider external
+          if (link.dataset.originalHref !== undefined) {
+            link.href = link.dataset.originalHref;
+          }
+            // target, if specified
+            link.setAttribute("target", "_blank");
+            if (link.getAttribute("rel") === null) {
+              link.setAttribute("rel", "noopener");
+            }
+        }
+      }
+    function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+      const config = {
+        allowHTML: true,
+        maxWidth: 500,
+        delay: 100,
+        arrow: false,
+        appendTo: function(el) {
+            return el.parentElement;
+        },
+        interactive: true,
+        interactiveBorder: 10,
+        theme: 'quarto',
+        placement: 'bottom-start',
+      };
+      if (contentFn) {
+        config.content = contentFn;
+      }
+      if (onTriggerFn) {
+        config.onTrigger = onTriggerFn;
+      }
+      if (onUntriggerFn) {
+        config.onUntrigger = onUntriggerFn;
+      }
+      window.tippy(el, config); 
+    }
+    const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+    for (var i=0; i<noterefs.length; i++) {
+      const ref = noterefs[i];
+      tippyHover(ref, function() {
+        // use id or data attribute instead here
+        let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+        try { href = new URL(href).hash; } catch {}
+        const id = href.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note) {
+          return note.innerHTML;
+        } else {
+          return "";
+        }
+      });
+    }
+    const xrefs = window.document.querySelectorAll('a.quarto-xref');
+    const processXRef = (id, note) => {
+      // Strip column container classes
+      const stripColumnClz = (el) => {
+        el.classList.remove("page-full", "page-columns");
+        if (el.children) {
+          for (const child of el.children) {
+            stripColumnClz(child);
+          }
+        }
+      }
+      stripColumnClz(note)
+      if (id === null || id.startsWith('sec-')) {
+        // Special case sections, only their first couple elements
+        const container = document.createElement("div");
+        if (note.children && note.children.length > 2) {
+          container.appendChild(note.children[0].cloneNode(true));
+          for (let i = 1; i < note.children.length; i++) {
+            const child = note.children[i];
+            if (child.tagName === "P" && child.innerText === "") {
+              continue;
+            } else {
+              container.appendChild(child.cloneNode(true));
+              break;
+            }
+          }
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(container);
+          }
+          return container.innerHTML
+        } else {
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(note);
+          }
+          return note.innerHTML;
+        }
+      } else {
+        // Remove any anchor links if they are present
+        const anchorLink = note.querySelector('a.anchorjs-link');
+        if (anchorLink) {
+          anchorLink.remove();
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        if (note.classList.contains("callout")) {
+          return note.outerHTML;
+        } else {
+          return note.innerHTML;
+        }
+      }
+    }
+    for (var i=0; i<xrefs.length; i++) {
+      const xref = xrefs[i];
+      tippyHover(xref, undefined, function(instance) {
+        instance.disable();
+        let url = xref.getAttribute('href');
+        let hash = undefined; 
+        if (url.startsWith('#')) {
+          hash = url;
+        } else {
+          try { hash = new URL(url).hash; } catch {}
+        }
+        if (hash) {
+          const id = hash.replace(/^#\/?/, "");
+          const note = window.document.getElementById(id);
+          if (note !== null) {
+            try {
+              const html = processXRef(id, note.cloneNode(true));
+              instance.setContent(html);
+            } finally {
+              instance.enable();
+              instance.show();
+            }
+          } else {
+            // See if we can fetch this
+            fetch(url.split('#')[0])
+            .then(res => res.text())
+            .then(html => {
+              const parser = new DOMParser();
+              const htmlDoc = parser.parseFromString(html, "text/html");
+              const note = htmlDoc.getElementById(id);
+              if (note !== null) {
+                const html = processXRef(id, note);
+                instance.setContent(html);
+              } 
+            }).finally(() => {
+              instance.enable();
+              instance.show();
+            });
+          }
+        } else {
+          // See if we can fetch a full url (with no hash to target)
+          // This is a special case and we should probably do some content thinning / targeting
+          fetch(url)
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.querySelector('main.content');
+            if (note !== null) {
+              // This should only happen for chapter cross references
+              // (since there is no id in the URL)
+              // remove the first header
+              if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+                note.children[0].remove();
+              }
+              const html = processXRef(null, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      }, function(instance) {
+      });
+    }
+        let selectedAnnoteEl;
+        const selectorForAnnotation = ( cell, annotation) => {
+          let cellAttr = 'data-code-cell="' + cell + '"';
+          let lineAttr = 'data-code-annotation="' +  annotation + '"';
+          const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+          return selector;
+        }
+        const selectCodeLines = (annoteEl) => {
+          const doc = window.document;
+          const targetCell = annoteEl.getAttribute("data-target-cell");
+          const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+          const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+          const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+          const lineIds = lines.map((line) => {
+            return targetCell + "-" + line;
+          })
+          let top = null;
+          let height = null;
+          let parent = null;
+          if (lineIds.length > 0) {
+              //compute the position of the single el (top and bottom and make a div)
+              const el = window.document.getElementById(lineIds[0]);
+              top = el.offsetTop;
+              height = el.offsetHeight;
+              parent = el.parentElement.parentElement;
+            if (lineIds.length > 1) {
+              const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+              const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+              height = bottom - top;
+            }
+            if (top !== null && height !== null && parent !== null) {
+              // cook up a div (if necessary) and position it 
+              let div = window.document.getElementById("code-annotation-line-highlight");
+              if (div === null) {
+                div = window.document.createElement("div");
+                div.setAttribute("id", "code-annotation-line-highlight");
+                div.style.position = 'absolute';
+                parent.appendChild(div);
+              }
+              div.style.top = top - 2 + "px";
+              div.style.height = height + 4 + "px";
+              div.style.left = 0;
+              let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+              if (gutterDiv === null) {
+                gutterDiv = window.document.createElement("div");
+                gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+                gutterDiv.style.position = 'absolute';
+                const codeCell = window.document.getElementById(targetCell);
+                const gutter = codeCell.querySelector('.code-annotation-gutter');
+                gutter.appendChild(gutterDiv);
+              }
+              gutterDiv.style.top = top - 2 + "px";
+              gutterDiv.style.height = height + 4 + "px";
+            }
+            selectedAnnoteEl = annoteEl;
+          }
+        };
+        const unselectCodeLines = () => {
+          const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+          elementsIds.forEach((elId) => {
+            const div = window.document.getElementById(elId);
+            if (div) {
+              div.remove();
+            }
+          });
+          selectedAnnoteEl = undefined;
+        };
+          // Handle positioning of the toggle
+      window.addEventListener(
+        "resize",
+        throttle(() => {
+          elRect = undefined;
+          if (selectedAnnoteEl) {
+            selectCodeLines(selectedAnnoteEl);
+          }
+        }, 10)
+      );
+      function throttle(fn, ms) {
+      let throttle = false;
+      let timer;
+        return (...args) => {
+          if(!throttle) { // first call gets through
+              fn.apply(this, args);
+              throttle = true;
+          } else { // all the others get throttled
+              if(timer) clearTimeout(timer); // cancel #2
+              timer = setTimeout(() => {
+                fn.apply(this, args);
+                timer = throttle = false;
+              }, ms);
+          }
+        };
+      }
+        // Attach click handler to the DT
+        const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+        for (const annoteDlNode of annoteDls) {
+          annoteDlNode.addEventListener('click', (event) => {
+            const clickedEl = event.target;
+            if (clickedEl !== selectedAnnoteEl) {
+              unselectCodeLines();
+              const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+              if (activeEl) {
+                activeEl.classList.remove('code-annotation-active');
+              }
+              selectCodeLines(clickedEl);
+              clickedEl.classList.add('code-annotation-active');
+            } else {
+              // Unselect the line
+              unselectCodeLines();
+              clickedEl.classList.remove('code-annotation-active');
+            }
+          });
+        }
+    const findCites = (el) => {
+      const parentEl = el.parentElement;
+      if (parentEl) {
+        const cites = parentEl.dataset.cites;
+        if (cites) {
+          return {
+            el,
+            cites: cites.split(' ')
+          };
+        } else {
+          return findCites(el.parentElement)
+        }
+      } else {
+        return undefined;
+      }
+    };
+    var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+    for (var i=0; i<bibliorefs.length; i++) {
+      const ref = bibliorefs[i];
+      const citeInfo = findCites(ref);
+      if (citeInfo) {
+        tippyHover(citeInfo.el, function() {
+          var popup = window.document.createElement('div');
+          citeInfo.cites.forEach(function(cite) {
+            var citeDiv = window.document.createElement('div');
+            citeDiv.classList.add('hanging-indent');
+            citeDiv.classList.add('csl-entry');
+            var biblioDiv = window.document.getElementById('ref-' + cite);
+            if (biblioDiv) {
+              citeDiv.innerHTML = biblioDiv.innerHTML;
+            }
+            popup.appendChild(citeDiv);
+          });
+          return popup.innerHTML;
+        });
+      }
+    }
+  });
+  </script>
+<nav class="page-navigation">
+  <div class="nav-page nav-page-previous">
+      <a href="../lectures/week06.html" class="pagination-link" aria-label="Week 6: HMMs and Variational Inference I">
+        <i class="bi bi-arrow-left-short"></i> <span class="nav-page-text"><span class="chapter-title">Week 6: HMMs and Variational Inference I</span></span>
+      </a>          
+  </div>
+  <div class="nav-page nav-page-next">
+      <a href="../glossary.html" class="pagination-link" aria-label="Glossary">
+        <span class="nav-page-text"><span class="chapter-title">Glossary</span></span> <i class="bi bi-arrow-right-short"></i>
+      </a>
+  </div>
+</nav>
+</div> <!-- /content -->
+
+
+
+
+<script src="../site_libs/quarto-html/zenscroll-min.js"></script>
+</body></html>

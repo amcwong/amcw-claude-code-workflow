@@ -36,7 +36,7 @@ ul.task-list li input[type="checkbox"] {
 <script src="site_libs/quarto-search/fuse.min.js"></script>
 <script src="site_libs/quarto-search/quarto-search.js"></script>
 <meta name="quarto:offset" content="./">
-<link href="./lectures/week05-practice.html" rel="prev">
+<link href="./lectures/week06-practice.html" rel="prev">
 <script src="site_libs/quarto-html/quarto.js" type="module"></script>
 <script src="site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
 <script src="site_libs/quarto-html/popper.min.js"></script>
@@ -220,6 +220,16 @@ window.Quarto = {
 </li>
         <li class="sidebar-item">
   <div class="sidebar-item-container"> 
+  <a href="./lectures/week06.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Week 6: HMMs and Variational Inference I</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./lectures/week06-practice.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Week 6 practice: HMMs and Variational Inference I</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
   <a href="./glossary.html" class="sidebar-item-text sidebar-link active"><span class="chapter-title">Glossary</span></a>
   </div>
 </li>
@@ -238,6 +248,7 @@ window.Quarto = {
   <li><a href="#week-3" id="toc-week-3" class="nav-link" data-scroll-target="#week-3">Week 3</a></li>
   <li><a href="#week-4" id="toc-week-4" class="nav-link" data-scroll-target="#week-4">Week 4</a></li>
   <li><a href="#week-5" id="toc-week-5" class="nav-link" data-scroll-target="#week-5">Week 5</a></li>
+  <li><a href="#week-6" id="toc-week-6" class="nav-link" data-scroll-target="#week-6">Week 6</a></li>
   </ul>
 </nav>
     </div>
@@ -384,6 +395,36 @@ window.Quarto = {
 <li><strong>Autocorrelation</strong> (<span class="math inline">\rho_t</span>): the correlation between a chain’s draws <span class="math inline">t</span> steps apart (week 5, Effective sample size).</li>
 <li><strong><span class="math inline">\hat R</span> (R-hat) / split-<span class="math inline">\hat R</span>:</strong> <span class="math inline">\sqrt{\widehat{\mathrm{var}}^+/W}</span>, comparing between-chain and within-chain variance; near 1 when chains agree, above 1 when they have not mixed. Split-<span class="math inline">\hat R</span> also splits each chain in half (week 5, The R-hat statistic).</li>
 <li><strong>Effective sample size</strong> (<span class="math inline">n_{\text{eff}}</span>): <span class="math inline">mn/(1+2\sum_{t\ge1}\rho_t)</span>, the number of independent draws that would give the same accuracy as <span class="math inline">m</span> correlated chains of length <span class="math inline">n</span> (week 5, Effective sample size).</li>
+</ul>
+</section>
+<section id="week-6" class="level2">
+<h2 class="anchored" data-anchor-id="week-6">Week 6</h2>
+<ul>
+<li><strong>Hidden Markov model (HMM), stricter sense:</strong> week 2’s chain of hidden states emitting observations, now with homogeneous parameters <span class="math inline">\pi</span>, <span class="math inline">\Psi</span>, <span class="math inline">\psi_t</span> and the inference algorithms below (week 6, Hidden Markov models).</li>
+<li><strong>Initial distribution</strong> (<span class="math inline">\pi</span>): <span class="math inline">\pi(i)=p(z_1=i)</span>, the distribution of the first hidden state of an HMM (week 6, Hidden Markov models).</li>
+<li><strong>Transition matrix, HMM sense</strong> (<span class="math inline">\Psi</span>): <span class="math inline">\Psi(i,j)=p(z_{t+1}=j\mid z_t=i)</span>, week 5’s transition matrix <span class="math inline">A</span> applied to the hidden chain (week 6, Hidden Markov models).</li>
+<li><strong>Emission probabilities</strong> (<span class="math inline">\psi_t</span>): <span class="math inline">\psi_t(i)=p(x_t\mid z_t=i)</span> for the observed <span class="math inline">x_t</span>; a likelihood over hidden states, so its entries need not sum to 1 (week 6, Hidden Markov models).</li>
+<li><strong>Hadamard product</strong> (<span class="math inline">u\odot v</span>): the entrywise product of two vectors of the same length (week 6, The forward algorithm).</li>
+<li><strong>Forward vector / filtering</strong> (<span class="math inline">\alpha_t</span>): <span class="math inline">\alpha_t(j)=p(z_t=j\mid x_{1:t})</span>, computed left to right by <span class="math inline">\alpha_t\propto\psi_t\odot(\Psi^\top\alpha_{t-1})</span> (week 6, The forward algorithm).</li>
+<li><strong>Backward vector</strong> (<span class="math inline">\beta_t</span>): <span class="math inline">\beta_t(i)=p(x_{t+1:T}\mid z_t=i)</span>, computed right to left by <span class="math inline">\beta_t=\Psi(\psi_{t+1}\odot\beta_{t+1})</span> with <span class="math inline">\beta_T=1</span> (week 6, The forward-backward algorithm).</li>
+<li><strong>Forward-backward algorithm / smoothing</strong> (<span class="math inline">\gamma_t</span>): computes <span class="math inline">\gamma_t=p(z_t\mid x_{1:T})\propto\alpha_t\odot\beta_t</span>; sum-product BP (week 4) on a chain (week 6, The forward-backward algorithm).</li>
+<li><strong>MAP inference:</strong> finding the single most probable configuration of the unobserved variables, <span class="math inline">\arg\max_z p(z\mid x)</span> (week 6, Two inference questions).</li>
+<li><strong>Viterbi algorithm:</strong> MAP inference in an HMM via <span class="math inline">\delta_t(j)=\psi_t(j)\max_i\delta_{t-1}(i)\Psi(i,j)</span>, back-pointers <span class="math inline">\theta_t</span>, and a traceback; max-product BP (week 4) on a chain (week 6, The Viterbi algorithm).</li>
+<li><strong>Prior, likelihood, posterior, evidence:</strong> in <span class="math inline">p(x,z)=p(z)p(x\mid z)</span>, the prior <span class="math inline">p(z)</span>, the likelihood <span class="math inline">p(x\mid z)</span>, the posterior <span class="math inline">p(z\mid x)</span>, and the evidence (marginal likelihood) <span class="math inline">p(x)=\int p(x,z)\,dz</span> (week 6, Posterior inference in latent variable models).</li>
+<li><strong>Variational inference (VI):</strong> approximating an intractable posterior by the closest member of a tractable family <span class="math inline">Q</span>, usually by minimizing a KL divergence (week 6, Variational methods).</li>
+<li><strong>Variational family</strong> (<span class="math inline">Q</span>): the set of tractable distributions VI searches over, for example all Gaussians (week 6, Variational methods).</li>
+<li><strong>Convex function / Jensen’s inequality:</strong> <span class="math inline">\phi</span> is convex if chords lie above its graph; then <span class="math inline">\mathbb{E}[\phi(y)]\ge\phi(\mathbb{E}[y])</span> (week 6, Jensen’s inequality).</li>
+<li><strong>Entropy</strong> (<span class="math inline">H(p)</span>): <span class="math inline">-\sum_x p(x)\log p(x)</span>, the uncertainty in <span class="math inline">p</span> (week 6, The KL divergence).</li>
+<li><strong>Cross-entropy</strong> (<span class="math inline">H(p,q)</span>): <span class="math inline">-\sum_x p(x)\log q(x)</span> (week 6, The KL divergence).</li>
+<li><strong>KL divergence</strong> (<span class="math inline">\mathrm{KL}(q\Vert p)</span>): <span class="math inline">\mathbb{E}_q[\log q/p]</span>; nonnegative, zero only when <span class="math inline">q=p</span>, not symmetric, so not a metric (week 6, The KL divergence).</li>
+<li><strong>I-projection (reverse KL):</strong> <span class="math inline">\arg\min_{q\in Q}\mathrm{KL}(q\Vert p)</span>; mode-seeking, underestimates support; the direction VI uses (week 6, Which direction?).</li>
+<li><strong>M-projection (forward KL):</strong> <span class="math inline">\arg\min_{q\in Q}\mathrm{KL}(p\Vert q)</span>; covers the mass of <span class="math inline">p</span> and, for Gaussian <span class="math inline">Q</span>, matches its mean and covariance (week 6, Which direction?).</li>
+<li><strong>Principle of maximum entropy:</strong> maximizing <span class="math inline">H(q)</span> subject to fixed expectations <span class="math inline">\mathbb{E}_q[f_i]=t_i</span> gives an exponential family with sufficient statistics <span class="math inline">f_i</span> (week 6, Why variational inference uses the I-projection; ties to week 1).</li>
+<li><strong>Evidence lower bound (ELBO)</strong> (<span class="math inline">\mathcal L(\lambda)</span>): <span class="math inline">\mathbb{E}_{q_\lambda}[\log p(x,z)-\log q_\lambda(z)]</span>; <span class="math inline">\log p(x)=\mathcal L+\mathrm{KL}(q_\lambda\Vert p(z\mid x))</span>, so maximizing it minimizes the reverse KL (week 6, Tutorial: reverse KL and the ELBO).</li>
+<li><strong>Log-potential, mean-field sense</strong> (<span class="math inline">\phi_c</span>): the whole <span class="math inline">\log\psi_c(x_c)</span> of a clique. Not week 3’s sufficient-statistic vector <span class="math inline">\phi_C</span> (week 6, Mean field for an MRF).</li>
+<li><strong>Naive mean field:</strong> VI with a fully factorized <span class="math inline">q(x)=\prod_i q_i(x_i)</span>, whose entropy splits as <span class="math inline">\sum_i H(q_i)</span> (week 6, Naive mean field).</li>
+<li><strong>Lagrange multiplier:</strong> an extra variable <span class="math inline">\lambda</span> that turns a constrained optimum of <span class="math inline">f</span> subject to <span class="math inline">g=0</span> into a stationary point of <span class="math inline">f+\lambda g</span> (week 6, Lagrange multipliers).</li>
+<li><strong>Mean-field coordinate ascent:</strong> update one <span class="math inline">q_i</span> at a time by <span class="math inline">q_i(x_i)\propto\exp\{\sum_{j\in N(i)}\sum_{x_j}q_j(x_j)\phi_{ij}(x_i,x_j)\}</span>; always converges, possibly to a local optimum (week 6, Pairwise MRFs and coordinate ascent).</li>
 </ul>
 
 
@@ -797,8 +838,8 @@ window.Quarto = {
   </script>
 <nav class="page-navigation">
   <div class="nav-page nav-page-previous">
-      <a href="./lectures/week05-practice.html" class="pagination-link" aria-label="Week 5 practice: Sampling with MCMC">
-        <i class="bi bi-arrow-left-short"></i> <span class="nav-page-text"><span class="chapter-title">Week 5 practice: Sampling with MCMC</span></span>
+      <a href="./lectures/week06-practice.html" class="pagination-link" aria-label="Week 6 practice: HMMs and Variational Inference I">
+        <i class="bi bi-arrow-left-short"></i> <span class="nav-page-text"><span class="chapter-title">Week 6 practice: HMMs and Variational Inference I</span></span>
       </a>          
   </div>
   <div class="nav-page nav-page-next">

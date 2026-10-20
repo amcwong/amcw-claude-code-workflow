@@ -57,6 +57,30 @@ $p(H=h \mid Y=y) = \dfrac{p(H=h, Y=y)}{p(Y=y)}$.
 
 The last identity (conditional equals joint divided by marginal) is [Bayes' theorem](https://en.wikipedia.org/wiki/Bayes%27_theorem) once you also expand the joint using the other factorization.
 
+::: {.callout-tip collapse="true" .clarification title="Recap: Joint, marginal, and conditional distributions"}
+What the symbols stand for:
+
+- $H$ and $Y$: two discrete random variables (health state and test result in the running example).
+- $h$ and $y$: particular values those variables can take, such as $h=1$ or $y=0$.
+- $p(H=h, Y=y)$: the joint, one number per combination of values.
+- $p(H=h)$: the marginal, the probability of $H=h$ when we ignore $Y$.
+- $p(H=h \mid Y=y)$: the conditional, the probability of $H=h$ once we know $Y=y$.
+
+Taking the equations apart:
+
+$$p(H=h) = \sum_y p(H=h, Y=y)$$
+
+- The left side asks about $H$ alone.
+- The sum runs over every value $Y$ could take, so we add up every joint cell in which $H=h$. Summing out $Y$ is what "ignoring $Y$" means in symbols.
+
+$$p(H=h \mid Y=y) = \frac{p(H=h, Y=y)}{p(Y=y)}$$
+
+- The numerator keeps only the cell where both events happen.
+- The denominator is the total probability of the thing we learned, $Y=y$. Dividing by it rescales the surviving cells so they sum to 1 again.
+
+A teaching example. Take a different test with this joint table: $p(H{=}1,Y{=}1)=0.06$, $p(H{=}1,Y{=}0)=0.04$, $p(H{=}0,Y{=}1)=0.09$, $p(H{=}0,Y{=}0)=0.81$. The four cells sum to 1. Marginalizing gives $p(H{=}1) = 0.06 + 0.04 = 0.10$ and $p(Y{=}1) = 0.06 + 0.09 = 0.15$. Conditioning on a positive test keeps the $Y{=}1$ cells and rescales them: $p(H{=}1 \mid Y{=}1) = 0.06/0.15 = 0.4$ and $p(H{=}0 \mid Y{=}1) = 0.09/0.15 = 0.6$, which sum to 1 as a distribution over $H$ should.
+:::
+
 ## Worked example: a diagnostic test {#sec-bayes}
 
 Let $H = 1$ mean infected and $H=0$ mean not infected; let $Y=1$ mean the test is positive and $Y=0$ mean it is negative. We want $p(H=h \mid Y=y)$: given the test result, the chance of actually being infected.
@@ -134,6 +158,28 @@ If the prevalence is lower, say $p(H{=}1)=0.01$ instead of $0.1$, the same arith
 
 This example is itself a **parametric model**: the joint of $(Y,H)$ is completely determined by three numbers (prevalence, sensitivity, specificity).
 
+::: {.callout-tip collapse="true" .clarification title="Recap: Worked example: a diagnostic test"}
+What the symbols stand for:
+
+- $H=1$ / $H=0$: infected / not infected. $Y=1$ / $Y=0$: test positive / negative.
+- Sensitivity $p(Y{=}1 \mid H{=}1)$: how often the test catches a real infection.
+- Specificity $p(Y{=}0 \mid H{=}0)$: how often the test correctly clears a healthy person. One minus specificity is the false-positive rate.
+- Prevalence $p(H{=}1)$: the prior, how common the infection is before any test.
+
+Taking the computation apart. Each joint cell is "how likely this test result is for this health state" times "how common this health state is":
+
+$$p(Y{=}y, H{=}h) = p(Y{=}y \mid H{=}h)\, p(H{=}h).$$
+
+The posterior after a positive test then has a numerator of true positives and a denominator of all positives:
+
+$$p(H{=}1 \mid Y{=}1) = \frac{p(Y{=}1 \mid H{=}1)\,p(H{=}1)}{p(Y{=}1 \mid H{=}1)\,p(H{=}1) + p(Y{=}1 \mid H{=}0)\,p(H{=}0)}.$$
+
+- The first term in the denominator is the same as the numerator: infected people who test positive.
+- The second term is healthy people who test positive anyway. When it is large, the posterior is small.
+
+A teaching example. The section states that dropping prevalence to $0.01$ gives about 26%. Here is the arithmetic. True positives: $0.875 \times 0.01 = 0.00875$. False positives: $0.025 \times 0.99 = 0.02475$. All positives: $0.00875 + 0.02475 = 0.0335$. Posterior: $0.00875 / 0.0335 \approx 0.261$. The false positives outnumber the true positives almost three to one because the healthy group is 99 times larger, which is the base-rate effect.
+:::
+
 ## Parametric models and the likelihood {#sec-parametric}
 
 Rather than considering every possible distribution over the data, we restrict attention to a family indexed by a small number of parameters.
@@ -153,6 +199,24 @@ $$p(\mathcal{D} \mid \theta) = \prod_{i=1}^N p(x^{(i)} \mid \theta).$$
 Products of many small numbers are numerically awkward, and calculus is easier on sums, so we almost always work with the **log-likelihood**:
 
 $$\ell(\theta; \mathcal{D}) = \log \mathcal{L}(\theta;\mathcal{D}) = \sum_{i=1}^N \log p(x^{(i)} \mid \theta).$$
+
+::: {.callout-tip collapse="true" .clarification title="Recap: Parametric models and the likelihood"}
+What the symbols stand for:
+
+- $\theta$: the parameter, the knob that picks one distribution out of the family.
+- $\Theta$: the set of allowed values of $\theta$ (for a coin, the interval $[0,1]$).
+- $\mathcal{P}$: the family itself, one distribution $p(x \mid \theta)$ for each $\theta \in \Theta$.
+- $\theta^*$: the unknown true parameter that generated the data.
+- $\mathcal{D} = \{x^{(1)}, \dots, x^{(N)}\}$: the dataset of $N$ observations. The superscript $(i)$ indexes data points, not powers.
+- $\mathcal{L}(\theta;\mathcal{D})$ and $\ell(\theta;\mathcal{D})$: the likelihood and the log-likelihood. Both are functions of $\theta$ with the data held fixed.
+
+Taking the equations apart:
+
+- $p(\mathcal{D} \mid \theta) = \prod_{i} p(x^{(i)} \mid \theta)$: the probability of the whole dataset is a product of one factor per data point. The product is allowed only because the points are independent.
+- $\ell = \sum_i \log p(x^{(i)} \mid \theta)$: taking the log turns that product into a sum, because $\log(ab) = \log a + \log b$. Each data point contributes one additive term.
+
+A teaching example. Model a coin as $p(x \mid \theta) = \theta^x(1-\theta)^{1-x}$ and observe $\mathcal{D} = \{1, 0, 1\}$. At $\theta = 0.6$ the three factors are $0.6$, $0.4$, $0.6$, so $\mathcal{L} = 0.144$ and $\ell = \log 0.6 + \log 0.4 + \log 0.6 \approx -0.511 - 0.916 - 0.511 = -1.938$, which matches $\log 0.144$. At $\theta = 0.5$ the likelihood is $0.5^3 = 0.125$. The data are more probable under $\theta = 0.6$, so the likelihood prefers it. The next section turns "prefers" into a rule.
+:::
 
 ## Maximum likelihood estimation {#sec-mle}
 
@@ -179,6 +243,22 @@ $$\begin{aligned}
 The MLE of a Bernoulli parameter is the observed fraction of ones. (A homework that asks you to derive an MLE for a different model is left to the assignment; the same derivative-of-the-log-likelihood steps apply.)
 :::
 
+::: {.callout-tip collapse="true" .clarification title="Recap: Maximum likelihood estimation"}
+What the symbols stand for:
+
+- $\hat\theta_{\text{MLE}}$: the estimate, the single $\theta$ we pick. The hat marks "computed from data".
+- $\arg\max_\theta$: "the value of $\theta$ that makes the following expression largest". It returns the location of the peak, not the height.
+- $\sum_i x^{(i)}$: the number of ones (heads) in the data. $N - \sum_i x^{(i)}$ is the number of zeros.
+
+Taking the Bernoulli derivation apart:
+
+- $\ell(\theta) = (\#\text{ones})\log\theta + (\#\text{zeros})\log(1-\theta)$. Each head contributes $\log\theta$ and each tail contributes $\log(1-\theta)$.
+- $\partial\ell/\partial\theta = \#\text{ones}/\theta - \#\text{zeros}/(1-\theta)$. The first term pulls $\theta$ up, the second pulls it down.
+- Setting the derivative to zero finds where the two pulls balance, which is $\theta = \#\text{ones}/N$.
+
+A teaching example. Ten flips give 7 heads and 3 tails. At $\theta = 0.5$ the derivative is $7/0.5 - 3/0.5 = 8 > 0$, so the log-likelihood is still rising and we should increase $\theta$. At $\theta = 0.7$ it is $7/0.7 - 3/0.3 = 10 - 10 = 0$, the balance point. So $\hat\theta_{\text{MLE}} = 0.7$, the fraction of heads.
+:::
+
 ## Sufficient statistics {#sec-sufficient}
 
 In the Bernoulli example, the log-likelihood only ever referred to the data through one number: $S = \sum_i x^{(i)}$, the total count of ones. It did not matter which trials were heads, or in what order, only how many.
@@ -192,6 +272,24 @@ for some function $h$ that does not depend on $\theta$, and some function $g_\th
 Checking the factorization on the Bernoulli likelihood from above:
 $$p(\mathcal{D}\mid\theta) = \prod_{i=1}^N \theta^{x^{(i)}}(1-\theta)^{1-x^{(i)}} = \theta^{\,S}(1-\theta)^{\,N-S}, \qquad S := \sum_{i=1}^N x^{(i)}.$$
 The individual data values never appear on the right except through $S$. That *is* the factorization with $h(\mathcal{D})=1$ and $T(\mathcal{D})=S$, which is why the MLE derivation only needed $S$.
+
+::: {.callout-tip collapse="true" .clarification title="Recap: Sufficient statistics"}
+What the symbols stand for:
+
+- $T(x)$: the sufficient statistic, a summary computed from the data (here, a count).
+- $h(x)$: a factor that may depend on the data but never on $\theta$.
+- $g_\theta(T(x))$: a factor that depends on $\theta$, and on the data only through $T(x)$.
+- $S = \sum_i x^{(i)}$: the Bernoulli sufficient statistic, the number of ones.
+
+Taking the factorization apart:
+
+$$p(x \mid \theta) = h(x) \; g_\theta\big(T(x)\big)$$
+
+- When we compare two values of $\theta$, the $h(x)$ factor is the same for both, so it cancels out of the comparison.
+- Everything that does change with $\theta$ looks at the data only through $T(x)$. Two datasets with the same $T$ therefore give the same verdict about $\theta$.
+
+A teaching example. Take $N = 4$ flips in two different orders: $\{1,1,0,0\}$ and $\{0,1,0,1\}$. Both have $S = 2$. At $\theta = 0.3$ the first dataset has likelihood $0.3 \cdot 0.3 \cdot 0.7 \cdot 0.7 = 0.0441$, and the second has $0.7 \cdot 0.3 \cdot 0.7 \cdot 0.3 = 0.0441$. Both equal $\theta^S(1-\theta)^{N-S} = 0.3^2 \cdot 0.7^2$. The order of the flips changed nothing, which is what "$S$ is sufficient" means.
+:::
 
 ## Exponential families {#sec-expfam}
 
@@ -340,6 +438,34 @@ The $K$-class Multinomial below uses the same shape, $\eta_i = \log(q_i/q_K)$, w
 
 A check against the general fact $\mathbb{E}[T(X)] = A'(\eta)$ proved later: $A(\eta) = \log(1+e^\eta)$ has $A'(\eta) = e^\eta/(1+e^\eta) = \theta = \mathbb{E}[X]$, and $A''(\eta) = \theta(1-\theta)$, the Bernoulli variance.
 
+::: {.callout-tip collapse="true" .clarification title="Recap: Exponential families"}
+What the symbols stand for:
+
+- $\eta$: the natural parameter, the coefficient that multiplies the data inside the exponent.
+- $T(x)$: the sufficient statistic, the function of the data that $\eta$ multiplies.
+- $\eta^\top T(x)$: their inner product. When both are vectors this is $\sum_j \eta_j T_j(x)$; when both are scalars it is just $\eta\,T(x)$.
+- $A(\eta)$: the log-partition function, the normalizer that makes the probabilities sum to 1.
+- $h(x)$: the carrying measure, everything that depends on the data alone.
+- $\theta$: the familiar parameter (for a Bernoulli, the probability of heads). $\eta$ is the same information in different coordinates.
+
+Taking the template apart:
+
+$$p(x \mid \eta) = h(x)\exp\{\eta^\top T(x) - A(\eta)\}$$
+
+- $\eta^\top T(x)$ is the only place where data and parameter interact. Different outcomes $x$ get different scores through this term.
+- $-A(\eta)$ is the same for every outcome. Its job is to shift the scores so the probabilities add to 1.
+- $h(x)$ adjusts outcomes in a way that does not depend on the parameter.
+
+For the Bernoulli, $\eta = \log\frac{\theta}{1-\theta}$ (log-odds), $T(x) = x$, $A(\eta) = \log(1+e^\eta)$, $h(x) = 1$. The map back from $\eta$ to $\theta$ is the sigmoid $\theta = e^\eta/(1+e^\eta)$.
+
+A teaching example. Take a coin with $\theta = 0.8$. Its log-odds is $\eta = \log(0.8/0.2) = \log 4 \approx 1.386$, and $A(\eta) = \log(1 + 4) = \log 5 \approx 1.609$. Plug both outcomes into the template:
+
+- $x = 1$: $\exp\{1.386 - 1.609\} = \exp\{-0.223\} \approx 0.8$.
+- $x = 0$: $\exp\{0 - 1.609\} = 1/5 = 0.2$.
+
+The template reproduces the coin. Going back through the sigmoid, $e^\eta/(1+e^\eta) = 4/5 = 0.8 = \theta$, and $A''(\eta) = 0.8 \times 0.2 = 0.16$ is the coin's variance.
+:::
+
 ## Multinomial as an exponential family {#sec-multinomial}
 
 A [**Multinomial**](https://en.wikipedia.org/wiki/Multinomial_distribution) random variable $X$ takes one of $K$ discrete states $i \in \{1,\dots,K\}$, each with probability $q_i$, where $q_i \ge 0$ and $\sum_i q_i = 1$ (a $K$-class label, or an unfair $K$-sided die). We observe $N$ i.i.d. draws $\mathcal{D} = \{x^{(1)}, \dots, x^{(N)}\}$.
@@ -370,6 +496,25 @@ $$\hat q_{i,\text{MLE}} = \frac{N_i}{N}.$$
 
 Each class probability's MLE is its observed relative frequency (Bernoulli is the $K=2$ case).
 
+::: {.callout-tip collapse="true" .clarification title="Recap: Multinomial as an exponential family"}
+What the symbols stand for:
+
+- $K$: the number of possible states (faces of the die, classes).
+- $q_i$: the probability of state $i$. The vector $\mathbf{q} = (q_1, \dots, q_K)$ must sum to 1.
+- $N$: the number of draws. $N_i$: how many draws landed in state $i$, so $\sum_i N_i = N$.
+- $\mathbb{1}[x^{(n)} = i]$: the indicator, 1 if draw $n$ is state $i$ and 0 otherwise. Summing it over draws counts them.
+- $\eta_i = \log(q_i / q_K)$: the natural parameter, the log-odds of state $i$ against the last state $K$.
+- $\lambda$: the Lagrange multiplier that enforces $\sum_i q_i = 1$ during the maximization.
+
+Taking the equations apart:
+
+- $\sum_i N_i \log q_i$: each draw in state $i$ contributes $\log q_i$, and there are $N_i$ of them.
+- Peeling out state $K$ rewrites this as $\sum_{i<K} N_i \log(q_i/q_K) + N\log q_K$. The first sum is the data-meets-parameter part $\eta^\top T$. The second term depends on the parameters only, so it is $-A$.
+- The Lagrangian $L = \sum_i N_i\log q_i + \lambda(1 - \sum_i q_i)$ adds a penalty term that is zero exactly when the constraint holds. Its derivative $N_i/q_i - \lambda = 0$ says every $q_i$ is proportional to its count.
+
+A teaching example. Roll a three-sided die ($K = 3$) ten times and see counts $N_1 = 5$, $N_2 = 3$, $N_3 = 2$. Each $q_i = N_i/\lambda$, and the constraint $5/\lambda + 3/\lambda + 2/\lambda = 1$ forces $\lambda = 10 = N$. So $\hat{\mathbf{q}} = (0.5, 0.3, 0.2)$. In natural coordinates, $\eta_1 = \log(0.5/0.2) \approx 0.916$ and $\eta_2 = \log(0.3/0.2) \approx 0.405$. The normalizer is $A = 10\log(1 + e^{\eta_1} + e^{\eta_2}) = 10\log(1 + 2.5 + 1.5) = 10\log 5$, which matches $N\log(1/q_3) = 10\log 5$.
+:::
+
 ## Univariate Gaussian as an exponential family {#sec-gaussian}
 
 Assume $N$ i.i.d. samples $x^{(i)} \in \mathbb{R}$ from the [univariate Gaussian](https://en.wikipedia.org/wiki/Normal_distribution) $\mathcal{N}(x \mid \mu, \sigma^2) = \frac{1}{\sqrt{2\pi}\sigma}\exp\{-\frac{1}{2\sigma^2}(x-\mu)^2\}$.
@@ -390,6 +535,27 @@ $$\ell(\theta;\mathcal{D}) = -\frac{N}{2}\log(2\pi\sigma^2) - \frac{1}{2}\sum_n\
 
 Setting $\partial \ell/\partial \mu = 0$ gives $\hat\mu_{\text{MLE}} = \frac{1}{N}\sum_n x^{(n)}$, the sample mean. Setting $\partial \ell /\partial \sigma^2 = 0$ gives $\hat\sigma^2_{\text{MLE}} = \frac{1}{N}\sum_n\big((x^{(n)})^2 - \hat\mu_{\text{MLE}}^2\big)$, the sample variance (with divisor $N$, not $N-1$).
 
+::: {.callout-tip collapse="true" .clarification title="Recap: Univariate Gaussian as an exponential family"}
+What the symbols stand for:
+
+- $\mu$: the mean, the centre of the bell curve. $\sigma^2$: the variance, its spread.
+- $\eta = (\mu/\sigma^2,\; 1/\sigma^2)$: the natural parameter, a 2-vector. The second entry, one over the variance, is called the precision.
+- $T(x) = (x,\; -x^2/2)$: the sufficient statistic, also a 2-vector, because the exponent contains both $x$ and $x^2$.
+- $\hat\mu_{\text{MLE}}$, $\hat\sigma^2_{\text{MLE}}$: the fitted mean and variance.
+
+Taking the expanded square apart:
+
+$$-\frac{(x-\mu)^2}{2\sigma^2} = -\frac{x^2}{2\sigma^2} + \frac{\mu}{\sigma^2}x - \frac{\mu^2}{2\sigma^2}$$
+
+- The $x$ term gives $\eta_1 T_1(x) = (\mu/\sigma^2)\cdot x$.
+- The $x^2$ term gives $\eta_2 T_2(x) = (1/\sigma^2)\cdot(-x^2/2)$.
+- The term with no $x$ goes into $A$, together with the $\log(\sqrt{2\pi}\sigma)$ from the front factor.
+
+In the MLE, $\hat\mu$ is the average of the data and $\hat\sigma^2$ is (average of $x^2$) minus (average of $x$) squared.
+
+A teaching example. Observe $\{2, 4, 6\}$. Then $\hat\mu = 12/3 = 4$. The average of the squares is $(4 + 16 + 36)/3 = 56/3$, so $\hat\sigma^2 = 56/3 - 16 = 8/3 \approx 2.667$, the same as the average squared distance from the mean, $(4 + 0 + 4)/3$. The natural parameter is $\eta = (4 \cdot 3/8,\; 3/8) = (1.5,\; 0.375)$, and going back, $\eta_1/\eta_2 = 4 = \mu$ and $1/\eta_2 = 8/3 = \sigma^2$.
+:::
+
 ## Mean of sufficient statistics {#sec-mean}
 
 ::: {.theorem-block}
@@ -407,6 +573,22 @@ The proof used only two facts: a density integrates to 1, and differentiating $\
 $$A'(\hat\eta_{\text{MLE}}) = \frac{1}{N}\sum_{i=1}^N T(x^{(i)}).$$
 
 The MLE sets the model's expected sufficient statistic equal to the empirical average of the sufficient statistic. Whenever this equation has a closed form, it reproduces the Bernoulli, Multinomial, and Gaussian answers above.
+
+::: {.callout-tip collapse="true" .clarification title="Recap: Mean of sufficient statistics"}
+What the symbols stand for:
+
+- $\mathbb{E}_\eta[T(X)]$: the average value of the sufficient statistic if we drew many samples from the model with parameter $\eta$.
+- $A'(\eta)$, $A''(\eta)$: the first and second derivatives of the log-partition function with respect to $\eta$.
+- $\mathrm{Var}(T(X))$: the variance of the sufficient statistic under the model.
+- $\frac{1}{N}\sum_i T(x^{(i)})$: the average of the sufficient statistic over the observed data.
+
+Taking the equations apart:
+
+- $\mathbb{E}_\eta[T(X)] = A'(\eta)$: the slope of the normalizer is the model's predicted average of $T$. We get a mean by differentiating, with no sum or integral over outcomes.
+- $A'(\hat\eta) = \frac{1}{N}\sum_i T(x^{(i)})$: the left side is what the model predicts, the right side is what the data show. The MLE is the $\eta$ that makes them agree.
+
+A teaching example. Four flips give $\{1, 1, 1, 0\}$, so the data average of $T(x) = x$ is $3/4$. For the Bernoulli, $A'(\eta) = e^\eta/(1+e^\eta)$. Setting this equal to $3/4$ gives $e^\eta = 3$, so $\hat\eta = \log 3 \approx 1.099$. Converting back, $\hat\theta = 3/4$, the same answer as the fraction of heads from @sec-mle. The variance of a flip under the fitted model is $A''(\hat\eta) = 0.75 \times 0.25 = 0.1875$.
+:::
 
 ## Summary {#sec-summary}
 

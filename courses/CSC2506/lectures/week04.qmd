@@ -113,6 +113,25 @@ $$p(x_{1:n}) = \frac{1}{Z}\prod_{i\in\mathcal{V}}\psi_i(x_i)\prod_{(i,j)\in\math
 
 The edges of a tree are its maximal cliques, so this is Week 3's clique factorization (@sec-mrf in Week 3) with extra single-node potentials $\psi_i$ added. An edge potential is one function of the pair, so we write its arguments in whichever order is convenient: $\psi_{12}(x_1,x_2)$ and $\psi_{12}(x_2,x_1)$ mean the same table read the same way.
 
+::: {.callout-tip collapse="true" .clarification title="Recap: Trees and elimination order"}
+What the symbols stand for:
+
+- $\mathcal{G} = (\mathcal{V}, \mathcal{E})$: a graph with node set $\mathcal{V}$ and edge set $\mathcal{E}$.
+- $N(i)$: the neighbours of node $i$.
+- $x_{1:n}$: all $n$ variables. $k$: the number of values each one takes.
+- $\psi_i(x_i)$: a node potential, one score per value of $x_i$.
+- $\psi_{ij}(x_i, x_j)$: an edge potential, one score per pair of values.
+
+Taking the tree factorization apart:
+
+$$p(x_{1:n}) = \frac{1}{Z}\prod_{i \in \mathcal{V}} \psi_i(x_i)\;\prod_{(i,j) \in \mathcal{E}} \psi_{ij}(x_i, x_j)$$
+
+- In a tree the maximal cliques are the edges, so the edge potentials are Week 3's clique potentials. The node potentials are extra single-variable factors.
+- Summing out a leaf touches only its own potential and the one edge to its neighbour, so the leftover factor is over one variable. That is why the cost stays at $O(nk^2)$.
+
+A teaching example. Take a tree with $n = 5$ nodes, each with $k = 3$ values. A tree with 5 nodes has 4 edges. Storing the model takes $5 \times 3 = 15$ node-potential entries and $4 \times 3^2 = 36$ edge-potential entries, so 51 numbers. The full joint table would have $3^5 = 243$ entries. Eliminating leaf by leaf costs about $5 \times 3^2 = 45$ multiply-adds.
+:::
+
 ## Worked example: elimination on a tree becomes message passing {#sec-tree-example}
 
 The lecture's example is a five-node tree: $x_1$ connects to $x_2$ and $x_3$, and $x_3$ connects to $x_4$ and $x_5$. The nodes $x_2, x_4, x_5$ are observed, with values written $\bar x_2, \bar x_4, \bar x_5$ (the bar marks an observed value, as in Week 3). We want $p(x_3\mid\bar x_2,\bar x_4,\bar x_5)$.
@@ -147,12 +166,74 @@ The lecture's example is a five-node tree: $x_1$ connects to $x_2$ and $x_3$, an
 
 **Figure 1.** The lecture's tree. Blue nodes are observed, $x_3$ is the query variable, and $x_1$ is the only remaining variable, so it is the only one summed out.
 
-Since the only unobserved variable besides $x_3$ is $x_1$, Week 3's definition of inference says the answer is the joint with $x_1$ summed out, divided by a normalizer:
+Recall Week 3's definition of inference (@sec-inference in Week 3). Split the variables into the evidence $x_E$ (observed), the query $x_F$ (what we want), and the rest $x_R$ (neither observed nor asked about). Inference computes
+
+$$p(x_F\mid x_E) = \frac{p(x_F,x_E)}{\sum_{x_F} p(x_F,x_E)}, \qquad p(x_F,x_E) = \sum_{x_R} p(x_F,x_E,x_R).$$
+
+In words: sum the joint over the variables we do not care about, then divide by the total over the query so the result sums to 1.
+
+Here $x_E = \{x_2, x_4, x_5\}$, $x_F = \{x_3\}$, and $x_R = \{x_1\}$, since the only unobserved variable besides $x_3$ is $x_1$. So the answer is the joint with $x_1$ summed out, divided by a normalizer. The joint is the MRF's product of potentials; its global constant $1/Z$ is the same for every $x_3$, so it is absorbed into the normalizer:
 
 $$p(x_3\mid\bar x_2,\bar x_4,\bar x_5) = \frac{1}{Z^E}\sum_{x_1}\psi_1(x_1)\,\psi_3(x_3)\,\psi_2(\bar x_2)\,\psi_4(\bar x_4)\,\psi_5(\bar x_5)$$
 $${}\times\psi_{12}(\bar x_2,x_1)\,\psi_{34}(\bar x_4,x_3)\,\psi_{35}(\bar x_5,x_3)\,\psi_{13}(x_1,x_3).$$
 
-Here $Z^E$ is whatever constant makes the right-hand side sum to 1 over $x_3$; it depends on the evidence but not on $x_3$. Now group the factors by which variable they mention, the same "push the sum inward" move as Week 3:
+Here $Z^E$ is whatever constant makes the right-hand side (everything to the right of the equals sign) sum to 1 **when we add it up over all values of $x_3$**; it depends on the evidence but not on $x_3$.
+
+::: {.callout-tip collapse="true" .clarification title="Question: How would we calculate the normalizer with real numbers?"}
+Try it as a practice question. Use the same five-node tree, but make every variable binary, $x_i \in \{0, 1\}$. The evidence is already plugged in, so each potential that touches an observed node is a table over the unobserved variables only.
+
+| Potential | Value when the free variable is 0 | Value when it is 1 |
+|---|---|---|
+| $\psi_1(x_1)$ | 1 | 2 |
+| $\psi_3(x_3)$ | 2 | 1 |
+| $\psi_{12}(\bar x_2, x_1)$, as a function of $x_1$ | 1 | 4 |
+| $\psi_{34}(\bar x_4, x_3)$, as a function of $x_3$ | 2 | 1 |
+| $\psi_{35}(\bar x_5, x_3)$, as a function of $x_3$ | 1 | 3 |
+
+The node potentials on the observed nodes are plain numbers: $\psi_2(\bar x_2) = 3$, $\psi_4(\bar x_4) = 1$, $\psi_5(\bar x_5) = 2$. The edge between the two unobserved nodes rewards agreement: $\psi_{13}(x_1, x_3) = 3$ when $x_1 = x_3$ and $1$ when they differ.
+
+**Find $Z^E$, then $p(x_3 = 1 \mid \bar x_2, \bar x_4, \bar x_5)$.**
+
+**The equation we are working from.** It is the two-line display above. Everything after the $\frac{1}{Z^E}$ is a sum over $x_1$ of a product of nine factors. Call that whole sum $f(x_3)$, the unnormalized answer, so the equation reads
+
+$$p(x_3\mid\bar x_2,\bar x_4,\bar x_5) = \frac{f(x_3)}{Z^E}.$$
+
+For the two probabilities to add to 1 we need $f(0)/Z^E + f(1)/Z^E = 1$, which means $Z^E = f(0) + f(1)$. So the whole job is to compute $f(0)$ and $f(1)$ and add them.
+
+**Sorting the nine factors.** Each factor depends on some of the variables in its brackets. The observed values $\bar x_2, \bar x_4, \bar x_5$ are fixed numbers, so the only things that can change are $x_1$ (which the sum runs over) and $x_3$ (the variable we are asking about). That splits the nine factors into three groups:
+
+- $\psi_2(\bar x_2)$, $\psi_4(\bar x_4)$, $\psi_5(\bar x_5)$ contain no $x_1$ and no $x_3$. Each one is a single number. These are what we mean by "the constants": they are the same in every term of the sum and for both values of $x_3$.
+- $\psi_3(x_3)$, $\psi_{34}(\bar x_4, x_3)$, $\psi_{35}(\bar x_5, x_3)$ contain $x_3$ but not $x_1$.
+- $\psi_1(x_1)$, $\psi_{12}(\bar x_2, x_1)$, $\psi_{13}(x_1, x_3)$ contain $x_1$.
+
+A factor that does not change as $x_1$ changes can be pulled out of the sum over $x_1$, the same way $a b + a c = a(b + c)$. Pulling out the first two groups gives
+
+$$f(x_3) = \big[\psi_2(\bar x_2)\,\psi_4(\bar x_4)\,\psi_5(\bar x_5)\big]\times\big[\psi_3(x_3)\,\psi_{34}(\bar x_4,x_3)\,\psi_{35}(\bar x_5,x_3)\big]$$
+$${}\times\sum_{x_1}\psi_1(x_1)\,\psi_{12}(\bar x_2,x_1)\,\psi_{13}(x_1,x_3).$$
+
+The steps below compute the three pieces in turn.
+
+**Step 1: the constants (first bracket).** $3 \times 1 \times 2 = 6$. Because it is one number, we compute it once instead of inside every term.
+
+**Step 2: the sum over $x_1$ (last piece), for each value of $x_3$.** With $x_1 = 0$, $\psi_1\,\psi_{12}$ gives $1 \times 1 = 1$; with $x_1 = 1$ it gives $2 \times 4 = 8$. Each of those is then multiplied by $\psi_{13}(x_1, x_3)$, which is 3 when $x_1 = x_3$ and 1 otherwise.
+
+$$x_3 = 0:\quad 1 \times 3 + 8 \times 1 = 11$$
+$$x_3 = 1:\quad 1 \times 1 + 8 \times 3 = 25$$
+
+**Step 3: the $x_3$-only factors (middle bracket), then multiply.** $\psi_3\,\psi_{34}\,\psi_{35}$ gives $2 \times 2 \times 1 = 4$ at $x_3 = 0$ and $1 \times 1 \times 3 = 3$ at $x_3 = 1$. Multiplying the three pieces gives $f(x_3)$:
+
+$$f(0) = 6 \times 4 \times 11 = 264$$
+$$f(1) = 6 \times 3 \times 25 = 450$$
+
+**Step 4: normalize.** $Z^E = f(0) + f(1) = 264 + 450 = 714$. Then
+
+$$p(x_3 = 1 \mid \bar x_2, \bar x_4, \bar x_5) = \frac{450}{714} \approx 0.630,$$
+$$p(x_3 = 0 \mid \bar x_2, \bar x_4, \bar x_5) = \frac{264}{714} \approx 0.370.$$
+
+Two things to notice. First, the constant 6 from Step 1 appears in both 264 and 450 and in $Z^E$, so it cancels: we could have dropped it and got $Z^E = 44 + 75 = 119$ with the same probabilities. This is why $Z^E$ "depends on the evidence but not on $x_3$". Second, the numbers 11 and 25 from Step 2 are the message $m_{1\to3}(x_3)$ defined below, divided by $\psi_2(\bar x_2) = 3$. The message itself is $33$ and $75$, because $m_{2\to1}(x_1)$ includes the factor 3 that Step 1 pulled out.
+:::
+
+Now group the factors by which variable they mention, the same "push the sum inward" move as Week 3:
 
 - $\psi_4(\bar x_4)\,\psi_{34}(\bar x_4,x_3)$ involves only $x_3$ (the $x_4$ value is fixed). Call it $m_{4\to3}(x_3)$.
 - $\psi_5(\bar x_5)\,\psi_{35}(\bar x_5,x_3)$ also involves only $x_3$. Call it $m_{5\to3}(x_3)$.
@@ -162,10 +243,27 @@ None of the first two mention $x_1$, so they move outside the sum, leaving
 
 $$p(x_3\mid\bar x_2,\bar x_4,\bar x_5) = \frac{1}{Z^E}\,\psi_3(x_3)\,m_{4\to3}(x_3)\,m_{5\to3}(x_3)\sum_{x_1}\psi_1(x_1)\,\psi_{13}(x_1,x_3)\,m_{2\to1}(x_1).$$
 
-The remaining sum is a function of $x_3$ alone. Call it $m_{1\to3}(x_3)$. Then
+The remaining sum is a function of $x_3$ alone, because $x_1$ is the only thing it sums over. Call it $m_{1\to3}(x_3)$:
 
-$$p(x_3\mid\bar x_2,\bar x_4,\bar x_5) = \frac{\tilde b(x_3)}{\sum_{x_3}\tilde b(x_3)},$$
-$$\tilde b(x_3) = \psi_3(x_3)\,m_{1\to3}(x_3)\,m_{4\to3}(x_3)\,m_{5\to3}(x_3).$$
+$$m_{1\to3}(x_3) = \sum_{x_1}\psi_1(x_1)\,\psi_{13}(x_1,x_3)\,m_{2\to1}(x_1).$$
+
+Substituting this into the line above gives a product of four factors, all functions of $x_3$. Call that product $\tilde b(x_3)$:
+
+$$\tilde b(x_3) = \psi_3(x_3)\,m_{1\to3}(x_3)\,m_{4\to3}(x_3)\,m_{5\to3}(x_3),$$
+
+so that
+
+$$p(x_3\mid\bar x_2,\bar x_4,\bar x_5) = \frac{1}{Z^E}\,\tilde b(x_3).$$
+
+**Where the sum in the denominator comes from.** A probability distribution over $x_3$ must add to 1, so sum both sides over every value of $x_3$:
+
+$$\sum_{x_3} p(x_3\mid\bar x_2,\bar x_4,\bar x_5) = \frac{1}{Z^E}\sum_{x_3}\tilde b(x_3) = 1.$$
+
+The constant $\frac{1}{Z^E}$ does not depend on $x_3$, so it comes out of the sum on the left. Solving for it gives $Z^E = \sum_{x_3}\tilde b(x_3)$. Substituting that back in:
+
+$$p(x_3\mid\bar x_2,\bar x_4,\bar x_5) = \frac{\tilde b(x_3)}{\sum_{x_3}\tilde b(x_3)}.$$
+
+So the sum over $x_3$ in the denominator is not a new step. It is $Z^E$ written out in terms of $\tilde b$, the same normalizer as before, now expressed through the messages instead of the raw potentials. The belief $\tilde b(x_3)$ is named in @sec-messages.
 
 The unnormalized product $\tilde b(x_3)$ gets a name, the belief, in @sec-messages.
 
@@ -208,6 +306,30 @@ Each $m$ is an intermediate factor $\tau$ in Week 3's sense (@sec-sum-product in
 
 **Figure 2.** The tree of Figure 1 redrawn with $x_3$ as the root. Each arrow is one message; the computation above is exactly these four messages followed by a product at the root.
 
+::: {.callout-tip collapse="true" .clarification title="Recap: Worked example: elimination on a tree becomes message passing"}
+What the symbols stand for:
+
+- $\bar x_2, \bar x_4, \bar x_5$: the observed values of nodes 2, 4, 5.
+- $Z^E$: the normalizer once evidence is fixed. It depends on the evidence but not on $x_3$.
+- $m_{j \to i}(x_i)$: a message, a function of the receiving node's value that summarizes node $j$'s side of the tree.
+- $\tilde b(x_3)$: the unnormalized product at the root.
+
+Taking the computation apart:
+
+- $m_{4\to3}(x_3) = \psi_4(\bar x_4)\,\psi_{34}(\bar x_4, x_3)$: node 4 is observed, so there is nothing to sum. Its message is just the edge potential read at the observed value.
+- $m_{2\to1}(x_1)$ is built the same way from node 2.
+- $m_{1\to3}(x_3) = \sum_{x_1}\psi_1(x_1)\,\psi_{13}(x_1, x_3)\,m_{2\to1}(x_1)$: node 1 is unobserved, so it combines what node 2 told it with its own potential and edge, then sums itself out.
+- At the root, multiply everything that arrived and normalize.
+
+A teaching example with binary nodes, all node potentials equal to 1, and every edge potential equal to 2 when its two ends agree and 1 when they differ. Observe $\bar x_2 = 1$, $\bar x_4 = 1$, $\bar x_5 = 0$. Write each message as (value at 0, value at 1).
+
+- $m_{4\to3} = (1, 2)$, $m_{5\to3} = (2, 1)$, $m_{2\to1} = (1, 2)$.
+- $m_{1\to3}(0) = 2 \cdot 1 + 1 \cdot 2 = 4$ and $m_{1\to3}(1) = 1 \cdot 1 + 2 \cdot 2 = 5$.
+- $\tilde b(x_3) = (4 \cdot 1 \cdot 2,\; 5 \cdot 2 \cdot 1) = (8, 10)$, so $p(x_3 = 1 \mid \text{evidence}) = 10/18 \approx 0.56$.
+
+Nodes 4 and 5 disagree, so they cancel out. Node 2's evidence, passed through node 1, tips $x_3$ slightly toward 1.
+:::
+
 ## Messages and beliefs {#sec-messages}
 
 The pattern in the worked example holds on any tree, so we can state it once for every edge.
@@ -219,7 +341,37 @@ If $x_j$ is observed with value $\bar x_j$, the sum is replaced by plugging in t
 $$m_{j\to i}(x_i) = \psi_j(\bar x_j)\,\psi_{ij}(x_i,\bar x_j)\prod_{k\in N(j)\setminus\{i\}} m_{k\to j}(\bar x_j).$$
 :::
 
-In words: to talk to $i$, node $j$ multiplies its own potential by the messages it has received from every *other* neighbour, multiplies by the edge potential to $i$, and sums out its own variable. The exclusion $k\neq i$ matters: $j$ does not echo back to $i$ what $i$ told it. The product over $k$ is what lets a message summarize an entire subtree rather than just one node. For a leaf $j$, the set $N(j)\setminus\{i\}$ is empty, so the product is just 1.
+::: {.callout-tip collapse="true" .clarification title="Question: How does the tree elimination become the message definition?"}
+The general definition has three pieces. Take them one at a time, using the message from node 4 to node 3 in the worked example.
+
+- $j$ is the node sending the message and $i$ is the node receiving it. For $m_{4\to3}$, $j = 4$ and $i = 3$.
+- $N(j)\setminus\{i\}$ is the set of $j$'s other neighbours. Node 4 has only one neighbour, node 3, so this set is empty.
+- Node 4 is observed, so the sum over $x_4$ is replaced by plugging in $\bar x_4$.
+
+Putting these into the observed-node form gives
+
+$$m_{4\to3}(x_3) = \psi_4(\bar x_4)\,\psi_{34}(x_3,\bar x_4)\prod_{k\in\varnothing} m_{k\to4}(\bar x_4) = \psi_4(\bar x_4)\,\psi_{34}(x_3,\bar x_4).$$
+
+The product over an empty set is 1, so it drops out. What is left is the pair of factors the worked example groups together: $\psi_4(\bar x_4)\,\psi_{34}(\bar x_4,x_3)$, which involves only $x_3$ because the $x_4$ value is fixed. The argument order inside $\psi_{34}$ does not matter, since an undirected edge has no direction. The message $m_{5\to3}$ follows the same pattern.
+
+The message from node 1 uses the same definition with one more piece. Node 1 is unobserved, so its sum over $x_1$ stays in. Its other neighbour is node 2, so the product contributes $m_{2\to1}(x_1)$:
+
+$$m_{1\to3}(x_3) = \sum_{x_1}\psi_1(x_1)\,\psi_{13}(x_1,x_3)\,m_{2\to1}(x_1).$$
+
+This is the sum over $x_1$ from the worked example. The only thing the general definition adds is the product over the other neighbours. That product is how a message carries a whole subtree rather than a single node.
+:::
+
+In words, to send a message from $j$ to $i$, node $j$ does three things:
+
+1. **Multiplies its own potential** $\psi_j$ by the **messages from every other neighbour** $k \in N(j)\setminus\{i\}$.
+2. **Multiplies by the edge potential** $\psi_{ij}$ that connects $j$ to $i$.
+3. **Sums out its own variable** $x_j$, which leaves a function of $x_i$ only.
+
+The message is the only thing that crosses the edge. Node $i$ never sees $x_j$ itself, so $j$ passes along a summary of everything on its side of the edge that $i$ needs. That is why it is called a **message**.
+
+The exclusion $k \neq i$ matters: $j$ does not send back to $i$ what $i$ sent it, since $i$ already knows that information. The product over $k$ is what lets one message summarize an entire subtree rather than a single node. For a leaf $j$, the set $N(j)\setminus\{i\}$ is empty, so the product is just 1.
+
+Once node $i$ has received a message from every neighbour, it combines all of them with its own potential. The result is its **belief** $b(x_i)$: its current estimate of its own variable, using everything in the graph. The belief has no exclusion, because $i$ has no one left to hold anything back from. That is why it is called a **belief**, not a message: it is $i$'s own answer, not something sent to a neighbour.
 
 If $x_i$ is discrete with $K$ possible values, a message $m_{j\to i}(x_i)$ is a vector with one entry for each value of $x_i$. It is not a probability distribution in general (it need not sum to 1), only a nonnegative score per state, like a potential.
 
@@ -231,18 +383,92 @@ In practice we compute an unnormalized belief $\tilde b(x_i) = \psi_i(x_i)\prod_
 
 The final line of the worked example in @sec-tree-example is exactly the belief at $x_3$, normalized. Since the messages reproduce variable elimination step for step, on a tree the normalized belief is the exact conditional marginal: here $b(x_3) = p(x_3\mid\bar x_2,\bar x_4,\bar x_5)$.
 
-::: {.callout-note}
-**Worked example: messages on a three-node chain.** Take binary spins $x_1 - x_2 - x_3$, each in $\{+1,-1\}$, with Ising edge potentials $\psi_{12}=\psi_{23}=e^{Jx_ix_j}$ (@sec-ising in Week 3) and $J=\log 2$, so an edge potential is $2$ when its endpoints agree and $\tfrac12$ when they disagree. Give $x_1$ the node potential $\psi_1(+1)=3$, $\psi_1(-1)=1$, and set $\psi_2=\psi_3=1$. Nothing is observed. We want $p(x_3)$, so treat $x_3$ as the root.
+**Practice question: messages and beliefs on a three-node chain.**
 
-*Message from the leaf $x_1$ to $x_2$* (no incoming messages, so no product):
-$$m_{1\to2}(+1) = 3\cdot 2 + 1\cdot\tfrac12 = 6.5, \qquad m_{1\to2}(-1) = 3\cdot\tfrac12 + 1\cdot 2 = 3.5.$$
+**Given:**
 
-*Message from $x_2$ to $x_3$*, multiplying in the message $x_2$ received:
-$$m_{2\to3}(+1) = 6.5\cdot 2 + 3.5\cdot\tfrac12 = 14.75, \qquad m_{2\to3}(-1) = 6.5\cdot\tfrac12 + 3.5\cdot 2 = 10.25.$$
+- Binary spins $x_1 - x_2 - x_3$, each in $\{+1,-1\}$. Nothing is observed.
+- Edge potentials $\psi_{12}(x_1,x_2) = e^{Jx_1x_2}$ and $\psi_{23}(x_2,x_3) = e^{Jx_2x_3}$ with $J = \log 2$ (the Ising form from @sec-ising in Week 3). Since $x_ix_j$ is $+1$ when the spins agree and $-1$ when they differ, each edge potential is $2$ when its endpoints agree and $\tfrac12$ when they differ.
+- Node potentials $\psi_1(+1) = 3$ and $\psi_1(-1) = 1$, and $\psi_2(x_2) = \psi_3(x_3) = 1$ for both values.
 
-*Belief at $x_3$:* $\tilde b(x_3) = (14.75,\ 10.25)$, which sums to $25$, so $b(x_3=+1) = 0.59$ and $b(x_3=-1)=0.41$.
+**Find:** the messages $m_{1\to2}(x_2)$ and $m_{2\to3}(x_3)$, the unnormalized belief $\tilde b(x_3)$, the constant $Z$, and $p(x_3 = +1)$ and $p(x_3 = -1)$. Use the message definition above, and try it before opening the worked solution.
 
-The bias at $x_1$ toward $+1$ has travelled down the chain, weakened at each edge because the coupling favours agreement without forcing it. If we had normalized $m_{1\to2}$ to $(0.65,\ 0.35)$ before sending it, the next message would be $(1.475,\ 1.025)$: every entry scaled by the same constant, so the final belief is unchanged. Scaling a message never changes a normalized belief, which is what makes the normalization trick of @sec-loopy safe.
+::: {.callout-tip collapse="true" .clarification title="Worked solution"}
+**What we want: $p(x_3)$.** This is the marginal distribution of $x_3$: for each value of $x_3$, how likely it is, averaged over every possible $x_1$ and $x_2$. In the language of Week 3's inference definition, $x_F = \{x_3\}$, there is no evidence, and $x_R = \{x_1, x_2\}$. The MRF joint is the product of all potentials divided by a constant $Z$:
+
+$$p(x_1,x_2,x_3) = \frac{1}{Z}\,\psi_1(x_1)\,\psi_2(x_2)\,\psi_3(x_3)\,\psi_{12}(x_1,x_2)\,\psi_{23}(x_2,x_3).$$
+
+Summing out $x_1$ and $x_2$ gives the marginal:
+
+$$p(x_3) = \frac{1}{Z}\sum_{x_2}\sum_{x_1}\psi_1(x_1)\,\psi_2(x_2)\,\psi_3(x_3)\,\psi_{12}(x_1,x_2)\,\psi_{23}(x_2,x_3).$$
+
+**Pushing the sums inward.** $\psi_3(x_3)$ mentions neither $x_1$ nor $x_2$, so it comes out of both sums. Inside the sum over $x_2$, only $\psi_1$ and $\psi_{12}$ mention $x_1$, so the sum over $x_1$ can wrap just those two:
+
+$$p(x_3) = \frac{1}{Z}\,\psi_3(x_3)\sum_{x_2}\psi_2(x_2)\,\psi_{23}(x_2,x_3)\Big[\sum_{x_1}\psi_1(x_1)\,\psi_{12}(x_1,x_2)\Big].$$
+
+The bracket is a function of $x_2$ only. It is the message $m_{1\to2}(x_2)$. The whole sum over $x_2$ is then a function of $x_3$ only. It is the message $m_{2\to3}(x_3)$. So we treat $x_3$ as the root and pass messages toward it, from the leaf $x_1$ inward.
+
+**Message 1: from $x_1$ to $x_2$.** In the message definition, $j = 1$ (sender) and $i = 2$ (receiver). Node 1's neighbours other than node 2 form the empty set, so the product of incoming messages is 1:
+
+$$m_{1\to2}(x_2) = \sum_{x_1}\psi_1(x_1)\,\psi_{12}(x_1,x_2).$$
+
+Evaluate it at each value of $x_2$, with one term per value of $x_1$ (first $x_1 = +1$, then $x_1 = -1$):
+
+$$m_{1\to2}(+1) = \psi_1(+1)\,\psi_{12}(+1,+1) + \psi_1(-1)\,\psi_{12}(-1,+1) = 3\cdot 2 + 1\cdot\tfrac12 = 6.5,$$
+$$m_{1\to2}(-1) = \psi_1(+1)\,\psi_{12}(+1,-1) + \psi_1(-1)\,\psi_{12}(-1,-1) = 3\cdot\tfrac12 + 1\cdot 2 = 3.5.$$
+
+**Message 2: from $x_2$ to $x_3$.** Now $j = 2$ and $i = 3$. Node 2's other neighbour is node 1, so the product contains $m_{1\to2}(x_2)$:
+
+$$m_{2\to3}(x_3) = \sum_{x_2}\psi_2(x_2)\,\psi_{23}(x_2,x_3)\,m_{1\to2}(x_2).$$
+
+With $\psi_2 = 1$, one term per value of $x_2$:
+
+$$m_{2\to3}(+1) = 1\cdot 2\cdot 6.5 + 1\cdot\tfrac12\cdot 3.5 = 14.75,$$
+$$m_{2\to3}(-1) = 1\cdot\tfrac12\cdot 6.5 + 1\cdot 2\cdot 3.5 = 10.25.$$
+
+**The belief at $x_3$.** Node 3's only neighbour is node 2, so the belief definition gives
+
+$$\tilde b(x_3) = \psi_3(x_3)\,m_{2\to3}(x_3) = (14.75,\ 10.25).$$
+
+Comparing with the pushed-in formula, $p(x_3) = \frac{1}{Z}\tilde b(x_3)$. Summing both sides over $x_3$ (the left side sums to 1) gives $Z = \sum_{x_3}\tilde b(x_3) = 14.75 + 10.25 = 25$. So
+
+$$p(x_3 = +1) = \frac{14.75}{25} = 0.59, \qquad p(x_3 = -1) = \frac{10.25}{25} = 0.41.$$
+
+As a check, adding up the unnormalized joint over all eight configurations of $(x_1, x_2, x_3)$ also gives 25, so the messages found $Z$ without listing the configurations.
+
+**Reading the result.** The bias at $x_1$ toward $+1$ (3 to 1) has travelled down the chain, weakened at each edge because the coupling favours agreement without forcing it.
+
+**Scaling a message changes nothing.** If we had normalized $m_{1\to2}$ to $(0.65,\ 0.35)$ before sending it, the next message would be
+
+$$m_{2\to3}(+1) = 2\cdot 0.65 + \tfrac12\cdot 0.35 = 1.475, \qquad m_{2\to3}(-1) = \tfrac12\cdot 0.65 + 2\cdot 0.35 = 1.025.$$
+
+Every entry is the earlier one divided by 10, so after normalizing the belief is still $(0.59,\ 0.41)$. Scaling a message never changes a normalized belief, which is what makes the normalization trick of @sec-loopy safe.
+:::
+
+::: {.callout-tip collapse="true" .clarification title="Recap: Messages and beliefs"}
+What the symbols stand for:
+
+- $m_{j \to i}(x_i)$: the message from $j$ to its neighbour $i$. One nonnegative number per value of $x_i$.
+- $N(j) \setminus \{i\}$: every neighbour of $j$ except $i$.
+- $\bar x_j$: the observed value of $x_j$, if it is observed.
+- $b(x_i)$: the belief at node $i$, its marginal once normalized. $\tilde b(x_i)$ is the unnormalized version.
+
+Taking the message formula apart:
+
+$$m_{j\to i}(x_i) = \sum_{x_j}\psi_j(x_j)\,\psi_{ij}(x_i,x_j)\prod_{k\in N(j)\setminus\{i\}} m_{k\to j}(x_j)$$
+
+- The three pieces are everything node $j$ knows apart from what $i$ told it.
+- The sum over $x_j$ removes $j$'s own variable, so the result depends only on $x_i$.
+- If $x_j$ is observed, the sum becomes a single term at $x_j = \bar x_j$.
+- The belief is the node's own score times every incoming message: $\tilde b(x_i) = \psi_i(x_i)\prod_{j \in N(i)} m_{j\to i}(x_i)$.
+
+A teaching example. Reuse the chain above ($J = \log 2$, so edges score 2 for agree and $\tfrac12$ for disagree, and $\psi_1 = (3, 1)$ for $(+1, -1)$), but now observe $x_1 = +1$.
+
+- $m_{1\to2}(x_2) = \psi_1(+1)\,\psi_{12}(x_2, +1) = 3 \cdot (2, \tfrac12) = (6, 1.5)$.
+- $m_{2\to3}(+1) = 6 \cdot 2 + 1.5 \cdot \tfrac12 = 12.75$ and $m_{2\to3}(-1) = 6 \cdot \tfrac12 + 1.5 \cdot 2 = 6$.
+- $b(x_3 = +1) = 12.75 / 18.75 = 0.68$.
+
+Knowing $x_1 = +1$ for certain pushes $x_3$ further toward $+1$ than the soft lean in the unobserved example ($0.59$).
 :::
 
 ## Belief propagation on trees {#sec-bp}
@@ -313,6 +539,28 @@ These two passes are sufficient on a tree. After the inward pass, the root has h
 **Homework-relevant.** Assignment 2 uses message passing. The message and belief formulas above, and the order in which messages may be sent, are the pieces to understand before starting it.
 :::
 
+::: {.callout-tip collapse="true" .clarification title="Recap: Belief propagation on trees"}
+What the symbols stand for:
+
+- $r$: the root, any node we choose.
+- $|\mathcal{E}|$: the number of edges. A tree with $n$ nodes has $n - 1$.
+- $b(x_i)$: the belief at node $i$, the same formula as @sec-messages.
+
+Taking the algorithm apart:
+
+- Pass 1, leaves to root: each node waits until it has heard from all neighbours except the one toward the root, then sends to that one.
+- Pass 2, root to leaves: the root now has everything, so it sends back down. Each node then sends onward away from the root.
+- After both passes every node has one message from every neighbour, so every belief can be computed. Each edge carries one message in each direction, $2|\mathcal{E}|$ in total.
+
+A teaching example. Finish the unobserved chain $x_1 - x_2 - x_3$ from @sec-messages (edges 2 if agree, $\tfrac12$ if not; $\psi_1 = (3, 1)$, $\psi_2 = \psi_3 = 1$). Pass 1 already gave $m_{1\to2} = (6.5, 3.5)$ and $m_{2\to3}$. Pass 2 sends the other two messages.
+
+- $m_{3\to2}(x_2) = \sum_{x_3}\psi_{23}(x_2, x_3) = 2 + \tfrac12 = 2.5$ for both values of $x_2$. A leaf with no preference sends a flat message.
+- $\tilde b(x_2) = 1 \cdot (6.5, 3.5) \cdot 2.5$, so $b(x_2 = +1) = 0.65$.
+- $m_{2\to1}(x_1) = \sum_{x_2}\psi_{12}(x_1, x_2)\,m_{3\to2}(x_2) = 2.5 \cdot 2.5 = 6.25$ for both values, so $b(x_1 = +1) = 3/(3+1) = 0.75$.
+
+Four messages for two edges gave all three marginals: $0.75$, $0.65$, $0.59$ for $x_1 = +1$, $x_2 = +1$, $x_3 = +1$.
+:::
+
 ## Loopy belief propagation {#sec-loopy}
 
 What if the MRF has cycles? Then there are no leaves to start from, and "wait until you have heard from all other neighbours" never gets going, because every node on a cycle is waiting on another node on the same cycle. The lecture's answer is to apply the message updates anyway and keep passing messages until they settle down.
@@ -341,6 +589,26 @@ Despite the lack of guarantees, loopy BP is widely used in practice, and the tut
 **Homework-relevant.** Assignment 2 uses loopy BP with normalized messages and momentum. The update rule and the reasons for each trick are above; implementation choices and results are left to the assignment.
 :::
 
+::: {.callout-tip collapse="true" .clarification title="Recap: Loopy belief propagation"}
+What the symbols stand for:
+
+- $[1/k, \dots, 1/k]^\top$: a uniform starting message, the same score for each of the $k$ values.
+- $m^{\text{old}}_{j\to i}$: the message from the previous sweep. $[\text{update}]$: the message the usual formula gives now.
+- $\alpha \in (0, 1]$: the momentum step size, how far we move toward the new value.
+
+Taking the equations apart:
+
+- The message update is the tree formula from @sec-messages, unchanged. Only the schedule differs: on a cycle no node ever "hears from everyone first", so every message is recomputed over and over from the current values of the others.
+- Normalizing a message rescales it to sum to 1. On a tree this never changed a belief, and here it keeps numbers from growing or shrinking without bound.
+- $m^{\text{new}} = (1 - \alpha)\,m^{\text{old}} + \alpha\,[\text{update}]$ is a weighted average. $\alpha = 1$ means "replace". Smaller $\alpha$ means "move part of the way".
+
+A teaching example of one momentum step. A normalized message is $m^{\text{old}} = (0.5, 0.5)$ and the formula now gives $(0.8, 0.2)$. With $\alpha = 0.3$:
+
+$$m^{\text{new}} = 0.7\,(0.5, 0.5) + 0.3\,(0.8, 0.2) = (0.59, 0.41).$$
+
+The message moves 30% of the way. If the next update swung back to $(0.2, 0.8)$, the damped message would be $0.7(0.59, 0.41) + 0.3(0.2, 0.8) = (0.473, 0.527)$, a small swing instead of a full flip. Both results still sum to 1, because a weighted average of normalized vectors is normalized.
+:::
+
 ## Max-product BP and MAP inference {#sec-maxproduct}
 
 Everything so far computes **marginals**: for each node, a distribution over its states. Sometimes we want something else: the single most likely joint setting of the unobserved variables.
@@ -358,6 +626,26 @@ The resulting beliefs $b(x_i)\propto\psi_i(x_i)\prod_{j\in N(i)}m_{j\to i}(x_i)$
 $$\hat x_i = \arg\max_{x_i}\, b(x_i).$$
 
 The swap works for the same reason sum-product works: on a tree, a maximum distributes over a product of nonnegative factors exactly as a sum does, so the same "push the operation inward past factors that do not mention $x_j$" argument goes through with $\max$ in place of $\sum$. (Reading off $\hat x_i$ node by node is safe when each node's maximizer is unique; ties need extra bookkeeping that the lecture does not cover.)
+
+::: {.callout-tip collapse="true" .clarification title="Recap: Max-product BP and MAP inference"}
+What the symbols stand for:
+
+- $\arg\max_{x_F} p(x_F \mid x_E)$: the MAP estimate, the single most probable joint setting of the unobserved variables.
+- $\max_{x_j}$: take the largest value over $x_j$, instead of adding over it.
+- $b(x_i)$: now a max-marginal, the score of the best full setting that has node $i$ in state $x_i$.
+- $\hat x_i$: the MAP value of node $i$.
+
+Taking the change apart:
+
+- Sum-product asks "how much total probability has $x_i$ in this state?" Max-product asks "how good is the best setting with $x_i$ in this state?"
+- The message formula is the same except $\sum_{x_j}$ becomes $\max_{x_j}$.
+- Reading off $\hat x_i = \arg\max b(x_i)$ at every node gives a jointly best setting, not a collection of separately best guesses.
+
+A teaching example. Two binary nodes, $\psi_1 = \psi_2 = 1$, edge potential $\psi_{12}(0,0) = 6$, $\psi_{12}(0,1) = 1$, $\psi_{12}(1,0) = 4$, $\psi_{12}(1,1) = 4$. The joint MAP is $(0, 0)$ with score 6.
+
+- Sum-product marginal of $x_1$: $(6 + 1,\; 4 + 4) = (7, 8)$, so $x_1 = 1$ is more probable on its own. For $x_2$: $(6 + 4,\; 1 + 4) = (10, 5)$, favouring $x_2 = 0$. Combining the separate winners gives $(1, 0)$, which scores only 4.
+- Max-marginal of $x_1$: $(\max(6, 1),\; \max(4, 4)) = (6, 4)$, so $\hat x_1 = 0$. For $x_2$: $(\max(6, 4),\; \max(1, 4)) = (6, 4)$, so $\hat x_2 = 0$. Max-product recovers the MAP $(0, 0)$.
+:::
 
 ## Tutorial example: image denoising with loopy BP {#sec-denoise}
 
@@ -436,6 +724,28 @@ So the posterior over the true image is itself an Ising MRF on the grid, with th
 
 **Running loopy BP.** Each message $m_{j\to i}(x_i)$ is stored as a 2-vector $\big(m_{j\to i}(+1),\ m_{j\to i}(-1)\big)$, and each belief likewise. Initialize every message to $(\tfrac12,\tfrac12)$, run the loopy updates of @sec-loopy (summing over $x_j\in\{-1,+1\}$) with normalization, then compute beliefs. The tutorial reports that 10–20 iterations suffice, and the beliefs approximate the posterior marginals $p(x_i\mid y)$. One decision rule is $\hat x_i = \arg\max_{x_i} b(x_i)$, which picks whichever colour each pixel's approximate marginal favours. In the tutorial's Mona Lisa example, this recovers a clean image from one with a large fraction of flipped pixels.
 
+::: {.callout-tip collapse="true" .clarification title="Recap: Tutorial example: image denoising with loopy BP"}
+What the symbols stand for:
+
+- $x_s \in \{-1, +1\}$: the true colour of pixel $s$ (latent). $y_s$: the noisy colour we observe.
+- $\epsilon$: the probability that the channel flips a pixel.
+- $\beta = \tfrac12\log\frac{1-\epsilon}{\epsilon}$: how strongly each true pixel is pulled toward its observation.
+- $J > 0$: how strongly neighbouring true pixels are pulled toward each other.
+- $\psi_s(x_s) = e^{\beta y_s x_s}$: the node potential built from the observation.
+
+Taking the equations apart:
+
+- $\frac{1 + y_s x_s}{2}$ is 1 on agreement and 0 on disagreement, so the first line picks $1 - \epsilon$ or $\epsilon$ with one formula.
+- Rewriting as $e^{\beta y_s x_s}$ turns the observation into an Ising field: agreement adds $\beta$ to the exponent, disagreement subtracts it.
+- The posterior exponent $J\sum_{s\sim t} x_s x_t + \beta\sum_s y_s x_s$ has two competing rewards: match your neighbours, and match your observation.
+
+A teaching example with a single pixel and no neighbours, to check that $\beta$ is the right strength. Let $\epsilon = 0.1$. Then $\beta = \tfrac12\log 9$, so $e^{\beta} = 3$. If we observe $y_s = +1$:
+
+$$p(x_s = +1 \mid y_s) = \frac{e^{\beta}}{e^{\beta} + e^{-\beta}} = \frac{3}{3 + 1/3} = 0.9 = 1 - \epsilon.$$
+
+With no neighbours, the posterior just trusts the channel. In the full grid, the $J$ terms let neighbours outvote a pixel's own observation when they disagree with it.
+:::
+
 ## Sampling from an unnormalized density {#sec-sampling}
 
 The second half of the lecture changes approach. Instead of computing sums exactly or approximately with messages, we draw random samples and average over them.
@@ -449,6 +759,21 @@ Throughout, we assume we can evaluate $p(x)$ only up to a multiplicative constan
 $$p(x) = \frac{\tilde p(x)}{Z}, \qquad Z = \int\tilde p(x)\,dx,$$
 
 but we do not know $Z$. This is the normal situation for the models in this course: an MRF's product of potentials is $\tilde p$, and its partition function $Z$ (@sec-mrf in Week 3) is exactly the hard part. The posterior of @sec-denoise is another example, since we wrote it only up to $\propto$.
+
+::: {.callout-tip collapse="true" .clarification title="Recap: Sampling from an unnormalized density"}
+What the symbols stand for:
+
+- $p(x)$: the distribution we want samples from.
+- $\tilde p(x)$: a function we can compute, equal to $p(x)$ times an unknown constant.
+- $Z = \int \tilde p(x)\,dx$: that constant, the total area under $\tilde p$.
+
+Taking $p(x) = \tilde p(x)/Z$ apart:
+
+- $\tilde p$ has the right shape: it is high where $p$ is high and low where $p$ is low.
+- Dividing by $Z$ only fixes the scale so the total is 1. Ratios such as $p(a)/p(b) = \tilde p(a)/\tilde p(b)$ never need $Z$.
+
+A teaching example. Take $\tilde p(x) = e^{-x^2/2}$. We can evaluate it anywhere: $\tilde p(0) = 1$ and $\tilde p(1) \approx 0.607$. So $x = 0$ is about $1/0.607 \approx 1.65$ times as likely as $x = 1$, with no $Z$ in sight. In this case we happen to know $Z = \sqrt{2\pi} \approx 2.507$ (it is the standard Gaussian), but for an MRF over thousands of variables there is no such formula.
+:::
 
 ## Ancestral sampling {#sec-ancestral}
 
@@ -507,6 +832,52 @@ Sample $x_1$ from $p(x_1)$. Then sample $x_2$ from $p(x_2\mid x_1)$ and $x_3$ fr
 
 Ancestral sampling draws from the joint with nothing observed. It does not directly give samples from a conditional such as $p(x_1\mid x_4)$, and it needs a directed model with easy-to-sample conditionals; an MRF with an unknown $Z$ offers neither. The rest of the lecture deals with that harder setting.
 
+::: {.callout-tip collapse="true" .clarification title="Recap: Ancestral sampling"}
+What the symbols stand for:
+
+- Topological order: any listing of the nodes in which each node comes after its parents.
+- $p(x_i \mid \text{parents}(x_i))$: node $i$'s conditional table, which we can sample from once its parents have values.
+
+Taking the factorization apart:
+
+- $p(x_1)$ has no parents, so it is sampled first.
+- $p(x_2 \mid x_1)$ and $p(x_3 \mid x_1)$ only need $x_1$, which we now have.
+- $p(x_4 \mid x_2, x_3)$ needs both $x_2$ and $x_3$, and $p(x_5 \mid x_3)$ needs $x_3$.
+- Following the product left to right, every factor's conditioning values have already been drawn.
+
+A teaching example on Figure 5 with binary nodes. The probabilities and uniform draws below are invented for illustration. The lecture does not derive them from a fitted model, and we chose the draws by hand instead of using a random number generator.
+
+Each binary node is sampled by comparing a uniform draw to its probability of being 1. Write $\pi_i$ for the table entry that node $i$ uses, given the parent values already drawn:
+
+$$
+\pi_i = p(x_i{=}1 \mid \text{parents}(x_i)), \qquad
+x_i = \begin{cases} 1 & \text{if } u_i < \pi_i, \\ 0 & \text{otherwise,} \end{cases}
+\qquad u_i \sim \text{Uniform}[0,1].
+$$
+
+This gives the right conditional probability. Because $\mathbb{P}(u_i < \pi_i) = \pi_i$ for a uniform $u_i$, we have $\mathbb{P}(x_i{=}1 \mid \text{parents}(x_i)) = \pi_i$. So the table value $p(x_1{=}1) = 0.4$ is used directly: it is the threshold that $u_1$ is compared against. Each table entry is used exactly once, at the node it belongs to.
+
+Applying the rule to the draws $u = (0.25, 0.9, 0.1, 0.35, 0.95)$:
+
+- $\pi_1 = p(x_1{=}1) = 0.4$. Since $u_1 = 0.25 < 0.4$, $x_1 = 1$.
+- $\pi_2 = p(x_2{=}1 \mid x_1{=}1) = 0.7$. Since $u_2 = 0.9$ is not less than $0.7$, $x_2 = 0$.
+- $\pi_3 = p(x_3{=}1 \mid x_1{=}1) = 0.5$. Since $u_3 = 0.1 < 0.5$, $x_3 = 1$.
+- $\pi_4 = p(x_4{=}1 \mid x_2{=}0, x_3{=}1) = 0.6$. Since $u_4 = 0.35 < 0.6$, $x_4 = 1$.
+- $\pi_5 = p(x_5{=}1 \mid x_3{=}1) = 0.8$. Since $u_5 = 0.95$ is not less than $0.8$, $x_5 = 0$.
+
+One sample is $(1, 0, 1, 1, 0)$. Its probability under the model is the product of the factors evaluated at the sampled values. A node that came out 0 contributes $1 - \pi_i$, which is why $p(x_2{=}0 \mid x_1{=}1) = 0.3$ and not $0.7$:
+
+$$
+\begin{aligned}
+p(x_1{=}1, x_2{=}0, x_3{=}1, x_4{=}1, x_5{=}0)
+&= p(x_1{=}1)\, p(x_2{=}0 \mid x_1{=}1)\, p(x_3{=}1 \mid x_1{=}1)\, p(x_4{=}1 \mid x_2{=}0, x_3{=}1)\, p(x_5{=}0 \mid x_3{=}1) \\
+&= 0.4 \times 0.3 \times 0.5 \times 0.6 \times 0.2 = 0.0072.
+\end{aligned}
+$$
+
+This product is a check on the factorization. It is not an input to sampling: the draws only needed the thresholds $\pi_i$.
+:::
+
 ## What sampling is for {#sec-goals}
 
 The lecture names two problems that Monte Carlo methods solve:
@@ -525,6 +896,29 @@ Different test functions answer different questions. For a function $f$ of inter
 - the **variance** of $f$ needs a second test function $\phi_2(x)=f(x)^2$, giving $\Phi_2$, and then $\mathrm{var}(f(x)) = \Phi_2 - (\Phi_1)^2$.
 
 Probabilities are expectations too: $\mathbb{P}(x\in A) = \mathbb{E}[\mathbf{1}_{\{x\in A\}}]$, using the **[indicator function](https://en.wikipedia.org/wiki/Indicator_function)** $\mathbf{1}_{\{x\in A\}}$, which is 1 when $x\in A$ and 0 otherwise. This fact is used again in the rejection-sampling proof below.
+
+::: {.callout-tip collapse="true" .clarification title="Recap: What sampling is for"}
+What the symbols stand for:
+
+- $\{x^{(r)}\}_{r=1}^R$: $R$ samples. The superscript $(r)$ counts samples, not powers.
+- $\phi(x)$: the test function, whatever quantity of $x$ we want the average of.
+- $\Phi = \mathbb{E}_{x\sim p}[\phi(x)]$: that average under $p$.
+- $\mathbf{1}_{\{x \in A\}}$: the indicator, 1 if $x$ is in set $A$ and 0 otherwise.
+
+Taking the equations apart:
+
+- $\Phi = \int \phi(x)\,p(x)\,dx$: weight each value of the test function by how likely $x$ is, and add.
+- Mean: use $\phi_1 = f$. Variance: also compute $\phi_2 = f^2$, then $\Phi_2 - \Phi_1^2$ (average of the square minus square of the average).
+- Probability of a set: use $\phi = \mathbf{1}_{\{x\in A\}}$. Its average is the fraction of probability inside $A$.
+
+A teaching example with a fair six-sided die and $f(x) = x$.
+
+- $\Phi_1 = (1+2+3+4+5+6)/6 = 3.5$.
+- $\Phi_2 = (1+4+9+16+25+36)/6 = 91/6 \approx 15.17$, so the variance is $15.17 - 3.5^2 \approx 2.92$.
+- $\mathbb{P}(x \ge 5) = \mathbb{E}[\mathbf{1}_{\{x \ge 5\}}] = (0+0+0+0+1+1)/6 = 1/3$.
+
+Three different questions, all answered as an average of some test function.
+:::
 
 ## Simple Monte Carlo {#sec-simplemc}
 
@@ -548,6 +942,23 @@ $$\mathrm{var}[\hat\Phi] = \frac{1}{R^2}\,\mathrm{var}\Big[\sum_{r=1}^R\phi(x^{(
 $$= \frac{R}{R^2}\,\mathrm{var}[\phi(x)] = \frac1R\,\mathrm{var}[\phi(x)].$$
 
 So the variance of the estimate shrinks at rate $1/R$, and its accuracy depends on $\mathrm{var}[\phi(x)]$, the spread of the test function under $p$. Notice what does *not* appear: the dimension of $x$. For example, if $\mathrm{var}[\phi(x)]=4$, then $R=100$ samples give $\mathrm{var}[\hat\Phi]=0.04$, a standard deviation of $0.2$, and quadrupling to $R=400$ halves that standard deviation to $0.1$. This dimension-free rate is what makes sampling attractive, provided we can get the samples.
+
+::: {.callout-tip collapse="true" .clarification title="Recap: Simple Monte Carlo"}
+What the symbols stand for:
+
+- $\hat\Phi$: the estimate, an average over samples. The hat marks "computed from samples".
+- $\mathbb{E}[\hat\Phi]$: the average value of the estimate if we repeated the whole sampling many times.
+- $\mathrm{var}[\hat\Phi]$: how much the estimate wobbles from one repetition to the next.
+- $\mathrm{var}[\phi(x)]$: how much the test function itself varies under $p$.
+
+Taking the three results apart:
+
+- $\hat\Phi = \frac{1}{R}\sum_r \phi(x^{(r)})$: replace the integral with an average over draws.
+- $\mathbb{E}[\hat\Phi] = \Phi$: on average the estimate is right (unbiased).
+- $\mathrm{var}[\hat\Phi] = \mathrm{var}[\phi]/R$: the wobble shrinks as $1/R$, so the standard deviation shrinks as $1/\sqrt{R}$. Quadrupling $R$ halves the error.
+
+A teaching example with the fair die and $\phi(x) = x$, where $\Phi = 3.5$ and $\mathrm{var}[\phi] = 35/12 \approx 2.92$. Four rolls give $\{2, 5, 6, 1\}$, so $\hat\Phi = 14/4 = 3.5$. That exact hit was luck: with $R = 4$, $\mathrm{var}[\hat\Phi] \approx 2.92/4 = 0.73$, a standard deviation of about $0.85$. With $R = 100$ the standard deviation drops to $\sqrt{2.92/100} \approx 0.17$.
+:::
 
 ## Why the normalizing constant is hard {#sec-hardz}
 
@@ -575,6 +986,21 @@ In the lake picture, the integral is the total plankton (concentration times dep
 
 - With $\phi\equiv1$ the average must be 1. Without the division we would get $\sum\tilde p=6$ instead.
 - Doubling $\tilde p$ doubles both the numerator and $Z$ ($72/12=6$), so the ratio is unchanged. The overall scale of $\tilde p$ never matters, but the denominator does, which is why importance sampling (@sec-importance) needs an estimate of a ratio of normalizers.
+:::
+
+::: {.callout-tip collapse="true" .clarification title="Recap: Why the normalizing constant is hard"}
+What the symbols stand for:
+
+- $D$: the number of dimensions of $x$.
+- $50^D$: the number of points in a grid with 50 points along each axis.
+- In the lake picture: $\tilde p(\boldsymbol{x})$ is depth, $\phi(\boldsymbol{x})$ is plankton concentration, and $Z$ is the lake's volume.
+
+Taking the equations apart:
+
+- $\Phi = \frac{1}{Z}\int \phi\,\tilde p\,d\boldsymbol{x}$: total plankton (concentration times depth, summed over the surface) divided by total water.
+- A grid estimate of $Z$ adds $\tilde p$ at every grid point. The number of points multiplies by 50 with every new dimension.
+
+A teaching example of the grid count. One dimension: 50 points. Two dimensions: $50^2 = 2{,}500$. Ten dimensions: $50^{10} \approx 9.8 \times 10^{16}$, already far too many to evaluate. A modest MRF over a $10 \times 10$ image has $D = 100$. The grid explodes long before we reach models of interest, which is why the following sections use random samples instead.
 :::
 
 ## Importance sampling {#sec-importance}
@@ -611,6 +1037,29 @@ $$\Phi \approx \frac{\frac1R\sum_{r=1}^R\phi(x^{(r)})\,\tilde w_r}{\frac1R\sum_{
 :::
 
 The estimate is a weighted average of the test function over samples from $q$, where each sample's weight says how much more (or less) likely it is under $p$ than under $q$. Neither $Z_p$ nor $Z_q$ is ever needed. Because the last step divides one estimate by another, this self-normalized estimator is not exactly unbiased for finite $R$, but it is consistent as $R$ grows. Its accuracy depends on how well $q$ covers $p$: if $q$ puts very little mass where $p$ has a lot (a missed canyon, in the lake picture), a few samples with huge weights dominate the sum.
+
+::: {.callout-tip collapse="true" .clarification title="Recap: Importance sampling"}
+What the symbols stand for:
+
+- $p = \tilde p / Z_p$: the target, which we can evaluate up to $Z_p$ but cannot sample.
+- $q = \tilde q / Z_q$: the proposal, which we can sample and evaluate up to $Z_q$.
+- $\tilde w_r = \tilde p(x^{(r)}) / \tilde q(x^{(r)})$: the importance weight of sample $r$.
+- $w_r = \tilde w_r / \sum_{r'}\tilde w_{r'}$: the normalized weight. The $w_r$ sum to 1.
+
+Taking the final estimator apart:
+
+$$\Phi \approx \frac{\sum_r \phi(x^{(r)})\,\tilde w_r}{\sum_r \tilde w_r} = \sum_r w_r\,\phi(x^{(r)})$$
+
+- A sample that $p$ likes more than $q$ does gets a weight above average. One that $q$ over-produces gets a weight below average.
+- The numerator is a weighted total of the test function. The denominator rescales the weights to sum to 1.
+- Dividing removes both unknown constants, because $Z_p$ and $Z_q$ appear equally on top and bottom.
+
+A teaching example. The target on $\{1, 2, 3\}$ has $\tilde p = (1, 2, 3)$, so the true $\Phi$ for $\phi(x) = x^2$ is $6$ (see the dropdown on $1/Z$ above). The proposal is uniform, $\tilde q = (1, 1, 1)$. Four draws from $q$ are $1, 3, 3, 2$, with weights $\tilde w = 1, 3, 3, 2$.
+
+$$\hat\Phi = \frac{1(1) + 9(3) + 9(3) + 4(2)}{1 + 3 + 3 + 2} = \frac{63}{9} = 7.$$
+
+With only four samples the estimate is off by 1, but it improves as $R$ grows. As a side product, the average weight $9/4 = 2.25$ estimates $Z_p/Z_q = 6/3 = 2$.
+:::
 
 ## Rejection sampling {#sec-rejection}
 
@@ -682,6 +1131,29 @@ So accepted samples are distributed exactly according to $p$, and $Z_p$ never ha
 $$\text{acceptance rate} = \frac{\text{area under }\tilde p}{\text{area under }c\tilde q} = \frac{Z_p}{cZ_q}.$$
 
 In high-dimensional problems, the requirement $c\tilde q(x)\ge\tilde p(x)$ everywhere forces $c$ to be huge, so acceptances become very rare. In general $c$ grows exponentially with the dimension, so the acceptance rate is expected to be exponentially small in the dimension. Finding a valid $c$ at all is also hard, since we do not know where the modes of $\tilde p$ are or how high they are. This is why the lecture presents rejection sampling as a one-dimensional tool.
+
+::: {.callout-tip collapse="true" .clarification title="Recap: Rejection sampling"}
+What the symbols stand for:
+
+- $c$: a constant large enough that $c\,\tilde q(x) \ge \tilde p(x)$ everywhere. Then $c\,\tilde q$ is the envelope.
+- $u$: a uniform random height between 0 and the envelope at the proposed $x$.
+- "Accept": the event $u \le \tilde p(x)$, the point lands under the target curve.
+- $A$: any set of $x$ values, used in the proof.
+
+Taking the equations apart:
+
+- $\mathbb{P}(\text{accept} \mid x) = \tilde p(x) / (c\,\tilde q(x))$: the fraction of the vertical segment at $x$ that lies under $\tilde p$.
+- The proof shows accepted $x$ values land in any set $A$ with probability $\mathbb{P}_p(x \in A)$, so accepted samples come exactly from $p$.
+- Acceptance rate $= Z_p / (c Z_q)$: area under the target divided by area under the envelope.
+
+A teaching example. Let $\tilde p(x) = x$ on $[0, 1]$ (so $p(x) = 2x$ and $Z_p = 1/2$). Take $q$ uniform on $[0, 1]$ with $\tilde q = 1$ and $c = 1$; the envelope is the flat line at height 1, which sits above $\tilde p$.
+
+- Propose $x = 0.8$, draw $u = 0.6$: since $0.6 \le 0.8$, accept.
+- Propose $x = 0.3$, draw $u = 0.5$: since $0.5 > 0.3$, reject.
+- Acceptance rate $= (1/2)/(1 \cdot 1) = 0.5$.
+
+Now do the same in $D$ dimensions with $\tilde p(\boldsymbol{x}) = x_1 x_2 \cdots x_D$ on the unit cube. The acceptance rate becomes $(1/2)^D$, about $0.001$ at $D = 10$: the exponential collapse described above.
+:::
 
 ## Summary {#sec-summary4}
 

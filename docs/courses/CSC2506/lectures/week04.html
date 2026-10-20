@@ -221,6 +221,16 @@ window.Quarto = {
 </li>
         <li class="sidebar-item">
   <div class="sidebar-item-container"> 
+  <a href="../lectures/week06.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Week 6: HMMs and Variational Inference I</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../lectures/week06-practice.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Week 6 practice: HMMs and Variational Inference I</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
   <a href="../glossary.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Glossary</span></a>
   </div>
 </li>
@@ -375,6 +385,36 @@ Note
 <p>A tree-shaped Markov random field with one potential per node and one per edge has joint distribution</p>
 <p><span class="math display">p(x_{1:n}) = \frac{1}{Z}\prod_{i\in\mathcal{V}}\psi_i(x_i)\prod_{(i,j)\in\mathcal{E}}\psi_{ij}(x_i,x_j).</span></p>
 <p>The edges of a tree are its maximal cliques, so this is Week 3’s clique factorization (<a href="week03.html#sec-mrf" class="quarto-xref"><span>Markov random fields, cliques, and the factorization theorem</span></a> in Week 3) with extra single-node potentials <span class="math inline">\psi_i</span> added. An edge potential is one function of the pair, so we write its arguments in whichever order is convenient: <span class="math inline">\psi_{12}(x_1,x_2)</span> and <span class="math inline">\psi_{12}(x_2,x_1)</span> mean the same table read the same way.</p>
+<div class="clarification callout callout-style-default callout-tip callout-titled" title="Recap: Trees and elimination order">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-3-contents" aria-controls="callout-3" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Recap: Trees and elimination order
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-3" class="callout-3-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>What the symbols stand for:</p>
+<ul>
+<li><span class="math inline">\mathcal{G} = (\mathcal{V}, \mathcal{E})</span>: a graph with node set <span class="math inline">\mathcal{V}</span> and edge set <span class="math inline">\mathcal{E}</span>.</li>
+<li><span class="math inline">N(i)</span>: the neighbours of node <span class="math inline">i</span>.</li>
+<li><span class="math inline">x_{1:n}</span>: all <span class="math inline">n</span> variables. <span class="math inline">k</span>: the number of values each one takes.</li>
+<li><span class="math inline">\psi_i(x_i)</span>: a node potential, one score per value of <span class="math inline">x_i</span>.</li>
+<li><span class="math inline">\psi_{ij}(x_i, x_j)</span>: an edge potential, one score per pair of values.</li>
+</ul>
+<p>Taking the tree factorization apart:</p>
+<p><span class="math display">p(x_{1:n}) = \frac{1}{Z}\prod_{i \in \mathcal{V}} \psi_i(x_i)\;\prod_{(i,j) \in \mathcal{E}} \psi_{ij}(x_i, x_j)</span></p>
+<ul>
+<li>In a tree the maximal cliques are the edges, so the edge potentials are Week 3’s clique potentials. The node potentials are extra single-variable factors.</li>
+<li>Summing out a leaf touches only its own potential and the one edge to its neighbour, so the leftover factor is over one variable. That is why the cost stays at <span class="math inline">O(nk^2)</span>.</li>
+</ul>
+<p>A teaching example. Take a tree with <span class="math inline">n = 5</span> nodes, each with <span class="math inline">k = 3</span> values. A tree with 5 nodes has 4 edges. Storing the model takes <span class="math inline">5 \times 3 = 15</span> node-potential entries and <span class="math inline">4 \times 3^2 = 36</span> edge-potential entries, so 51 numbers. The full joint table would have <span class="math inline">3^5 = 243</span> entries. Eliminating leaf by leaf costs about <span class="math inline">5 \times 3^2 = 45</span> multiply-adds.</p>
+</div>
+</div>
+</div>
 </section>
 <section id="sec-tree-example" class="level2">
 <h2 class="anchored" data-anchor-id="sec-tree-example">Worked example: elimination on a tree becomes message passing</h2>
@@ -405,9 +445,87 @@ Note
 </svg>
 </div>
 <p><strong>Figure 1.</strong> The lecture’s tree. Blue nodes are observed, <span class="math inline">x_3</span> is the query variable, and <span class="math inline">x_1</span> is the only remaining variable, so it is the only one summed out.</p>
-<p>Since the only unobserved variable besides <span class="math inline">x_3</span> is <span class="math inline">x_1</span>, Week 3’s definition of inference says the answer is the joint with <span class="math inline">x_1</span> summed out, divided by a normalizer:</p>
+<p>Recall Week 3’s definition of inference (<a href="week03.html#sec-inference" class="quarto-xref"><span>Exact inference as a conditional distribution</span></a> in Week 3). Split the variables into the evidence <span class="math inline">x_E</span> (observed), the query <span class="math inline">x_F</span> (what we want), and the rest <span class="math inline">x_R</span> (neither observed nor asked about). Inference computes</p>
+<p><span class="math display">p(x_F\mid x_E) = \frac{p(x_F,x_E)}{\sum_{x_F} p(x_F,x_E)}, \qquad p(x_F,x_E) = \sum_{x_R} p(x_F,x_E,x_R).</span></p>
+<p>In words: sum the joint over the variables we do not care about, then divide by the total over the query so the result sums to 1.</p>
+<p>Here <span class="math inline">x_E = \{x_2, x_4, x_5\}</span>, <span class="math inline">x_F = \{x_3\}</span>, and <span class="math inline">x_R = \{x_1\}</span>, since the only unobserved variable besides <span class="math inline">x_3</span> is <span class="math inline">x_1</span>. So the answer is the joint with <span class="math inline">x_1</span> summed out, divided by a normalizer. The joint is the MRF’s product of potentials; its global constant <span class="math inline">1/Z</span> is the same for every <span class="math inline">x_3</span>, so it is absorbed into the normalizer:</p>
 <p><span class="math display">p(x_3\mid\bar x_2,\bar x_4,\bar x_5) = \frac{1}{Z^E}\sum_{x_1}\psi_1(x_1)\,\psi_3(x_3)\,\psi_2(\bar x_2)\,\psi_4(\bar x_4)\,\psi_5(\bar x_5)</span> <span class="math display">{}\times\psi_{12}(\bar x_2,x_1)\,\psi_{34}(\bar x_4,x_3)\,\psi_{35}(\bar x_5,x_3)\,\psi_{13}(x_1,x_3).</span></p>
-<p>Here <span class="math inline">Z^E</span> is whatever constant makes the right-hand side sum to 1 over <span class="math inline">x_3</span>; it depends on the evidence but not on <span class="math inline">x_3</span>. Now group the factors by which variable they mention, the same “push the sum inward” move as Week 3:</p>
+<p>Here <span class="math inline">Z^E</span> is whatever constant makes the right-hand side (everything to the right of the equals sign) sum to 1 <strong>when we add it up over all values of <span class="math inline">x_3</span></strong>; it depends on the evidence but not on <span class="math inline">x_3</span>.</p>
+<div class="clarification callout callout-style-default callout-tip callout-titled" title="Question: How would we calculate the normalizer with real numbers?">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-4-contents" aria-controls="callout-4" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Question: How would we calculate the normalizer with real numbers?
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-4" class="callout-4-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>Try it as a practice question. Use the same five-node tree, but make every variable binary, <span class="math inline">x_i \in \{0, 1\}</span>. The evidence is already plugged in, so each potential that touches an observed node is a table over the unobserved variables only.</p>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th>Potential</th>
+<th>Value when the free variable is 0</th>
+<th>Value when it is 1</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><span class="math inline">\psi_1(x_1)</span></td>
+<td>1</td>
+<td>2</td>
+</tr>
+<tr class="even">
+<td><span class="math inline">\psi_3(x_3)</span></td>
+<td>2</td>
+<td>1</td>
+</tr>
+<tr class="odd">
+<td><span class="math inline">\psi_{12}(\bar x_2, x_1)</span>, as a function of <span class="math inline">x_1</span></td>
+<td>1</td>
+<td>4</td>
+</tr>
+<tr class="even">
+<td><span class="math inline">\psi_{34}(\bar x_4, x_3)</span>, as a function of <span class="math inline">x_3</span></td>
+<td>2</td>
+<td>1</td>
+</tr>
+<tr class="odd">
+<td><span class="math inline">\psi_{35}(\bar x_5, x_3)</span>, as a function of <span class="math inline">x_3</span></td>
+<td>1</td>
+<td>3</td>
+</tr>
+</tbody>
+</table>
+<p>The node potentials on the observed nodes are plain numbers: <span class="math inline">\psi_2(\bar x_2) = 3</span>, <span class="math inline">\psi_4(\bar x_4) = 1</span>, <span class="math inline">\psi_5(\bar x_5) = 2</span>. The edge between the two unobserved nodes rewards agreement: <span class="math inline">\psi_{13}(x_1, x_3) = 3</span> when <span class="math inline">x_1 = x_3</span> and <span class="math inline">1</span> when they differ.</p>
+<p><strong>Find <span class="math inline">Z^E</span>, then <span class="math inline">p(x_3 = 1 \mid \bar x_2, \bar x_4, \bar x_5)</span>.</strong></p>
+<p><strong>The equation we are working from.</strong> It is the two-line display above. Everything after the <span class="math inline">\frac{1}{Z^E}</span> is a sum over <span class="math inline">x_1</span> of a product of nine factors. Call that whole sum <span class="math inline">f(x_3)</span>, the unnormalized answer, so the equation reads</p>
+<p><span class="math display">p(x_3\mid\bar x_2,\bar x_4,\bar x_5) = \frac{f(x_3)}{Z^E}.</span></p>
+<p>For the two probabilities to add to 1 we need <span class="math inline">f(0)/Z^E + f(1)/Z^E = 1</span>, which means <span class="math inline">Z^E = f(0) + f(1)</span>. So the whole job is to compute <span class="math inline">f(0)</span> and <span class="math inline">f(1)</span> and add them.</p>
+<p><strong>Sorting the nine factors.</strong> Each factor depends on some of the variables in its brackets. The observed values <span class="math inline">\bar x_2, \bar x_4, \bar x_5</span> are fixed numbers, so the only things that can change are <span class="math inline">x_1</span> (which the sum runs over) and <span class="math inline">x_3</span> (the variable we are asking about). That splits the nine factors into three groups:</p>
+<ul>
+<li><span class="math inline">\psi_2(\bar x_2)</span>, <span class="math inline">\psi_4(\bar x_4)</span>, <span class="math inline">\psi_5(\bar x_5)</span> contain no <span class="math inline">x_1</span> and no <span class="math inline">x_3</span>. Each one is a single number. These are what we mean by “the constants”: they are the same in every term of the sum and for both values of <span class="math inline">x_3</span>.</li>
+<li><span class="math inline">\psi_3(x_3)</span>, <span class="math inline">\psi_{34}(\bar x_4, x_3)</span>, <span class="math inline">\psi_{35}(\bar x_5, x_3)</span> contain <span class="math inline">x_3</span> but not <span class="math inline">x_1</span>.</li>
+<li><span class="math inline">\psi_1(x_1)</span>, <span class="math inline">\psi_{12}(\bar x_2, x_1)</span>, <span class="math inline">\psi_{13}(x_1, x_3)</span> contain <span class="math inline">x_1</span>.</li>
+</ul>
+<p>A factor that does not change as <span class="math inline">x_1</span> changes can be pulled out of the sum over <span class="math inline">x_1</span>, the same way <span class="math inline">a b + a c = a(b + c)</span>. Pulling out the first two groups gives</p>
+<p><span class="math display">f(x_3) = \big[\psi_2(\bar x_2)\,\psi_4(\bar x_4)\,\psi_5(\bar x_5)\big]\times\big[\psi_3(x_3)\,\psi_{34}(\bar x_4,x_3)\,\psi_{35}(\bar x_5,x_3)\big]</span> <span class="math display">{}\times\sum_{x_1}\psi_1(x_1)\,\psi_{12}(\bar x_2,x_1)\,\psi_{13}(x_1,x_3).</span></p>
+<p>The steps below compute the three pieces in turn.</p>
+<p><strong>Step 1: the constants (first bracket).</strong> <span class="math inline">3 \times 1 \times 2 = 6</span>. Because it is one number, we compute it once instead of inside every term.</p>
+<p><strong>Step 2: the sum over <span class="math inline">x_1</span> (last piece), for each value of <span class="math inline">x_3</span>.</strong> With <span class="math inline">x_1 = 0</span>, <span class="math inline">\psi_1\,\psi_{12}</span> gives <span class="math inline">1 \times 1 = 1</span>; with <span class="math inline">x_1 = 1</span> it gives <span class="math inline">2 \times 4 = 8</span>. Each of those is then multiplied by <span class="math inline">\psi_{13}(x_1, x_3)</span>, which is 3 when <span class="math inline">x_1 = x_3</span> and 1 otherwise.</p>
+<p><span class="math display">x_3 = 0:\quad 1 \times 3 + 8 \times 1 = 11</span> <span class="math display">x_3 = 1:\quad 1 \times 1 + 8 \times 3 = 25</span></p>
+<p><strong>Step 3: the <span class="math inline">x_3</span>-only factors (middle bracket), then multiply.</strong> <span class="math inline">\psi_3\,\psi_{34}\,\psi_{35}</span> gives <span class="math inline">2 \times 2 \times 1 = 4</span> at <span class="math inline">x_3 = 0</span> and <span class="math inline">1 \times 1 \times 3 = 3</span> at <span class="math inline">x_3 = 1</span>. Multiplying the three pieces gives <span class="math inline">f(x_3)</span>:</p>
+<p><span class="math display">f(0) = 6 \times 4 \times 11 = 264</span> <span class="math display">f(1) = 6 \times 3 \times 25 = 450</span></p>
+<p><strong>Step 4: normalize.</strong> <span class="math inline">Z^E = f(0) + f(1) = 264 + 450 = 714</span>. Then</p>
+<p><span class="math display">p(x_3 = 1 \mid \bar x_2, \bar x_4, \bar x_5) = \frac{450}{714} \approx 0.630,</span> <span class="math display">p(x_3 = 0 \mid \bar x_2, \bar x_4, \bar x_5) = \frac{264}{714} \approx 0.370.</span></p>
+<p>Two things to notice. First, the constant 6 from Step 1 appears in both 264 and 450 and in <span class="math inline">Z^E</span>, so it cancels: we could have dropped it and got <span class="math inline">Z^E = 44 + 75 = 119</span> with the same probabilities. This is why <span class="math inline">Z^E</span> “depends on the evidence but not on <span class="math inline">x_3</span>”. Second, the numbers 11 and 25 from Step 2 are the message <span class="math inline">m_{1\to3}(x_3)</span> defined below, divided by <span class="math inline">\psi_2(\bar x_2) = 3</span>. The message itself is <span class="math inline">33</span> and <span class="math inline">75</span>, because <span class="math inline">m_{2\to1}(x_1)</span> includes the factor 3 that Step 1 pulled out.</p>
+</div>
+</div>
+</div>
+<p>Now group the factors by which variable they mention, the same “push the sum inward” move as Week 3:</p>
 <ul>
 <li><span class="math inline">\psi_4(\bar x_4)\,\psi_{34}(\bar x_4,x_3)</span> involves only <span class="math inline">x_3</span> (the <span class="math inline">x_4</span> value is fixed). Call it <span class="math inline">m_{4\to3}(x_3)</span>.</li>
 <li><span class="math inline">\psi_5(\bar x_5)\,\psi_{35}(\bar x_5,x_3)</span> also involves only <span class="math inline">x_3</span>. Call it <span class="math inline">m_{5\to3}(x_3)</span>.</li>
@@ -415,8 +533,17 @@ Note
 </ul>
 <p>None of the first two mention <span class="math inline">x_1</span>, so they move outside the sum, leaving</p>
 <p><span class="math display">p(x_3\mid\bar x_2,\bar x_4,\bar x_5) = \frac{1}{Z^E}\,\psi_3(x_3)\,m_{4\to3}(x_3)\,m_{5\to3}(x_3)\sum_{x_1}\psi_1(x_1)\,\psi_{13}(x_1,x_3)\,m_{2\to1}(x_1).</span></p>
-<p>The remaining sum is a function of <span class="math inline">x_3</span> alone. Call it <span class="math inline">m_{1\to3}(x_3)</span>. Then</p>
-<p><span class="math display">p(x_3\mid\bar x_2,\bar x_4,\bar x_5) = \frac{\tilde b(x_3)}{\sum_{x_3}\tilde b(x_3)},</span> <span class="math display">\tilde b(x_3) = \psi_3(x_3)\,m_{1\to3}(x_3)\,m_{4\to3}(x_3)\,m_{5\to3}(x_3).</span></p>
+<p>The remaining sum is a function of <span class="math inline">x_3</span> alone, because <span class="math inline">x_1</span> is the only thing it sums over. Call it <span class="math inline">m_{1\to3}(x_3)</span>:</p>
+<p><span class="math display">m_{1\to3}(x_3) = \sum_{x_1}\psi_1(x_1)\,\psi_{13}(x_1,x_3)\,m_{2\to1}(x_1).</span></p>
+<p>Substituting this into the line above gives a product of four factors, all functions of <span class="math inline">x_3</span>. Call that product <span class="math inline">\tilde b(x_3)</span>:</p>
+<p><span class="math display">\tilde b(x_3) = \psi_3(x_3)\,m_{1\to3}(x_3)\,m_{4\to3}(x_3)\,m_{5\to3}(x_3),</span></p>
+<p>so that</p>
+<p><span class="math display">p(x_3\mid\bar x_2,\bar x_4,\bar x_5) = \frac{1}{Z^E}\,\tilde b(x_3).</span></p>
+<p><strong>Where the sum in the denominator comes from.</strong> A probability distribution over <span class="math inline">x_3</span> must add to 1, so sum both sides over every value of <span class="math inline">x_3</span>:</p>
+<p><span class="math display">\sum_{x_3} p(x_3\mid\bar x_2,\bar x_4,\bar x_5) = \frac{1}{Z^E}\sum_{x_3}\tilde b(x_3) = 1.</span></p>
+<p>The constant <span class="math inline">\frac{1}{Z^E}</span> does not depend on <span class="math inline">x_3</span>, so it comes out of the sum on the left. Solving for it gives <span class="math inline">Z^E = \sum_{x_3}\tilde b(x_3)</span>. Substituting that back in:</p>
+<p><span class="math display">p(x_3\mid\bar x_2,\bar x_4,\bar x_5) = \frac{\tilde b(x_3)}{\sum_{x_3}\tilde b(x_3)}.</span></p>
+<p>So the sum over <span class="math inline">x_3</span> in the denominator is not a new step. It is <span class="math inline">Z^E</span> written out in terms of <span class="math inline">\tilde b</span>, the same normalizer as before, now expressed through the messages instead of the raw potentials. The belief <span class="math inline">\tilde b(x_3)</span> is named in <a href="#sec-messages" class="quarto-xref"><span>Messages and beliefs</span></a>.</p>
 <p>The unnormalized product <span class="math inline">\tilde b(x_3)</span> gets a name, the belief, in <a href="#sec-messages" class="quarto-xref"><span>Messages and beliefs</span></a>.</p>
 <p>Each <span class="math inline">m</span> is an intermediate factor <span class="math inline">\tau</span> in Week 3’s sense (<a href="week03.html#sec-sum-product" class="quarto-xref"><span>Sum-product inference: unifying DAGMs and MRFs</span></a> in Week 3), but each one has a natural reading: it is a summary that one node sends to its neighbour about everything on its side of the tree. Node 2 summarizes its evidence for node 1; node 1 combines that with its own potential and summarizes the whole left branch for node 3; nodes 4 and 5 summarize their evidence for node 3.</p>
 <div style="overflow-x:auto; margin:1.5rem 0;">
@@ -452,6 +579,42 @@ Note
 </svg>
 </div>
 <p><strong>Figure 2.</strong> The tree of Figure 1 redrawn with <span class="math inline">x_3</span> as the root. Each arrow is one message; the computation above is exactly these four messages followed by a product at the root.</p>
+<div class="clarification callout callout-style-default callout-tip callout-titled" title="Recap: Worked example: elimination on a tree becomes message passing">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-5-contents" aria-controls="callout-5" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Recap: Worked example: elimination on a tree becomes message passing
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-5" class="callout-5-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>What the symbols stand for:</p>
+<ul>
+<li><span class="math inline">\bar x_2, \bar x_4, \bar x_5</span>: the observed values of nodes 2, 4, 5.</li>
+<li><span class="math inline">Z^E</span>: the normalizer once evidence is fixed. It depends on the evidence but not on <span class="math inline">x_3</span>.</li>
+<li><span class="math inline">m_{j \to i}(x_i)</span>: a message, a function of the receiving node’s value that summarizes node <span class="math inline">j</span>’s side of the tree.</li>
+<li><span class="math inline">\tilde b(x_3)</span>: the unnormalized product at the root.</li>
+</ul>
+<p>Taking the computation apart:</p>
+<ul>
+<li><span class="math inline">m_{4\to3}(x_3) = \psi_4(\bar x_4)\,\psi_{34}(\bar x_4, x_3)</span>: node 4 is observed, so there is nothing to sum. Its message is just the edge potential read at the observed value.</li>
+<li><span class="math inline">m_{2\to1}(x_1)</span> is built the same way from node 2.</li>
+<li><span class="math inline">m_{1\to3}(x_3) = \sum_{x_1}\psi_1(x_1)\,\psi_{13}(x_1, x_3)\,m_{2\to1}(x_1)</span>: node 1 is unobserved, so it combines what node 2 told it with its own potential and edge, then sums itself out.</li>
+<li>At the root, multiply everything that arrived and normalize.</li>
+</ul>
+<p>A teaching example with binary nodes, all node potentials equal to 1, and every edge potential equal to 2 when its two ends agree and 1 when they differ. Observe <span class="math inline">\bar x_2 = 1</span>, <span class="math inline">\bar x_4 = 1</span>, <span class="math inline">\bar x_5 = 0</span>. Write each message as (value at 0, value at 1).</p>
+<ul>
+<li><span class="math inline">m_{4\to3} = (1, 2)</span>, <span class="math inline">m_{5\to3} = (2, 1)</span>, <span class="math inline">m_{2\to1} = (1, 2)</span>.</li>
+<li><span class="math inline">m_{1\to3}(0) = 2 \cdot 1 + 1 \cdot 2 = 4</span> and <span class="math inline">m_{1\to3}(1) = 1 \cdot 1 + 2 \cdot 2 = 5</span>.</li>
+<li><span class="math inline">\tilde b(x_3) = (4 \cdot 1 \cdot 2,\; 5 \cdot 2 \cdot 1) = (8, 10)</span>, so <span class="math inline">p(x_3 = 1 \mid \text{evidence}) = 10/18 \approx 0.56</span>.</li>
+</ul>
+<p>Nodes 4 and 5 disagree, so they cancel out. Node 2’s evidence, passed through node 1, tips <span class="math inline">x_3</span> slightly toward 1.</p>
+</div>
+</div>
+</div>
 </section>
 <section id="sec-messages" class="level2">
 <h2 class="anchored" data-anchor-id="sec-messages">Messages and beliefs</h2>
@@ -459,27 +622,129 @@ Note
 <div class="definition-block">
 <p><strong>Definition.</strong> In a tree-shaped MRF, the <strong>message</strong> from node <span class="math inline">j</span> to a neighbour <span class="math inline">i\in N(j)</span> is <span class="math display">m_{j\to i}(x_i) = \sum_{x_j}\psi_j(x_j)\,\psi_{ij}(x_i,x_j)\prod_{k\in N(j)\setminus\{i\}} m_{k\to j}(x_j).</span> If <span class="math inline">x_j</span> is observed with value <span class="math inline">\bar x_j</span>, the sum is replaced by plugging in that value: <span class="math display">m_{j\to i}(x_i) = \psi_j(\bar x_j)\,\psi_{ij}(x_i,\bar x_j)\prod_{k\in N(j)\setminus\{i\}} m_{k\to j}(\bar x_j).</span></p>
 </div>
-<p>In words: to talk to <span class="math inline">i</span>, node <span class="math inline">j</span> multiplies its own potential by the messages it has received from every <em>other</em> neighbour, multiplies by the edge potential to <span class="math inline">i</span>, and sums out its own variable. The exclusion <span class="math inline">k\neq i</span> matters: <span class="math inline">j</span> does not echo back to <span class="math inline">i</span> what <span class="math inline">i</span> told it. The product over <span class="math inline">k</span> is what lets a message summarize an entire subtree rather than just one node. For a leaf <span class="math inline">j</span>, the set <span class="math inline">N(j)\setminus\{i\}</span> is empty, so the product is just 1.</p>
+<div class="clarification callout callout-style-default callout-tip callout-titled" title="Question: How does the tree elimination become the message definition?">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-6-contents" aria-controls="callout-6" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Question: How does the tree elimination become the message definition?
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-6" class="callout-6-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>The general definition has three pieces. Take them one at a time, using the message from node 4 to node 3 in the worked example.</p>
+<ul>
+<li><span class="math inline">j</span> is the node sending the message and <span class="math inline">i</span> is the node receiving it. For <span class="math inline">m_{4\to3}</span>, <span class="math inline">j = 4</span> and <span class="math inline">i = 3</span>.</li>
+<li><span class="math inline">N(j)\setminus\{i\}</span> is the set of <span class="math inline">j</span>’s other neighbours. Node 4 has only one neighbour, node 3, so this set is empty.</li>
+<li>Node 4 is observed, so the sum over <span class="math inline">x_4</span> is replaced by plugging in <span class="math inline">\bar x_4</span>.</li>
+</ul>
+<p>Putting these into the observed-node form gives</p>
+<p><span class="math display">m_{4\to3}(x_3) = \psi_4(\bar x_4)\,\psi_{34}(x_3,\bar x_4)\prod_{k\in\varnothing} m_{k\to4}(\bar x_4) = \psi_4(\bar x_4)\,\psi_{34}(x_3,\bar x_4).</span></p>
+<p>The product over an empty set is 1, so it drops out. What is left is the pair of factors the worked example groups together: <span class="math inline">\psi_4(\bar x_4)\,\psi_{34}(\bar x_4,x_3)</span>, which involves only <span class="math inline">x_3</span> because the <span class="math inline">x_4</span> value is fixed. The argument order inside <span class="math inline">\psi_{34}</span> does not matter, since an undirected edge has no direction. The message <span class="math inline">m_{5\to3}</span> follows the same pattern.</p>
+<p>The message from node 1 uses the same definition with one more piece. Node 1 is unobserved, so its sum over <span class="math inline">x_1</span> stays in. Its other neighbour is node 2, so the product contributes <span class="math inline">m_{2\to1}(x_1)</span>:</p>
+<p><span class="math display">m_{1\to3}(x_3) = \sum_{x_1}\psi_1(x_1)\,\psi_{13}(x_1,x_3)\,m_{2\to1}(x_1).</span></p>
+<p>This is the sum over <span class="math inline">x_1</span> from the worked example. The only thing the general definition adds is the product over the other neighbours. That product is how a message carries a whole subtree rather than a single node.</p>
+</div>
+</div>
+</div>
+<p>In words, to send a message from <span class="math inline">j</span> to <span class="math inline">i</span>, node <span class="math inline">j</span> does three things:</p>
+<ol type="1">
+<li><strong>Multiplies its own potential</strong> <span class="math inline">\psi_j</span> by the <strong>messages from every other neighbour</strong> <span class="math inline">k \in N(j)\setminus\{i\}</span>.</li>
+<li><strong>Multiplies by the edge potential</strong> <span class="math inline">\psi_{ij}</span> that connects <span class="math inline">j</span> to <span class="math inline">i</span>.</li>
+<li><strong>Sums out its own variable</strong> <span class="math inline">x_j</span>, which leaves a function of <span class="math inline">x_i</span> only.</li>
+</ol>
+<p>The message is the only thing that crosses the edge. Node <span class="math inline">i</span> never sees <span class="math inline">x_j</span> itself, so <span class="math inline">j</span> passes along a summary of everything on its side of the edge that <span class="math inline">i</span> needs. That is why it is called a <strong>message</strong>.</p>
+<p>The exclusion <span class="math inline">k \neq i</span> matters: <span class="math inline">j</span> does not send back to <span class="math inline">i</span> what <span class="math inline">i</span> sent it, since <span class="math inline">i</span> already knows that information. The product over <span class="math inline">k</span> is what lets one message summarize an entire subtree rather than a single node. For a leaf <span class="math inline">j</span>, the set <span class="math inline">N(j)\setminus\{i\}</span> is empty, so the product is just 1.</p>
+<p>Once node <span class="math inline">i</span> has received a message from every neighbour, it combines all of them with its own potential. The result is its <strong>belief</strong> <span class="math inline">b(x_i)</span>: its current estimate of its own variable, using everything in the graph. The belief has no exclusion, because <span class="math inline">i</span> has no one left to hold anything back from. That is why it is called a <strong>belief</strong>, not a message: it is <span class="math inline">i</span>’s own answer, not something sent to a neighbour.</p>
 <p>If <span class="math inline">x_i</span> is discrete with <span class="math inline">K</span> possible values, a message <span class="math inline">m_{j\to i}(x_i)</span> is a vector with one entry for each value of <span class="math inline">x_i</span>. It is not a probability distribution in general (it need not sum to 1), only a nonnegative score per state, like a potential.</p>
 <div class="definition-block">
 <p><strong>Definition.</strong> Once node <span class="math inline">i</span> has received a message from every neighbour, its <strong>belief</strong> is <span class="math display">b(x_i) \propto \psi_i(x_i)\prod_{j\in N(i)} m_{j\to i}(x_i).</span> In practice we compute an unnormalized belief <span class="math inline">\tilde b(x_i) = \psi_i(x_i)\prod_{j\in N(i)}m_{j\to i}(x_i)</span>, then normalize: <span class="math inline">b(x_i) = \tilde b(x_i)\big/\sum_{x_i}\tilde b(x_i)</span>.</p>
 </div>
 <p>The final line of the worked example in <a href="#sec-tree-example" class="quarto-xref"><span>Worked example: elimination on a tree becomes message passing</span></a> is exactly the belief at <span class="math inline">x_3</span>, normalized. Since the messages reproduce variable elimination step for step, on a tree the normalized belief is the exact conditional marginal: here <span class="math inline">b(x_3) = p(x_3\mid\bar x_2,\bar x_4,\bar x_5)</span>.</p>
-<div class="callout callout-style-default callout-note callout-titled">
-<div class="callout-header d-flex align-content-center">
+<p><strong>Practice question: messages and beliefs on a three-node chain.</strong></p>
+<p><strong>Given:</strong></p>
+<ul>
+<li>Binary spins <span class="math inline">x_1 - x_2 - x_3</span>, each in <span class="math inline">\{+1,-1\}</span>. Nothing is observed.</li>
+<li>Edge potentials <span class="math inline">\psi_{12}(x_1,x_2) = e^{Jx_1x_2}</span> and <span class="math inline">\psi_{23}(x_2,x_3) = e^{Jx_2x_3}</span> with <span class="math inline">J = \log 2</span> (the Ising form from <a href="week03.html#sec-ising" class="quarto-xref"><span>The Ising model</span></a> in Week 3). Since <span class="math inline">x_ix_j</span> is <span class="math inline">+1</span> when the spins agree and <span class="math inline">-1</span> when they differ, each edge potential is <span class="math inline">2</span> when its endpoints agree and <span class="math inline">\tfrac12</span> when they differ.</li>
+<li>Node potentials <span class="math inline">\psi_1(+1) = 3</span> and <span class="math inline">\psi_1(-1) = 1</span>, and <span class="math inline">\psi_2(x_2) = \psi_3(x_3) = 1</span> for both values.</li>
+</ul>
+<p><strong>Find:</strong> the messages <span class="math inline">m_{1\to2}(x_2)</span> and <span class="math inline">m_{2\to3}(x_3)</span>, the unnormalized belief <span class="math inline">\tilde b(x_3)</span>, the constant <span class="math inline">Z</span>, and <span class="math inline">p(x_3 = +1)</span> and <span class="math inline">p(x_3 = -1)</span>. Use the message definition above, and try it before opening the worked solution.</p>
+<div class="clarification callout callout-style-default callout-tip callout-titled" title="Worked solution">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-7-contents" aria-controls="callout-7" aria-expanded="false" aria-label="Toggle callout">
 <div class="callout-icon-container">
 <i class="callout-icon"></i>
 </div>
 <div class="callout-title-container flex-fill">
-Note
+<span class="screen-reader-only">Tip</span>Worked solution
 </div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
 </div>
+<div id="callout-7" class="callout-7-contents callout-collapse collapse">
 <div class="callout-body-container callout-body">
-<p><strong>Worked example: messages on a three-node chain.</strong> Take binary spins <span class="math inline">x_1 - x_2 - x_3</span>, each in <span class="math inline">\{+1,-1\}</span>, with Ising edge potentials <span class="math inline">\psi_{12}=\psi_{23}=e^{Jx_ix_j}</span> (<a href="week03.html#sec-ising" class="quarto-xref"><span>The Ising model</span></a> in Week 3) and <span class="math inline">J=\log 2</span>, so an edge potential is <span class="math inline">2</span> when its endpoints agree and <span class="math inline">\tfrac12</span> when they disagree. Give <span class="math inline">x_1</span> the node potential <span class="math inline">\psi_1(+1)=3</span>, <span class="math inline">\psi_1(-1)=1</span>, and set <span class="math inline">\psi_2=\psi_3=1</span>. Nothing is observed. We want <span class="math inline">p(x_3)</span>, so treat <span class="math inline">x_3</span> as the root.</p>
-<p><em>Message from the leaf <span class="math inline">x_1</span> to <span class="math inline">x_2</span></em> (no incoming messages, so no product): <span class="math display">m_{1\to2}(+1) = 3\cdot 2 + 1\cdot\tfrac12 = 6.5, \qquad m_{1\to2}(-1) = 3\cdot\tfrac12 + 1\cdot 2 = 3.5.</span></p>
-<p><em>Message from <span class="math inline">x_2</span> to <span class="math inline">x_3</span></em>, multiplying in the message <span class="math inline">x_2</span> received: <span class="math display">m_{2\to3}(+1) = 6.5\cdot 2 + 3.5\cdot\tfrac12 = 14.75, \qquad m_{2\to3}(-1) = 6.5\cdot\tfrac12 + 3.5\cdot 2 = 10.25.</span></p>
-<p><em>Belief at <span class="math inline">x_3</span>:</em> <span class="math inline">\tilde b(x_3) = (14.75,\ 10.25)</span>, which sums to <span class="math inline">25</span>, so <span class="math inline">b(x_3=+1) = 0.59</span> and <span class="math inline">b(x_3=-1)=0.41</span>.</p>
-<p>The bias at <span class="math inline">x_1</span> toward <span class="math inline">+1</span> has travelled down the chain, weakened at each edge because the coupling favours agreement without forcing it. If we had normalized <span class="math inline">m_{1\to2}</span> to <span class="math inline">(0.65,\ 0.35)</span> before sending it, the next message would be <span class="math inline">(1.475,\ 1.025)</span>: every entry scaled by the same constant, so the final belief is unchanged. Scaling a message never changes a normalized belief, which is what makes the normalization trick of <a href="#sec-loopy" class="quarto-xref"><span>Loopy belief propagation</span></a> safe.</p>
+<p><strong>What we want: <span class="math inline">p(x_3)</span>.</strong> This is the marginal distribution of <span class="math inline">x_3</span>: for each value of <span class="math inline">x_3</span>, how likely it is, averaged over every possible <span class="math inline">x_1</span> and <span class="math inline">x_2</span>. In the language of Week 3’s inference definition, <span class="math inline">x_F = \{x_3\}</span>, there is no evidence, and <span class="math inline">x_R = \{x_1, x_2\}</span>. The MRF joint is the product of all potentials divided by a constant <span class="math inline">Z</span>:</p>
+<p><span class="math display">p(x_1,x_2,x_3) = \frac{1}{Z}\,\psi_1(x_1)\,\psi_2(x_2)\,\psi_3(x_3)\,\psi_{12}(x_1,x_2)\,\psi_{23}(x_2,x_3).</span></p>
+<p>Summing out <span class="math inline">x_1</span> and <span class="math inline">x_2</span> gives the marginal:</p>
+<p><span class="math display">p(x_3) = \frac{1}{Z}\sum_{x_2}\sum_{x_1}\psi_1(x_1)\,\psi_2(x_2)\,\psi_3(x_3)\,\psi_{12}(x_1,x_2)\,\psi_{23}(x_2,x_3).</span></p>
+<p><strong>Pushing the sums inward.</strong> <span class="math inline">\psi_3(x_3)</span> mentions neither <span class="math inline">x_1</span> nor <span class="math inline">x_2</span>, so it comes out of both sums. Inside the sum over <span class="math inline">x_2</span>, only <span class="math inline">\psi_1</span> and <span class="math inline">\psi_{12}</span> mention <span class="math inline">x_1</span>, so the sum over <span class="math inline">x_1</span> can wrap just those two:</p>
+<p><span class="math display">p(x_3) = \frac{1}{Z}\,\psi_3(x_3)\sum_{x_2}\psi_2(x_2)\,\psi_{23}(x_2,x_3)\Big[\sum_{x_1}\psi_1(x_1)\,\psi_{12}(x_1,x_2)\Big].</span></p>
+<p>The bracket is a function of <span class="math inline">x_2</span> only. It is the message <span class="math inline">m_{1\to2}(x_2)</span>. The whole sum over <span class="math inline">x_2</span> is then a function of <span class="math inline">x_3</span> only. It is the message <span class="math inline">m_{2\to3}(x_3)</span>. So we treat <span class="math inline">x_3</span> as the root and pass messages toward it, from the leaf <span class="math inline">x_1</span> inward.</p>
+<p><strong>Message 1: from <span class="math inline">x_1</span> to <span class="math inline">x_2</span>.</strong> In the message definition, <span class="math inline">j = 1</span> (sender) and <span class="math inline">i = 2</span> (receiver). Node 1’s neighbours other than node 2 form the empty set, so the product of incoming messages is 1:</p>
+<p><span class="math display">m_{1\to2}(x_2) = \sum_{x_1}\psi_1(x_1)\,\psi_{12}(x_1,x_2).</span></p>
+<p>Evaluate it at each value of <span class="math inline">x_2</span>, with one term per value of <span class="math inline">x_1</span> (first <span class="math inline">x_1 = +1</span>, then <span class="math inline">x_1 = -1</span>):</p>
+<p><span class="math display">m_{1\to2}(+1) = \psi_1(+1)\,\psi_{12}(+1,+1) + \psi_1(-1)\,\psi_{12}(-1,+1) = 3\cdot 2 + 1\cdot\tfrac12 = 6.5,</span> <span class="math display">m_{1\to2}(-1) = \psi_1(+1)\,\psi_{12}(+1,-1) + \psi_1(-1)\,\psi_{12}(-1,-1) = 3\cdot\tfrac12 + 1\cdot 2 = 3.5.</span></p>
+<p><strong>Message 2: from <span class="math inline">x_2</span> to <span class="math inline">x_3</span>.</strong> Now <span class="math inline">j = 2</span> and <span class="math inline">i = 3</span>. Node 2’s other neighbour is node 1, so the product contains <span class="math inline">m_{1\to2}(x_2)</span>:</p>
+<p><span class="math display">m_{2\to3}(x_3) = \sum_{x_2}\psi_2(x_2)\,\psi_{23}(x_2,x_3)\,m_{1\to2}(x_2).</span></p>
+<p>With <span class="math inline">\psi_2 = 1</span>, one term per value of <span class="math inline">x_2</span>:</p>
+<p><span class="math display">m_{2\to3}(+1) = 1\cdot 2\cdot 6.5 + 1\cdot\tfrac12\cdot 3.5 = 14.75,</span> <span class="math display">m_{2\to3}(-1) = 1\cdot\tfrac12\cdot 6.5 + 1\cdot 2\cdot 3.5 = 10.25.</span></p>
+<p><strong>The belief at <span class="math inline">x_3</span>.</strong> Node 3’s only neighbour is node 2, so the belief definition gives</p>
+<p><span class="math display">\tilde b(x_3) = \psi_3(x_3)\,m_{2\to3}(x_3) = (14.75,\ 10.25).</span></p>
+<p>Comparing with the pushed-in formula, <span class="math inline">p(x_3) = \frac{1}{Z}\tilde b(x_3)</span>. Summing both sides over <span class="math inline">x_3</span> (the left side sums to 1) gives <span class="math inline">Z = \sum_{x_3}\tilde b(x_3) = 14.75 + 10.25 = 25</span>. So</p>
+<p><span class="math display">p(x_3 = +1) = \frac{14.75}{25} = 0.59, \qquad p(x_3 = -1) = \frac{10.25}{25} = 0.41.</span></p>
+<p>As a check, adding up the unnormalized joint over all eight configurations of <span class="math inline">(x_1, x_2, x_3)</span> also gives 25, so the messages found <span class="math inline">Z</span> without listing the configurations.</p>
+<p><strong>Reading the result.</strong> The bias at <span class="math inline">x_1</span> toward <span class="math inline">+1</span> (3 to 1) has travelled down the chain, weakened at each edge because the coupling favours agreement without forcing it.</p>
+<p><strong>Scaling a message changes nothing.</strong> If we had normalized <span class="math inline">m_{1\to2}</span> to <span class="math inline">(0.65,\ 0.35)</span> before sending it, the next message would be</p>
+<p><span class="math display">m_{2\to3}(+1) = 2\cdot 0.65 + \tfrac12\cdot 0.35 = 1.475, \qquad m_{2\to3}(-1) = \tfrac12\cdot 0.65 + 2\cdot 0.35 = 1.025.</span></p>
+<p>Every entry is the earlier one divided by 10, so after normalizing the belief is still <span class="math inline">(0.59,\ 0.41)</span>. Scaling a message never changes a normalized belief, which is what makes the normalization trick of <a href="#sec-loopy" class="quarto-xref"><span>Loopy belief propagation</span></a> safe.</p>
+</div>
+</div>
+</div>
+<div class="clarification callout callout-style-default callout-tip callout-titled" title="Recap: Messages and beliefs">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-8-contents" aria-controls="callout-8" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Recap: Messages and beliefs
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-8" class="callout-8-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>What the symbols stand for:</p>
+<ul>
+<li><span class="math inline">m_{j \to i}(x_i)</span>: the message from <span class="math inline">j</span> to its neighbour <span class="math inline">i</span>. One nonnegative number per value of <span class="math inline">x_i</span>.</li>
+<li><span class="math inline">N(j) \setminus \{i\}</span>: every neighbour of <span class="math inline">j</span> except <span class="math inline">i</span>.</li>
+<li><span class="math inline">\bar x_j</span>: the observed value of <span class="math inline">x_j</span>, if it is observed.</li>
+<li><span class="math inline">b(x_i)</span>: the belief at node <span class="math inline">i</span>, its marginal once normalized. <span class="math inline">\tilde b(x_i)</span> is the unnormalized version.</li>
+</ul>
+<p>Taking the message formula apart:</p>
+<p><span class="math display">m_{j\to i}(x_i) = \sum_{x_j}\psi_j(x_j)\,\psi_{ij}(x_i,x_j)\prod_{k\in N(j)\setminus\{i\}} m_{k\to j}(x_j)</span></p>
+<ul>
+<li>The three pieces are everything node <span class="math inline">j</span> knows apart from what <span class="math inline">i</span> told it.</li>
+<li>The sum over <span class="math inline">x_j</span> removes <span class="math inline">j</span>’s own variable, so the result depends only on <span class="math inline">x_i</span>.</li>
+<li>If <span class="math inline">x_j</span> is observed, the sum becomes a single term at <span class="math inline">x_j = \bar x_j</span>.</li>
+<li>The belief is the node’s own score times every incoming message: <span class="math inline">\tilde b(x_i) = \psi_i(x_i)\prod_{j \in N(i)} m_{j\to i}(x_i)</span>.</li>
+</ul>
+<p>A teaching example. Reuse the chain above (<span class="math inline">J = \log 2</span>, so edges score 2 for agree and <span class="math inline">\tfrac12</span> for disagree, and <span class="math inline">\psi_1 = (3, 1)</span> for <span class="math inline">(+1, -1)</span>), but now observe <span class="math inline">x_1 = +1</span>.</p>
+<ul>
+<li><span class="math inline">m_{1\to2}(x_2) = \psi_1(+1)\,\psi_{12}(x_2, +1) = 3 \cdot (2, \tfrac12) = (6, 1.5)</span>.</li>
+<li><span class="math inline">m_{2\to3}(+1) = 6 \cdot 2 + 1.5 \cdot \tfrac12 = 12.75</span> and <span class="math inline">m_{2\to3}(-1) = 6 \cdot \tfrac12 + 1.5 \cdot 2 = 6</span>.</li>
+<li><span class="math inline">b(x_3 = +1) = 12.75 / 18.75 = 0.68</span>.</li>
+</ul>
+<p>Knowing <span class="math inline">x_1 = +1</span> for certain pushes <span class="math inline">x_3</span> further toward <span class="math inline">+1</span> than the soft lean in the unobserved example (<span class="math inline">0.59</span>).</p>
+</div>
 </div>
 </div>
 </section>
@@ -553,6 +818,40 @@ Note
 <p><strong>Homework-relevant.</strong> Assignment 2 uses message passing. The message and belief formulas above, and the order in which messages may be sent, are the pieces to understand before starting it.</p>
 </div>
 </div>
+<div class="clarification callout callout-style-default callout-tip callout-titled" title="Recap: Belief propagation on trees">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-10-contents" aria-controls="callout-10" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Recap: Belief propagation on trees
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-10" class="callout-10-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>What the symbols stand for:</p>
+<ul>
+<li><span class="math inline">r</span>: the root, any node we choose.</li>
+<li><span class="math inline">|\mathcal{E}|</span>: the number of edges. A tree with <span class="math inline">n</span> nodes has <span class="math inline">n - 1</span>.</li>
+<li><span class="math inline">b(x_i)</span>: the belief at node <span class="math inline">i</span>, the same formula as <a href="#sec-messages" class="quarto-xref"><span>Messages and beliefs</span></a>.</li>
+</ul>
+<p>Taking the algorithm apart:</p>
+<ul>
+<li>Pass 1, leaves to root: each node waits until it has heard from all neighbours except the one toward the root, then sends to that one.</li>
+<li>Pass 2, root to leaves: the root now has everything, so it sends back down. Each node then sends onward away from the root.</li>
+<li>After both passes every node has one message from every neighbour, so every belief can be computed. Each edge carries one message in each direction, <span class="math inline">2|\mathcal{E}|</span> in total.</li>
+</ul>
+<p>A teaching example. Finish the unobserved chain <span class="math inline">x_1 - x_2 - x_3</span> from <a href="#sec-messages" class="quarto-xref"><span>Messages and beliefs</span></a> (edges 2 if agree, <span class="math inline">\tfrac12</span> if not; <span class="math inline">\psi_1 = (3, 1)</span>, <span class="math inline">\psi_2 = \psi_3 = 1</span>). Pass 1 already gave <span class="math inline">m_{1\to2} = (6.5, 3.5)</span> and <span class="math inline">m_{2\to3}</span>. Pass 2 sends the other two messages.</p>
+<ul>
+<li><span class="math inline">m_{3\to2}(x_2) = \sum_{x_3}\psi_{23}(x_2, x_3) = 2 + \tfrac12 = 2.5</span> for both values of <span class="math inline">x_2</span>. A leaf with no preference sends a flat message.</li>
+<li><span class="math inline">\tilde b(x_2) = 1 \cdot (6.5, 3.5) \cdot 2.5</span>, so <span class="math inline">b(x_2 = +1) = 0.65</span>.</li>
+<li><span class="math inline">m_{2\to1}(x_1) = \sum_{x_2}\psi_{12}(x_1, x_2)\,m_{3\to2}(x_2) = 2.5 \cdot 2.5 = 6.25</span> for both values, so <span class="math inline">b(x_1 = +1) = 3/(3+1) = 0.75</span>.</li>
+</ul>
+<p>Four messages for two edges gave all three marginals: <span class="math inline">0.75</span>, <span class="math inline">0.65</span>, <span class="math inline">0.59</span> for <span class="math inline">x_1 = +1</span>, <span class="math inline">x_2 = +1</span>, <span class="math inline">x_3 = +1</span>.</p>
+</div>
+</div>
+</div>
 </section>
 <section id="sec-loopy" class="level2">
 <h2 class="anchored" data-anchor-id="sec-loopy">Loopy belief propagation</h2>
@@ -585,6 +884,36 @@ Note
 <p><strong>Homework-relevant.</strong> Assignment 2 uses loopy BP with normalized messages and momentum. The update rule and the reasons for each trick are above; implementation choices and results are left to the assignment.</p>
 </div>
 </div>
+<div class="clarification callout callout-style-default callout-tip callout-titled" title="Recap: Loopy belief propagation">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-12-contents" aria-controls="callout-12" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Recap: Loopy belief propagation
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-12" class="callout-12-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>What the symbols stand for:</p>
+<ul>
+<li><span class="math inline">[1/k, \dots, 1/k]^\top</span>: a uniform starting message, the same score for each of the <span class="math inline">k</span> values.</li>
+<li><span class="math inline">m^{\text{old}}_{j\to i}</span>: the message from the previous sweep. <span class="math inline">[\text{update}]</span>: the message the usual formula gives now.</li>
+<li><span class="math inline">\alpha \in (0, 1]</span>: the momentum step size, how far we move toward the new value.</li>
+</ul>
+<p>Taking the equations apart:</p>
+<ul>
+<li>The message update is the tree formula from <a href="#sec-messages" class="quarto-xref"><span>Messages and beliefs</span></a>, unchanged. Only the schedule differs: on a cycle no node ever “hears from everyone first”, so every message is recomputed over and over from the current values of the others.</li>
+<li>Normalizing a message rescales it to sum to 1. On a tree this never changed a belief, and here it keeps numbers from growing or shrinking without bound.</li>
+<li><span class="math inline">m^{\text{new}} = (1 - \alpha)\,m^{\text{old}} + \alpha\,[\text{update}]</span> is a weighted average. <span class="math inline">\alpha = 1</span> means “replace”. Smaller <span class="math inline">\alpha</span> means “move part of the way”.</li>
+</ul>
+<p>A teaching example of one momentum step. A normalized message is <span class="math inline">m^{\text{old}} = (0.5, 0.5)</span> and the formula now gives <span class="math inline">(0.8, 0.2)</span>. With <span class="math inline">\alpha = 0.3</span>:</p>
+<p><span class="math display">m^{\text{new}} = 0.7\,(0.5, 0.5) + 0.3\,(0.8, 0.2) = (0.59, 0.41).</span></p>
+<p>The message moves 30% of the way. If the next update swung back to <span class="math inline">(0.2, 0.8)</span>, the damped message would be <span class="math inline">0.7(0.59, 0.41) + 0.3(0.2, 0.8) = (0.473, 0.527)</span>, a small swing instead of a full flip. Both results still sum to 1, because a weighted average of normalized vectors is normalized.</p>
+</div>
+</div>
+</div>
 </section>
 <section id="sec-maxproduct" class="level2">
 <h2 class="anchored" data-anchor-id="sec-maxproduct">Max-product BP and MAP inference</h2>
@@ -597,6 +926,39 @@ Note
 <p>The resulting beliefs <span class="math inline">b(x_i)\propto\psi_i(x_i)\prod_{j\in N(i)}m_{j\to i}(x_i)</span> are now <strong>max-marginals</strong>: <span class="math inline">b(x_i)</span> scores the best joint configuration that has node <span class="math inline">i</span> in state <span class="math inline">x_i</span>, rather than the total probability of all configurations with node <span class="math inline">i</span> in that state. The MAP estimate is then read off node by node:</p>
 <p><span class="math display">\hat x_i = \arg\max_{x_i}\, b(x_i).</span></p>
 <p>The swap works for the same reason sum-product works: on a tree, a maximum distributes over a product of nonnegative factors exactly as a sum does, so the same “push the operation inward past factors that do not mention <span class="math inline">x_j</span>” argument goes through with <span class="math inline">\max</span> in place of <span class="math inline">\sum</span>. (Reading off <span class="math inline">\hat x_i</span> node by node is safe when each node’s maximizer is unique; ties need extra bookkeeping that the lecture does not cover.)</p>
+<div class="clarification callout callout-style-default callout-tip callout-titled" title="Recap: Max-product BP and MAP inference">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-13-contents" aria-controls="callout-13" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Recap: Max-product BP and MAP inference
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-13" class="callout-13-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>What the symbols stand for:</p>
+<ul>
+<li><span class="math inline">\arg\max_{x_F} p(x_F \mid x_E)</span>: the MAP estimate, the single most probable joint setting of the unobserved variables.</li>
+<li><span class="math inline">\max_{x_j}</span>: take the largest value over <span class="math inline">x_j</span>, instead of adding over it.</li>
+<li><span class="math inline">b(x_i)</span>: now a max-marginal, the score of the best full setting that has node <span class="math inline">i</span> in state <span class="math inline">x_i</span>.</li>
+<li><span class="math inline">\hat x_i</span>: the MAP value of node <span class="math inline">i</span>.</li>
+</ul>
+<p>Taking the change apart:</p>
+<ul>
+<li>Sum-product asks “how much total probability has <span class="math inline">x_i</span> in this state?” Max-product asks “how good is the best setting with <span class="math inline">x_i</span> in this state?”</li>
+<li>The message formula is the same except <span class="math inline">\sum_{x_j}</span> becomes <span class="math inline">\max_{x_j}</span>.</li>
+<li>Reading off <span class="math inline">\hat x_i = \arg\max b(x_i)</span> at every node gives a jointly best setting, not a collection of separately best guesses.</li>
+</ul>
+<p>A teaching example. Two binary nodes, <span class="math inline">\psi_1 = \psi_2 = 1</span>, edge potential <span class="math inline">\psi_{12}(0,0) = 6</span>, <span class="math inline">\psi_{12}(0,1) = 1</span>, <span class="math inline">\psi_{12}(1,0) = 4</span>, <span class="math inline">\psi_{12}(1,1) = 4</span>. The joint MAP is <span class="math inline">(0, 0)</span> with score 6.</p>
+<ul>
+<li>Sum-product marginal of <span class="math inline">x_1</span>: <span class="math inline">(6 + 1,\; 4 + 4) = (7, 8)</span>, so <span class="math inline">x_1 = 1</span> is more probable on its own. For <span class="math inline">x_2</span>: <span class="math inline">(6 + 4,\; 1 + 4) = (10, 5)</span>, favouring <span class="math inline">x_2 = 0</span>. Combining the separate winners gives <span class="math inline">(1, 0)</span>, which scores only 4.</li>
+<li>Max-marginal of <span class="math inline">x_1</span>: <span class="math inline">(\max(6, 1),\; \max(4, 4)) = (6, 4)</span>, so <span class="math inline">\hat x_1 = 0</span>. For <span class="math inline">x_2</span>: <span class="math inline">(\max(6, 4),\; \max(1, 4)) = (6, 4)</span>, so <span class="math inline">\hat x_2 = 0</span>. Max-product recovers the MAP <span class="math inline">(0, 0)</span>.</li>
+</ul>
+</div>
+</div>
+</div>
 </section>
 <section id="sec-denoise" class="level2">
 <h2 class="anchored" data-anchor-id="sec-denoise">Tutorial example: image denoising with loopy BP</h2>
@@ -655,6 +1017,38 @@ Note
 <p><span class="math display">p(x\mid y)\propto p(x,y) = p(x)\prod_s p(y_s\mid x_s) \propto \exp\Big\{J\sum_{s\sim t}x_sx_t + \beta\sum_s y_sx_s\Big\}</span> <span class="math display">= \prod_{s\sim t}\psi_{st}(x_s,x_t)\prod_s\psi_s(x_s), \qquad \psi_s(x_s) = \exp(\beta y_sx_s).</span></p>
 <p>So the posterior over the true image is itself an Ising MRF on the grid, with the observations entering only as node potentials. That is exactly the form BP needs.</p>
 <p><strong>Running loopy BP.</strong> Each message <span class="math inline">m_{j\to i}(x_i)</span> is stored as a 2-vector <span class="math inline">\big(m_{j\to i}(+1),\ m_{j\to i}(-1)\big)</span>, and each belief likewise. Initialize every message to <span class="math inline">(\tfrac12,\tfrac12)</span>, run the loopy updates of <a href="#sec-loopy" class="quarto-xref"><span>Loopy belief propagation</span></a> (summing over <span class="math inline">x_j\in\{-1,+1\}</span>) with normalization, then compute beliefs. The tutorial reports that 10–20 iterations suffice, and the beliefs approximate the posterior marginals <span class="math inline">p(x_i\mid y)</span>. One decision rule is <span class="math inline">\hat x_i = \arg\max_{x_i} b(x_i)</span>, which picks whichever colour each pixel’s approximate marginal favours. In the tutorial’s Mona Lisa example, this recovers a clean image from one with a large fraction of flipped pixels.</p>
+<div class="clarification callout callout-style-default callout-tip callout-titled" title="Recap: Tutorial example: image denoising with loopy BP">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-14-contents" aria-controls="callout-14" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Recap: Tutorial example: image denoising with loopy BP
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-14" class="callout-14-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>What the symbols stand for:</p>
+<ul>
+<li><span class="math inline">x_s \in \{-1, +1\}</span>: the true colour of pixel <span class="math inline">s</span> (latent). <span class="math inline">y_s</span>: the noisy colour we observe.</li>
+<li><span class="math inline">\epsilon</span>: the probability that the channel flips a pixel.</li>
+<li><span class="math inline">\beta = \tfrac12\log\frac{1-\epsilon}{\epsilon}</span>: how strongly each true pixel is pulled toward its observation.</li>
+<li><span class="math inline">J &gt; 0</span>: how strongly neighbouring true pixels are pulled toward each other.</li>
+<li><span class="math inline">\psi_s(x_s) = e^{\beta y_s x_s}</span>: the node potential built from the observation.</li>
+</ul>
+<p>Taking the equations apart:</p>
+<ul>
+<li><span class="math inline">\frac{1 + y_s x_s}{2}</span> is 1 on agreement and 0 on disagreement, so the first line picks <span class="math inline">1 - \epsilon</span> or <span class="math inline">\epsilon</span> with one formula.</li>
+<li>Rewriting as <span class="math inline">e^{\beta y_s x_s}</span> turns the observation into an Ising field: agreement adds <span class="math inline">\beta</span> to the exponent, disagreement subtracts it.</li>
+<li>The posterior exponent <span class="math inline">J\sum_{s\sim t} x_s x_t + \beta\sum_s y_s x_s</span> has two competing rewards: match your neighbours, and match your observation.</li>
+</ul>
+<p>A teaching example with a single pixel and no neighbours, to check that <span class="math inline">\beta</span> is the right strength. Let <span class="math inline">\epsilon = 0.1</span>. Then <span class="math inline">\beta = \tfrac12\log 9</span>, so <span class="math inline">e^{\beta} = 3</span>. If we observe <span class="math inline">y_s = +1</span>:</p>
+<p><span class="math display">p(x_s = +1 \mid y_s) = \frac{e^{\beta}}{e^{\beta} + e^{-\beta}} = \frac{3}{3 + 1/3} = 0.9 = 1 - \epsilon.</span></p>
+<p>With no neighbours, the posterior just trusts the channel. In the full grid, the <span class="math inline">J</span> terms let neighbours outvote a pixel’s own observation when they disagree with it.</p>
+</div>
+</div>
+</div>
 </section>
 <section id="sec-sampling" class="level2">
 <h2 class="anchored" data-anchor-id="sec-sampling">Sampling from an unnormalized density</h2>
@@ -665,6 +1059,33 @@ Note
 <p>Throughout, we assume we can evaluate <span class="math inline">p(x)</span> only up to a multiplicative constant. That is, we can compute a function <span class="math inline">\tilde p(x)</span> with</p>
 <p><span class="math display">p(x) = \frac{\tilde p(x)}{Z}, \qquad Z = \int\tilde p(x)\,dx,</span></p>
 <p>but we do not know <span class="math inline">Z</span>. This is the normal situation for the models in this course: an MRF’s product of potentials is <span class="math inline">\tilde p</span>, and its partition function <span class="math inline">Z</span> (<a href="week03.html#sec-mrf" class="quarto-xref"><span>Markov random fields, cliques, and the factorization theorem</span></a> in Week 3) is exactly the hard part. The posterior of <a href="#sec-denoise" class="quarto-xref"><span>Tutorial example: image denoising with loopy BP</span></a> is another example, since we wrote it only up to <span class="math inline">\propto</span>.</p>
+<div class="clarification callout callout-style-default callout-tip callout-titled" title="Recap: Sampling from an unnormalized density">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-15-contents" aria-controls="callout-15" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Recap: Sampling from an unnormalized density
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-15" class="callout-15-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>What the symbols stand for:</p>
+<ul>
+<li><span class="math inline">p(x)</span>: the distribution we want samples from.</li>
+<li><span class="math inline">\tilde p(x)</span>: a function we can compute, equal to <span class="math inline">p(x)</span> times an unknown constant.</li>
+<li><span class="math inline">Z = \int \tilde p(x)\,dx</span>: that constant, the total area under <span class="math inline">\tilde p</span>.</li>
+</ul>
+<p>Taking <span class="math inline">p(x) = \tilde p(x)/Z</span> apart:</p>
+<ul>
+<li><span class="math inline">\tilde p</span> has the right shape: it is high where <span class="math inline">p</span> is high and low where <span class="math inline">p</span> is low.</li>
+<li>Dividing by <span class="math inline">Z</span> only fixes the scale so the total is 1. Ratios such as <span class="math inline">p(a)/p(b) = \tilde p(a)/\tilde p(b)</span> never need <span class="math inline">Z</span>.</li>
+</ul>
+<p>A teaching example. Take <span class="math inline">\tilde p(x) = e^{-x^2/2}</span>. We can evaluate it anywhere: <span class="math inline">\tilde p(0) = 1</span> and <span class="math inline">\tilde p(1) \approx 0.607</span>. So <span class="math inline">x = 0</span> is about <span class="math inline">1/0.607 \approx 1.65</span> times as likely as <span class="math inline">x = 1</span>, with no <span class="math inline">Z</span> in sight. In this case we happen to know <span class="math inline">Z = \sqrt{2\pi} \approx 2.507</span> (it is the standard Gaussian), but for an MRF over thousands of variables there is no such formula.</p>
+</div>
+</div>
+</div>
 </section>
 <section id="sec-ancestral" class="level2">
 <h2 class="anchored" data-anchor-id="sec-ancestral">Ancestral sampling</h2>
@@ -711,6 +1132,58 @@ Note
 <p><span class="math display">p(x_1,\dots,x_5) = p(x_1)\,p(x_2\mid x_1)\,p(x_3\mid x_1)\,p(x_4\mid x_2,x_3)\,p(x_5\mid x_3).</span></p>
 <p>Sample <span class="math inline">x_1</span> from <span class="math inline">p(x_1)</span>. Then sample <span class="math inline">x_2</span> from <span class="math inline">p(x_2\mid x_1)</span> and <span class="math inline">x_3</span> from <span class="math inline">p(x_3\mid x_1)</span>, plugging in the drawn <span class="math inline">x_1</span>. Then sample <span class="math inline">x_4</span> from <span class="math inline">p(x_4\mid x_2,x_3)</span>. Finally, sample <span class="math inline">x_5</span> from <span class="math inline">p(x_5\mid x_3)</span>. (Any order in which parents precede children would do; <span class="math inline">x_5</span> could equally come before <span class="math inline">x_4</span>.)</p>
 <p>Ancestral sampling draws from the joint with nothing observed. It does not directly give samples from a conditional such as <span class="math inline">p(x_1\mid x_4)</span>, and it needs a directed model with easy-to-sample conditionals; an MRF with an unknown <span class="math inline">Z</span> offers neither. The rest of the lecture deals with that harder setting.</p>
+<div class="clarification callout callout-style-default callout-tip callout-titled" title="Recap: Ancestral sampling">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-16-contents" aria-controls="callout-16" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Recap: Ancestral sampling
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-16" class="callout-16-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>What the symbols stand for:</p>
+<ul>
+<li>Topological order: any listing of the nodes in which each node comes after its parents.</li>
+<li><span class="math inline">p(x_i \mid \text{parents}(x_i))</span>: node <span class="math inline">i</span>’s conditional table, which we can sample from once its parents have values.</li>
+</ul>
+<p>Taking the factorization apart:</p>
+<ul>
+<li><span class="math inline">p(x_1)</span> has no parents, so it is sampled first.</li>
+<li><span class="math inline">p(x_2 \mid x_1)</span> and <span class="math inline">p(x_3 \mid x_1)</span> only need <span class="math inline">x_1</span>, which we now have.</li>
+<li><span class="math inline">p(x_4 \mid x_2, x_3)</span> needs both <span class="math inline">x_2</span> and <span class="math inline">x_3</span>, and <span class="math inline">p(x_5 \mid x_3)</span> needs <span class="math inline">x_3</span>.</li>
+<li>Following the product left to right, every factor’s conditioning values have already been drawn.</li>
+</ul>
+<p>A teaching example on Figure 5 with binary nodes. The probabilities and uniform draws below are invented for illustration. The lecture does not derive them from a fitted model, and we chose the draws by hand instead of using a random number generator.</p>
+<p>Each binary node is sampled by comparing a uniform draw to its probability of being 1. Write <span class="math inline">\pi_i</span> for the table entry that node <span class="math inline">i</span> uses, given the parent values already drawn:</p>
+<p><span class="math display">
+\pi_i = p(x_i{=}1 \mid \text{parents}(x_i)), \qquad
+x_i = \begin{cases} 1 &amp; \text{if } u_i &lt; \pi_i, \\ 0 &amp; \text{otherwise,} \end{cases}
+\qquad u_i \sim \text{Uniform}[0,1].
+</span></p>
+<p>This gives the right conditional probability. Because <span class="math inline">\mathbb{P}(u_i &lt; \pi_i) = \pi_i</span> for a uniform <span class="math inline">u_i</span>, we have <span class="math inline">\mathbb{P}(x_i{=}1 \mid \text{parents}(x_i)) = \pi_i</span>. So the table value <span class="math inline">p(x_1{=}1) = 0.4</span> is used directly: it is the threshold that <span class="math inline">u_1</span> is compared against. Each table entry is used exactly once, at the node it belongs to.</p>
+<p>Applying the rule to the draws <span class="math inline">u = (0.25, 0.9, 0.1, 0.35, 0.95)</span>:</p>
+<ul>
+<li><span class="math inline">\pi_1 = p(x_1{=}1) = 0.4</span>. Since <span class="math inline">u_1 = 0.25 &lt; 0.4</span>, <span class="math inline">x_1 = 1</span>.</li>
+<li><span class="math inline">\pi_2 = p(x_2{=}1 \mid x_1{=}1) = 0.7</span>. Since <span class="math inline">u_2 = 0.9</span> is not less than <span class="math inline">0.7</span>, <span class="math inline">x_2 = 0</span>.</li>
+<li><span class="math inline">\pi_3 = p(x_3{=}1 \mid x_1{=}1) = 0.5</span>. Since <span class="math inline">u_3 = 0.1 &lt; 0.5</span>, <span class="math inline">x_3 = 1</span>.</li>
+<li><span class="math inline">\pi_4 = p(x_4{=}1 \mid x_2{=}0, x_3{=}1) = 0.6</span>. Since <span class="math inline">u_4 = 0.35 &lt; 0.6</span>, <span class="math inline">x_4 = 1</span>.</li>
+<li><span class="math inline">\pi_5 = p(x_5{=}1 \mid x_3{=}1) = 0.8</span>. Since <span class="math inline">u_5 = 0.95</span> is not less than <span class="math inline">0.8</span>, <span class="math inline">x_5 = 0</span>.</li>
+</ul>
+<p>One sample is <span class="math inline">(1, 0, 1, 1, 0)</span>. Its probability under the model is the product of the factors evaluated at the sampled values. A node that came out 0 contributes <span class="math inline">1 - \pi_i</span>, which is why <span class="math inline">p(x_2{=}0 \mid x_1{=}1) = 0.3</span> and not <span class="math inline">0.7</span>:</p>
+<p><span class="math display">
+\begin{aligned}
+p(x_1{=}1, x_2{=}0, x_3{=}1, x_4{=}1, x_5{=}0)
+&amp;= p(x_1{=}1)\, p(x_2{=}0 \mid x_1{=}1)\, p(x_3{=}1 \mid x_1{=}1)\, p(x_4{=}1 \mid x_2{=}0, x_3{=}1)\, p(x_5{=}0 \mid x_3{=}1) \\
+&amp;= 0.4 \times 0.3 \times 0.5 \times 0.6 \times 0.2 = 0.0072.
+\end{aligned}
+</span></p>
+<p>This product is a check on the factorization. It is not an input to sampling: the draws only needed the thresholds <span class="math inline">\pi_i</span>.</p>
+</div>
+</div>
+</div>
 </section>
 <section id="sec-goals" class="level2">
 <h2 class="anchored" data-anchor-id="sec-goals">What sampling is for</h2>
@@ -728,6 +1201,41 @@ Note
 <li>the <strong>variance</strong> of <span class="math inline">f</span> needs a second test function <span class="math inline">\phi_2(x)=f(x)^2</span>, giving <span class="math inline">\Phi_2</span>, and then <span class="math inline">\mathrm{var}(f(x)) = \Phi_2 - (\Phi_1)^2</span>.</li>
 </ul>
 <p>Probabilities are expectations too: <span class="math inline">\mathbb{P}(x\in A) = \mathbb{E}[\mathbf{1}_{\{x\in A\}}]</span>, using the <strong><a href="https://en.wikipedia.org/wiki/Indicator_function">indicator function</a></strong> <span class="math inline">\mathbf{1}_{\{x\in A\}}</span>, which is 1 when <span class="math inline">x\in A</span> and 0 otherwise. This fact is used again in the rejection-sampling proof below.</p>
+<div class="clarification callout callout-style-default callout-tip callout-titled" title="Recap: What sampling is for">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-17-contents" aria-controls="callout-17" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Recap: What sampling is for
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-17" class="callout-17-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>What the symbols stand for:</p>
+<ul>
+<li><span class="math inline">\{x^{(r)}\}_{r=1}^R</span>: <span class="math inline">R</span> samples. The superscript <span class="math inline">(r)</span> counts samples, not powers.</li>
+<li><span class="math inline">\phi(x)</span>: the test function, whatever quantity of <span class="math inline">x</span> we want the average of.</li>
+<li><span class="math inline">\Phi = \mathbb{E}_{x\sim p}[\phi(x)]</span>: that average under <span class="math inline">p</span>.</li>
+<li><span class="math inline">\mathbf{1}_{\{x \in A\}}</span>: the indicator, 1 if <span class="math inline">x</span> is in set <span class="math inline">A</span> and 0 otherwise.</li>
+</ul>
+<p>Taking the equations apart:</p>
+<ul>
+<li><span class="math inline">\Phi = \int \phi(x)\,p(x)\,dx</span>: weight each value of the test function by how likely <span class="math inline">x</span> is, and add.</li>
+<li>Mean: use <span class="math inline">\phi_1 = f</span>. Variance: also compute <span class="math inline">\phi_2 = f^2</span>, then <span class="math inline">\Phi_2 - \Phi_1^2</span> (average of the square minus square of the average).</li>
+<li>Probability of a set: use <span class="math inline">\phi = \mathbf{1}_{\{x\in A\}}</span>. Its average is the fraction of probability inside <span class="math inline">A</span>.</li>
+</ul>
+<p>A teaching example with a fair six-sided die and <span class="math inline">f(x) = x</span>.</p>
+<ul>
+<li><span class="math inline">\Phi_1 = (1+2+3+4+5+6)/6 = 3.5</span>.</li>
+<li><span class="math inline">\Phi_2 = (1+4+9+16+25+36)/6 = 91/6 \approx 15.17</span>, so the variance is <span class="math inline">15.17 - 3.5^2 \approx 2.92</span>.</li>
+<li><span class="math inline">\mathbb{P}(x \ge 5) = \mathbb{E}[\mathbf{1}_{\{x \ge 5\}}] = (0+0+0+0+1+1)/6 = 1/3</span>.</li>
+</ul>
+<p>Three different questions, all answered as an average of some test function.</p>
+</div>
+</div>
+</div>
 </section>
 <section id="sec-simplemc" class="level2">
 <h2 class="anchored" data-anchor-id="sec-simplemc">Simple Monte Carlo</h2>
@@ -741,6 +1249,35 @@ Note
 <p><strong>Variance.</strong> Pulling the constant <span class="math inline">\tfrac1R</span> out squares it, and the variance of a sum of independent terms is the sum of their variances:</p>
 <p><span class="math display">\mathrm{var}[\hat\Phi] = \frac{1}{R^2}\,\mathrm{var}\Big[\sum_{r=1}^R\phi(x^{(r)})\Big] = \frac{1}{R^2}\sum_{r=1}^R\mathrm{var}\big[\phi(x^{(r)})\big]</span> <span class="math display">= \frac{R}{R^2}\,\mathrm{var}[\phi(x)] = \frac1R\,\mathrm{var}[\phi(x)].</span></p>
 <p>So the variance of the estimate shrinks at rate <span class="math inline">1/R</span>, and its accuracy depends on <span class="math inline">\mathrm{var}[\phi(x)]</span>, the spread of the test function under <span class="math inline">p</span>. Notice what does <em>not</em> appear: the dimension of <span class="math inline">x</span>. For example, if <span class="math inline">\mathrm{var}[\phi(x)]=4</span>, then <span class="math inline">R=100</span> samples give <span class="math inline">\mathrm{var}[\hat\Phi]=0.04</span>, a standard deviation of <span class="math inline">0.2</span>, and quadrupling to <span class="math inline">R=400</span> halves that standard deviation to <span class="math inline">0.1</span>. This dimension-free rate is what makes sampling attractive, provided we can get the samples.</p>
+<div class="clarification callout callout-style-default callout-tip callout-titled" title="Recap: Simple Monte Carlo">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-18-contents" aria-controls="callout-18" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Recap: Simple Monte Carlo
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-18" class="callout-18-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>What the symbols stand for:</p>
+<ul>
+<li><span class="math inline">\hat\Phi</span>: the estimate, an average over samples. The hat marks “computed from samples”.</li>
+<li><span class="math inline">\mathbb{E}[\hat\Phi]</span>: the average value of the estimate if we repeated the whole sampling many times.</li>
+<li><span class="math inline">\mathrm{var}[\hat\Phi]</span>: how much the estimate wobbles from one repetition to the next.</li>
+<li><span class="math inline">\mathrm{var}[\phi(x)]</span>: how much the test function itself varies under <span class="math inline">p</span>.</li>
+</ul>
+<p>Taking the three results apart:</p>
+<ul>
+<li><span class="math inline">\hat\Phi = \frac{1}{R}\sum_r \phi(x^{(r)})</span>: replace the integral with an average over draws.</li>
+<li><span class="math inline">\mathbb{E}[\hat\Phi] = \Phi</span>: on average the estimate is right (unbiased).</li>
+<li><span class="math inline">\mathrm{var}[\hat\Phi] = \mathrm{var}[\phi]/R</span>: the wobble shrinks as <span class="math inline">1/R</span>, so the standard deviation shrinks as <span class="math inline">1/\sqrt{R}</span>. Quadrupling <span class="math inline">R</span> halves the error.</li>
+</ul>
+<p>A teaching example with the fair die and <span class="math inline">\phi(x) = x</span>, where <span class="math inline">\Phi = 3.5</span> and <span class="math inline">\mathrm{var}[\phi] = 35/12 \approx 2.92</span>. Four rolls give <span class="math inline">\{2, 5, 6, 1\}</span>, so <span class="math inline">\hat\Phi = 14/4 = 3.5</span>. That exact hit was luck: with <span class="math inline">R = 4</span>, <span class="math inline">\mathrm{var}[\hat\Phi] \approx 2.92/4 = 0.73</span>, a standard deviation of about <span class="math inline">0.85</span>. With <span class="math inline">R = 100</span> the standard deviation drops to <span class="math inline">\sqrt{2.92/100} \approx 0.17</span>.</p>
+</div>
+</div>
+</div>
 </section>
 <section id="sec-hardz" class="level2">
 <h2 class="anchored" data-anchor-id="sec-hardz">Why the normalizing constant is hard</h2>
@@ -754,7 +1291,7 @@ Note
 <p><span class="math display">\Phi = \frac1Z\int\phi(\boldsymbol{x})\,\tilde p(\boldsymbol{x})\,d\boldsymbol{x}.</span></p>
 <p>We can take a boat to any location and measure both the depth <span class="math inline">\tilde p(\boldsymbol{x})</span> and the concentration <span class="math inline">\phi(\boldsymbol{x})</span> there. Problem 1 is to draw water samples so that each is equally likely to come from any point within the lake’s volume. Problem 2 is to find the average concentration. The difficulty is a lake with a few narrow, very deep canyons: they hold much of the water, but a boat visiting surface locations at random rarely lands on one. To estimate <span class="math inline">\Phi</span> correctly, a method must implicitly discover the canyons and find their volume relative to the rest of the lake. High-dimensional distributions behave the same way, with most of their probability mass concentrated in regions that are a tiny fraction of the space.</p>
 <div class="clarification callout callout-style-default callout-tip callout-titled" title="Question: Where does the 1/Z in this average come from?">
-<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-6-contents" aria-controls="callout-6" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-19-contents" aria-controls="callout-19" aria-expanded="false" aria-label="Toggle callout">
 <div class="callout-icon-container">
 <i class="callout-icon"></i>
 </div>
@@ -763,7 +1300,7 @@ Note
 </div>
 <div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
 </div>
-<div id="callout-6" class="callout-6-contents callout-collapse collapse">
+<div id="callout-19" class="callout-19-contents callout-collapse collapse">
 <div class="callout-body-container callout-body">
 <p>It is the ordinary definition of an expectation, <span class="math inline">\Phi=\int\phi(x)\,p(x)\,dx</span>, with <span class="math inline">p=\tilde p/Z</span> substituted. <span class="math inline">Z</span> does not depend on <span class="math inline">x</span>, so it is a constant inside the integral and comes out by linearity: <span class="math display">\Phi=\int\phi(x)\,\frac{\tilde p(x)}{Z}\,dx=\frac1Z\int\phi(x)\,\tilde p(x)\,dx.</span> In the lake picture, the integral is the total plankton (concentration times depth, added up) and <span class="math inline">Z</span> is the volume of water, so <span class="math inline">\Phi</span> is total divided by volume.</p>
 <p><strong>A small check.</strong> Let <span class="math inline">x\in\{1,2,3\}</span> with <span class="math inline">\tilde p=(1,2,3)</span>, so <span class="math inline">Z=6</span>, and take <span class="math inline">\phi(x)=x^2</span>. The ratio form gives <span class="math inline">(1\cdot1+4\cdot2+9\cdot3)/6=36/6=6</span>. Using <span class="math inline">p=(\tfrac16,\tfrac26,\tfrac36)</span> directly gives <span class="math inline">\tfrac16+\tfrac86+\tfrac{27}6=6</span>, the same number.</p>
@@ -772,6 +1309,33 @@ Note
 <li>With <span class="math inline">\phi\equiv1</span> the average must be 1. Without the division we would get <span class="math inline">\sum\tilde p=6</span> instead.</li>
 <li>Doubling <span class="math inline">\tilde p</span> doubles both the numerator and <span class="math inline">Z</span> (<span class="math inline">72/12=6</span>), so the ratio is unchanged. The overall scale of <span class="math inline">\tilde p</span> never matters, but the denominator does, which is why importance sampling (<a href="#sec-importance" class="quarto-xref"><span>Importance sampling</span></a>) needs an estimate of a ratio of normalizers.</li>
 </ul>
+</div>
+</div>
+</div>
+<div class="clarification callout callout-style-default callout-tip callout-titled" title="Recap: Why the normalizing constant is hard">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-20-contents" aria-controls="callout-20" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Recap: Why the normalizing constant is hard
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-20" class="callout-20-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>What the symbols stand for:</p>
+<ul>
+<li><span class="math inline">D</span>: the number of dimensions of <span class="math inline">x</span>.</li>
+<li><span class="math inline">50^D</span>: the number of points in a grid with 50 points along each axis.</li>
+<li>In the lake picture: <span class="math inline">\tilde p(\boldsymbol{x})</span> is depth, <span class="math inline">\phi(\boldsymbol{x})</span> is plankton concentration, and <span class="math inline">Z</span> is the lake’s volume.</li>
+</ul>
+<p>Taking the equations apart:</p>
+<ul>
+<li><span class="math inline">\Phi = \frac{1}{Z}\int \phi\,\tilde p\,d\boldsymbol{x}</span>: total plankton (concentration times depth, summed over the surface) divided by total water.</li>
+<li>A grid estimate of <span class="math inline">Z</span> adds <span class="math inline">\tilde p</span> at every grid point. The number of points multiplies by 50 with every new dimension.</li>
+</ul>
+<p>A teaching example of the grid count. One dimension: 50 points. Two dimensions: <span class="math inline">50^2 = 2{,}500</span>. Ten dimensions: <span class="math inline">50^{10} \approx 9.8 \times 10^{16}</span>, already far too many to evaluate. A modest MRF over a <span class="math inline">10 \times 10</span> image has <span class="math inline">D = 100</span>. The grid explodes long before we reach models of interest, which is why the following sections use random samples instead.</p>
 </div>
 </div>
 </div>
@@ -798,6 +1362,38 @@ Note
 <p><span class="math display">\Phi \approx \frac{\frac1R\sum_{r=1}^R\phi(x^{(r)})\,\tilde w_r}{\frac1R\sum_{r=1}^R\tilde w_r} = \sum_{r=1}^R\phi(x^{(r)})\,w_r.</span></p>
 </div>
 <p>The estimate is a weighted average of the test function over samples from <span class="math inline">q</span>, where each sample’s weight says how much more (or less) likely it is under <span class="math inline">p</span> than under <span class="math inline">q</span>. Neither <span class="math inline">Z_p</span> nor <span class="math inline">Z_q</span> is ever needed. Because the last step divides one estimate by another, this self-normalized estimator is not exactly unbiased for finite <span class="math inline">R</span>, but it is consistent as <span class="math inline">R</span> grows. Its accuracy depends on how well <span class="math inline">q</span> covers <span class="math inline">p</span>: if <span class="math inline">q</span> puts very little mass where <span class="math inline">p</span> has a lot (a missed canyon, in the lake picture), a few samples with huge weights dominate the sum.</p>
+<div class="clarification callout callout-style-default callout-tip callout-titled" title="Recap: Importance sampling">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-21-contents" aria-controls="callout-21" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Recap: Importance sampling
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-21" class="callout-21-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>What the symbols stand for:</p>
+<ul>
+<li><span class="math inline">p = \tilde p / Z_p</span>: the target, which we can evaluate up to <span class="math inline">Z_p</span> but cannot sample.</li>
+<li><span class="math inline">q = \tilde q / Z_q</span>: the proposal, which we can sample and evaluate up to <span class="math inline">Z_q</span>.</li>
+<li><span class="math inline">\tilde w_r = \tilde p(x^{(r)}) / \tilde q(x^{(r)})</span>: the importance weight of sample <span class="math inline">r</span>.</li>
+<li><span class="math inline">w_r = \tilde w_r / \sum_{r'}\tilde w_{r'}</span>: the normalized weight. The <span class="math inline">w_r</span> sum to 1.</li>
+</ul>
+<p>Taking the final estimator apart:</p>
+<p><span class="math display">\Phi \approx \frac{\sum_r \phi(x^{(r)})\,\tilde w_r}{\sum_r \tilde w_r} = \sum_r w_r\,\phi(x^{(r)})</span></p>
+<ul>
+<li>A sample that <span class="math inline">p</span> likes more than <span class="math inline">q</span> does gets a weight above average. One that <span class="math inline">q</span> over-produces gets a weight below average.</li>
+<li>The numerator is a weighted total of the test function. The denominator rescales the weights to sum to 1.</li>
+<li>Dividing removes both unknown constants, because <span class="math inline">Z_p</span> and <span class="math inline">Z_q</span> appear equally on top and bottom.</li>
+</ul>
+<p>A teaching example. The target on <span class="math inline">\{1, 2, 3\}</span> has <span class="math inline">\tilde p = (1, 2, 3)</span>, so the true <span class="math inline">\Phi</span> for <span class="math inline">\phi(x) = x^2</span> is <span class="math inline">6</span> (see the dropdown on <span class="math inline">1/Z</span> above). The proposal is uniform, <span class="math inline">\tilde q = (1, 1, 1)</span>. Four draws from <span class="math inline">q</span> are <span class="math inline">1, 3, 3, 2</span>, with weights <span class="math inline">\tilde w = 1, 3, 3, 2</span>.</p>
+<p><span class="math display">\hat\Phi = \frac{1(1) + 9(3) + 9(3) + 4(2)}{1 + 3 + 3 + 2} = \frac{63}{9} = 7.</span></p>
+<p>With only four samples the estimate is off by 1, but it improves as <span class="math inline">R</span> grows. As a side product, the average weight <span class="math inline">9/4 = 2.25</span> estimates <span class="math inline">Z_p/Z_q = 6/3 = 2</span>.</p>
+</div>
+</div>
+</div>
 </section>
 <section id="sec-rejection" class="level2">
 <h2 class="anchored" data-anchor-id="sec-rejection">Rejection sampling</h2>
@@ -852,6 +1448,41 @@ Note
 <p><strong>Rejection sampling in many dimensions.</strong> The denominator above is the probability that a proposal is accepted:</p>
 <p><span class="math display">\text{acceptance rate} = \frac{\text{area under }\tilde p}{\text{area under }c\tilde q} = \frac{Z_p}{cZ_q}.</span></p>
 <p>In high-dimensional problems, the requirement <span class="math inline">c\tilde q(x)\ge\tilde p(x)</span> everywhere forces <span class="math inline">c</span> to be huge, so acceptances become very rare. In general <span class="math inline">c</span> grows exponentially with the dimension, so the acceptance rate is expected to be exponentially small in the dimension. Finding a valid <span class="math inline">c</span> at all is also hard, since we do not know where the modes of <span class="math inline">\tilde p</span> are or how high they are. This is why the lecture presents rejection sampling as a one-dimensional tool.</p>
+<div class="clarification callout callout-style-default callout-tip callout-titled" title="Recap: Rejection sampling">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-22-contents" aria-controls="callout-22" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Recap: Rejection sampling
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-22" class="callout-22-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>What the symbols stand for:</p>
+<ul>
+<li><span class="math inline">c</span>: a constant large enough that <span class="math inline">c\,\tilde q(x) \ge \tilde p(x)</span> everywhere. Then <span class="math inline">c\,\tilde q</span> is the envelope.</li>
+<li><span class="math inline">u</span>: a uniform random height between 0 and the envelope at the proposed <span class="math inline">x</span>.</li>
+<li>“Accept”: the event <span class="math inline">u \le \tilde p(x)</span>, the point lands under the target curve.</li>
+<li><span class="math inline">A</span>: any set of <span class="math inline">x</span> values, used in the proof.</li>
+</ul>
+<p>Taking the equations apart:</p>
+<ul>
+<li><span class="math inline">\mathbb{P}(\text{accept} \mid x) = \tilde p(x) / (c\,\tilde q(x))</span>: the fraction of the vertical segment at <span class="math inline">x</span> that lies under <span class="math inline">\tilde p</span>.</li>
+<li>The proof shows accepted <span class="math inline">x</span> values land in any set <span class="math inline">A</span> with probability <span class="math inline">\mathbb{P}_p(x \in A)</span>, so accepted samples come exactly from <span class="math inline">p</span>.</li>
+<li>Acceptance rate <span class="math inline">= Z_p / (c Z_q)</span>: area under the target divided by area under the envelope.</li>
+</ul>
+<p>A teaching example. Let <span class="math inline">\tilde p(x) = x</span> on <span class="math inline">[0, 1]</span> (so <span class="math inline">p(x) = 2x</span> and <span class="math inline">Z_p = 1/2</span>). Take <span class="math inline">q</span> uniform on <span class="math inline">[0, 1]</span> with <span class="math inline">\tilde q = 1</span> and <span class="math inline">c = 1</span>; the envelope is the flat line at height 1, which sits above <span class="math inline">\tilde p</span>.</p>
+<ul>
+<li>Propose <span class="math inline">x = 0.8</span>, draw <span class="math inline">u = 0.6</span>: since <span class="math inline">0.6 \le 0.8</span>, accept.</li>
+<li>Propose <span class="math inline">x = 0.3</span>, draw <span class="math inline">u = 0.5</span>: since <span class="math inline">0.5 &gt; 0.3</span>, reject.</li>
+<li>Acceptance rate <span class="math inline">= (1/2)/(1 \cdot 1) = 0.5</span>.</li>
+</ul>
+<p>Now do the same in <span class="math inline">D</span> dimensions with <span class="math inline">\tilde p(\boldsymbol{x}) = x_1 x_2 \cdots x_D</span> on the unit cube. The acceptance rate becomes <span class="math inline">(1/2)^D</span>, about <span class="math inline">0.001</span> at <span class="math inline">D = 10</span>: the exponential collapse described above.</p>
+</div>
+</div>
+</div>
 </section>
 <section id="sec-summary4" class="level2">
 <h2 class="anchored" data-anchor-id="sec-summary4">Summary</h2>

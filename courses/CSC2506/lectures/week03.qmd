@@ -212,6 +212,25 @@ Because the variables are finite discrete, each potential really is just a table
 
 A larger entry makes that setting of the pair more likely, other things equal. So $\psi_{2,3}$ and $\psi_{1,4}$ strongly favour their two variables agreeing, $\psi_{3,4}$ strongly favours $x_3$ and $x_4$ disagreeing, and $\psi_{1,2}$ mildly favours $(0,0)$. None of the columns sums to 1. To get the probability of one full setting, multiply the four matching entries, then divide by $Z$, the sum of those products over all $2^4=16$ settings.
 
+::: {.callout-tip collapse="true" .clarification title="Recap: Markov random fields, cliques, and the factorization theorem"}
+What the symbols stand for:
+
+- $G$: the undirected graph. $\boldsymbol{x} = (x_1, \dots, x_m)$: all of its variables.
+- $C$: a clique, a set of nodes that are all pairwise joined. $\mathcal{C}$: the set of maximal cliques.
+- $x_C$: the values of just the variables in clique $C$.
+- $\psi_C(x_C)$: the potential on clique $C$, a nonnegative score for each setting of $x_C$. It is not a probability.
+- $Z = \sum_{\boldsymbol{x}} \prod_C \psi_C(x_C)$: the partition function, the total score over every setting of every variable.
+
+Taking the factorization apart:
+
+$$p(\boldsymbol{x}) = \frac{1}{Z}\prod_{C \in \mathcal{C}} \psi_C(x_C)$$
+
+- The product scores one full setting $\boldsymbol{x}$: each clique looks only at its own variables and contributes one number.
+- Dividing by $Z$ turns scores into probabilities. $Z$ is the same for every setting, so it never changes which setting is more likely than another.
+
+A teaching example with the 4-cycle tables above. The setting $(x_1, x_2, x_3, x_4) = (0,0,0,0)$ scores $\psi_{1,2}(0,0)\,\psi_{2,3}(0,0)\,\psi_{3,4}(0,0)\,\psi_{1,4}(0,0) = 30 \cdot 100 \cdot 1 \cdot 100 = 300{,}000$. The setting $(1,1,1,0)$ scores $10 \cdot 100 \cdot 100 \cdot 1 = 100{,}000$. Without knowing $Z$ we already know the first setting is 3 times as likely as the second. Summing the scores of all 16 settings gives $Z = 7{,}201{,}840$, so $p(0,0,0,0) = 300{,}000 / 7{,}201{,}840 \approx 0.042$.
+:::
+
 ## The Hammersley-Clifford theorem {#sec-hc}
 
 We now have two ways to read an undirected graph. @sec-mrf reads it as a **factorization**: a product of clique potentials. The motivation in @sec-motivate reads it as a set of **independence statements**: a variable should depend only on its neighbours. Nothing so far says these two readings describe the same distributions. The Hammersley-Clifford theorem says they do, for distributions that are strictly positive.
@@ -250,6 +269,25 @@ $$P(X=1,Z=1)=\frac{\alpha(1,0)\,\beta(0,1)+\alpha(1,1)\,\beta(1,1)}{18}=\frac{1+
 Since $\tfrac{5}{18}\neq\tfrac{4.5}{18}$, $X$ and $Z$ are dependent.
 
 **Why the split breaks.** Each term of $\sum_y\alpha(x,y)\,\beta(y,z)$ is a function of $x$ times a function of $z$, but a sum of two such products is generally not itself a product. Observing $Y$ picks out a single term, and that term does split. This is the Ising practice question of @sec-ising worked in numbers, and the same pattern as the causal chain of @sec-cistructures in Week 2.
+:::
+
+::: {.callout-tip collapse="true" .clarification title="Recap: The Hammersley-Clifford theorem"}
+What the symbols stand for:
+
+- $A$, $B$, $S$: three disjoint sets of nodes. $S$ **separates** $A$ from $B$ if every path from $A$ to $B$ passes through $S$.
+- $X_A \perp X_B \mid X_S$: the global Markov property, "separated in the graph" read as "independent given $S$".
+- $p(\boldsymbol{x}) > 0$: every setting has positive probability. The theorem needs this.
+- $\alpha(x,y)$, $\beta(y,z)$: the two edge potentials of the chain $X - Y - Z$.
+
+Taking the chain argument apart:
+
+$$f(x \mid y, z) = \frac{\alpha(x,y)\,\beta(y,z)}{\big(\sum_{x'} \alpha(x',y)\big)\,\beta(y,z)} = \frac{\alpha(x,y)}{\sum_{x'} \alpha(x',y)}$$
+
+- The numerator is the joint score. The denominator is the same score summed over $x$, which is the marginal over $(y, z)$.
+- $\beta(y,z)$ appears once on top and once on the bottom, so it cancels. That factor was the only place $z$ appeared.
+- What is left mentions only $x$ and $y$, so knowing $z$ cannot change our belief about $x$ once $y$ is known.
+
+A teaching example. Take binary $x, y$ with $\alpha(0,0) = 1$, $\alpha(1,0) = 3$, $\alpha(0,1) = 2$, $\alpha(1,1) = 2$, and any positive $\beta$. Then $f(X{=}1 \mid y{=}0, z) = 3/(1+3) = 0.75$ and $f(X{=}1 \mid y{=}1, z) = 2/(2+2) = 0.5$, for every value of $z$. The answer moves with $y$ but never with $z$, which is $X \perp Z \mid Y$.
 :::
 
 ## Worked example: cliques, factorization, and independence {#sec-mrf-example}
@@ -335,6 +373,24 @@ The general check: cross the observed variables out of every factor, join two re
 **Practice question.** In Figure 3, is $X_1 \perp X_4 \mid X_2$? Check by finding every path from node 1 to node 4 and seeing whether $\{2\}$ blocks all of them.
 
 **Solution.** Node 1's only edges go to nodes 2 and 3, so every path out of node 1 starts by visiting 2 or 3. A path starting $1\to 2 \to 4$ is blocked once we condition on $\{2\}$, since 2 is on that path and is now fixed. But a path starting $1\to 3 \to 5 \to 4$ never touches node 2 at all, so conditioning on $\{2\}$ does nothing to it: it stays open. Since at least one path from 1 to 4 survives, $\{2\}$ does not separate them, so $X_1 \not\perp X_4 \mid X_2$. Separating 1 from 4 would require conditioning on a set that intersects every route out of node 1's second neighbor, node 3, as well, for example $\{2,3\}$ or $\{2,5,6\}$.
+:::
+
+::: {.callout-tip collapse="true" .clarification title="Recap: Worked example: cliques, factorization, and independence"}
+What the symbols stand for:
+
+- $\psi_{1,2,3}(x_1, x_2, x_3)$ and so on: one potential per maximal clique, with the clique's nodes as subscripts.
+- $\propto$: "proportional to", equal up to the constant $1/Z$.
+- $(X_1, X_2) \perp (X_6, X_7) \mid (X_3, X_4, X_5)$: the pair on the left is independent of the pair on the right once the middle three are known.
+
+Taking the factorization apart:
+
+- There are five factors because there are five maximal cliques. Each factor's argument list is exactly that clique's nodes.
+- No factor contains both a node from $\{1, 2\}$ and a node from $\{6, 7\}$. That is why fixing $\{3, 4, 5\}$ splits the product into a left part and a right part, which is the independence statement.
+
+A teaching example: checking a clique and counting table sizes.
+
+- Is $\{4, 5, 6, 7\}$ a clique? Its six pairs are 4-5, 4-6, 4-7, 5-6, 5-7, 6-7, and all six are edges in Figure 3. Is it maximal? The only other candidates are nodes 1, 2, 3, and each misses some edge (for example 2-6, 3-4, 1-4), so nothing can be added.
+- With binary variables, each 3-node potential is a table of $2^3 = 8$ numbers and the 4-node potential has $2^4 = 16$. The factorization stores $4 \times 8 + 16 = 48$ numbers, against $2^7 = 128$ entries for an unrestricted table over seven binary variables.
 :::
 
 ## What MRFs can express that DAGs cannot, and vice versa {#sec-mrf-vs-dag}
@@ -578,6 +634,31 @@ one for each setting other than the reference. A negative contrast means that se
 Parameterizing only the contrast means these three numbers are the parameters $\bar\theta_{1,2}$, and the reference entry is not a parameter at all. This removes the spare degree of freedom from the first question: doubling the table to 60, 10, 2, 20 gives $\log\tfrac{10}{60}$, $\log\tfrac{2}{60}$, $\log\tfrac{20}{60}$, which are the same three contrasts. Rescaling a table no longer changes its parameters.
 :::
 
+::: {.callout-tip collapse="true" .clarification title="Recap: MRFs as exponential families"}
+What the symbols stand for:
+
+- $\theta_C$: the weight vector for clique $C$. $\theta = (\theta_C)_C$ stacks all of them.
+- $\phi_C(x_C)$: the feature vector for clique $C$, computed from that clique's variables. $\phi$ stacks all of them.
+- $\theta_C^\top \phi_C(x_C)$: their dot product, a single number equal to $\log\psi_C(x_C)$.
+- $A(\theta) = \log Z(\theta)$: the log-partition function, the normalizer.
+- $\bar\theta_C$, $\bar\phi_C$: the contrast weights and features after fixing a reference setting.
+
+Taking the log-linear form apart:
+
+$$p(\boldsymbol{x} \mid \theta) = \exp\Big\{\sum_C \theta_C^\top \phi_C(x_C) - A(\theta)\Big\}$$
+
+- Taking logs turns the product of potentials into a sum of log-potentials.
+- Each log-potential is written as weights times features, so the sum is one big dot product $\theta^\top\phi(\boldsymbol{x})$. That is Week 1's template with $h = 1$.
+- $\partial A / \partial \theta_C = \mathbb{E}[\phi_C(X_C)]$: with indicator features, the slope is the probability of each clique setting.
+
+A teaching example with a single edge, two binary variables, and potential table $\psi(0,0) = 1$, $\psi(0,1) = 2$, $\psi(1,0) = 2$, $\psi(1,1) = 5$.
+
+- Indicator weights: $\theta = (\log 1, \log 2, \log 2, \log 5) = (0, \log 2, \log 2, \log 5)$.
+- $Z = 1 + 2 + 2 + 5 = 10$, so $A = \log 10$ and $p = (0.1, 0.2, 0.2, 0.5)$. These four numbers are also $\nabla A(\theta)$, the expected indicator features.
+- Add $\log 2$ to every weight. The table doubles to $(2, 4, 4, 10)$, $Z$ becomes 20, and $p$ is unchanged. This is the wasted degree of freedom.
+- Contrasts against the reference $(0,0)$: $\bar\theta = (\log 2, \log 2, \log 5)$. Doubling the table leaves these three numbers the same.
+:::
+
 ## The Ising model {#sec-ising}
 
 The log-linear form of @sec-mrf-expfam is general. Its simplest concrete instance is the Ising model: binary variables with one parameter per edge. On a grid it is the standard MRF for the kind of problem @sec-motivate opened with, where each variable interacts symmetrically with its neighbours.
@@ -635,6 +716,25 @@ Both give $e^{1.0}\approx 2.72$, which is Step 3 in action: the product of the f
 This number is not yet a probability. Repeating the calculation for all $2^3=8$ settings and adding the results gives $Z\approx 14.54$, so
 $$p(+1,+1,-1) = \frac{e^{1.0}}{Z} \approx \frac{2.72}{14.54} \approx 0.19.$$
 For comparison, the setting $(-1,-1,-1)$ has exponent $1+0.5-0.2+0+0.3=1.6$, the largest of the eight, so it is the most likely setting ($e^{1.6}/Z\approx 0.34$). All three spins agree, which both couplings reward, and the pull of $b_1$ towards $+1$ is too weak to outweigh that.
+:::
+
+::: {.callout-tip collapse="true" .clarification title="Recap: The Ising model"}
+What the symbols stand for:
+
+- $x_s \in \{-1, +1\}$: the spin at node $s$.
+- $s \sim t$: nodes $s$ and $t$ are joined by an edge.
+- $J_{st}$: the coupling on edge $s \sim t$. Positive rewards agreement, negative rewards disagreement, zero means no direct interaction.
+- $b_s$: the field at node $s$, a lean toward $+1$ (if positive) or $-1$ (if negative).
+
+Taking the formula apart:
+
+$$p(\boldsymbol{x}) \propto \exp\Big\{\sum_{s\sim t} J_{st}x_sx_t + \sum_s b_s x_s\Big\}$$
+
+- $x_s x_t$ is $+1$ when the two spins match and $-1$ when they differ. Multiplying by $J_{st}$ adds $J_{st}$ to the exponent for a match and subtracts it for a mismatch.
+- $b_s x_s$ adds $b_s$ when $x_s = +1$ and subtracts it when $x_s = -1$.
+- A setting's probability grows exponentially with its total score.
+
+A teaching example with two spins, one edge with $J = 0.5$, and no field. The two matching settings each score $e^{0.5} \approx 1.649$ and the two mismatching settings each score $e^{-0.5} \approx 0.607$. So $Z \approx 2(1.649) + 2(0.607) = 4.51$, and $p(\text{spins agree}) \approx 3.297 / 4.51 \approx 0.73$. Setting $J = 0$ would make agreement a coin flip at $0.5$, and $J = -0.5$ would flip the answer to $0.27$.
 :::
 
 ## Gaussian graphical models {#sec-ggm}
@@ -719,6 +819,30 @@ where $S_n$ is the **sample covariance matrix**, playing the same role here that
 $$\ell_n(K;\boldsymbol{x}_{1:n}) = \frac{n}{2}\big(\log\det(K) - \mathrm{tr}(KS_n)\big).$$
 Two facts about this objective, useful for actually solving the maximization: $\log\det(K)$ is a strictly concave function of $K$, so the objective has at most one maximizer, and exactly one when $S_n$ is invertible, and $\mathrm{tr}(KS_n)$ is linear in $K$. Their gradients are $\nabla \log\det(K) = K^{-1}$ and $\nabla\, \mathrm{tr}(KS_n) = S_n$, so setting the gradient of $\ell_n$ to zero gives $K^{-1} = S_n$, i.e. the maximum likelihood estimate of the covariance matrix is simply the sample covariance matrix, and $\hat K_{\text{MLE}} = S_n^{-1}$: the same "set the derivative to zero, read off an empirical average" pattern as every MLE derivation so far this course, just with a matrix-valued statistic in place of a scalar one.
 
+::: {.callout-tip collapse="true" .clarification title="Recap: Gaussian graphical models"}
+What the symbols stand for:
+
+- $m$: the number of variables. $\mu$: the mean vector.
+- $\Sigma$: the covariance matrix. $\Sigma_{ij}$ measures how $X_i$ and $X_j$ move together when nothing else is fixed.
+- $K = \Sigma^{-1}$: the precision matrix. $K_{ij} = 0$ means $X_i$ and $X_j$ are independent given all the others.
+- $\Sigma_{AB}$ and similar: blocks of $\Sigma$ for the variable groups $A$ and $B$.
+- $S_n = \frac{1}{n}\sum_i \boldsymbol{x}_i\boldsymbol{x}_i^\top$: the sample covariance of centred data.
+- $\mathrm{tr}(\cdot)$: the trace, the sum of a matrix's diagonal entries.
+
+Taking the equations apart:
+
+- In the conditional, the mean $\mu_A + \Sigma_{AB}\Sigma_{BB}^{-1}(x_B - \mu_B)$ starts at the prior mean and shifts by how far $x_B$ landed from its own mean, scaled by how strongly $A$ and $B$ co-vary.
+- The conditional covariance $\Sigma_{AA} - \Sigma_{AB}\Sigma_{BB}^{-1}\Sigma_{BA}$ is the prior spread minus what observing $B$ explains. It does not involve $x_B$.
+- The log-likelihood $\frac{n}{2}(\log\det K - \mathrm{tr}(KS_n))$ has the data only through $S_n$, and its maximum is at $K^{-1} = S_n$.
+
+A teaching example. Take three variables with precision matrix and covariance
+
+$$K = \begin{bmatrix} 2 & -1 & 0 \\ -1 & 2 & -1 \\ 0 & -1 & 2 \end{bmatrix},$$
+$$\Sigma = K^{-1} = \frac{1}{4}\begin{bmatrix} 3 & 2 & 1 \\ 2 & 4 & 2 \\ 1 & 2 & 3 \end{bmatrix}.$$
+
+$K_{13} = 0$, so the graph is the chain $1 - 2 - 3$ and $X_1 \perp X_3 \mid X_2$. But $\Sigma_{13} = 0.25 \neq 0$, so $X_1$ and $X_3$ are dependent when $X_2$ is not observed. The middle formula confirms the conditional statement: $\Sigma_{13} - \Sigma_{12}\Sigma_{22}^{-1}\Sigma_{23} = 0.25 - 0.5 \cdot 1 \cdot 0.5 = 0$.
+:::
+
 ## Exact inference as a conditional distribution {#sec-inference}
 
 Everything up to here has been about **representation**: which distributions a graph describes, and how to parameterize them. Having built up two families of graphical models (DAGs in Week 2, MRFs in this lecture), we now turn to **computation**, with a question common to both: given the model, how do we compute an actual number?
@@ -730,7 +854,48 @@ where the joint over the subject of inference and the evidence is obtained by ma
 $$p(x_F,x_E) = \sum_{x_R} p(x_F,x_E,x_R).$$
 :::
 
+::: {.callout-tip collapse="true" .clarification title="Question: When does the $1/Z$ appear, and why does it cancel?"}
+**Where $1/Z$ comes from.** An MRF defines its joint through potentials, not probabilities. The potentials need not sum to 1, so the product is scaled by a constant:
+$$p(\boldsymbol{x}) = \frac{1}{Z}\prod_c \psi_c(x_c), \qquad Z = \sum_{\boldsymbol{x}}\prod_c \psi_c(x_c).$$
+$Z$ is the sum of the unnormalized product over every configuration of every variable, so that $p$ sums to 1. This is the form that carries $1/Z$. Any time we write a joint as potentials, the constant has to be there or the result is not a probability.
+
+**Why the definition does not show it.** In the definition, $p$ means the joint, and the joint is already normalized. Marginalizing a normalized joint gives a normalized marginal, so $p(x_F, x_E) = \sum_{x_R} p(x_F, x_E, x_R)$ is a probability with no extra constant. The $1/Z$ is inside $p$, hidden in the symbol.
+
+**Where it cancels.** Expand both $p$ terms in the potential form. The numerator and the denominator each pick up the same $1/Z$, so it cancels in the ratio:
+$$p(x_F\mid x_E) = \frac{\frac{1}{Z}\sum_{x_R}\prod_c \psi_c}{\frac{1}{Z}\sum_{x_F,x_R}\prod_c \psi_c}$$
+$$= \frac{\sum_{x_R}\prod_c \psi_c}{\sum_{x_F,x_R}\prod_c \psi_c}.$$
+The denominator is $p(x_E)$ times $Z$: the sum over $x_F$ and $x_R$ with $x_E$ fixed is the probability of the evidence, unnormalized. This is why the week 4 derivation can drop the $1/Z$ and let a single normalizing sum do the work.
+
+**Where it never appears.** A DAG defines its joint as a product of conditional probabilities, such as $p(x_1)\,p(x_2 \mid x_1)$. Each factor already sums to 1 over its own variable, so the product is already normalized and no $Z$ is needed.
+
+A teaching example. Take two binary variables $X$ and $Y$ joined by one MRF edge with $\psi(x,y) = 2$ when $x = y$ and $\psi(x,y) = 1$ when $x \neq y$. Here $\psi(0,0) = \psi(1,1) = 2$ and $\psi(0,1) = \psi(1,0) = 1$, so $Z = 2 + 2 + 1 + 1 = 6$. Observe $Y = 1$ and ask for $p(X = 0 \mid Y = 1)$.
+
+- With the constant: $p(X = 0, Y = 1) = \tfrac{1}{6}\,\psi(0,1) = \tfrac{1}{6}$ and $p(Y = 1) = \tfrac{1}{6}(\psi(0,1) + \psi(1,1)) = \tfrac{1}{6}(1 + 2) = \tfrac{1}{2}$, so $p(X = 0 \mid Y = 1) = \tfrac{1/6}{1/2} = \tfrac{1}{3}$.
+- Without the constant: $\psi(0,1) / (\psi(0,1) + \psi(1,1)) = 1 / 3$.
+
+The two routes agree. The $\tfrac{1}{6}$ appears in both numerator and denominator and cancels, so the conditional does not need $Z$ at all.
+:::
+
 Both the numerator and the normalizing sum over $x_F$ require summing over $x_R$ (and, for the denominator, over $x_F$ too), so the real computational question is how to perform these sums efficiently, which is exactly what variable elimination addresses.
+
+::: {.callout-tip collapse="true" .clarification title="Recap: Exact inference as a conditional distribution"}
+What the symbols stand for:
+
+- $x_F$: the variables we are asking about (the query).
+- $x_E$: the variables we have observed (the evidence).
+- $x_R$: every other variable, which we neither ask about nor observe.
+
+Taking the two equations apart:
+
+- $p(x_F, x_E) = \sum_{x_R} p(x_F, x_E, x_R)$: sum out the variables we do not care about, to get a joint over the query and the evidence.
+- $p(x_F \mid x_E) = p(x_F, x_E) / \sum_{x_F} p(x_F, x_E)$: divide by the total over the query, which is the probability of the evidence. This is the "joint over marginal" rule from Week 1.
+
+A teaching example on the chain $A \to B \to C$ with $p(A{=}1) = 0.2$, $p(B{=}1 \mid A{=}1) = 0.9$, $p(B{=}1 \mid A{=}0) = 0.3$, $p(C{=}1 \mid B{=}1) = 0.8$, $p(C{=}1 \mid B{=}0) = 0.1$. We observe $C = 1$ and ask about $A$, so $x_F = A$, $x_E = C$, $x_R = B$.
+
+- $p(A{=}1, C{=}1) = 0.2\,[0.9(0.8) + 0.1(0.1)] = 0.2 \times 0.73 = 0.146$.
+- $p(A{=}0, C{=}1) = 0.8\,[0.3(0.8) + 0.7(0.1)] = 0.8 \times 0.31 = 0.248$.
+- Normalize: $p(A{=}1 \mid C{=}1) = 0.146 / (0.146 + 0.248) \approx 0.37$, up from the prior $0.2$.
+:::
 
 ## Variable elimination {#sec-ve}
 
@@ -778,7 +943,63 @@ So the whole expression collapses to
 $$p(D) = \sum_C p(D\mid C)\,p(C).$$
 Every intermediate sum here touches at most two variables at once ($k^2$ terms), and there are $n$ such sums, so the total cost is $O(nk^2)$, compared to $O(k^n)$ for constructing and marginalizing the full joint table directly: an exponential-to-polynomial improvement from exactly the same reordering trick that made Week 2's chain-rule factorization efficient (@sec-factoring in Week 2).
 
+::: {.callout-tip collapse="true" .clarification title="Question: Where do the costs nk squared and k to the n actually come from?"}
+What the symbols stand for:
+
+- $n$: the number of variables in the chain (here $A, B, C, D$, so $n = 4$).
+- $k$: the number of values each variable can take (for binary variables, $k = 2$).
+
+**How to count the cost of a sum.** We count how many terms get evaluated, written in [big O notation](https://en.wikipedia.org/wiki/Big_O_notation) (keep only the fastest-growing part, drop constants).
+
+1. For one sum, list every variable it mentions: the variable being summed out, plus any variable the result still depends on.
+2. If it mentions $m$ variables, it has to evaluate one product for every joint setting of those $m$ variables, which is $k^m$ terms.
+3. Add up the cost of every sum you perform, then keep the dominant term.
+
+**The naive way.** $\sum_{A,B,C} p(A,B,C,D)$ is one sum that mentions all four variables: we must fill in a table with one entry per joint setting of $(A, B, C, D)$, so $m = n$ and the cost is $k^n$ terms.
+
+**Variable elimination.** Each step mentions only two variables:
+
+- $\sum_A p(A)\,p(B \mid A)$ mentions $A$ and $B$. For each of the $k$ values of $B$ we add up $k$ terms (one per value of $A$): $k \times k = k^2$ terms.
+- $\sum_B p(C \mid B)\,p(B)$ mentions $B$ and $C$: again $k^2$ terms.
+- $\sum_C p(D \mid C)\,p(C)$ mentions $C$ and $D$: again $k^2$ terms.
+
+That is $n - 1 = 3$ sums of $k^2$ terms each, so $(n-1)k^2$ in total, which is $O(nk^2)$.
+
+**With invented numbers.** Suppose each variable has $k = 10$ values.
+
+| Chain length | Naive ($k^n$) | Elimination ($(n-1)k^2$) |
+| --- | --- | --- |
+| $n = 4$ | $10^4 = 10{,}000$ | $3 \times 100 = 300$ |
+| $n = 20$ | $10^{20}$ | $19 \times 100 = 1{,}900$ |
+
+Adding one more variable multiplies the naive cost by $k$ but only adds $k^2$ to the elimination cost. That is the exponential-to-polynomial gap: $n$ sits in the exponent for the naive table and only as a multiplier for elimination.
+:::
+
 **Elimination ordering matters, and finding the best one is hard.** The complexity of variable elimination depends on the chosen order, since different orders leave different numbers of variables inside each intermediate sum. Unfortunately, finding the elimination ordering that minimizes the worst intermediate sum is NP-hard in general, so in practice orderings are chosen by heuristics (or, in this course, simply given).
+
+::: {.callout-tip collapse="true" .clarification title="Recap: Variable elimination"}
+What the symbols stand for:
+
+- $k$: the number of values each variable can take. $n$: the number of variables.
+- $O(k^n)$: cost grows like $k^n$, the size of the full joint table.
+- $O(nk^2)$: cost grows like $n$ small sums, each over two variables.
+
+Taking the rearranged sum apart:
+
+$$p(D) = \sum_C p(D \mid C) \Big(\sum_B p(C \mid B)\,\tau(B)\Big),$$
+$$\tau(B) = \sum_A p(A)\,p(B \mid A) = p(B).$$
+
+- Each $\sum$ is moved as far right as it can go, past every factor that does not contain its variable.
+- The innermost sum only touches $A$ and $B$, so it is a small table. Its result, $p(B)$, then feeds the next sum.
+- The answer is the same as the naive sum, because we only regrouped additions and multiplications.
+
+A teaching example with binary $A \to B \to C$: $p(A{=}1) = 0.6$, $p(B{=}1 \mid A{=}1) = 0.7$, $p(B{=}1 \mid A{=}0) = 0.2$, $p(C{=}1 \mid B{=}1) = 0.9$, $p(C{=}1 \mid B{=}0) = 0.4$.
+
+- Eliminate $A$: $p(B{=}1) = 0.6(0.7) + 0.4(0.2) = 0.5$.
+- Eliminate $B$: $p(C{=}1) = 0.5(0.9) + 0.5(0.4) = 0.65$.
+
+Each step was a two-term sum. For a chain of 10 binary variables, the naive table has $2^{10} = 1024$ entries, while elimination does about $10 \times 2^2 = 40$ multiplications.
+:::
 
 ## Sum-product inference: unifying DAGMs and MRFs {#sec-sum-product}
 
@@ -822,6 +1043,26 @@ The only difference between the two model types is where $\mathcal{F}$ comes fro
 
 - **DAG:** one factor per node $i$, on the variables $\{i\}\cup\text{parents}(i)$ (its conditional probability table).
 - **MRF:** one factor per maximal clique.
+
+::: {.callout-tip collapse="true" .clarification title="Recap: Sum-product inference: unifying DAGMs and MRFs"}
+What the symbols stand for:
+
+- $\phi_i$ or $\psi_C$: a factor, any nonnegative table over a few variables. Conditional probability tables and MRF potentials are both factors. (This $\phi$ is a factor, not the feature vector $\phi_C$ of @sec-mrf-expfam.)
+- $\mathcal{F}$: the set of all factors in the model.
+- $\tau$: an intermediate factor, the table left over after summing a variable out of a product of factors.
+
+Taking the sum-product formula apart:
+
+- $\prod_{C \in \mathcal{F}} \psi_C(x_C)$: multiply all factors to score one full setting. This is the product.
+- $\sum_{x_R}$: add those scores over the variables we do not care about. This is the sum.
+- The result $\tau(x_F, x_E)$ is proportional to the posterior. For an MRF the proportionality constant is not 1, so we still divide by $\sum_{x_F} \tau$.
+
+A teaching example on the MRF chain $X_1 - X_2 - X_3$ with $\psi_{1,2}(a,b) = 3$ if $a = b$ and $1$ otherwise, and $\psi_{2,3}(0,0) = 1$, $\psi_{2,3}(0,1) = 2$, $\psi_{2,3}(1,0) = 4$, $\psi_{2,3}(1,1) = 1$. We want $p(x_3)$.
+
+- Eliminate $X_1$: $\tau(x_2) = \sum_{x_1}\psi_{1,2}(x_1, x_2) = 3 + 1 = 4$ for both values of $x_2$.
+- Eliminate $X_2$: $\tau(x_3) = \sum_{x_2} \tau(x_2)\,\psi_{2,3}(x_2, x_3)$, which is $4(1) + 4(4) = 20$ for $x_3 = 0$ and $4(2) + 4(1) = 12$ for $x_3 = 1$.
+- Normalize: the total is $32$ (which is $Z$), so $p(X_3{=}1) = 12/32 = 0.375$. Unlike a DAG, this last division was needed.
+:::
 
 ## Worked example: variable elimination on a Bayes net {#sec-ve-student}
 
@@ -906,6 +1147,24 @@ The result, $\tau(J)$, is proportional to $p(J)$; since $Z=1$ for a DAG's own co
 $$O\big(m\,k^{N_{\max}}\big), \qquad N_{\max}=\max_i N_i,$$
 where $m$ is the number of initial factors and $k$ is the (assumed common) number of states per variable. Here $N_{\max}=4$ (achieved at the $G$-elimination step), so the cost of this particular ordering is $O(8k^4)$: substantially better than enumerating the full 8-variable joint, but not as good as the chain example of @sec-ve, because this graph has a genuinely more complex dependency structure than a simple chain.
 
+::: {.callout-tip collapse="true" .clarification title="Recap: Worked example: variable elimination on a Bayes net"}
+What the symbols stand for:
+
+- $C, D, I, G, S, L, J, H$: the eight variables of the student network (Figure 8).
+- $\psi(\cdot)$: an original factor, here one conditional probability table per node.
+- $\tau(\cdot)$: an intermediate factor created by an elimination step, named by the variables it still depends on.
+- $N_i$: the number of variables inside the product when variable $i$ is eliminated. $N_{\max}$: the largest $N_i$.
+- $m$: the number of original factors (8 here). $k$: values per variable.
+
+Taking the cost formula $O(m\,k^{N_{\max}})$ apart:
+
+- Eliminating a variable means building a table over all $N_i$ variables in the product, which has $k^{N_i}$ entries.
+- The biggest such table dominates, which gives $k^{N_{\max}}$.
+- There are about $m$ elimination steps, which gives the factor $m$.
+
+A teaching example: why the order matters. Suppose we eliminated $G$ first instead of fifth. $G$ appears in $\psi(G, D, I)$, $\psi(L, G)$, and $\psi(H, J, G)$, so the product touches $G, D, I, L, H, J$: six variables. With $k = 10$ that one step builds a table of $10^6$ entries. The lecture's order never goes above four variables, at most $10^4$ entries per step, so roughly $8 \times 10^4$ in total. Enumerating the full joint would mean $10^8$ entries.
+:::
+
 ## Variable elimination with evidence {#sec-ve-evidence}
 
 Inference as defined in @sec-inference usually conditions on observed evidence $x_E$, but the student-network example computed a marginal with nothing observed. Reintroducing evidence changes only which variable is fixed rather than summed. The general procedure for a posterior $p(x_F\mid \bar x_E)$, where $\bar x_E$ are the observed values:
@@ -979,6 +1238,26 @@ So the whole computation collapses to the two-factor product one would expect fr
 $$p(x_1\mid \bar x_6) = \frac{p(x_1)\,p(\bar x_6\mid x_1)}{\sum_{x_1} p(x_1)\,p(\bar x_6\mid x_1)}.$$
 This is Bayes' rule from Week 1 (@sec-bayes in Week 1), rederived as a special case of variable elimination: computing a posterior for a two-variable relationship, after algebraically marginalizing away every variable that connects them only indirectly.
 
+::: {.callout-tip collapse="true" .clarification title="Recap: Variable elimination with evidence"}
+What the symbols stand for:
+
+- $\bar x_E$: the observed values of the evidence variables. The bar means "fixed at what we saw".
+- **Clamping**: substituting $\bar x_E$ into every factor that mentions an evidence variable, so that variable is no longer summed.
+- $\tau(x_F) = p(x_F, \bar x_E)$: what elimination returns once evidence is clamped.
+
+Taking the procedure apart:
+
+- Clamp first. A factor like $p(\bar x_6 \mid x_2, x_5)$ is now a table over $x_2, x_5$ only.
+- Eliminate the rest as before. A variable whose only factor is its own table, with no children left, sums to 1 and disappears.
+- Normalize at the end: $p(x_F \mid \bar x_E) = \tau(x_F) / \sum_{x_F} \tau(x_F)$. The denominator is $p(\bar x_E)$, which is not 1.
+
+A teaching example on $X_1 \to X_2 \to X_3$ with $p(X_1{=}1) = 0.3$, $p(X_2{=}1 \mid X_1{=}1) = 0.8$, $p(X_2{=}1 \mid X_1{=}0) = 0.1$, and any table for $X_3$. We observe $X_2 = 1$ and want $p(X_1 \mid X_2{=}1)$.
+
+- Clamp $X_2 = 1$. Eliminate $X_3$: $\sum_{x_3} p(x_3 \mid X_2{=}1) = 1$, so it drops out.
+- $\tau(X_1{=}1) = 0.3 \times 0.8 = 0.24$ and $\tau(X_1{=}0) = 0.7 \times 0.1 = 0.07$.
+- Their sum, $0.31$, is $p(X_2{=}1)$. Dividing, $p(X_1{=}1 \mid X_2{=}1) = 0.24 / 0.31 \approx 0.77$.
+:::
+
 ## Restricted Boltzmann machines {#sec-rbm}
 
 Variable elimination is exact but can be expensive, and every MRF query seems to need the partition function $Z$, itself a sum over all variables. The lecture closes with a model whose graph structure makes some queries cheap without ever computing $Z$. As a modern application tying together the Ising model, exponential families, and Hammersley-Clifford, consider a **restricted Boltzmann machine (RBM)**: a special Ising model over visible variables $X_1,\dots,X_k$ and hidden variables $H_1,\dots,H_l$, all in $\{-1,+1\}$, whose graph is **bipartite**: every $H_i$ connects to every $X_j$, but no $H_i$-$H_{i'}$ or $X_j$-$X_{j'}$ edges exist at all.
@@ -1015,6 +1294,29 @@ Computing $Z$ exactly can be expensive (it is a sum over all $2^{k+l}$ joint set
 $$p(h_j\mid x) = \frac{\prod_{i=1}^k \psi_{ij}(x_i,h_j)}{\prod_{i=1}^k\psi_{ij}(x_i,-1) + \prod_{i=1}^k\psi_{ij}(x_i,1)}$$
 $$= \sigma\Big(\beta_j + \sum_i J_{ij}x_i\Big),$$
 where $\sigma(y) = \frac{e^y}{e^{-y}+e^y} = \frac{1}{1+e^{-2y}}$ is the **sigmoid function**. This gives a probabilistic reading of the sigmoid activation used in neural networks: it is exactly the conditional-probability formula that falls out of treating a layer of binary units as conditionally independent given the layer below, under an Ising-style pairwise potential.
+
+::: {.callout-tip collapse="true" .clarification title="Recap: Restricted Boltzmann machines"}
+What the symbols stand for:
+
+- $x_1, \dots, x_k$: the visible units. $h_1, \dots, h_l$: the hidden units. All take values in $\{-1, +1\}$.
+- $\alpha_i$: the field on visible unit $i$. $\beta_j$: the field on hidden unit $j$.
+- $J_{ij}$: the coupling between visible unit $i$ and hidden unit $j$.
+- $\sigma(y) = 1/(1 + e^{-2y})$: the sigmoid, in the form that matches $\pm 1$ spins.
+
+Taking $p(h_j \mid x)$ apart:
+
+- Given the visible units, every hidden unit is cut off from the other hidden units, so each one can be handled alone.
+- The terms in $h_j$'s exponent add to $h_j\big(\beta_j + \sum_i J_{ij}x_i\big)$. Write $y_j = \beta_j + \sum_i J_{ij}x_i$ for the bracket.
+- The probabilities of $h_j = +1$ and $h_j = -1$ are then proportional to $e^{y_j}$ and $e^{-y_j}$. Normalizing gives $e^{y_j}/(e^{y_j} + e^{-y_j}) = \sigma(y_j)$.
+- The $\alpha_i$ terms are the same on top and bottom, so they cancel. So does $Z$.
+
+A teaching example with one hidden unit, three visible units, $\beta = 0.5$, and couplings $J = (1, -1, 0.5)$.
+
+- Visible $x = (+1, +1, -1)$: $y = 0.5 + 1 - 1 - 0.5 = 0$, so $p(h{=}{+1} \mid x) = \sigma(0) = 0.5$.
+- Visible $x = (+1, -1, +1)$: $y = 0.5 + 1 + 1 + 0.5 = 3$, so $p(h{=}{+1} \mid x) = 1/(1 + e^{-6}) \approx 0.998$.
+
+Each visible unit that agrees with the sign of its coupling pushes the hidden unit toward $+1$.
+:::
 
 ## Summary {#sec-summary3}
 

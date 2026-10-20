@@ -23,6 +23,23 @@ $$p(\mathcal{C}_k \mid x) = \frac{p(x \mid \mathcal{C}_k)\, p(\mathcal{C}_k)}{p(
 
 If our goal is to minimize the expected number of mistakes, this suggests picking whichever class has the largest posterior $p(\mathcal{C}_k \mid x)$. The next section makes this precise, then asks whether "count of mistakes" is even the right thing to minimize.
 
+::: {.callout-tip collapse="true" .clarification title="Recap: From inference to decision"}
+What the symbols stand for:
+
+- $x$: the input (the pixel intensities of one X-ray).
+- $\mathcal{C}_k$: class $k$. Here $\mathcal{C}_1$ is cancer present and $\mathcal{C}_2$ is cancer absent.
+- $p(\mathcal{C}_k)$: the prior, how common class $k$ is before we look at the image.
+- $p(x \mid \mathcal{C}_k)$: the class-conditional, how likely this image is if the class is $k$.
+- $p(\mathcal{C}_k \mid x)$: the posterior, how likely class $k$ is after seeing the image.
+
+Taking Bayes' theorem apart:
+
+- The numerator $p(x \mid \mathcal{C}_k)\,p(\mathcal{C}_k)$ is the joint $p(x, \mathcal{C}_k)$: "this class, and this image".
+- The denominator $p(x) = \sum_k p(x \mid \mathcal{C}_k)\,p(\mathcal{C}_k)$ is the same for every class. It only rescales the numerators so the posteriors sum to 1, so it never changes which class is largest.
+
+A teaching example. Suppose for one image $p(x \mid \mathcal{C}_1) = 0.3$ with prior $p(\mathcal{C}_1) = 0.1$, and $p(x \mid \mathcal{C}_2) = 0.05$ with prior $p(\mathcal{C}_2) = 0.9$. The numerators are $0.03$ and $0.045$, so $p(x) = 0.075$ and the posteriors are $0.4$ (cancer) and $0.6$ (no cancer). The image fits cancer six times better, but the low prior still leaves "no cancer" as the larger posterior. Whether we should *act* on that larger posterior is what the following sections examine.
+:::
+
 ## Misclassification rate {#sec-misclass}
 
 ::: {.definition-block}
@@ -62,6 +79,29 @@ Since the regions are disjoint, we can minimize this quantity region by region: 
 ```
 
 **Figure 1.** Two overlapping class densities $p(x,\mathcal{C}_1)$ (blue) and $p(x,\mathcal{C}_2)$ (magenta). Moving the boundary changes how much of each tail falls on the wrong side; the misclassification-minimizing boundary sits where the two densities cross.
+
+::: {.callout-tip collapse="true" .clarification title="Recap: Misclassification rate"}
+What the symbols stand for:
+
+- $\mathcal{R}_1$, $\mathcal{R}_2$: the decision regions, the inputs we label $\mathcal{C}_1$ and $\mathcal{C}_2$.
+- $\hat x$: the decision boundary between them, for a one-dimensional input.
+- $p(x, \mathcal{C}_k)$: the joint density of seeing input $x$ with true class $k$.
+- $I_1$, $I_2$: the two kinds of error probability.
+
+Taking the equations apart:
+
+- $I_1 = \int_{\mathcal{R}_1} p(x, \mathcal{C}_2)\,dx$: integrate over the region where we say $\mathcal{C}_1$, but use the density of the *other* class. That adds up the probability of every input we call $\mathcal{C}_1$ that is really $\mathcal{C}_2$.
+- $I_2$ is the mirror image: inputs we call $\mathcal{C}_2$ that are really $\mathcal{C}_1$.
+- $p(\text{mistake}) = I_1 + I_2$ because the two kinds of error cannot happen at once.
+- Each $x$ lands in exactly one region, so the best choice can be made one $x$ at a time: put $x$ in the region of the class with the larger joint $p(x, \mathcal{C}_k)$.
+
+A teaching example. Replace the continuous $x$ with three bins, so integrals become sums. The joint is $p(x, \mathcal{C}_1) = 0.30, 0.20, 0.05$ and $p(x, \mathcal{C}_2) = 0.05, 0.10, 0.30$ for bins 1, 2, 3 (all six numbers sum to 1).
+
+- Boundary after bin 2, so $\mathcal{R}_1 = \{1, 2\}$: $I_1 = 0.05 + 0.10 = 0.15$ and $I_2 = 0.05$, so $p(\text{mistake}) = 0.20$.
+- Boundary after bin 1, so $\mathcal{R}_1 = \{1\}$: $I_1 = 0.05$ and $I_2 = 0.20 + 0.05 = 0.25$, so $p(\text{mistake}) = 0.30$.
+
+Bin 2 has $0.20 > 0.10$, so it belongs with $\mathcal{C}_1$. Moving the boundary past the crossing point costs $0.10$ of extra mistakes, exactly the gap in bin 2.
+:::
 
 ## Expected loss {#sec-loss}
 
@@ -116,6 +156,30 @@ $${}+ \int_{\mathcal{R}_{\text{cancer}}} p(x,\mathcal{C}_{\text{normal}})\,dx.$$
 
 The first term is the rate of missed cancers, weighted 1000 times over; the second is the rate of false alarms, weighted only once. A decision rule with a *higher* misclassification rate can still have *lower* expected loss than one with a lower misclassification rate, if it makes its mistakes on the cheap side (false alarms) rather than the expensive side (misses). This asymmetry pulls the optimal boundary toward calling more borderline cases "cancer": every point $x$ shifted out of $\mathcal{R}_{\text{normal}}$ and into $\mathcal{R}_{\text{cancer}}$ trades a chance at a 1000-cost miss for at most a 1-cost false alarm, which is a good trade unless that $x$ is overwhelmingly more likely to be a true negative.
 
+::: {.callout-tip collapse="true" .clarification title="Recap: Expected loss"}
+What the symbols stand for:
+
+- $k$: the true class. $j$: the class we decide.
+- $L_{kj}$: the cost of deciding $j$ when the truth is $k$. Row $k$, column $j$ of the loss matrix. Correct calls ($k = j$) usually cost 0.
+- $\mathcal{R}_j$: the region of inputs where we decide class $j$.
+- $\mathbb{E}[L]$: the average cost per case if we use these regions on many inputs.
+
+Taking the equation apart, from the inside out:
+
+- $\int_{\mathcal{R}_j} p(x, \mathcal{C}_k)\,dx$: the probability that a case is truly $k$ and we decide $j$.
+- $L_{kj} \times$ that probability: the average cost contributed by this one (truth, decision) combination.
+- $\sum_k \sum_j$: add the contributions of every cell of the loss matrix.
+
+With every error costing 1 and every correct call costing 0, $\mathbb{E}[L]$ becomes $p(\text{mistake})$ from @sec-misclass.
+
+A teaching example. Use a milder matrix than the lecture's: a missed cancer costs 10, a false alarm costs 1. Three bins of $x$ have $p(x, \text{cancer}) = 0.02, 0.03, 0.05$ and $p(x, \text{normal}) = 0.60, 0.20, 0.10$.
+
+- Rule A calls cancer only in bin 3. Misses: $0.02 + 0.03 = 0.05$. False alarms: $0.10$. $\mathbb{E}[L] = 10(0.05) + 1(0.10) = 0.60$, with a mistake rate of $0.15$.
+- Rule B calls cancer in bins 2 and 3. Misses: $0.02$. False alarms: $0.20 + 0.10 = 0.30$. $\mathbb{E}[L] = 10(0.02) + 1(0.30) = 0.50$, with a mistake rate of $0.32$.
+
+Rule B makes more than twice as many mistakes, yet it costs less, because it moves its mistakes to the cheap side.
+:::
+
 ## The discriminant rule and the reject option {#sec-discriminant}
 
 Swapping the order of summation in $\mathbb{E}[L]$ and defining $g_j(x) = \sum_k L_{kj}\, p(x,\mathcal{C}_k)$ turns the expected loss into $\mathbb{E}[L] = \sum_j \int_{\mathcal{R}_j} g_j(x)\, dx$, which is minimized region by region exactly as in @sec-misclass:
@@ -143,6 +207,27 @@ $$\text{cost(decide normal)} = L_{\text{cancer,normal}}(0.2) + L_{\text{normal,n
 The rule picks whichever cost is smaller, so it decides **cancer**, even though $p(\mathcal{C}_{\text{cancer}}\mid x) = 0.2$ is well under one half. The misclassification-rate rule, which only compares posteriors directly, would have decided **normal** since $0.8 > 0.2$. The two rules disagree precisely because the loss matrix charges 1000 times more for a missed cancer than for a false alarm, so a small chance of cancer is still worth acting on.
 
 Now suppose a second X-ray gives posteriors $p(\mathcal{C}_{\text{cancer}}\mid x) = 0.48$ and $p(\mathcal{C}_{\text{normal}}\mid x) = 0.52$, with a reject threshold $\theta = 0.6$. Neither posterior clears $\theta$, so the reject option applies: rather than force a call, we decline to decide and send the case for a second test.
+:::
+
+::: {.callout-tip collapse="true" .clarification title="Recap: The discriminant rule and the reject option"}
+What the symbols stand for:
+
+- $g_j(x) = \sum_k L_{kj}\,p(x, \mathcal{C}_k)$: the expected-loss contribution at input $x$ if we decide $j$ there.
+- $\sum_k L_{kj}\,p(\mathcal{C}_k \mid x)$: the same quantity divided by $p(x)$. It is the expected cost of deciding $j$ for this particular input.
+- $\theta$: the reject threshold, the smallest top posterior we are willing to act on. (This $\theta$ is a threshold, not the model parameter $\theta$ from Week 1.)
+
+Taking the rule apart:
+
+- For each candidate decision $j$, walk down column $j$ of the loss matrix. Multiply each cost $L_{kj}$ by how likely that true class is, then add.
+- Pick the column with the smallest total. That is the decision with the lowest expected cost for this input.
+- The reject option sits on top: if $\max_k p(\mathcal{C}_k \mid x) < \theta$, make no decision at all.
+
+A teaching example. Use a matrix where a missed cancer costs 10 and a false alarm costs 1. Write $p = p(\text{cancer} \mid x)$.
+
+- Cost of deciding cancer: $1 \cdot (1-p)$, paid only if the patient is normal.
+- Cost of deciding normal: $10 \cdot p$, paid only if the patient has cancer.
+
+Deciding cancer is cheaper when $1 - p < 10p$, which is $p > 1/11 \approx 0.091$. So a posterior of $p = 0.15$ gives costs $0.85$ (cancer) against $1.5$ (normal), and the rule calls cancer. The loss matrix has moved the cut-off from $0.5$ to about $0.09$. With a reject threshold $\theta = 0.7$, an image with posteriors $0.65$ and $0.35$ would be rejected, because neither reaches $0.7$.
 :::
 
 ## Loss functions for regression {#sec-regression}
@@ -209,6 +294,27 @@ $$\mathbb{E}[L] = \tfrac{1}{3}\big[(5-2)^2+(5-4)^2+(5-9)^2\big] = \tfrac{1}{3}(9
 The conditional mean gives the smaller expected loss, as the theorem guarantees it must for *any* competing choice of $y(x)$, not only $y(x)=4$.
 :::
 
+::: {.callout-tip collapse="true" .clarification title="Recap: Loss functions for regression"}
+What the symbols stand for:
+
+- $t$: the continuous target we want to predict.
+- $y(x)$: our prediction for input $x$, the regression function.
+- $(y(x) - t)^2$: the squared loss for one case.
+- $p(x, t)$: the joint density of inputs and targets.
+- $\mathbb{E}[t \mid x] = \int t\,p(t \mid x)\,dt$: the conditional mean, the average target among cases with input $x$.
+- $u = y(x) - \mathbb{E}[t \mid x]$: how far our prediction is from that average. $v = \mathbb{E}[t \mid x] - t$: how far a real target is from the average.
+
+Taking the final decomposition apart:
+
+$$\mathbb{E}[L] = \int\!\!\int u^2\, p(x,t)\,dx\,dt + \int\!\!\int v^2\, p(x,t)\,dx\,dt$$
+
+- The first term is zero when $y(x) = \mathbb{E}[t \mid x]$ and positive otherwise.
+- The second term is the spread of $t$ around its conditional mean. No predictor can reduce it.
+- The cross term $2\int\!\!\int uv\,p\,dx\,dt$ vanished because $v$ averages to zero for every fixed $x$.
+
+A teaching example. Fix one input $x$. Its target is $1$, $3$, or $8$ with probabilities $0.5$, $0.3$, $0.2$. The conditional mean is $0.5 + 0.9 + 1.6 = 3$. The noise term is $0.5(1-3)^2 + 0.3(3-3)^2 + 0.2(8-3)^2 = 2 + 0 + 5 = 7$. Now predict $y = 2$ instead. Its expected loss is $0.5(2-1)^2 + 0.3(2-3)^2 + 0.2(2-8)^2 = 0.5 + 0.3 + 7.2 = 8$. That is the noise $7$ plus our own error $(2-3)^2 = 1$, exactly as the decomposition says.
+:::
+
 ## Free parameters and the cost of the full joint {#sec-freeparams}
 
 Section 2 of Week 1 introduced the joint distribution $p(H,Y)$ for two variables (@sec-joint): a table listing the probability of every combination of outcomes of $H$ and $Y$. That same idea, listing one probability per combination of outcomes, is what scales badly once there are many variables instead of two. For $N$ binary variables $x_1,\dots,x_N$, specifying $p(x_1,\dots,x_N)$ in full means a table with one row per combination of outcomes, and there are $2^N$ such combinations.
@@ -218,6 +324,21 @@ Not every entry in that table can be chosen freely, though. A **free parameter**
 Calling this a "cost" is not just a figure of speech. Every free parameter is a number that has to come from somewhere in practice: it is estimated from data (as in Week 1's maximum likelihood estimation, @sec-mle), stored somewhere, and used every time the model computes a probability. A table of $2^N-1$ free parameters needs enough data to pin down each of those numbers reliably, enough memory to hold the table, and enough computation to look values up in it or sum over it. When $N$ is even modestly large this is not a minor inconvenience: at $N=20$ binary variables, $2^{20}-1$ is already over a million free parameters, far more than any realistic dataset could estimate.
 
 This is why we generally want *fewer* free parameters, not more, for the same reason Week 1 restricted attention to parametric families in the first place (@sec-parametric): fewer parameters are cheaper to estimate and cheaper to compute with. But fewer is not automatically better without limit. Every free parameter removed from the full table corresponds to an assumption that some variables do not depend on some others. If that assumption is false, that is, if the variables really do depend on each other in the way the removed parameter would have captured, the resulting model misrepresents the true distribution no matter how much data we feed it. So the goal is not to drive the parameter count as low as possible, but to spend free parameters only on the dependencies we actually believe exist, and drop the rest. The next section takes the first step toward doing that.
+
+::: {.callout-tip collapse="true" .clarification title="Recap: Free parameters and the cost of the full joint"}
+What the symbols stand for:
+
+- $N$: the number of binary variables $x_1, \dots, x_N$.
+- $2^N$: the number of rows in the full joint table, one per combination of 0s and 1s.
+- $2^N - 1$: the number of free parameters, the rows we may set independently.
+
+Taking the count apart:
+
+- Each variable has 2 values, and the choices multiply, so $N$ variables give $2 \times 2 \times \cdots \times 2 = 2^N$ combinations.
+- The rows must sum to 1. That one constraint fixes the last row once the others are chosen, which removes one free parameter.
+
+A teaching example. Take $N = 3$. The table has $2^3 = 8$ rows. Suppose we fill in seven of them as $0.10, 0.05, 0.20, 0.10, 0.15, 0.10, 0.05$. These add to $0.75$, so the eighth row has no freedom left: it must be $0.25$. That is $8 - 1 = 7$ free parameters. With $N = 10$ the same count gives $2^{10} - 1 = 1023$, and each extra variable roughly doubles it.
+:::
 
 ## Why factor the joint {#sec-factoring}
 
@@ -237,6 +358,24 @@ The only way to reduce the parameter count below $2^N-1$ is to assume that some 
 **Practice question.** For $N=4$ binary variables $x_1,x_2,x_3,x_4$, how many parameters does the general chain-rule factorization need? Now suppose we are willing to assume that $x_4$ depends only on $x_3$, not on $x_1$ or $x_2$, so that $p(x_4\mid x_1,x_2,x_3)$ is replaced by $p(x_4\mid x_3)$ while every other factor stays as general as before. How many parameters does the factorization need now?
 
 **Solution.** With no assumptions, the chain rule gives $p(x_1)p(x_2\mid x_1)p(x_3\mid x_1,x_2)p(x_4\mid x_1,x_2,x_3)$, whose tables need $1 + 2 + 4 + 8 = 15$ parameters, matching $2^4-1=15$ exactly, since nothing has been assumed away yet. Replacing the last factor with $p(x_4\mid x_3)$ shrinks its table from $2^3=8$ parameters (one per configuration of three parents) to $2^1=2$ (one per configuration of a single parent), for a new total of $1+2+4+2=9$ parameters. Dropping the dependence on just two conditioning variables in the last factor already saves 6 parameters out of 15, and the saving grows quickly with $N$ since the dropped table shrinks exponentially in the number of variables removed.
+:::
+
+::: {.callout-tip collapse="true" .clarification title="Recap: Why factor the joint"}
+What the symbols stand for:
+
+- $\prod_{j=1}^N$: multiply the factors for $j = 1, 2, \dots, N$.
+- $p(x_j \mid x_1, \dots, x_{j-1})$: the distribution of variable $j$ given every variable before it in the chosen order.
+- $p(x_1 \mid x_0) := p(x_1)$: a convention so the first factor, which has nothing before it, is just a marginal.
+
+Taking the chain rule apart:
+
+$$p(x_1, x_2, x_3) = p(x_1)\;p(x_2 \mid x_1)\;p(x_3 \mid x_1, x_2)$$
+
+- Each factor is a conditional of the kind defined in Week 1, so the product is just "joint = marginal times conditional" applied repeatedly.
+- Factor $j$ has $j - 1$ binary conditioning variables, so it needs $2^{j-1}$ rows, each with one free number.
+- The row counts $1 + 2 + 4 + \cdots + 2^{N-1}$ add to $2^N - 1$, the same as the full table.
+
+A teaching example. Take $N = 3$ with $p(x_1{=}1) = 0.5$, $p(x_2{=}1 \mid x_1{=}1) = 0.4$, and $p(x_3{=}1 \mid x_1{=}1, x_2{=}1) = 0.25$. Then one joint entry is $p(1,1,1) = 0.5 \times 0.4 \times 0.25 = 0.05$. Filling the whole table this way uses $1 + 2 + 4 = 7$ numbers, the same $2^3 - 1$ as listing the table directly. The savings only appear when we shorten a conditioning list, as in the practice question above.
 :::
 
 ## Directed graphical models {#sec-dag}
@@ -309,6 +448,23 @@ The first equality uses $X\perp Z\mid Y$ from @sec-cistructures. The observation
 **Solution.** Read the parent count straight off the arrows into each node: $x_1$ has no parents ($K=0$, so $2^0=1$ parameter); $x_2$ and $x_3$ each have one parent, $x_1$ ($K=1$, $2^1=2$ parameters each); $x_4$ has one parent, $x_2$ ($2$ parameters); $x_5$ has one parent, $x_3$ ($2$ parameters); $x_6$ has two parents, $x_2$ and $x_5$ ($K=2$, $2^2=4$ parameters). Summing these, $1+2+2+2+2+4=13$ parameters for the whole graph, against $2^6-1=63$ for the fully-connected case. Compared with the chain rule in the order $x_1,\dots,x_6$ (costs $1,2,4,8,16,32$), every node from $x_3$ on has fewer parents (costs $1,2,2,2,2,4$). The largest single saving is $x_6$'s CPT, 32 down to 4: it depends on $x_2$ and $x_5$ but not on $x_1$, $x_3$, or $x_4$, which is exactly the kind of assumption @sec-factoring said was the only way to cut the parameter count.
 :::
 
+::: {.callout-tip collapse="true" .clarification title="Recap: Directed graphical models"}
+What the symbols stand for:
+
+- A node: one random variable. An arrow $x_a \to x_b$: $x_a$ is a parent of $x_b$.
+- $\text{parents}(x_i)$: the set of nodes with an arrow into $x_i$. It may be empty.
+- CPT: the conditional probability table storing $p(x_i \mid \text{parents}(x_i))$.
+- $K_i$: the number of parents of node $i$. A binary node then needs $2^{K_i}$ free numbers.
+
+Taking the factorization apart:
+
+- $\prod_i p(x_i \mid \text{parents}(x_i))$ is the chain rule with each conditioning list cut down to the parents.
+- Every arrow that is missing is a conditioning variable dropped from some factor, and every dropped variable halves that factor's table.
+- Total cost: $\sum_i 2^{K_i}$, compared with $2^N - 1$ for the full joint.
+
+A teaching example. Take three binary nodes with $x_1 \to x_2$ and $x_1 \to x_3$ and no arrow between $x_2$ and $x_3$. The factorization is $p(x_1)\,p(x_2 \mid x_1)\,p(x_3 \mid x_1)$, costing $1 + 2 + 2 = 5$ numbers instead of $7$. With $p(x_1{=}1) = 0.3$, $p(x_2{=}1 \mid x_1{=}1) = 0.9$, and $p(x_3{=}1 \mid x_1{=}1) = 0.5$, one entry of the joint is $p(1,1,1) = 0.3 \times 0.9 \times 0.5 = 0.135$. The factor for $x_3$ never asks about $x_2$, which is the assumption the missing arrow encodes.
+:::
+
 ## Conditional independence: three canonical structures {#sec-cistructures}
 
 ::: {.definition-block}
@@ -361,6 +517,27 @@ Learning $Z$ moves our belief about $X$, so $X$ and $Z$ are dependent given $Y$.
 1. **Causal chain.** Marginally, $X$ and $Z$ are dependent (low pressure raises the chance of rain, which raises the chance of traffic). Conditioned on $Y$ (we already know whether it is raining), $X$ tells us nothing more about $Z$: $X \perp Z \mid Y$, exactly the causal-chain result above.
 2. **Common cause.** Marginally, $X$ and $Z$ are dependent: busy forums are a signal that the deadline is near, which makes a full lab more likely too, so the two are correlated through the shared cause even though neither directly affects the other. Conditioned on $Y$ (we already know whether the deadline is near), that shared explanation is used up, and $X \perp Z \mid Y$.
 3. **Explaining away.** Marginally, $X$ and $Z$ are independent: whether it rains has nothing to do with whether there is a ballgame. But conditioned on $Y$ (we observe heavy traffic), they become dependent: learning it rained makes the ballgame a less likely explanation for the traffic, and vice versa. This is the one structure where conditioning on the middle node *creates* a dependency rather than removing one, which is why it is the case worth double-checking whenever a homework or the Bayes Ball algorithm below asks about a head-to-head node.
+:::
+
+::: {.callout-tip collapse="true" .clarification title="Recap: Conditional independence: three canonical structures"}
+What the symbols stand for:
+
+- $x_A$, $x_B$, $x_C$: three disjoint groups of variables.
+- $x_A \perp x_B \mid x_C$: once $x_C$ is known, learning $x_B$ tells us nothing more about $x_A$.
+- $X$, $Y$, $Z$: the three nodes of each small structure, with $Y$ in the middle.
+
+Taking the definition apart:
+
+- $p(x_A, x_B \mid x_C) = p(x_A \mid x_C)\,p(x_B \mid x_C)$: given $x_C$, the joint of $A$ and $B$ splits into a product, just like ordinary independence.
+- $p(x_A \mid x_B, x_C) = p(x_A \mid x_C)$: adding $x_B$ to what we condition on leaves the distribution of $x_A$ unchanged. This is the form used in each check above.
+- Chain and common cause: observing $Y$ blocks the dependence. Explaining away: observing $Y$ creates it.
+
+A teaching example for the chain $X \to Y \to Z$. Let $p(X{=}1) = 0.5$, $p(Y{=}1 \mid X{=}1) = 0.8$, $p(Y{=}1 \mid X{=}0) = 0.2$, $p(Z{=}1 \mid Y{=}1) = 0.9$, $p(Z{=}1 \mid Y{=}0) = 0.1$.
+
+- Without $Y$: $p(Z{=}1 \mid X{=}1) = 0.8(0.9) + 0.2(0.1) = 0.74$, but $p(Z{=}1 \mid X{=}0) = 0.2(0.9) + 0.8(0.1) = 0.26$. Knowing $X$ changes our belief about $Z$, so they are dependent.
+- With $Y{=}1$ known: $p(Z{=}1 \mid X, Y{=}1) = 0.9$ whatever $X$ is, because the factor $p(z \mid y)$ never looks at $x$. So $X \perp Z \mid Y$.
+
+For a numeric explaining-away case, see the dropdown on its size earlier in this section.
 :::
 
 ## The Bayes Ball algorithm {#sec-bayesball}
@@ -482,6 +659,30 @@ $$\hat\theta_{jc} = \frac{\sum_i \mathbb{1}[x_j^{(i)}=1 \,\&\, c^{(i)}=c]}{\sum_
 In words, $\hat\theta_{jc}$ is the fraction of class-$c$ texts in which word $j$ appears.
 Each MLE is again an observed relative frequency, exactly as in the Bernoulli case: the independence assumption did not change *how* we estimate parameters, only *how many* there are to estimate.
 
+::: {.callout-tip collapse="true" .clarification title="Recap: Naive Bayes as a graphical model"}
+What the symbols stand for:
+
+- $C$: the class label, $1$ for spam and $0$ for not spam.
+- $X = (X_1, \dots, X_d)$: the bag-of-words vector. $X_j = 1$ if dictionary word $j$ appears in the text.
+- $d$: the dictionary size. $N$: the number of labelled training texts.
+- $\pi = p(C{=}1)$: the prior probability of spam.
+- $\theta_{jc} = p(X_j{=}1 \mid C{=}c)$: the probability that word $j$ appears in a text of class $c$.
+- $\mathbb{1}[\cdot]$: the indicator, 1 if the condition holds and 0 otherwise.
+
+Taking the equations apart:
+
+- $p(X, C) = p(C)\prod_j p(X_j \mid C)$: pick the class, then let each word appear or not on its own, using only the class. This is the common-cause structure with $C$ as the cause.
+- The log-likelihood splits into one Bernoulli piece for the labels and one Bernoulli piece per (word, class) pair, so each parameter is fitted separately.
+- $\hat\pi$ = fraction of texts that are spam. $\hat\theta_{jc}$ = among class-$c$ texts, the fraction containing word $j$.
+
+A teaching example. Six texts, two dictionary words ("free", "meeting"). Three are spam: "free" appears in two of them and "meeting" in one. Three are not spam: "free" appears in one and "meeting" in two. The MLEs are $\hat\pi = 3/6 = 0.5$, $\hat\theta_{\text{free},1} = 2/3$, $\hat\theta_{\text{meeting},1} = 1/3$, $\hat\theta_{\text{free},0} = 1/3$, $\hat\theta_{\text{meeting},0} = 2/3$, which is $1 + 2d = 5$ numbers. A new text contains "free" but not "meeting".
+
+- Spam: $0.5 \times \tfrac{2}{3} \times (1 - \tfrac{1}{3}) = \tfrac{4}{18}$.
+- Not spam: $0.5 \times \tfrac{1}{3} \times (1 - \tfrac{2}{3}) = \tfrac{1}{18}$.
+
+Normalizing, $p(C{=}1 \mid X) = 4/5 = 0.8$. An absent word still counts, through the factor $1 - \theta_{jc}$.
+:::
+
 ## DGMs in the wild, briefly {#sec-wilddgm}
 
 The tutorial surveys a few more graphical models to show the same "assume some independencies, save parameters" idea recurring in different shapes. None of these are derived in depth in this lecture; the point is to recognize the pattern.
@@ -489,6 +690,22 @@ The tutorial surveys a few more graphical models to show the same "assume some i
 - **Markov chains.** A first-order chain $p(x_{1:T}) = p(x_1)\prod_{t=2}^T p(x_t\mid x_{t-1})$ assumes each state depends only on the immediately previous one; a second-order chain conditions on the two previous states instead.
 - **Hidden Markov models (HMMs).** A chain of unobserved (hidden) states $Z_t$, each taking one of $K$ discrete values, each emitting an observed $X_t$: $p(X_{1:T}, Z_{1:T}) = p(Z_1)\prod_{t=2}^T p(Z_t\mid Z_{t-1}) \prod_{t=1}^T p(X_t\mid Z_t)$. This is a Markov chain over the hidden layer, with an emission model attached to each step.
 - **Medical diagnosis networks.** The Quick Medical Reference network is a bipartite DAG: hidden disease nodes as parents, observed symptom nodes as children, with a **noisy-OR** conditional probability table (any positive parent disease tends to make a symptom positive). The Alarm network is a hand-built DAG of 37 ICU-monitoring variables; because it is sparse, it needs only 509 parameters (the tutorial quotes 504), against far more than $2^{37}-1$ for a full joint table, since most of its variables have three or four states, and its edges are drawn from known causal relationships in medicine rather than fit as a generic template.
+
+::: {.callout-tip collapse="true" .clarification title="Recap: DGMs in the wild, briefly"}
+What the symbols stand for:
+
+- $x_{1:T}$: the sequence $x_1, x_2, \dots, x_T$ of states over $T$ time steps.
+- $p(x_t \mid x_{t-1})$: the transition probability, how the state at time $t$ depends on the state just before it.
+- $Z_t$: the hidden state at time $t$ in an HMM, one of $K$ values. $X_t$: what we observe at time $t$.
+- $p(X_t \mid Z_t)$: the emission probability, how the hidden state produces the observation.
+
+Taking the factorizations apart:
+
+- Markov chain: $p(x_1)$ starts the sequence, then each factor $p(x_t \mid x_{t-1})$ steps it forward one time step. Each node has one parent, the previous step.
+- HMM: the same chain runs on the hidden $Z$'s, and each step adds one factor $p(X_t \mid Z_t)$ for the observation. Each $X_t$ has one parent, its own $Z_t$.
+
+A teaching example. A binary chain with states rain and dry has $p(x_1 = \text{rain}) = 0.3$, $p(\text{rain} \mid \text{rain}) = 0.6$, $p(\text{rain} \mid \text{dry}) = 0.2$. The sequence rain, rain, dry has probability $0.3 \times 0.6 \times (1 - 0.6) = 0.072$. If the transition table is shared across time steps, this chain is fully described by 3 numbers for any length $T$, whereas a full joint over $T$ binary steps needs $2^T - 1$.
+:::
 
 ## Summary {#sec-summary2}
 

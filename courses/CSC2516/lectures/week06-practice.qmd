@@ -1,0 +1,633 @@
+---
+title: "Week 6 practice: Recurrent Networks and Sequence-to-Sequence Learning"
+---
+
+```{=html}
+<style>#title-block-header { display: none; }</style>
+<div class="lecture-header">
+  <h1>Week 6 practice: Recurrent Networks and Sequence-to-Sequence Learning</h1>
+</div>
+```
+
+**Overview.** These problems drill [Week 6](week06.qmd). Try each stem before opening the worked solution. Every solution starts from the equation it rests on, says where that equation comes from, and only then substitutes numbers. An equation sheet comes first, then four parts:
+
+1. **Sequences and text.** Two problems on scoring a sentence and counting a language model's parameters.
+2. **The vanilla RNN and backpropagation through time.** Three problems that run a recurrence forward, differentiate it by hand, and predict which directions of the hidden state survive many steps.
+3. **The LSTM and uses of sequence models.** One LSTM cell update by hand, and one code-reading problem on teacher forcing.
+4. **Official Week 7 quiz practice.** Four questions provided by the course, which test Week 6 material, reproduced with their answers.
+
+In Parts 1 to 3 the numbers and setups are invented for practice. Notation matches the week chapter: inputs $\bm{x}_t$, hidden states $\bm{h}_t$, recurrent weights $\bm{W}_h$, and for the LSTM a cell $\bm{c}_t$ with gates $\bm{i}_t$, $\bm{f}_t$, $\bm{o}_t$.
+
+## Equations to know for the quiz {#sec-w6p-equations}
+
+Every problem in this chapter, and every official quiz question in Part 4, can be solved with the equations below. They are collected from the [Week 6](week06.qmd) chapter, and each table says where the equation is explained. This is our own summary of the lecture, not a list published by the course. Results marked *(ours)* are short consequences worked out in this chapter, not lines from the lecture.
+
+### Sequences and text
+
+| Equation | What it says | Where |
+|---|---|---|
+| $p(\bm{x}_1, \dots, \bm{x}_T) = \prod_{t=1}^{T} p(\bm{x}_t \mid \bm{x}_{t-1}, \dots, \bm{x}_1)$ | chain rule of probability: a sequence's probability is the product of its next-element probabilities | [Chain rule of probability](week06.qmd#sec-chain-rule-prob) |
+| $\bm{W}\bm{e}_k = $ column $k$ of $\bm{W}$ | a one-hot vector $\bm{e}_k$ looks up one column of the embedding matrix | [Embeddings](week06.qmd#sec-embeddings) |
+| $K - 1$ free parameters | a categorical distribution over $K$ values has $K$ probabilities that must sum to $1$ *(ours)* | [Quiz question 1](#quiz-1) |
+| $1 + r + \dots + r^{n-1} = \dfrac{r^n - 1}{r - 1}$ | the [geometric series](https://en.wikipedia.org/wiki/Geometric_series), for any $r \neq 1$ *(ours)* | [Quiz question 1](#quiz-1), [Quiz question 3](#quiz-3) |
+
+### The vanilla RNN
+
+| Equation | What it says | Where |
+|---|---|---|
+| $\bm{h}_t = \sigma(\bm{W}_x \bm{x}_t + \bm{W}_h \bm{h}_{t-1} + \bm{b}_h)$ | the hidden-state update, with the same weights at every step | [Vanilla RNN](week06.qmd#sec-vanilla-rnn) |
+| $\bm{o}_t = \bm{W}_o \bm{h}_t + \bm{b}_o$ | output scores from the hidden state | [Vanilla RNN](week06.qmd#sec-vanilla-rnn) |
+| $nm + n$ | parameters of a dense layer $\bm{W}\bm{x} + \bm{b}$ from $m$ inputs to $n$ outputs *(ours)* | [Problem 2](#prb-2) |
+| $h_t = \sum_{k=1}^{t} w^{t-k} x_k$ | a scalar linear RNN $h_t = w h_{t-1} + x_t$ with $h_0 = 0$, unrolled *(ours)* | [Quiz question 3](#quiz-3) |
+
+### Backpropagation through time
+
+| Equation | What it says | Where |
+|---|---|---|
+| $a_t = b_t + c_t\, a_{t-1}$, $a_0 = 0$ | the recurrent term $a_t = d\bm{h}_t/d\bm{W}_h$: a direct path $b_t = \partial f_t/\partial \bm{W}_h$ plus the indirect path through $\bm{h}_{t-1}$ with $c_t = \partial f_t/\partial \bm{h}_{t-1}$ | [The recurrent term](week06.qmd#sec-bptt-term) |
+| $a_t = b_t + \sum_{i=1}^{t-1} \big(\prod_{j=i+1}^{t} c_j\big) b_i$ | the same recursion unrolled | [The recurrent term](week06.qmd#sec-bptt-term) |
+| linear RNN: $b_t = \bm{h}_{t-1}$, $c_t = \bm{W}_h$ | the product becomes a matrix power $\bm{W}_h^{\,t-i}$, which explodes or vanishes | [Why RNNs are hard to train](week06.qmd#sec-exploding-vanishing) |
+| ReLU RNN: $b_t = r_t h_{t-1}$, $c_t = r_t w$ | $r_t$ is $1$ if the pre-activation at step $t$ is positive and $0$ otherwise *(ours)* | [Quiz question 4](#quiz-4) |
+
+### The LSTM
+
+| Equation | What it says | Where |
+|---|---|---|
+| $\bm{g}_t = \sigma(\bm{W}_{xg} \bm{x}_t + \bm{W}_{hg} \bm{h}_{t-1} + \bm{b}_g)$ for $g \in \{i, f, o\}$ | each gate is a sigmoid of a dense layer on $\bm{x}_t$ and $\bm{h}_{t-1}$; the candidate $\tilde{\bm{c}}_t$ uses $\tanh$ | [LSTM](week06.qmd#sec-lstm) |
+| $\bm{c}_t = \bm{f}_t \odot \bm{c}_{t-1} + \bm{i}_t \odot \tilde{\bm{c}}_t$ | keep part of the old cell, write part of the candidate | [LSTM](week06.qmd#sec-lstm) |
+| $\bm{h}_t = \bm{o}_t \odot \tanh(\bm{c}_t)$ | read part of the cell out as the hidden state | [LSTM](week06.qmd#sec-lstm) |
+| $4\,(H d + H^2 + H)$ | LSTM parameters for input size $d$ and hidden size $H$: four blocks (three gates and the candidate), each with $\bm{W}_x$, $\bm{W}_h$, and a bias *(ours)* | [Quiz question 2](#quiz-2) |
+
+### Sequence-to-sequence
+
+| Equation | What it says | Where |
+|---|---|---|
+| $\bm{c} = \bm{h}_T$ | the context is the encoder's final hidden state | [Seq2seq](week06.qmd#sec-seq2seq) |
+| $\bm{s}_{t'} = g(\bm{y}_{t'-1}, \bm{s}_{t'-1}, \bm{c})$ | the decoder state uses the previous output, its previous state, and the context | [Seq2seq](week06.qmd#sec-seq2seq) |
+| concat$(\text{embed}(\bm{y}_{t'-1}), \bm{c})$ or $\bm{s}_0 = \bm{c}$ | two ways to give the decoder the context | [Seq2seq](week06.qmd#sec-seq2seq) |
+
+## Part 1: Sequences and text {#sec-w6p-text}
+
+### Problem 1: Which sentence is more probable? {#prb-1}
+
+A language model gives these probabilities:
+
+- $p(\text{the}) = 0.4$,
+- $p(\text{cat} \mid \text{the}) = 0.25$ and $p(\text{dog} \mid \text{the}) = 0.2$,
+- $p(\text{sat} \mid \text{the, cat}) = 0.3$ and $p(\text{sat} \mid \text{the, dog}) = 0.05$.
+
+What probability does the model give "the cat sat," and what does it give "the dog sat"? How many times more probable is the first?
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+This uses [Week 6, the chain rule of probability](week06.qmd#sec-chain-rule-prob) and the use of a language model for [scoring](week06.qmd#sec-language-modeling).
+
+**The base equation.** Start from the definition of [conditional probability](https://en.wikipedia.org/wiki/Conditional_probability), rearranged:
+
+$$p(A, B) = p(A)\, p(B \mid A).$$
+
+In words: the probability that both happen is the probability of the first, times the probability of the second once we know the first happened. Applying it twice to a three-word sentence peels off one word at a time, from the end:
+
+$$
+\begin{aligned}
+p(\bm{x}_1, \bm{x}_2, \bm{x}_3) &= p(\bm{x}_1, \bm{x}_2)\, p(\bm{x}_3 \mid \bm{x}_1, \bm{x}_2) \\
+&= p(\bm{x}_1)\, p(\bm{x}_2 \mid \bm{x}_1)\, p(\bm{x}_3 \mid \bm{x}_1, \bm{x}_2).
+\end{aligned}
+$$
+
+This is the chain rule of probability for $T = 3$. Every factor has the form "the next word, given all the words before it," which is exactly what a language model outputs. So the stem already gives us every factor we need.
+
+**"the cat sat."** Set $\bm{x}_1 = \text{the}$, $\bm{x}_2 = \text{cat}$, $\bm{x}_3 = \text{sat}$:
+
+$$p(\text{the})\, p(\text{cat} \mid \text{the})\, p(\text{sat} \mid \text{the, cat}) = 0.4 \times 0.25 \times 0.3 = 0.03.$$
+
+**"the dog sat."** Only $\bm{x}_2$ changes, but that also changes what the third factor is conditioned on:
+
+$$p(\text{the})\, p(\text{dog} \mid \text{the})\, p(\text{sat} \mid \text{the, dog}) = 0.4 \times 0.2 \times 0.05 = 0.004.$$
+
+**The ratio.** Both products start with the same factor $p(\text{the})$, so it cancels:
+
+$$
+\begin{aligned}
+\frac{p(\text{the cat sat})}{p(\text{the dog sat})}
+&= \frac{p(\text{cat} \mid \text{the})}{p(\text{dog} \mid \text{the})} \cdot \frac{p(\text{sat} \mid \text{the, cat})}{p(\text{sat} \mid \text{the, dog})} \\
+&= \frac{0.25}{0.2} \cdot \frac{0.3}{0.05} = 1.25 \times 6 = 7.5.
+\end{aligned}
+$$
+
+Writing the ratio factor by factor shows where the gap comes from: "cat" is only $1.25$ times as likely as "dog" after "the," but "sat" is $6$ times as likely after "the cat" as after "the dog."
+
+Scoring a sentence this way is one of the two uses of a language model in the week chapter; the other is sampling, which draws from these same conditionals one word at a time.
+
+**Answer:** $0.03$ and $0.004$; the first is $7.5$ times more probable.
+:::
+
+### Problem 2: Where a language model's parameters live {#prb-2}
+
+A word-level language model has a vocabulary of $|V| = 10{,}000$ words. Each token is looked up in an embedding matrix with $64$-dimensional embeddings (no bias). The embeddings go into a vanilla RNN with hidden size $128$ (weights $\bm{W}_x$, $\bm{W}_h$, bias $\bm{b}_h$). An output layer $\bm{o}_t = \bm{W}_o \bm{h}_t + \bm{b}_o$ produces one score per vocabulary word.
+
+How many parameters does each of the three parts have, and how many in total? Which part dominates? How does the total change if the model is used on sentences of length $1{,}000$ instead of $20$?
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+This uses [Week 6, Embeddings](week06.qmd#sec-embeddings) and [the vanilla RNN](week06.qmd#sec-vanilla-rnn).
+
+**The base rule: counting a dense layer.** A dense layer $\bm{y} = \bm{W}\bm{x} + \bm{b}$ that takes an $m$-dimensional input to an $n$-dimensional output needs one weight for every (output, input) pair and one bias per output:
+
+$$\bm{W} \in \mathbb{R}^{n \times m}, \quad \bm{b} \in \mathbb{R}^{n} \qquad \Longrightarrow \qquad nm + n \text{ parameters.}$$
+
+The rule to remember is that the matrix has as many **rows** as outputs and as many **columns** as inputs, because row $i$ holds the weights that build output $i$.
+
+**The model's equations.** Write $d = 64$ for the embedding size, $H = 128$ for the hidden size, and $\bm{W}_e$ for the embedding matrix (called $\bm{W}$ in the week chapter; the subscript keeps it apart from the RNN weights). If token $\bm{x}_t$ is word $k$, one step of the model is
+
+$$
+\begin{aligned}
+\bm{v}_t &= \bm{W}_e\, \bm{e}_k && \text{(embedding lookup)} \\
+\bm{h}_t &= \sigma(\bm{W}_x \bm{v}_t + \bm{W}_h \bm{h}_{t-1} + \bm{b}_h) && \text{(recurrent core)} \\
+\bm{o}_t &= \bm{W}_o \bm{h}_t + \bm{b}_o && \text{(output layer)}
+\end{aligned}
+$$
+
+Every matrix and bias in these three lines is a parameter. Read each shape from what goes in and what comes out.
+
+**Embedding matrix.** $\bm{W}_e$ takes a $|V|$-dimensional one-hot vector to a $d$-dimensional embedding, so $\bm{W}_e \in \mathbb{R}^{d \times |V|}$ and there is no bias: one $64$-dimensional column per word.
+
+$$d\,|V| = 64 \times 10{,}000 = 640{,}000.$$
+
+**Recurrent core.** $\bm{W}_x$ takes the $d$-dimensional embedding to the $H$-dimensional hidden state, $\bm{W}_h$ takes $H$ to $H$, and $\bm{b}_h$ has one entry per hidden unit:
+
+$$Hd + H^2 + H = 128 \cdot 64 + 128 \cdot 128 + 128 = 8{,}192 + 16{,}384 + 128 = 24{,}704.$$
+
+**Output layer.** $\bm{W}_o$ takes $H$ to one score per word, so it is $|V| \times H$, plus a bias of length $|V|$:
+
+$$|V|\,H + |V| = 10{,}000 \cdot 128 + 10{,}000 = 1{,}290{,}000.$$
+
+**Total.** $640{,}000 + 24{,}704 + 1{,}290{,}000 = 1{,}954{,}704$.
+
+The output layer holds about two thirds of the parameters and the embedding matrix about a third. The recurrent core, the part that actually reads the sequence, is about $1\%$. Both large parts have a factor $|V|$, which is why vocabulary size drives the size of small language models.
+
+**Sequence length.** Look back at the equations: none of the shapes contains $T$. The same $\bm{W}_x$, $\bm{W}_h$, $\bm{b}_h$ are reused at every step, so a longer sentence means running the same three lines more times, not storing more parameters. Longer sequences cost more computation, not more parameters.
+
+**Answer:** $640{,}000$ (embedding), $24{,}704$ (RNN), $1{,}290{,}000$ (output), $1{,}954{,}704$ in total; the output layer dominates; the count is the same for any sequence length.
+:::
+
+## Part 2: The vanilla RNN and backpropagation through time {#sec-w6p-rnn}
+
+### Problem 3: An early input that keeps showing up {#prb-3}
+
+A linear RNN with a 2-dimensional hidden state has no activation function and no bias:
+
+$$\bm{h}_t = \bm{W}_h \bm{h}_{t-1} + \bm{x}_t, \qquad \bm{W}_h = \begin{bmatrix} 0.5 & 1 \\ 0 & 0.5 \end{bmatrix}, \qquad \bm{h}_0 = \bm{0}.$$
+
+The inputs are $\bm{x}_1 = (2, 0)$, $\bm{x}_2 = (0, 1)$, and $\bm{x}_3 = (0, 0)$. Compute $\bm{h}_3$. How much of $\bm{h}_3$ comes from $\bm{x}_1$?
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+This uses [Week 6, the vanilla RNN](week06.qmd#sec-vanilla-rnn), with the activation removed so every step is a matrix multiply and an addition.
+
+**The base equation.** The vanilla RNN update is $\bm{h}_t = \sigma(\bm{W}_x \bm{x}_t + \bm{W}_h \bm{h}_{t-1} + \bm{b}_h)$. Here $\sigma$ is the identity, $\bm{W}_x$ is the identity, and $\bm{b}_h = \bm{0}$, which leaves
+
+$$\bm{h}_t = \bm{W}_h \bm{h}_{t-1} + \bm{x}_t.$$
+
+Each step needs one matrix-vector product. Entry $i$ of $\bm{W}\bm{v}$ is row $i$ of $\bm{W}$ dotted with $\bm{v}$:
+
+$$(\bm{W}\bm{v})_i = \sum_j W_{ij}\, v_j.$$
+
+**Step by step.** Apply the update three times.
+
+- $\bm{h}_1 = \bm{W}_h \bm{0} + (2, 0) = (2, 0)$.
+- $\bm{h}_2 = \bm{W}_h (2, 0) + (0, 1)$. Row 1 gives $0.5 \cdot 2 + 1 \cdot 0 = 1$, row 2 gives $0 \cdot 2 + 0.5 \cdot 0 = 0$, so $\bm{W}_h \bm{h}_1 = (1, 0)$ and $\bm{h}_2 = (1, 1)$.
+- $\bm{h}_3 = \bm{W}_h (1, 1) + (0, 0)$. Row 1 gives $0.5 + 1 = 1.5$, row 2 gives $0 + 0.5 = 0.5$, so $\bm{h}_3 = (1.5, 0.5)$.
+
+**Separating the inputs.** To see where each input ended up, substitute the update into itself instead of plugging in numbers. Starting from $\bm{h}_0 = \bm{0}$:
+
+$$
+\begin{aligned}
+\bm{h}_3 &= \bm{W}_h \bm{h}_2 + \bm{x}_3 = \bm{W}_h(\bm{W}_h \bm{h}_1 + \bm{x}_2) + \bm{x}_3 \\
+&= \bm{W}_h(\bm{W}_h \bm{x}_1 + \bm{x}_2) + \bm{x}_3 = \bm{W}_h^{\,2}\, \bm{x}_1 + \bm{W}_h\, \bm{x}_2 + \bm{x}_3.
+\end{aligned}
+$$
+
+Each input is multiplied by $\bm{W}_h$ once for every step since it entered: $\bm{x}_1$ twice, $\bm{x}_2$ once, $\bm{x}_3$ not at all. The general pattern is $\bm{h}_t = \sum_{k=1}^{t} \bm{W}_h^{\,t-k} \bm{x}_k$.
+
+Now each term separately. First square the matrix. Entry $(i, j)$ of $\bm{W}_h \bm{W}_h$ is row $i$ dotted with column $j$; for example, entry $(1, 2)$ is $0.5 \cdot 1 + 1 \cdot 0.5 = 1$:
+
+$$\bm{W}_h^{\,2} = \bm{W}_h \bm{W}_h = \begin{bmatrix} 0.25 & 1 \\ 0 & 0.25 \end{bmatrix}.$$
+
+- The $\bm{x}_1$ term: $\bm{W}_h^{\,2}(2, 0) = (0.25 \cdot 2,\ 0) = (0.5, 0)$.
+- The $\bm{x}_2$ term: $\bm{W}_h(0, 1) = (1, 0.5)$.
+- The $\bm{x}_3$ term: $(0, 0)$.
+
+They add to $(1.5, 0.5)$, matching the step-by-step result.
+
+The input $\bm{x}_1$ has shrunk from size $2$ to $0.5$ after two multiplications by $\bm{W}_h$, a factor $0.5$ each time. This is the same matrix power $\bm{W}_h^{\,k}$ that appears in the gradient in [Why recurrent networks are hard to train](week06.qmd#sec-exploding-vanishing): the forward pass and the backward pass both multiply by $\bm{W}_h$ once per step.
+
+**Answer:** $\bm{h}_3 = (1.5, 0.5)$, of which $(0.5, 0)$ comes from $\bm{x}_1$.
+:::
+
+### Problem 4: A gradient when only the last step has a loss {#prb-4}
+
+A scalar linear RNN has $h_t = w\, h_{t-1} + x_t$ with $h_0 = 0$ and $w = 3$. The inputs are $(x_1, x_2, x_3) = (1, 0, 2)$, and the loss is just the last hidden state, $\mathcal{L} = h_3$. Compute $d\mathcal{L}/dw$ in two ways: by writing $h_3$ out as a function of $w$, and with the backpropagation-through-time recursion $a_t = b_t + c_t\, a_{t-1}$.
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+This uses [Week 6, Total versus partial derivatives](week06.qmd#sec-total-partial), [The recurrent term](week06.qmd#sec-bptt-term), and its linear special case in [Why recurrent networks are hard to train](week06.qmd#sec-exploding-vanishing).
+
+**Way 1: expand, then differentiate.** Substitute the update into itself, as in [Problem 3](#prb-3):
+
+$$
+\begin{aligned}
+h_3 &= w\, h_2 + x_3 = w\,(w\, h_1 + x_2) + x_3 \\
+&= w\,(w\, x_1 + x_2) + x_3 = w^2 x_1 + w\, x_2 + x_3.
+\end{aligned}
+$$
+
+Now $h_3$ is an ordinary polynomial in $w$, with the inputs as constants. Differentiate term by term:
+
+$$\frac{dh_3}{dw} = 2w\, x_1 + x_2 = 2 \cdot 3 \cdot 1 + 0 = 6.$$
+
+**Way 2: the recursion, and where it comes from.** Write one step as $h_t = f(h_{t-1}, w)$ with $f(h, w) = w\,h + x_t$. The weight $w$ reaches $h_t$ along two paths:
+
+- **directly**, because $w$ appears in the formula for step $t$;
+- **indirectly**, because $w$ was already used to compute $h_{t-1}$, which step $t$ reads.
+
+The total derivative adds the two paths. The direct path is a partial derivative (hold $h_{t-1}$ fixed), and the indirect path is the chain rule through $h_{t-1}$:
+
+$$\frac{dh_t}{dw} = \frac{\partial f}{\partial w} + \frac{\partial f}{\partial h_{t-1}} \cdot \frac{dh_{t-1}}{dw}.$$
+
+The week chapter abbreviates this as $a_t = b_t + c_t\, a_{t-1}$, with $a_t = dh_t/dw$, $b_t = \partial f / \partial w$, and $c_t = \partial f / \partial h_{t-1}$. For $f = w\,h_{t-1} + x_t$:
+
+$$b_t = \frac{\partial}{\partial w}(w\, h_{t-1} + x_t) = h_{t-1}, \qquad c_t = \frac{\partial}{\partial h_{t-1}}(w\, h_{t-1} + x_t) = w.$$
+
+So $a_t = h_{t-1} + w\, a_{t-1}$, starting from $a_0 = 0$ because $h_0$ is fixed and does not depend on $w$.
+
+The recursion needs the $h_{t-1}$ values, so first run forward: $h_1 = 1$, $h_2 = 3 \cdot 1 + 0 = 3$, $h_3 = 3 \cdot 3 + 2 = 11$. Then:
+
+- $a_1 = h_0 + w\, a_0 = 0 + 3 \cdot 0 = 0$.
+- $a_2 = h_1 + w\, a_1 = 1 + 3 \cdot 0 = 1$.
+- $a_3 = h_2 + w\, a_2 = 3 + 3 \cdot 1 = 6$.
+
+The two ways agree. The recursion never needed the formula for $h_3$, only values from the forward pass, which is why it is the method that scales to long sequences and to matrices.
+
+Since the loss is only at the last step, $d\mathcal{L}/dw = a_3$. If the loss were a sum over steps, we would add up $a_1 + a_2 + a_3$ instead, as in [Quiz question 4](#quiz-4).
+
+**Answer:** $d\mathcal{L}/dw = 6$.
+:::
+
+### Problem 5: Which direction survives twenty steps? {#prb-5}
+
+A linear RNN has recurrent weights $\bm{W}_h = \begin{bmatrix} 0.5 & 0 \\ 0 & 1.2 \end{bmatrix}$. In the gradient $d\bm{h}_t/d\bm{W}_h$, a contribution from $20$ steps back is multiplied by $\bm{W}_h^{\,20}$. By what factor is each coordinate scaled? What does this predict about what the network can learn from inputs 20 steps in the past? Why is this worse than the vanishing and exploding gradients of a deep feed-forward network in Week 3?
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+This uses [Week 6, Why recurrent networks are hard to train](week06.qmd#sec-exploding-vanishing), which points back to [Week 3](week03.qmd#sec-vanishing).
+
+**The base equation.** Unrolling $a_t = b_t + c_t\, a_{t-1}$ gives one term per earlier step $i$, each carried forward by every $c_j$ between step $i$ and step $t$:
+
+$$a_t = b_t + \sum_{i=1}^{t-1} \Big(\prod_{j=i+1}^{t} c_j\Big)\, b_i.$$
+
+For a linear RNN every $c_j$ is $\bm{W}_h$, so the product of $t - i$ copies is the matrix power $\bm{W}_h^{\,t-i}$. A contribution from $20$ steps back is multiplied by $\bm{W}_h^{\,20}$, which is the number the question asks about.
+
+**Powers of a diagonal matrix.** Multiplying two diagonal matrices just multiplies their matching diagonal entries, so
+
+$$\begin{bmatrix} \lambda_1 & 0 \\ 0 & \lambda_2 \end{bmatrix}^{k} = \begin{bmatrix} \lambda_1^{k} & 0 \\ 0 & \lambda_2^{k} \end{bmatrix}.$$
+
+Each coordinate is scaled on its own by a power of its diagonal entry. These entries are the matrix's [eigenvalues](https://en.wikipedia.org/wiki/Eigenvalues_and_eigenvectors), and the coordinate axes are its eigenvectors. For a power $\lambda^k$: if $|\lambda| < 1$ it shrinks toward $0$ as $k$ grows, and if $|\lambda| > 1$ it grows without bound.
+
+**The scaling.** With $\lambda_1 = 0.5$ and $\lambda_2 = 1.2$:
+
+- First coordinate: $0.5^{20} \approx 9.5 \times 10^{-7}$, about a millionth.
+- Second coordinate: $1.2^{20} \approx 38$.
+
+**The prediction.** Along the first direction, the gradient contribution from 20 steps back is effectively zero, so the network gets almost no signal for adjusting how it uses information that old. It will struggle to learn dependencies between elements 20 steps apart: the gradient vanishes. Along the second direction the same contribution is $38$ times larger than a contribution from the current step, and it keeps growing with distance, so long sequences produce huge, unstable updates: the gradient explodes. One matrix can do both at once, in different directions.
+
+**Why this is worse than Week 3.** In a feed-forward network the product is $\bm{W}^{(L)} \cdots \bm{W}^{(2)}\bm{W}^{(1)}$, with a different matrix per layer, so stretching in one layer can be offset by shrinking in another, and no single eigenvalue decides the outcome. In an RNN the product is $\bm{W}_h \cdots \bm{W}_h = \bm{W}_h^{\,k}$, the same matrix every time, so the same eigenvalues are raised to the power of the distance, with nothing to offset them. Eigenvalues only slightly away from $1$ already give large effects over long sequences.
+:::
+
+## Part 3: The LSTM and uses of sequence models {#sec-w6p-lstm}
+
+### Problem 6: One LSTM step by hand {#prb-6}
+
+An LSTM has a 2-dimensional cell. At step $t$ the gates and candidate have already been computed:
+
+$$\bm{f}_t = (1, 0), \quad \bm{i}_t = (0, 1), \quad \tilde{\bm{c}}_t = (0.5, 0.8), \quad \bm{o}_t = (1, 0),$$
+
+and the previous cell is $\bm{c}_{t-1} = (2, -1)$. Compute $\bm{c}_t$ and $\bm{h}_t$ (use $\tanh(2) \approx 0.964$). For each entry of the cell, say whether it was kept, overwritten, or hidden from the output.
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+This uses [Week 6, Long Short-Term Memory](week06.qmd#sec-lstm).
+
+**The base equations.** One LSTM step computes three gates and a candidate from the same two inputs, $\bm{x}_t$ and $\bm{h}_{t-1}$ (here $\sigma$ is the sigmoid):
+
+$$
+\begin{aligned}
+\bm{i}_t &= \sigma(\bm{W}_{xi}\bm{x}_t + \bm{W}_{hi}\bm{h}_{t-1} + \bm{b}_i), &
+\bm{f}_t &= \sigma(\bm{W}_{xf}\bm{x}_t + \bm{W}_{hf}\bm{h}_{t-1} + \bm{b}_f), \\
+\bm{o}_t &= \sigma(\bm{W}_{xo}\bm{x}_t + \bm{W}_{ho}\bm{h}_{t-1} + \bm{b}_o), &
+\tilde{\bm{c}}_t &= \tanh(\bm{W}_{xc}\bm{x}_t + \bm{W}_{hc}\bm{h}_{t-1} + \bm{b}_c),
+\end{aligned}
+$$
+
+then combines them:
+
+$$\bm{c}_t = \bm{f}_t \odot \bm{c}_{t-1} + \bm{i}_t \odot \tilde{\bm{c}}_t, \qquad \bm{h}_t = \bm{o}_t \odot \tanh(\bm{c}_t).$$
+
+The symbol $\odot$ is elementwise multiplication, so each entry of the cell is handled separately. Because a sigmoid lies between $0$ and $1$, each gate entry works like a dial: the forget gate sets how much of the old cell to keep, the input gate how much of the candidate to write, and the output gate how much of the cell to show in $\bm{h}_t$. The stem skips the first four lines and hands us their outputs. Real gates are strictly between $0$ and $1$; values of exactly $0$ and $1$ here make each gate's role easy to see.
+
+**The cell update.** Apply $\bm{c}_t = \bm{f}_t \odot \bm{c}_{t-1} + \bm{i}_t \odot \tilde{\bm{c}}_t$ one entry at a time:
+
+- Entry 1: $f \cdot c_{t-1} + i \cdot \tilde{c} = 1 \cdot 2 + 0 \cdot 0.5 = 2$.
+- Entry 2: $f \cdot c_{t-1} + i \cdot \tilde{c} = 0 \cdot (-1) + 1 \cdot 0.8 = 0.8$.
+
+So $\bm{c}_t = (2, 0.8)$.
+
+**The hidden state.** Apply $\bm{h}_t = \bm{o}_t \odot \tanh(\bm{c}_t)$ entry by entry:
+
+$$\bm{h}_t = (1 \cdot \tanh 2,\ 0 \cdot \tanh 0.8) \approx (0.964,\ 0).$$
+
+**Reading the gates.**
+
+- **Entry 1 was kept.** The forget gate is $1$ and the input gate $0$, so the cell equation reduces to $c_t = c_{t-1}$: the old value $2$ passes through unchanged and the candidate is ignored. This is the "remember" setting, which can carry a value across many steps.
+- **Entry 2 was overwritten.** The forget gate is $0$ and the input gate $1$, so the cell equation reduces to $c_t = \tilde{c}_t$: the old $-1$ is erased and the candidate $0.8$ is written in.
+- **Entry 2 is also hidden from the output.** Its output gate is $0$, so $\bm{h}_t$ shows nothing of it, yet $0.8$ stays in the cell for later steps. The output gate appears only in the $\bm{h}_t$ equation, not in the $\bm{c}_t$ equation: it controls what is *read* now, not what is *stored*.
+
+**Answer:** $\bm{c}_t = (2, 0.8)$ and $\bm{h}_t \approx (0.964, 0)$; entry 1 kept, entry 2 overwritten and hidden.
+:::
+
+### Problem 7: Training loop or generation loop? {#prb-7}
+
+Both loops below run the decoder of a sequence-to-sequence model. In each, `c` is the encoder's context, `decoder_step` updates the decoder state, `W_o @ s` gives scores over the vocabulary, `BOS` and `EOS` are the special tokens, and `y` is the true output sequence.
+
+```python
+# Loop A
+s, inp, loss = c, BOS, 0
+for t in range(len(y)):
+    s = decoder_step(embed(inp), s)
+    loss += cross_entropy(W_o @ s, y[t])
+    inp = y[t]
+
+# Loop B
+s, inp, out = c, BOS, []
+while inp != EOS:
+    s = decoder_step(embed(inp), s)
+    inp = sample(softmax(W_o @ s))
+    out.append(inp)
+```
+
+Which loop uses teacher forcing? On the third pass through each loop, which token is fed in? Why may the encoder be bidirectional but not the decoder?
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+This uses [Week 6, Language modeling](week06.qmd#sec-language-modeling) (teacher forcing) and [Sequence-to-Sequence Learning](week06.qmd#sec-seq2seq).
+
+**The base equations.** The decoder models the output sentence with the chain rule of probability, now conditioned on the context $\bm{c}$:
+
+$$p(\bm{y}_1, \dots, \bm{y}_{T'} \mid \bm{c}) = \prod_{t'=1}^{T'} p(\bm{y}_{t'} \mid \bm{y}_{1}, \dots, \bm{y}_{t'-1}, \bm{c}).$$
+
+Its state carries the previous output forward, $\bm{s}_{t'} = g(\bm{y}_{t'-1}, \bm{s}_{t'-1}, \bm{c})$, and each factor is a softmax over the scores $\bm{W}_o \bm{s}_{t'}$. Training minimizes the cross-entropy, which is the negative log of the product above:
+
+$$\mathcal{L} = -\sum_{t'=1}^{T'} \log p(\bm{y}_{t'} \mid \bm{y}_{1}, \dots, \bm{y}_{t'-1}, \bm{c}).$$
+
+The one question both loops must answer is: which $\bm{y}_{t'-1}$ goes into $g$? Training can use the true one, because the target sentence is known. Generation has no target, so it must use the token it just produced.
+
+**Loop A is training with teacher forcing.** Each pass adds one term of $\mathcal{L}$: `cross_entropy(W_o @ s, y[t])` is $-\log$ of the softmax probability of the true token. It then sets `inp = y[t]`, so the next input is the *true* token, whatever the model predicted. That is the definition of teacher forcing.
+
+**Loop B is generation.** It has no loss and no access to `y`. It samples a token from the model's own distribution, $\hat{\bm{y}}_{t'} \sim p(\cdot \mid \hat{\bm{y}}_1, \dots, \hat{\bm{y}}_{t'-1}, \bm{c})$, and feeds *that* back in. That is autoregressive sampling, and it stops when the model produces `EOS`.
+
+**The third pass.** Both start by feeding `BOS`. Python counts from $0$, so `y[0]` is $\bm{y}_1$.
+
+- Loop A: pass 1 feeds `BOS`, pass 2 feeds `y[0]`, pass 3 feeds `y[1]`, the true second output token.
+- Loop B: pass 1 feeds `BOS`, pass 2 feeds the first sampled token, pass 3 feeds the second sampled token, which may differ from the true one.
+
+**Why only the encoder can be bidirectional.** Look at what each factor of the product above conditions on: only the earlier outputs $\bm{y}_1, \dots, \bm{y}_{t'-1}$ and $\bm{c}$. A backward pass over the decoder would make $\bm{s}_{t'}$ depend on later outputs $\bm{y}_{t'+1}, \dots$, which are not in that factor and do not exist yet at generation time. The encoder has no such constraint: its whole input is available before decoding starts, so reading it backward as well as forward uses nothing that is not already known. During training the true future tokens are available, but a decoder trained to look at them would be relying on information it will not have at generation time.
+
+**Answer:** Loop A uses teacher forcing; on the third pass it feeds the true `y[1]`, while Loop B feeds its own second sample; the decoder cannot read a future it has not generated yet.
+:::
+
+## Part 4: Official Week 7 quiz practice {#sec-w6p-official-quiz}
+
+The four questions below were provided by the course as Week 7 quiz practice, and they test Week 6 material. They are reproduced with the course's own numbers, in increasing order of difficulty, with worked answers.
+
+### Quiz question 1: A lookup-table autoregressive model (easy) {#quiz-1}
+
+The vocabulary has $3$ words and every sequence has exactly $4$ words. An autoregressive model stores, for every possible prefix (including the empty prefix), a separate categorical distribution over the next word. A categorical distribution over $3$ words has $2$ free parameters. How many free parameters does the model have in total?
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+This uses [Week 6, the chain rule of probability](week06.qmd#sec-chain-rule-prob) and [Autoregressive sampling](week06.qmd#sec-autoregressive), where the lecture explains why we want *one* model for every factor instead of a separate model for each.
+
+**The base equation.** An autoregressive model is built on the chain rule of probability. For a sequence of $T = 4$ words:
+
+$$
+\begin{aligned}
+p(\bm{x}_1, \bm{x}_2, \bm{x}_3, \bm{x}_4) = {}& p(\bm{x}_1)\, p(\bm{x}_2 \mid \bm{x}_1) \\
+&\cdot p(\bm{x}_3 \mid \bm{x}_1, \bm{x}_2)\, p(\bm{x}_4 \mid \bm{x}_1, \bm{x}_2, \bm{x}_3).
+\end{aligned}
+$$
+
+Factor $t$ is a distribution over the next word $\bm{x}_t$ given the prefix $\bm{x}_1, \dots, \bm{x}_{t-1}$, which has length $t - 1$. A "lookup table" model stores a separate distribution for **every value** that prefix can take. So we need two counts: how many free parameters one distribution has, and how many prefixes there are.
+
+**Free parameters of one distribution.** A [categorical distribution](https://en.wikipedia.org/wiki/Categorical_distribution) over $K$ words is a list of $K$ probabilities with one constraint:
+
+$$p_1 + p_2 + \dots + p_K = 1.$$
+
+Once $K - 1$ of them are chosen, the last is forced: $p_K = 1 - p_1 - \dots - p_{K-1}$. So only $K - 1$ numbers are free. With $K = 3$, that is the stem's $2$.
+
+**Number of prefixes.** Each position in a prefix can be any of the $K$ words, independently, so there are $K^{\,t-1}$ prefixes of length $t - 1$. With $K = 3$:
+
+| Factor | Prefix | Prefix length | Number of prefixes |
+|---|---|---|---|
+| $p(\bm{x}_1)$ | (empty) | 0 | $3^0 = 1$ |
+| $p(\bm{x}_2 \mid \bm{x}_1)$ | $\bm{x}_1$ | 1 | $3^1 = 3$ |
+| $p(\bm{x}_3 \mid \bm{x}_1, \bm{x}_2)$ | $\bm{x}_1, \bm{x}_2$ | 2 | $3^2 = 9$ |
+| $p(\bm{x}_4 \mid \bm{x}_1, \bm{x}_2, \bm{x}_3)$ | $\bm{x}_1, \bm{x}_2, \bm{x}_3$ | 3 | $3^3 = 27$ |
+
+A prefix of length $4$ is a finished sequence, and no factor conditions on it, so it needs no distribution.
+
+**Putting it together.** Each prefix has its own distribution with $K - 1$ free parameters, so
+
+$$N = \sum_{t=1}^{T} (K - 1)\, K^{\,t-1} = (K - 1)\,(1 + K + K^2 + \dots + K^{T-1}).$$
+
+With $K = 3$ and $T = 4$:
+
+$$N = 2 \times (1 + 3 + 9 + 27) = 2 \times 40 = 80.$$
+
+**A check with the geometric series.** The bracket is a geometric series, $1 + K + \dots + K^{T-1} = \dfrac{K^T - 1}{K - 1}$, so the $(K - 1)$ cancels:
+
+$$N = (K - 1) \cdot \frac{K^T - 1}{K - 1} = K^T - 1 = 3^4 - 1 = 80.$$
+
+This has a direct reading. There are $K^T = 81$ possible 4-word sequences, and simply listing a probability for each one takes $81$ numbers that sum to $1$, so $80$ free parameters. The lookup-table model has exactly the same count: the chain rule only reorganizes that full table, it does not compress it.
+
+That is the problem the lecture raises. The count grows exponentially with $T$, since each extra word multiplies the number of prefixes by $K$. A recurrent network avoids this by sharing one set of weights across every prefix, so its parameter count does not depend on the length at all ([Problem 2](#prb-2)).
+
+**Answer:** $80$.
+:::
+
+### Quiz question 2: Two ways to give an LSTM decoder the context (medium) {#quiz-2}
+
+The decoder of a sequence-to-sequence model is a single-layer LSTM with hidden size $8$ and $5$-dimensional input embeddings, with biases everywhere. The encoder's context vector $\bm{c}$ has dimension $8$. In Option A, $\bm{c}$ is concatenated to the embedding of the previous output token at every step, and the initial hidden state is zero. In Option B, the inputs are just the embeddings, and the initial hidden state is set to $\bm{c}$. How many more parameters does the LSTM have in Option A than in Option B?
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+This uses [Week 6, Long Short-Term Memory](week06.qmd#sec-lstm) for the parameter structure and [Sequence-to-Sequence Learning](week06.qmd#sec-seq2seq) for the two options.
+
+**The base equations.** Write $d$ for the size of the LSTM's input vector $\bm{x}_t$ and $H$ for the hidden size. One LSTM step is (with $\sigma$ the sigmoid):
+
+$$
+\begin{aligned}
+\bm{i}_t &= \sigma(\bm{W}_{xi}\bm{x}_t + \bm{W}_{hi}\bm{h}_{t-1} + \bm{b}_i), &
+\bm{f}_t &= \sigma(\bm{W}_{xf}\bm{x}_t + \bm{W}_{hf}\bm{h}_{t-1} + \bm{b}_f), \\
+\bm{o}_t &= \sigma(\bm{W}_{xo}\bm{x}_t + \bm{W}_{ho}\bm{h}_{t-1} + \bm{b}_o), &
+\tilde{\bm{c}}_t &= \tanh(\bm{W}_{xc}\bm{x}_t + \bm{W}_{hc}\bm{h}_{t-1} + \bm{b}_c),
+\end{aligned}
+$$
+
+$$\bm{c}_t = \bm{f}_t \odot \bm{c}_{t-1} + \bm{i}_t \odot \tilde{\bm{c}}_t, \qquad \bm{h}_t = \bm{o}_t \odot \tanh(\bm{c}_t).$$
+
+**Where the parameters are.** The last two equations have no parameters: they only add and multiply vectors entry by entry. All the parameters sit in the first four lines, which have the same shape. Each is a dense layer whose output has size $H$, fed by $\bm{x}_t$ (size $d$) and $\bm{h}_{t-1}$ (size $H$). Using the dense-layer rule from [Problem 2](#prb-2) (rows = outputs, columns = inputs):
+
+| Piece | Shape | Count |
+|---|---|---|
+| $\bm{W}_{x\cdot}$ | $H \times d$ | $Hd$ |
+| $\bm{W}_{h\cdot}$ | $H \times H$ | $H^2$ |
+| $\bm{b}_{\cdot}$ | $H$ | $H$ |
+
+Four blocks of this shape give
+
+$$N_{\text{LSTM}} = 4\,(Hd + H^2 + H).$$
+
+Only $d$ depends on the choice of input. That is the whole question: find $d$ in each option.
+
+**Option A.** The input is the concatenation $\bm{x}_t = [\,\text{embed}(\bm{y}_{t'-1});\ \bm{c}\,]$: the $5$ embedding entries stacked on top of the $8$ context entries, so $d = 5 + 8 = 13$. With $H = 8$:
+
+$$N_A = 4\,(8 \cdot 13 + 8^2 + 8) = 4\,(104 + 64 + 8) = 4 \times 176 = 704.$$
+
+**Option B.** The input is just the embedding, so $d = 5$:
+
+$$N_B = 4\,(8 \cdot 5 + 8^2 + 8) = 4\,(40 + 64 + 8) = 4 \times 112 = 448.$$
+
+Setting the initial state $\bm{h}_0 = \bm{c}$ adds no parameters: $\bm{c}$ is a value computed by the encoder, not a weight the decoder learns. It only works because $\bm{c}$ has the same size as the hidden state ($8 = H$), which is why the question sets them equal.
+
+**The difference.** Subtract the two formulas. The $H^2$ and $H$ terms are identical and cancel:
+
+$$N_A - N_B = 4H\,(d_A - d_B) = 4 \cdot 8 \cdot (13 - 5) = 256.$$
+
+In words: widening the input by the $8$ context entries adds $8$ columns to each of the four $\bm{W}_{x\cdot}$ matrices, which is $8 \times 8 = 64$ new weights per block. As a check, $704 - 448 = 256$.
+
+**Answer:** $256$.
+:::
+
+### Quiz question 3: How the first input reaches the loss (medium-hard) {#quiz-3}
+
+A scalar linear RNN has $h_t = w\, h_{t-1} + x_t$ with $w = -2$ and $h_0 = 0$. The loss is $\mathcal{L} = \sum_{t=1}^{6} h_t$. What is $\dfrac{\partial \mathcal{L}}{\partial x_1}$?
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+This uses [Week 6, The Vanilla Recurrent Neural Network](week06.qmd#sec-vanilla-rnn), where $\bm{h}_t$ carries information about every past input, and the linear case in [Why recurrent networks are hard to train](week06.qmd#sec-exploding-vanishing).
+
+**The base equation: unroll the recurrence.** Substitute $h_t = w\, h_{t-1} + x_t$ into itself, starting from $h_0 = 0$:
+
+$$
+\begin{aligned}
+h_1 &= w \cdot 0 + x_1 = x_1, \\
+h_2 &= w\, h_1 + x_2 = w\, x_1 + x_2, \\
+h_3 &= w\, h_2 + x_3 = w^2 x_1 + w\, x_2 + x_3.
+\end{aligned}
+$$
+
+Each step multiplies everything already in $h$ by $w$ and adds the new input. So an input that entered at step $k$ has been multiplied by $w$ once for each of the $t - k$ steps since, giving the scalar version of the pattern in [Problem 3](#prb-3):
+
+$$h_t = \sum_{k=1}^{t} w^{\,t-k}\, x_k.$$
+
+**How $x_1$ reaches each $h_t$.** Only the $k = 1$ term contains $x_1$, and it is $w^{\,t-1} x_1$. Treating $w$ and the other inputs as constants:
+
+$$\frac{\partial h_t}{\partial x_1} = w^{\,t-1}.$$
+
+**Summing over the loss.** The loss adds the six hidden states, and the derivative of a sum is the sum of the derivatives:
+
+$$\frac{\partial \mathcal{L}}{\partial x_1} = \sum_{t=1}^{6} \frac{\partial h_t}{\partial x_1} = \sum_{t=1}^{6} w^{\,t-1} = \sum_{t=1}^{6} (-2)^{t-1}.$$
+
+**The terms.** For $t = 1, \dots, 6$ they are $1,\ -2,\ 4,\ -8,\ 16,\ -32$. The sign alternates because each step multiplies by a negative number, and the size doubles because $|w| = 2 > 1$. The later terms dominate: this is a small exploding-gradient example, where an input's influence on far-later steps grows instead of fading.
+
+Adding them: $1 - 2 = -1$, then $-1 + 4 = 3$, $3 - 8 = -5$, $-5 + 16 = 11$, $11 - 32 = -21$.
+
+**Check 1: the geometric series.** The sum is a geometric series with ratio $r = w = -2$ and $n = 6$ terms:
+
+$$\sum_{t=1}^{6} (-2)^{t-1} = \frac{(-2)^6 - 1}{-2 - 1} = \frac{64 - 1}{-3} = -21.$$
+
+**Check 2: the backward pass.** Backpropagation computes the same number without unrolling, by passing the gradient backward one step at a time. Write $g_t = d\mathcal{L}/dh_t$, counting every path from $h_t$ to the loss. The state $h_t$ reaches $\mathcal{L}$ along two paths: directly, since $h_t$ is one of the summed terms (contributing $1$), and through $h_{t+1} = w\, h_t + x_{t+1}$ (contributing $w$ times $g_{t+1}$). So
+
+$$g_t = 1 + w\, g_{t+1}, \qquad g_6 = 1,$$
+
+where $g_6 = 1$ because $h_6$ has no later step. Going backward with $w = -2$:
+
+$$g_6 = 1,\quad g_5 = -1,\quad g_4 = 3,\quad g_3 = -5,\quad g_2 = 11,\quad g_1 = -21.$$
+
+Finally $x_1$ enters only through $h_1 = w\, h_0 + x_1$, with $\partial h_1 / \partial x_1 = 1$, so $\partial \mathcal{L} / \partial x_1 = g_1 \cdot 1 = -21$. All three methods agree.
+
+**Answer:** $-21$.
+:::
+
+### Quiz question 4: Backpropagation through time with a ReLU (hard) {#quiz-4}
+
+A scalar ReLU RNN has $h_t = \operatorname{ReLU}(w\, h_{t-1} + x_t)$ with $h_0 = 0$ and $w = 2$. The inputs are $(x_1, \dots, x_6) = (1, 1, -8, 2, 1, 1)$, and the loss is $\mathcal{L} = \sum_{t=1}^{6} h_t$. What is $\dfrac{d\mathcal{L}}{dw}$? Use $\operatorname{ReLU}'(z) = 1$ for $z > 0$ and $0$ for $z < 0$; no pre-activation here is exactly $0$.
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+This uses [Week 6, Total versus partial derivatives](week06.qmd#sec-total-partial) and [The recurrent term](week06.qmd#sec-bptt-term), with the [ReLU](https://en.wikipedia.org/wiki/Rectifier_(neural_networks)) from Week 2 as the activation.
+
+**The base equations.** Split each step into the pre-activation and the activation:
+
+$$z_t = w\, h_{t-1} + x_t, \qquad h_t = \operatorname{ReLU}(z_t) = \max(0, z_t).$$
+
+The loss is a sum, so its derivative is the sum of the derivatives of the hidden states:
+
+$$\frac{d\mathcal{L}}{dw} = \sum_{t=1}^{6} \frac{dh_t}{dw} = \sum_{t=1}^{6} a_t, \qquad a_t = \frac{dh_t}{dw}.$$
+
+So the job is to find each $a_t$. These are total derivatives: they count every path from $w$ to $h_t$.
+
+**Deriving the recursion for $a_t$.** Apply the calculus chain rule through the ReLU, then differentiate $z_t$:
+
+$$a_t = \frac{dh_t}{dw} = \operatorname{ReLU}'(z_t) \cdot \frac{dz_t}{dw}.$$
+
+Write $r_t = \operatorname{ReLU}'(z_t)$, which is $1$ when $z_t > 0$ and $0$ when $z_t < 0$. In $z_t = w\, h_{t-1} + x_t$, the input $x_t$ does not depend on $w$, but **both** factors of $w\, h_{t-1}$ do, so the [product rule](https://en.wikipedia.org/wiki/Product_rule) gives two terms:
+
+$$\frac{dz_t}{dw} = \frac{d}{dw}(w\, h_{t-1}) = 1 \cdot h_{t-1} + w \cdot \frac{dh_{t-1}}{dw} = h_{t-1} + w\, a_{t-1}.$$
+
+These are the two paths from the week chapter. The term $h_{t-1}$ is the direct path ($w$ used at step $t$), and $w\, a_{t-1}$ is the indirect path ($w$ already changed $h_{t-1}$). Together:
+
+$$a_t = r_t\,\big(h_{t-1} + w\, a_{t-1}\big), \qquad a_0 = 0.$$
+
+This is $a_t = b_t + c_t\, a_{t-1}$ with $b_t = r_t\, h_{t-1}$ and $c_t = r_t\, w$. The ReLU's slope $r_t$ multiplies both paths, so when a unit is off ($r_t = 0$), no gradient passes through that step at all.
+
+**Forward pass.** The recursion needs $h_{t-1}$ and $r_t$ at every step, so compute those first with $w = 2$:
+
+| $t$ | $x_t$ | $z_t = 2h_{t-1} + x_t$ | $h_t = \max(0, z_t)$ | $r_t$ |
+|---|---|---|---|---|
+| 1 | 1 | $2 \cdot 0 + 1 = 1$ | 1 | 1 |
+| 2 | 1 | $2 \cdot 1 + 1 = 3$ | 3 | 1 |
+| 3 | $-8$ | $2 \cdot 3 - 8 = -2$ | 0 | 0 |
+| 4 | 2 | $2 \cdot 0 + 2 = 2$ | 2 | 1 |
+| 5 | 1 | $2 \cdot 2 + 1 = 5$ | 5 | 1 |
+| 6 | 1 | $2 \cdot 5 + 1 = 11$ | 11 | 1 |
+
+**The recursion, step by step.** Now apply $a_t = r_t\,(h_{t-1} + w\, a_{t-1})$, reading $h_{t-1}$ and $r_t$ from the table:
+
+- $a_1 = 1 \cdot (h_0 + 2a_0) = 1 \cdot (0 + 0) = 0$.
+- $a_2 = 1 \cdot (h_1 + 2a_1) = 1 \cdot (1 + 0) = 1$.
+- $a_3 = 0 \cdot (h_2 + 2a_2) = 0 \cdot (3 + 2) = 0$.
+- $a_4 = 1 \cdot (h_3 + 2a_3) = 1 \cdot (0 + 0) = 0$.
+- $a_5 = 1 \cdot (h_4 + 2a_4) = 1 \cdot (2 + 0) = 2$.
+- $a_6 = 1 \cdot (h_5 + 2a_5) = 1 \cdot (5 + 4) = 9$.
+
+**Why step 3 matters.** At step 3 the pre-activation is negative, so the ReLU outputs $0$ and its slope is $0$. That cuts the gradient twice: $r_3 = 0$ sets $a_3 = 0$, wiping out everything carried from steps 1 and 2, and $h_3 = 0$ makes the direct term of step 4, $h_3$, also $0$. Changing $w$ slightly changes $h_1$ and $h_2$, but $h_3$ stays $0$, so nothing after it notices. The gradient restarts from step 4.
+
+**Summing over the loss.**
+
+$$\frac{d\mathcal{L}}{dw} = a_1 + a_2 + a_3 + a_4 + a_5 + a_6 = 0 + 1 + 0 + 0 + 2 + 9 = 12.$$
+
+**Check: expand and differentiate.** For $w$ near $2$, step 3 stays switched off, since $z_3 = w(w + 1) - 8$ is negative there. Each $h_t$ is then a polynomial in $w$:
+
+| $t$ | $h_t$ as a function of $w$ | $dh_t/dw$ | at $w = 2$ |
+|---|---|---|---|
+| 1 | $1$ | $0$ | 0 |
+| 2 | $w + 1$ | $1$ | 1 |
+| 3 | $0$ | $0$ | 0 |
+| 4 | $w \cdot 0 + 2 = 2$ | $0$ | 0 |
+| 5 | $2w + 1$ | $2$ | 2 |
+| 6 | $w(2w + 1) + 1 = 2w^2 + w + 1$ | $4w + 1$ | 9 |
+
+The last column matches $a_1, \dots, a_6$ and sums to $12$. The recursion is what we would use for a long sequence, but on a short one, expanding is a reliable way to check it.
+
+**Answer:** $12$.
+:::

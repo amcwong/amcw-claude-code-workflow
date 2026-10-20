@@ -28,6 +28,22 @@ $$p(x_{1:T}) = \prod_{t=1}^T p(x_t\mid x_{t-1},\dots,x_1), \qquad p(x_1\mid x_0)
 
 The factor for $x_t$ conditions on all $t-1$ earlier values. If each $x_t$ takes $K$ values, specifying that factor as a table needs on the order of $K^{t}$ numbers, so the factorization is exact but quickly intractable. The same lesson as Week 2 applies: to get a usable model, we must assume some conditional independence.
 
+::: {.callout-tip collapse="true" .clarification title="Recap: From independent to dependent samples"}
+What the symbols stand for:
+
+- $x_{1:T} = \{x_1, \dots, x_T\}$: a sequence of $T$ values, indexed by time or position.
+- $p(x_t \mid x_{t-1}, \dots, x_1)$: the distribution of the value at step $t$ given everything before it.
+- $p(x_1 \mid x_0) := p(x_1)$: a convention so the first factor has nothing to condition on.
+- $K$: the number of values each $x_t$ can take.
+
+Taking the chain rule apart:
+
+- Each factor predicts one step from the whole history. Multiplying them in order rebuilds the joint exactly, with no assumptions.
+- The factor for step $t$ has $t - 1$ conditioning variables, each with $K$ values, so its table has about $K^{t}$ entries. The tables grow with every step.
+
+A teaching example. Take $K = 3$ and $T = 4$. The four factor tables have $3$, $3^2 = 9$, $3^3 = 27$, and $3^4 = 81$ entries, for $120$ in total. A fifth step would add $243$ more. The next section's Markov assumption caps every table after the first at $3 \times 3 = 9$ entries.
+:::
+
 ## Markov chains {#sec-markov}
 
 What is the simplest assumption that makes the chain rule manageable? Let each value depend on the past only through the most recent value.
@@ -60,6 +76,27 @@ The lecture considers only stationary chains from here on. The word "stationary"
 - **$m$-th order:** $p(x_t\mid x_{1:t-1}) = p(x_t\mid x_{t-1:t-m})$.
 
 The rest of the lecture uses first-order chains.
+
+::: {.callout-tip collapse="true" .clarification title="Recap: Markov chains"}
+What the symbols stand for:
+
+- $x_t$: the state at time $t$.
+- $x_{1:t-1}$: the whole history before time $t$.
+- $p(x_t \mid x_{t-1})$: the one-step transition, how the next state depends on the current one.
+- $m$: the order of a higher-order chain, how many past steps it remembers.
+
+Taking the equations apart:
+
+- $p(x_t \mid x_{1:t-1}) = p(x_t \mid x_{t-1})$: of the whole history, only the most recent state matters.
+- $p(x_{1:T}) = \prod_t p(x_t \mid x_{t-1})$: the joint of a sequence is the start probability times one transition per step.
+- Stationary (homogeneous) chain: the same transition table is used at every step, so $p(x_{t+1} = y \mid x_t = x)$ does not depend on $t$.
+
+A teaching example using the two-state chain of the next section ($\alpha = 0.1$, $\beta = 0.3$, so staying in state 1 has probability $0.9$, moving 1 to 2 has $0.1$, staying in 2 has $0.7$). Start in each state with probability $0.5$. The path $1, 1, 2, 2$ has probability
+
+$$p(1)\,p(1 \mid 1)\,p(2 \mid 1)\,p(2 \mid 2) = 0.5 \times 0.9 \times 0.1 \times 0.7 = 0.0315.$$
+
+The same table was reused at every step because the chain is stationary. A second-order chain on these two states would need a table of $2^2 \times 2 = 8$ entries (one row per pair of past states) instead of $2 \times 2 = 4$.
+:::
 
 ## Transition matrices and state transition diagrams {#sec-transition}
 
@@ -122,6 +159,27 @@ $$A = \begin{pmatrix} 0.9 & 0.1 \\ 0.3 & 0.7\end{pmatrix}.$$
 
 In this chapter $\alpha$ and $\beta$ are always the two transition probabilities of this chain. (From @sec-mh on, the same letter $\alpha$ is also used for an acceptance probability; we will say so each time.)
 
+::: {.callout-tip collapse="true" .clarification title="Recap: Transition matrices and state transition diagrams"}
+What the symbols stand for:
+
+- $K$: the number of states.
+- $A_{ij} = p(x_t = j \mid x_{t-1} = i)$: row $i$ (where we are), column $j$ (where we go next).
+- $p(x_t = j)$: the probability of being in state $j$ at time $t$.
+- $\alpha$, $\beta$: the two leave-probabilities of the running two-state chain.
+
+Taking the equations apart:
+
+- $\sum_j A_{ij} = 1$: from state $i$ the chain must go somewhere, so each row is a distribution.
+- $p(x_t = j) = \sum_i A_{ij}\,p(x_{t-1} = i)$: to be in $j$ now, the chain was in some $i$ a step ago and then moved to $j$. Add up those routes.
+
+A teaching example with $A = \begin{pmatrix} 0.9 & 0.1 \\ 0.3 & 0.7 \end{pmatrix}$ and the chain equally likely to be in either state at time $t-1$.
+
+- $p(x_t = 1) = 0.5(0.9) + 0.5(0.3) = 0.6$.
+- $p(x_t = 2) = 0.5(0.1) + 0.5(0.7) = 0.4$.
+
+One step moved probability toward state 1, which is easier to stay in. The column sums of $A$ ($1.2$ and $0.8$) are not 1, and they do not need to be.
+:::
+
 ## n-step transitions and the Chapman-Kolmogorov equations {#sec-nstep}
 
 $A$ answers "where can I be after one step?" What about after $n$ steps?
@@ -149,6 +207,27 @@ So the $n$-step transition matrix is just the $n$-th power of the one-step matri
 $$A^2 = \begin{pmatrix} 0.9 & 0.1 \\ 0.3 & 0.7\end{pmatrix}\begin{pmatrix} 0.9 & 0.1 \\ 0.3 & 0.7\end{pmatrix}$$
 $$= \begin{pmatrix} 0.84 & 0.16 \\ 0.48 & 0.52\end{pmatrix}.$$
 Check the top-right entry by the sum over intermediate states: from 1 to 2 in two steps, either stay at 1 then move ($0.9\times0.1$) or move to 2 then stay ($0.1\times0.7$), for a total of $0.09+0.07=0.16$. Each row of $A^2$ still sums to 1, as it must.
+:::
+
+::: {.callout-tip collapse="true" .clarification title="Recap: n-step transitions and the Chapman-Kolmogorov equations"}
+What the symbols stand for:
+
+- $A_{ij}(n) = p(x_{t+n} = j \mid x_t = i)$: the probability of going from $i$ to $j$ in exactly $n$ steps.
+- $k$: an intermediate state, where the chain is after the first $m$ steps.
+- $A^n$: the matrix $A$ multiplied by itself $n$ times.
+
+Taking the equation apart:
+
+$$A_{ij}(m+n) = \sum_k A_{ik}(m)\;A_{kj}(n)$$
+
+- Every $(m+n)$-step route from $i$ to $j$ passes through some state $k$ at step $m$. Add up over all $k$.
+- That sum is exactly how a matrix product is computed, so $A(m+n) = A(m)A(n)$ and $A(n) = A^n$.
+
+A teaching example: three steps from state 1 to state 2 with $\alpha = 0.1$, $\beta = 0.3$. Use $m = 2$ and $n = 1$ with $A^2$ from the worked example above:
+
+$$A_{12}(3) = A_{11}(2)\,A_{12} + A_{12}(2)\,A_{22} = 0.84(0.1) + 0.16(0.7) = 0.196.$$
+
+The full first row of $A^3$ is $(0.804, 0.196)$. These numbers reappear in @sec-unique as the distribution after three steps from state 1.
 :::
 
 ## Application: Markov language models {#sec-langmodel}
@@ -246,6 +325,28 @@ These are the arrows of Figure 2. The fitted model then scores sentences, for ex
 $$p(\text{I don't like snails}) = \hat\pi_{\text{I}}\cdot\tfrac13\cdot1\cdot\tfrac13 = \tfrac19.$$
 :::
 
+::: {.callout-tip collapse="true" .clarification title="Recap: Application: Markov language models"}
+What the symbols stand for:
+
+- $K$: the vocabulary size. $x_t$: the $t$-th word of a sentence.
+- $\pi_j$: the probability that a sentence starts with word $j$.
+- $A_{jk}$: the probability that word $k$ comes right after word $j$.
+- $\mathbf{1}[\cdot]$: the indicator, 1 if the condition holds and 0 otherwise.
+- $N^1_j$: how many sentences start with $j$. $N_{jk}$: how many times $k$ directly follows $j$ in the corpus.
+
+Taking the equations apart:
+
+- $p(x_{1:T} \mid \theta) = \pi(x_1)\,A(x_1, x_2)\cdots A(x_{T-1}, x_T)$: a start probability, then one transition per later word.
+- The indicator version raises every parameter to the power "how many times it is used". Unused parameters get power 0 and contribute 1.
+- The log-likelihood becomes counts times log-parameters, the Multinomial shape from Week 1, so each MLE is a count over a total.
+
+A teaching example with an invented four-sentence corpus: "I like snails", "I like turtles", "turtles like snails", "I don't like turtles".
+
+- Starts: "I" 3 times, "turtles" once, so $\hat\pi_{\text{I}} = 0.75$ and $\hat\pi_{\text{turtles}} = 0.25$.
+- After "I": "like" 2, "don't" 1, giving $2/3$ and $1/3$. After "like": "snails" 2, "turtles" 2, giving $0.5$ each. After "turtles" and after "don't": "like" every time, giving 1.
+- $p(\text{turtles like snails}) = 0.25 \times 1 \times 0.5 = 0.125$.
+:::
+
 ## The stationary distribution {#sec-stationary}
 
 Run a chain for a long time. Does the probability of being in each state settle down, and if so, to what?
@@ -285,6 +386,28 @@ The vector $v=(3,1)^\top$ satisfies $A^\top v=v$: $0.9\cdot3+0.3\cdot1=3$ and $0
 For general $\alpha,\beta>0$, the second equation of $A^\top\pi=\pi$ reads $\alpha\pi_1+(1-\beta)\pi_2=\pi_2$, that is $\alpha\pi_1=\beta\pi_2$. Together with $\pi_1+\pi_2=1$,
 $$\pi = \Big(\frac{\beta}{\alpha+\beta},\ \frac{\alpha}{\alpha+\beta}\Big).$$
 The chain spends more time in the state that is harder to leave: state 1 is left with probability $\alpha=0.1$ per step, state 2 with probability $\beta=0.3$, so state 1 gets three times the long-run probability.
+:::
+
+::: {.callout-tip collapse="true" .clarification title="Recap: The stationary distribution"}
+What the symbols stand for:
+
+- $\pi_t$: a column vector, the distribution over states at time $t$. $\pi_0$ is the starting distribution.
+- $A^\top$: the transpose of $A$, rows and columns swapped.
+- $\pi$: a stationary distribution, one that one more step leaves unchanged.
+- $v$: an eigenvector of $A^\top$ with eigenvalue 1, which we rescale to get $\pi$.
+
+Taking the equations apart:
+
+- $\pi_t = A^\top \pi_{t-1}$: the update from @sec-transition written for all states at once. The transpose appears because we sum over the "from" index of $A$.
+- $\pi = A^\top \pi$, or $\pi_j = \sum_i \pi_i A_{ij}$: the probability flowing into each state equals the probability already there.
+- Solving $A^\top v = v$ and dividing $v$ by its sum gives $\pi$.
+
+A teaching example with a different two-state chain, $\alpha = 0.4$ and $\beta = 0.1$, so $A = \begin{pmatrix} 0.6 & 0.4 \\ 0.1 & 0.9 \end{pmatrix}$. The formula gives $\pi = \big(\tfrac{0.1}{0.5}, \tfrac{0.4}{0.5}\big) = (0.2, 0.8)$. Check one step:
+
+- $\pi_1' = 0.2(0.6) + 0.8(0.1) = 0.2$.
+- $\pi_2' = 0.2(0.4) + 0.8(0.9) = 0.8$.
+
+Unchanged, so $(0.2, 0.8)$ is stationary. State 2 is now the sticky one (left with probability only $0.1$), so it gets the larger share.
 :::
 
 ## When is the stationary distribution unique? {#sec-unique}
@@ -333,6 +456,28 @@ The converse is false: a chain can have a stationary distribution without satisf
 
 ::: {.callout-note}
 **Worked example: detailed balance on the two-state chain.** There is only one pair of distinct states, so detailed balance is the single equation $\pi_1\alpha=\pi_2\beta$. That is exactly the equation we solved in @sec-stationary. With $\alpha=0.1$, $\beta=0.3$ and $\pi=(0.75,0.25)$: $0.75\times0.1 = 0.075 = 0.25\times0.3$. Every two-state chain with $\alpha,\beta>0$ is therefore time reversible.
+:::
+
+::: {.callout-tip collapse="true" .clarification title="Recap: Detailed balance"}
+What the symbols stand for:
+
+- $\pi_i A_{ij}$: the probability of being in state $i$ and then stepping to $j$, the flow from $i$ to $j$.
+- $\pi_j A_{ji}$: the flow in the opposite direction.
+- (DB): the step in the proof that uses detailed balance.
+
+Taking the equations apart:
+
+- $\pi_i A_{ij} = \pi_j A_{ji}$: for every pair of states, the two directions carry equal flow.
+- The proof: the total flow into $j$ is $\sum_i \pi_i A_{ij}$. Replace each term by its reverse flow $\pi_j A_{ji}$. Pulling out $\pi_j$ leaves row $j$ of $A$, which sums to 1. So the inflow equals $\pi_j$, which is stationarity.
+- It runs in the direction MCMC needs: pick $\pi$ first, then choose $A$ to satisfy one equation per pair.
+
+A teaching example: design a three-state chain whose stationary distribution is $\pi = (0.5, 0.25, 0.25)$.
+
+- Choose $A_{12} = 0.1$. Detailed balance forces $A_{21} = 0.5(0.1)/0.25 = 0.2$.
+- Choose $A_{13} = 0.1$, which forces $A_{31} = 0.2$. Choose $A_{23} = 0.3$, which forces $A_{32} = 0.3$.
+- Fill the diagonals so rows sum to 1: $A_{11} = 0.8$, $A_{22} = 0.5$, $A_{33} = 0.5$.
+
+Check state 1: inflow $= 0.5(0.8) + 0.25(0.2) + 0.25(0.2) = 0.5 = \pi_1$. We never solved an eigenvector problem; we built the chain pair by pair.
 :::
 
 ## Why MCMC {#sec-whymcmc}
@@ -388,6 +533,22 @@ The lake picture from Week 4 (@sec-hardz in Week 4) fits this exactly. We can me
 
 ::: {.callout-note}
 **Homework-relevant.** Assignment 2's TrueSkill question (@sec-trueskill in Week 4) approximates the posterior over player skills by MCMC and then summarizes it with sample averages: posterior means, standard deviations, and probabilities written as expectations of indicators (@sec-goals in Week 4). The ideas to bring to it are the ones above: the chain targets a posterior known only up to $Z$, early samples are not yet from that posterior, and every summary is an average over the chain. The specific estimates are left to the assignment.
+:::
+
+::: {.callout-tip collapse="true" .clarification title="Recap: Why MCMC"}
+What the symbols stand for:
+
+- $q(x' \mid x^{(t)})$: the local proposal, a distribution over candidate next states that depends on the current state.
+- $x^{(t)}$: the state of the chain at iteration $t$ (the whole state, possibly a vector).
+- Burn-in: the early iterations we throw away because the chain has not reached $p$ yet.
+- $1.1^{-d}$: the rejection-sampling acceptance rate in the tutorial's example, in $d$ dimensions.
+
+Taking the equations apart:
+
+- $1.1^{-d}$: a proposal only 10% too wide per coordinate loses a factor of $1.1$ per dimension. At $d = 10$ that is about $0.39$; at $d = 100$ it is about $7 \times 10^{-5}$.
+- $\mathbb{E}_p[\phi(x)] \approx \frac{1}{T}\sum_t \phi(x^{(t)})$: the same average as simple Monte Carlo, now over a chain. It still works, but the variance is no longer $\mathrm{var}[\phi]/T$, because neighbouring samples are correlated.
+
+A teaching example using the two-state chain with $\alpha = 0.1$, $\beta = 0.3$, whose stationary distribution is $(0.75, 0.25)$. Ten steps after burn-in visit states $1, 1, 1, 2, 1, 1, 2, 2, 1, 1$. Take $\phi(x) = \mathbf{1}[x = 1]$. The chain average is $7/10 = 0.7$, an estimate of $p(x = 1) = 0.75$. The 2s arrive in runs because the chain is sticky, which is the dependence that makes ten chain samples worth fewer than ten independent ones.
 :::
 
 ## The Metropolis-Hastings algorithm {#sec-mh}
@@ -456,6 +617,29 @@ Started deliberately far away at $\theta=0.9$ and run for 5000 steps with the fi
 
 So a high acceptance rate is not the goal in itself. What we want is a chain whose consecutive states are as uncorrelated as possible, because many nearly identical samples carry the information of far fewer independent ones. @sec-ess turns this into a number.
 
+::: {.callout-tip collapse="true" .clarification title="Recap: The Metropolis-Hastings algorithm"}
+What the symbols stand for:
+
+- $x^{(t)}$: the current state. $x'$: the proposed candidate.
+- $q(x' \mid x^{(t)})$: the probability of proposing $x'$ from $x^{(t)}$. $q(x^{(t)} \mid x')$: the probability of proposing the reverse move.
+- $\alpha(x' \mid x^{(t)})$: the acceptance probability (here $\alpha$ is not the two-state chain's transition probability).
+- In the baseball example: $\theta$ is the hit probability, $H$ and $N$ are hits and at-bats, and $\mathrm{Beta}(a, b)$ is a distribution on $(0,1)$ with density proportional to $\theta^{a-1}(1-\theta)^{b-1}$.
+
+Taking the acceptance probability apart:
+
+$$\alpha = \min\Bigg\{1,\ \frac{\tilde p(x')}{\tilde p(x^{(t)})}\;\frac{q(x^{(t)} \mid x')}{q(x' \mid x^{(t)})}\Bigg\}$$
+
+- The first ratio uses only $\tilde p$, so $Z$ cancels.
+- The second ratio is 1 for a symmetric proposal (Metropolis).
+- $\min\{1, \cdot\}$ caps the value at 1: favourable moves are always taken.
+- On rejection, the current state is recorded again.
+
+A teaching example on three states with $\tilde p = (1, 2, 3)$.
+
+- Symmetric proposal, current state 3, propose 1: $\alpha = \min\{1, 1/3\} = 1/3$. Propose 2 from 1: $\alpha = \min\{1, 2\} = 1$.
+- Biased proposal with $q(2 \mid 1) = 0.9$ and $q(1 \mid 2) = 0.3$. From 1, propose 2: $\alpha = \min\{1,\ \tfrac{2}{1} \cdot \tfrac{0.3}{0.9}\} = 2/3$. The move is uphill, yet it is not always accepted, because the proposal already sends the chain toward 2 three times as eagerly as it sends it back.
+:::
+
 ## Why Metropolis-Hastings works {#sec-mh-proof}
 
 We prove that the MH chain satisfies detailed balance with respect to $p$, which by the theorem of @sec-detailed makes $p$ stationary. The lecture writes the proof for a discrete state space with sums; the continuous case is the same with sums replaced by integrals.
@@ -485,6 +669,26 @@ The two minima contain the same two numbers, so they are equal. The MH chain sat
 
 As @sec-detailed warned, detailed balance gives stationarity, not convergence. Whether the chain actually reaches $p$ from its starting point, and how fast, depends on the proposal; the step-size experiments above and the diagnostics of @sec-diagnostics are the practical answer.
 
+::: {.callout-tip collapse="true" .clarification title="Recap: Why Metropolis-Hastings works"}
+What the symbols stand for:
+
+- $r(x' \mid x)$: the MH chain's actual transition probability, propose and then accept or reject.
+- $r(x \mid x)$: the stay-put probability.
+- $x''$: any proposal other than $x$, used inside the stay-put sum.
+
+Taking the proof apart:
+
+- Moving to $x' \neq x$ needs two things in a row: propose it, then accept it. So $r(x' \mid x) = q(x' \mid x)\,\alpha(x' \mid x)$.
+- Staying at $x$ happens if we propose $x$ itself, or propose something else and reject it.
+- Multiplying $r(x' \mid x)$ by $p(x)$ and pushing $p(x)\,q(x' \mid x)$ inside the minimum gives $\min\{p(x)q(x' \mid x),\ p(x')q(x \mid x')\}$. Swapping $x$ and $x'$ gives the same two numbers, so the flows match.
+
+A teaching example. Target $p = (\tfrac16, \tfrac26, \tfrac36)$ on $\{1, 2, 3\}$. From any state, propose each of the other two with probability $\tfrac12$.
+
+- $r(3 \mid 2) = \tfrac12 \min\{1, \tfrac32\} = \tfrac12$ and $r(2 \mid 3) = \tfrac12 \min\{1, \tfrac23\} = \tfrac13$.
+- Flows: $p(2)\,r(3 \mid 2) = \tfrac26 \cdot \tfrac12 = \tfrac16$ and $p(3)\,r(2 \mid 3) = \tfrac36 \cdot \tfrac13 = \tfrac16$. Equal, as the proof says.
+- From state 3: $r(1 \mid 3) = \tfrac12 \cdot \tfrac13 = \tfrac16$ and $r(2 \mid 3) = \tfrac13$, so $r(3 \mid 3) = 1 - \tfrac16 - \tfrac13 = \tfrac12$. Half the time the chain stays at the most probable state, which is why rejected proposals must be recorded.
+:::
+
 ## Gibbs sampling {#sec-gibbs}
 
 Metropolis-Hastings needs a proposal. If the target is a distribution over a vector, there is a natural proposal that never needs to be rejected: resample one coordinate at a time from its exact conditional distribution.
@@ -512,6 +716,26 @@ There is **no accept/reject step**: every draw is accepted. Gibbs sampling is us
 
 *A note from the reading (MLPP 24.3.2):* Gibbs sampling is a special case of Metropolis-Hastings. Updating coordinate $j$ is an MH step with proposal $q(x'\mid x)=p(x'_j\mid x_{-j})$ that leaves the other coordinates unchanged. Plugging this into the MH acceptance ratio, every factor cancels and the ratio is exactly 1, which is why every Gibbs draw is accepted. In particular, each Gibbs update satisfies detailed balance with respect to $p$ by @sec-mh-proof.
 
+::: {.callout-tip collapse="true" .clarification title="Recap: Gibbs sampling"}
+What the symbols stand for:
+
+- $x = (x_1, \dots, x_d)$: the state split into $d$ coordinates. The subscript is the coordinate, the superscript $(t)$ is the iteration.
+- $x_{-j}$: every coordinate except $x_j$, each at its most recent value.
+- $p(x_j \mid x_{-j})$: the full conditional of coordinate $j$.
+
+Taking the update apart:
+
+- Cycle through the coordinates. For each one, hold all the others fixed and draw a fresh value from its full conditional.
+- Coordinates already updated in this sweep are used at their new values.
+- There is no accept/reject step: as an MH proposal, the acceptance ratio is exactly 1.
+
+A teaching example on an Ising chain $x_1 - x_2 - x_3$ with spins in $\{-1, +1\}$, coupling $J = 0.5$, and no field. To update $x_2$ we need only its neighbours. Suppose currently $x_1 = +1$ and $x_3 = +1$. The terms with $x_2$ in the exponent are $0.5\,x_1 x_2 + 0.5\,x_2 x_3 = x_2$, so
+
+$$p(x_2 = +1 \mid x_1, x_3) = \frac{e^{1}}{e^{1} + e^{-1}} \approx 0.88.$$
+
+If instead $x_1 = +1$ and $x_3 = -1$, the two terms cancel and the conditional is $0.5$. Each update is a single biased coin flip, and $Z$ never appears.
+:::
+
 ## The conditional distribution of a bivariate Gaussian {#sec-gauss-cond}
 
 *Inserted prerequisite.* The lecture's Gibbs example relies on the conditional distributions of a two-dimensional Gaussian, which the slides describe as seen in a previous lecture but which have not appeared in these notes. Here is the case the example needs.
@@ -538,6 +762,29 @@ As a function of $x_1$ with $x_2$ fixed, complete the square: $x_1^2-2\rho x_1x_
 $$p(x_1\mid x_2)\propto\exp\Big\{-\frac{(x_1-\rho x_2)^2}{2(1-\rho^2)}\Big\},$$
 
 which is a Gaussian density in $x_1$ with mean $\rho x_2$ and variance $1-\rho^2$. By symmetry the same holds with the roles of $x_1$ and $x_2$ swapped.
+
+::: {.callout-tip collapse="true" .clarification title="Recap: The conditional distribution of a bivariate Gaussian"}
+What the symbols stand for:
+
+- $\mu = (\mu_1, \mu_2)$: the means of the two coordinates.
+- $\rho$: their correlation, between $-1$ and $1$. Each coordinate has variance 1.
+- $X_1 \mid X_2 = x_2$: the distribution of $X_1$ once we know $X_2$.
+
+Taking the conditional apart:
+
+$$X_1 \mid X_2 = x_2 \sim \mathcal{N}\big(\mu_1 + \rho\,(x_2 - \mu_2),\ 1 - \rho^2\big)$$
+
+- $x_2 - \mu_2$: how surprising the observed $x_2$ is. The shift is $\rho$ times that surprise.
+- $1 - \rho^2$: the variance after observing $x_2$. The fraction $\rho^2$ of $X_1$'s variance is explained by $X_2$.
+- With $\rho = 0$ nothing changes. As $\rho$ approaches $\pm 1$, knowing $x_2$ almost fixes $x_1$.
+
+A teaching example with $\mu = (1, 2)$ and an observed $x_2 = 4$, two units above its mean.
+
+- $\rho = 0.5$: mean $1 + 0.5 \times 2 = 2$, variance $1 - 0.25 = 0.75$.
+- $\rho = 0.9$: mean $1 + 0.9 \times 2 = 2.8$, variance $1 - 0.81 = 0.19$.
+
+Stronger correlation moves the mean further toward "also above average" and narrows the spread.
+:::
 
 ## Example: Gibbs sampling a bivariate Gaussian {#sec-gibbs-gauss}
 
@@ -591,6 +838,27 @@ After one full iteration, $x^{(1)}=(1.7,\ 1.2)$. The starting value $x^{(0)}_1=-
 :::
 
 **When Gibbs is slow.** Each move is parallel to a coordinate axis, with conditional standard deviation $\sqrt{1-\rho^2}$. The target, though, stretches along the diagonal with standard deviation 1 in each coordinate. With $\rho=0.8$ the steps are $0.6$, which is fine. With $\rho=0.99$ they shrink to about $0.14$, and the chain needs many small zig-zags to travel along the ridge. Strongly correlated coordinates are the typical failure case of Gibbs sampling, and they motivate the next method.
+
+::: {.callout-tip collapse="true" .clarification title="Recap: Example: Gibbs sampling a bivariate Gaussian"}
+What the symbols stand for:
+
+- $X^{(t)}_1$, $X^{(t)}_2$: the two coordinates at iteration $t$.
+- $x^{(t-1)}_2$: the old value of $x_2$, used to update $x_1$. $x^{(t)}_1$: the new value of $x_1$, used immediately to update $x_2$.
+- $\sqrt{1 - \rho^2}$: the standard deviation of each Gibbs move.
+
+Taking the two update lines apart:
+
+- Line 1: draw $x_1$ from its conditional given the latest $x_2$, as in @sec-gauss-cond.
+- Line 2: draw $x_2$ from its conditional given the $x_1$ just drawn.
+- Each line moves along one axis only, with step size about $\sqrt{1-\rho^2}$.
+
+A teaching example with a nonzero mean: $\mu = (1, -1)$, $\rho = 0.5$, start $x^{(0)} = (0, 0)$. Each conditional has variance $0.75$.
+
+- Update $x_1$ given $x_2 = 0$: mean $1 + 0.5(0 - (-1)) = 1.5$. Suppose the draw is $2.0$.
+- Update $x_2$ given $x_1 = 2.0$: mean $-1 + 0.5(2.0 - 1) = -0.5$. Suppose the draw is $-0.8$.
+
+So $x^{(1)} = (2.0, -0.8)$. Step sizes for other correlations: $\sqrt{1 - \rho^2}$ is $0.87$ at $\rho = 0.5$, $0.6$ at $\rho = 0.8$, and $0.14$ at $\rho = 0.99$.
+:::
 
 ## Hamiltonian Monte Carlo {#sec-hmc}
 
@@ -648,6 +916,31 @@ $$\frac{dH}{dt} = \nabla E(x)^\top\frac{dx}{dt} + v^\top\frac{dv}{dt} = \nabla E
 3. Accept or reject with the MH rule. With exact dynamics, energy is constant, so $p(x,v)=p(x',v')=p(x',-v')$ (flipping $v'$ does not change $K$), and the acceptance probability would be 1.
 
 In practice the dynamics can only be simulated approximately, which is where the next section comes in.
+
+::: {.callout-tip collapse="true" .clarification title="Recap: Hamiltonian Monte Carlo"}
+What the symbols stand for:
+
+- $x$: the position, the variable we want samples of.
+- $E(x) = -\log\tilde p(x)$: the potential energy. Low energy means high probability.
+- $v$: the momentum, an auxiliary variable of the same size as $x$.
+- $K(v) = \tfrac12\|v\|^2$: the kinetic energy.
+- $H(x, v) = E(x) + K(v)$: the total energy.
+- $t$: continuous time inside one simulated trajectory, not the chain's iteration count.
+
+Taking the equations apart:
+
+- $p(x, v) \propto e^{-E(x)}e^{-K(v)}$: the joint splits into a target part and a standard Gaussian part, so dropping $v$ leaves samples of $x$.
+- $dx/dt = v$: the position moves in the direction of the momentum.
+- $dv/dt = -\nabla E(x)$: the momentum is pushed downhill in energy, which is uphill in probability.
+- $dH/dt = 0$: the two effects exactly trade potential for kinetic energy, so the total stays constant.
+
+A teaching example with a standard Gaussian target in one dimension: $\tilde p(x) = e^{-x^2/2}$, so $E(x) = x^2/2$ and $\nabla E(x) = x$. Start at $x = 1$ with momentum $v = 1$, so $H = 0.5 + 0.5 = 1$. The exact solution of Hamilton's equations is $x(t) = \cos t + \sin t$, $v(t) = \cos t - \sin t$.
+
+- At $t = \pi/4$: $x = \sqrt{2} \approx 1.41$, $v = 0$, so $H = 1 + 0 = 1$. All the energy is potential.
+- At $t = \pi/2$: $x = 1$, $v = -1$, so $H = 1$. The ball has rolled out and come back.
+
+The total stays at 1 throughout, which is why exact dynamics would always be accepted.
+:::
 
 ## The leapfrog integrator and the HMC algorithm {#sec-leapfrog}
 
@@ -721,6 +1014,30 @@ The tutorial runs both samplers from the same corner for 300 iterations. Random-
 
 ::: {.callout-note}
 **Homework-relevant.** Assignment 2 (Q2.3 and Q2.4) samples TrueSkill posteriors with HMC, first for two players and then for a chess data set. The pieces to understand before starting it are in this section and the previous one: the energy is minus the log of the unnormalized posterior (log-prior plus log-likelihood), its gradient drives the leapfrog steps (the assignment's code writes them with the gradient of the log density, which is $-\nabla E$), and the accept step corrects for leapfrog error. Writing the posterior, choosing what to plot, and interpreting the samples are left to the assignment.
+:::
+
+::: {.callout-tip collapse="true" .clarification title="Recap: The leapfrog integrator and the HMC algorithm"}
+What the symbols stand for:
+
+- $\epsilon$: the leapfrog step size. $L$: the number of leapfrog steps per proposal.
+- $v(t + \tfrac\epsilon2)$: the momentum after a half step.
+- $(x', v')$: the end of the trajectory. $(x', -v')$: the proposal, with momentum flipped.
+- $\Delta H = H(x', v') - H(x, v)$: the energy error from discretizing.
+
+Taking one leapfrog step apart:
+
+- Half-kick: $v \leftarrow v - \tfrac\epsilon2 \nabla E(x)$, the momentum feels the slope for half a step.
+- Drift: $x \leftarrow x + \epsilon\,v$, the position moves a full step at the half-step momentum.
+- Half-kick: $v \leftarrow v - \tfrac\epsilon2 \nabla E(x)$, using the slope at the new position.
+- Accept with probability $\min\{1, e^{-\Delta H}\}$. A small energy error means a probability near 1.
+
+A teaching example. Continue the 1D Gaussian from @sec-hmc ($\nabla E(x) = x$), starting at $x = 1$, $v = 1$ (so $H = 1$), with one leapfrog step of size $\epsilon = 0.5$.
+
+- Half-kick: $v = 1 - 0.25 \times 1 = 0.75$.
+- Drift: $x = 1 + 0.5 \times 0.75 = 1.375$.
+- Half-kick: $v = 0.75 - 0.25 \times 1.375 \approx 0.406$.
+
+The new energy is $1.375^2/2 + 0.406^2/2 \approx 1.028$, so $\Delta H \approx 0.028$ and the acceptance probability is $e^{-0.028} \approx 0.97$. The exact dynamics would have reached $x \approx 1.357$, $v \approx 0.398$, so leapfrog is close but not exact. The accept step absorbs the difference.
 :::
 
 ## MCMC diagnostics {#sec-diagnostics}
@@ -798,6 +1115,29 @@ $$B=4\big[(0.25)^2+(0.25)^2\big]=0.5, \qquad \widehat{\mathrm{var}}^+ = \tfrac34
 The within-chain spreads are similar in both cases; what drives $\hat R$ is how far apart the chain means are.
 :::
 
+::: {.callout-tip collapse="true" .clarification title="Recap: The R-hat statistic"}
+What the symbols stand for:
+
+- $m$: the number of chains. $n$: draws per chain after burn-in.
+- $x_{ij}$: draw $i$ of chain $j$.
+- $\bar x_{\cdot j}$: the mean of chain $j$. $\bar x_{\cdot\cdot}$: the mean over all chains.
+- $s_j^2$: the sample variance inside chain $j$.
+- $B$: the between-chain variance. $W$: the average within-chain variance.
+
+Taking the equations apart:
+
+- $B = \frac{n}{m-1}\sum_j (\bar x_{\cdot j} - \bar x_{\cdot\cdot})^2$: how far the chain means sit from the overall mean, scaled by $n$.
+- $W = \frac{1}{m}\sum_j s_j^2$: how spread out a typical chain is internally.
+- $\widehat{\mathrm{var}}^+ = \frac{n-1}{n}W + \frac{1}{n}B$: a weighted mix of the two, mostly $W$, plus a share of $B$.
+- $\hat R = \sqrt{\widehat{\mathrm{var}}^+ / W}$: if the chain means agree, $B$ adds little and $\hat R \approx 1$.
+
+A teaching example, between the two cases of the worked example above. Two chains of three draws: chain 1 is $1, 2, 3$ and chain 2 is $2, 3, 4$. Each has sample variance 1, so $W = 1$. The chain means are 2 and 3 and the overall mean is $2.5$, so $B = \tfrac{3}{1}\big[(0.5)^2 + (0.5)^2\big] = 1.5$.
+
+$$\widehat{\mathrm{var}}^+ = \tfrac23(1) + \tfrac13(1.5) \approx 1.17, \qquad \hat R = \sqrt{1.17/1} \approx 1.08.$$
+
+The chains overlap but their centres differ by one unit, so $\hat R$ is slightly above 1: probably worth running longer.
+:::
+
 ## Effective sample size {#sec-ess}
 
 How much is a correlated sample worth? Start from i.i.d. draws. If $x_1,\dots,x_n$ are i.i.d. with variance $\sigma^2$, their mean has $\mathrm{var}(\bar x_n)=\sigma^2/n$ (@sec-simplemc in Week 4). Without assuming independence, the variance of a sum is the sum of all pairwise covariances, so
@@ -822,6 +1162,25 @@ In practice the $\rho_t$ are unknown and are themselves estimated from the chain
 **Worked example: what a correlation of 0.9 costs.** Suppose, for illustration, that the autocorrelation decays geometrically, $\rho_t=\rho^t$ (an assumption, not something the lecture claims about any particular sampler). Then $\sum_{t\ge1}\rho^t=\frac{\rho}{1-\rho}$ and
 $$1+\frac{2\rho}{1-\rho} = \frac{1+\rho}{1-\rho}.$$
 With lag-one correlation $\rho=0.9$, as for the tutorial's tiny-step chain ($\sigma=0.03$), this factor is $1.9/0.1=19$. So 5000 such samples would be worth only about $5000/19\approx260$ independent ones. This is the number behind the tutorial's warning that a high acceptance rate with tiny steps is not efficient.
+:::
+
+::: {.callout-tip collapse="true" .clarification title="Recap: Effective sample size"}
+What the symbols stand for:
+
+- $\sigma^2$: the variance of a single draw.
+- $\mathrm{corr}(x_i, x_j)$: the correlation between draws $i$ and $j$. On the diagonal ($i = j$) it is 1.
+- $\rho_t$: the autocorrelation at lag $t$, the correlation between draws $t$ steps apart.
+- $n_{\text{eff}}$: the number of independent draws that would give the same accuracy.
+
+Taking the equations apart:
+
+- $\mathrm{var}(\bar x) = \frac{\sigma^2}{n^2}\sum_{i,j}\mathrm{corr}(x_i, x_j)$: the variance of an average adds up every pair's correlation, not just the diagonal.
+- Matching this to $\sigma^2 / n_{\text{eff}}$ gives $n_{\text{eff}} = n^2 / \sum_{i,j}\mathrm{corr}(x_i, x_j)$. Independent draws give $n_{\text{eff}} = n$.
+- For a long chain the double sum is about $n(1 + 2\sum_t \rho_t)$: 1 for each draw with itself, and each lag counted twice (once above and once below the diagonal).
+
+A teaching example. Three draws with neighbouring correlation $0.5$ and lag-2 correlation $0.25$. The $3 \times 3$ correlation table has three 1s on the diagonal, four entries of $0.5$, and two of $0.25$, summing to $3 + 2 + 0.5 = 5.5$. So $n_{\text{eff}} = 9/5.5 \approx 1.6$: three correlated draws are worth fewer than two independent ones.
+
+For a longer run: four chains of 1000 draws with $\rho_1 = 0.5$, $\rho_2 = 0.2$, and later lags near 0 give $n_{\text{eff}} = 4000/(1 + 2 \times 0.7) = 4000/2.4 \approx 1667$.
 :::
 
 ## Diagnostics rule of thumb {#sec-rule}

@@ -221,6 +221,16 @@ window.Quarto = {
 </li>
         <li class="sidebar-item">
   <div class="sidebar-item-container"> 
+  <a href="../lectures/week06.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Week 6: HMMs and Variational Inference I</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../lectures/week06-practice.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Week 6 practice: HMMs and Variational Inference I</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
   <a href="../glossary.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Glossary</span></a>
   </div>
 </li>
@@ -319,6 +329,41 @@ window.Quarto = {
 <p>The <strong>conditional distribution</strong> <span class="math inline">p(H \mid Y)</span> is the distribution of <span class="math inline">H</span> once <span class="math inline">Y</span>’s value is known: <span class="math inline">p(H=h \mid Y=y) = \dfrac{p(H=h, Y=y)}{p(Y=y)}</span>.</p>
 </div>
 <p>The last identity (conditional equals joint divided by marginal) is <a href="https://en.wikipedia.org/wiki/Bayes%27_theorem">Bayes’ theorem</a> once you also expand the joint using the other factorization.</p>
+<div class="clarification callout callout-style-default callout-tip callout-titled" title="Recap: Joint, marginal, and conditional distributions">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-1-contents" aria-controls="callout-1" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Recap: Joint, marginal, and conditional distributions
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-1" class="callout-1-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>What the symbols stand for:</p>
+<ul>
+<li><span class="math inline">H</span> and <span class="math inline">Y</span>: two discrete random variables (health state and test result in the running example).</li>
+<li><span class="math inline">h</span> and <span class="math inline">y</span>: particular values those variables can take, such as <span class="math inline">h=1</span> or <span class="math inline">y=0</span>.</li>
+<li><span class="math inline">p(H=h, Y=y)</span>: the joint, one number per combination of values.</li>
+<li><span class="math inline">p(H=h)</span>: the marginal, the probability of <span class="math inline">H=h</span> when we ignore <span class="math inline">Y</span>.</li>
+<li><span class="math inline">p(H=h \mid Y=y)</span>: the conditional, the probability of <span class="math inline">H=h</span> once we know <span class="math inline">Y=y</span>.</li>
+</ul>
+<p>Taking the equations apart:</p>
+<p><span class="math display">p(H=h) = \sum_y p(H=h, Y=y)</span></p>
+<ul>
+<li>The left side asks about <span class="math inline">H</span> alone.</li>
+<li>The sum runs over every value <span class="math inline">Y</span> could take, so we add up every joint cell in which <span class="math inline">H=h</span>. Summing out <span class="math inline">Y</span> is what “ignoring <span class="math inline">Y</span>” means in symbols.</li>
+</ul>
+<p><span class="math display">p(H=h \mid Y=y) = \frac{p(H=h, Y=y)}{p(Y=y)}</span></p>
+<ul>
+<li>The numerator keeps only the cell where both events happen.</li>
+<li>The denominator is the total probability of the thing we learned, <span class="math inline">Y=y</span>. Dividing by it rescales the surviving cells so they sum to 1 again.</li>
+</ul>
+<p>A teaching example. Take a different test with this joint table: <span class="math inline">p(H{=}1,Y{=}1)=0.06</span>, <span class="math inline">p(H{=}1,Y{=}0)=0.04</span>, <span class="math inline">p(H{=}0,Y{=}1)=0.09</span>, <span class="math inline">p(H{=}0,Y{=}0)=0.81</span>. The four cells sum to 1. Marginalizing gives <span class="math inline">p(H{=}1) = 0.06 + 0.04 = 0.10</span> and <span class="math inline">p(Y{=}1) = 0.06 + 0.09 = 0.15</span>. Conditioning on a positive test keeps the <span class="math inline">Y{=}1</span> cells and rescales them: <span class="math inline">p(H{=}1 \mid Y{=}1) = 0.06/0.15 = 0.4</span> and <span class="math inline">p(H{=}0 \mid Y{=}1) = 0.09/0.15 = 0.6</span>, which sum to 1 as a distribution over <span class="math inline">H</span> should.</p>
+</div>
+</div>
+</div>
 </section>
 <section id="sec-bayes" class="level2">
 <h2 class="anchored" data-anchor-id="sec-bayes">Worked example: a diagnostic test</h2>
@@ -407,6 +452,37 @@ window.Quarto = {
 <p><strong>Figure 1.</strong> Building the joint of <span class="math inline">(H,Y)</span> by multiplying prior times conditional along each branch. Conditioning on a positive test (the two <span class="math inline">Y=1</span> leaves) and renormalizing gives <span class="math inline">p(H=1\mid Y=1) = 0.0875 / 0.11 \approx 79.5\%</span>.</p>
 <p>If the prevalence is lower, say <span class="math inline">p(H{=}1)=0.01</span> instead of <span class="math inline">0.1</span>, the same arithmetic drops the positive-test posterior to about <strong>26%</strong>, even though sensitivity and specificity have not changed. When the disease is rare, most positive tests come from the much larger pool of uninfected people who got a false positive. This is the base-rate effect: a direct consequence of Bayes’ rule.</p>
 <p>This example is itself a <strong>parametric model</strong>: the joint of <span class="math inline">(Y,H)</span> is completely determined by three numbers (prevalence, sensitivity, specificity).</p>
+<div class="clarification callout callout-style-default callout-tip callout-titled" title="Recap: Worked example: a diagnostic test">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-2-contents" aria-controls="callout-2" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Recap: Worked example: a diagnostic test
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-2" class="callout-2-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>What the symbols stand for:</p>
+<ul>
+<li><span class="math inline">H=1</span> / <span class="math inline">H=0</span>: infected / not infected. <span class="math inline">Y=1</span> / <span class="math inline">Y=0</span>: test positive / negative.</li>
+<li>Sensitivity <span class="math inline">p(Y{=}1 \mid H{=}1)</span>: how often the test catches a real infection.</li>
+<li>Specificity <span class="math inline">p(Y{=}0 \mid H{=}0)</span>: how often the test correctly clears a healthy person. One minus specificity is the false-positive rate.</li>
+<li>Prevalence <span class="math inline">p(H{=}1)</span>: the prior, how common the infection is before any test.</li>
+</ul>
+<p>Taking the computation apart. Each joint cell is “how likely this test result is for this health state” times “how common this health state is”:</p>
+<p><span class="math display">p(Y{=}y, H{=}h) = p(Y{=}y \mid H{=}h)\, p(H{=}h).</span></p>
+<p>The posterior after a positive test then has a numerator of true positives and a denominator of all positives:</p>
+<p><span class="math display">p(H{=}1 \mid Y{=}1) = \frac{p(Y{=}1 \mid H{=}1)\,p(H{=}1)}{p(Y{=}1 \mid H{=}1)\,p(H{=}1) + p(Y{=}1 \mid H{=}0)\,p(H{=}0)}.</span></p>
+<ul>
+<li>The first term in the denominator is the same as the numerator: infected people who test positive.</li>
+<li>The second term is healthy people who test positive anyway. When it is large, the posterior is small.</li>
+</ul>
+<p>A teaching example. The section states that dropping prevalence to <span class="math inline">0.01</span> gives about 26%. Here is the arithmetic. True positives: <span class="math inline">0.875 \times 0.01 = 0.00875</span>. False positives: <span class="math inline">0.025 \times 0.99 = 0.02475</span>. All positives: <span class="math inline">0.00875 + 0.02475 = 0.0335</span>. Posterior: <span class="math inline">0.00875 / 0.0335 \approx 0.261</span>. The false positives outnumber the true positives almost three to one because the healthy group is 99 times larger, which is the base-rate effect.</p>
+</div>
+</div>
+</div>
 </section>
 <section id="sec-parametric" class="level2">
 <h2 class="anchored" data-anchor-id="sec-parametric">Parametric models and the likelihood</h2>
@@ -420,6 +496,36 @@ window.Quarto = {
 <p><span class="math display">p(\mathcal{D} \mid \theta) = \prod_{i=1}^N p(x^{(i)} \mid \theta).</span></p>
 <p>Products of many small numbers are numerically awkward, and calculus is easier on sums, so we almost always work with the <strong>log-likelihood</strong>:</p>
 <p><span class="math display">\ell(\theta; \mathcal{D}) = \log \mathcal{L}(\theta;\mathcal{D}) = \sum_{i=1}^N \log p(x^{(i)} \mid \theta).</span></p>
+<div class="clarification callout callout-style-default callout-tip callout-titled" title="Recap: Parametric models and the likelihood">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-3-contents" aria-controls="callout-3" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Recap: Parametric models and the likelihood
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-3" class="callout-3-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>What the symbols stand for:</p>
+<ul>
+<li><span class="math inline">\theta</span>: the parameter, the knob that picks one distribution out of the family.</li>
+<li><span class="math inline">\Theta</span>: the set of allowed values of <span class="math inline">\theta</span> (for a coin, the interval <span class="math inline">[0,1]</span>).</li>
+<li><span class="math inline">\mathcal{P}</span>: the family itself, one distribution <span class="math inline">p(x \mid \theta)</span> for each <span class="math inline">\theta \in \Theta</span>.</li>
+<li><span class="math inline">\theta^*</span>: the unknown true parameter that generated the data.</li>
+<li><span class="math inline">\mathcal{D} = \{x^{(1)}, \dots, x^{(N)}\}</span>: the dataset of <span class="math inline">N</span> observations. The superscript <span class="math inline">(i)</span> indexes data points, not powers.</li>
+<li><span class="math inline">\mathcal{L}(\theta;\mathcal{D})</span> and <span class="math inline">\ell(\theta;\mathcal{D})</span>: the likelihood and the log-likelihood. Both are functions of <span class="math inline">\theta</span> with the data held fixed.</li>
+</ul>
+<p>Taking the equations apart:</p>
+<ul>
+<li><span class="math inline">p(\mathcal{D} \mid \theta) = \prod_{i} p(x^{(i)} \mid \theta)</span>: the probability of the whole dataset is a product of one factor per data point. The product is allowed only because the points are independent.</li>
+<li><span class="math inline">\ell = \sum_i \log p(x^{(i)} \mid \theta)</span>: taking the log turns that product into a sum, because <span class="math inline">\log(ab) = \log a + \log b</span>. Each data point contributes one additive term.</li>
+</ul>
+<p>A teaching example. Model a coin as <span class="math inline">p(x \mid \theta) = \theta^x(1-\theta)^{1-x}</span> and observe <span class="math inline">\mathcal{D} = \{1, 0, 1\}</span>. At <span class="math inline">\theta = 0.6</span> the three factors are <span class="math inline">0.6</span>, <span class="math inline">0.4</span>, <span class="math inline">0.6</span>, so <span class="math inline">\mathcal{L} = 0.144</span> and <span class="math inline">\ell = \log 0.6 + \log 0.4 + \log 0.6 \approx -0.511 - 0.916 - 0.511 = -1.938</span>, which matches <span class="math inline">\log 0.144</span>. At <span class="math inline">\theta = 0.5</span> the likelihood is <span class="math inline">0.5^3 = 0.125</span>. The data are more probable under <span class="math inline">\theta = 0.6</span>, so the likelihood prefers it. The next section turns “prefers” into a rule.</p>
+</div>
+</div>
+</div>
 </section>
 <section id="sec-mle" class="level2">
 <h2 class="anchored" data-anchor-id="sec-mle">Maximum likelihood estimation</h2>
@@ -447,6 +553,34 @@ Note
 \end{aligned}</span> The MLE of a Bernoulli parameter is the observed fraction of ones. (A homework that asks you to derive an MLE for a different model is left to the assignment; the same derivative-of-the-log-likelihood steps apply.)</p>
 </div>
 </div>
+<div class="clarification callout callout-style-default callout-tip callout-titled" title="Recap: Maximum likelihood estimation">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-5-contents" aria-controls="callout-5" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Recap: Maximum likelihood estimation
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-5" class="callout-5-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>What the symbols stand for:</p>
+<ul>
+<li><span class="math inline">\hat\theta_{\text{MLE}}</span>: the estimate, the single <span class="math inline">\theta</span> we pick. The hat marks “computed from data”.</li>
+<li><span class="math inline">\arg\max_\theta</span>: “the value of <span class="math inline">\theta</span> that makes the following expression largest”. It returns the location of the peak, not the height.</li>
+<li><span class="math inline">\sum_i x^{(i)}</span>: the number of ones (heads) in the data. <span class="math inline">N - \sum_i x^{(i)}</span> is the number of zeros.</li>
+</ul>
+<p>Taking the Bernoulli derivation apart:</p>
+<ul>
+<li><span class="math inline">\ell(\theta) = (\#\text{ones})\log\theta + (\#\text{zeros})\log(1-\theta)</span>. Each head contributes <span class="math inline">\log\theta</span> and each tail contributes <span class="math inline">\log(1-\theta)</span>.</li>
+<li><span class="math inline">\partial\ell/\partial\theta = \#\text{ones}/\theta - \#\text{zeros}/(1-\theta)</span>. The first term pulls <span class="math inline">\theta</span> up, the second pulls it down.</li>
+<li>Setting the derivative to zero finds where the two pulls balance, which is <span class="math inline">\theta = \#\text{ones}/N</span>.</li>
+</ul>
+<p>A teaching example. Ten flips give 7 heads and 3 tails. At <span class="math inline">\theta = 0.5</span> the derivative is <span class="math inline">7/0.5 - 3/0.5 = 8 &gt; 0</span>, so the log-likelihood is still rising and we should increase <span class="math inline">\theta</span>. At <span class="math inline">\theta = 0.7</span> it is <span class="math inline">7/0.7 - 3/0.3 = 10 - 10 = 0</span>, the balance point. So <span class="math inline">\hat\theta_{\text{MLE}} = 0.7</span>, the fraction of heads.</p>
+</div>
+</div>
+</div>
 </section>
 <section id="sec-sufficient" class="level2">
 <h2 class="anchored" data-anchor-id="sec-sufficient">Sufficient statistics</h2>
@@ -455,6 +589,35 @@ Note
 <p><strong>Definition.</strong> <span class="math inline">T(x)</span> is a <em><a href="https://en.wikipedia.org/wiki/Sufficient_statistic">sufficient statistic</a></em> for <span class="math inline">\theta</span> in the model <span class="math inline">p(x\mid\theta)</span> if and only if the density factors as <span class="math display">p(x\mid\theta) = h(x)\, g_\theta\big(T(x)\big)</span> for some function <span class="math inline">h</span> that does not depend on <span class="math inline">\theta</span>, and some function <span class="math inline">g_\theta</span>. This is the <strong>Fisher–Neyman factorization theorem</strong>. All dependence on <span class="math inline">\theta</span> is routed through <span class="math inline">T(x)</span>, so once you know <span class="math inline">T(x)</span>, the rest of <span class="math inline">x</span> tells you nothing more about <span class="math inline">\theta</span>.</p>
 </div>
 <p>Checking the factorization on the Bernoulli likelihood from above: <span class="math display">p(\mathcal{D}\mid\theta) = \prod_{i=1}^N \theta^{x^{(i)}}(1-\theta)^{1-x^{(i)}} = \theta^{\,S}(1-\theta)^{\,N-S}, \qquad S := \sum_{i=1}^N x^{(i)}.</span> The individual data values never appear on the right except through <span class="math inline">S</span>. That <em>is</em> the factorization with <span class="math inline">h(\mathcal{D})=1</span> and <span class="math inline">T(\mathcal{D})=S</span>, which is why the MLE derivation only needed <span class="math inline">S</span>.</p>
+<div class="clarification callout callout-style-default callout-tip callout-titled" title="Recap: Sufficient statistics">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-6-contents" aria-controls="callout-6" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Recap: Sufficient statistics
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-6" class="callout-6-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>What the symbols stand for:</p>
+<ul>
+<li><span class="math inline">T(x)</span>: the sufficient statistic, a summary computed from the data (here, a count).</li>
+<li><span class="math inline">h(x)</span>: a factor that may depend on the data but never on <span class="math inline">\theta</span>.</li>
+<li><span class="math inline">g_\theta(T(x))</span>: a factor that depends on <span class="math inline">\theta</span>, and on the data only through <span class="math inline">T(x)</span>.</li>
+<li><span class="math inline">S = \sum_i x^{(i)}</span>: the Bernoulli sufficient statistic, the number of ones.</li>
+</ul>
+<p>Taking the factorization apart:</p>
+<p><span class="math display">p(x \mid \theta) = h(x) \; g_\theta\big(T(x)\big)</span></p>
+<ul>
+<li>When we compare two values of <span class="math inline">\theta</span>, the <span class="math inline">h(x)</span> factor is the same for both, so it cancels out of the comparison.</li>
+<li>Everything that does change with <span class="math inline">\theta</span> looks at the data only through <span class="math inline">T(x)</span>. Two datasets with the same <span class="math inline">T</span> therefore give the same verdict about <span class="math inline">\theta</span>.</li>
+</ul>
+<p>A teaching example. Take <span class="math inline">N = 4</span> flips in two different orders: <span class="math inline">\{1,1,0,0\}</span> and <span class="math inline">\{0,1,0,1\}</span>. Both have <span class="math inline">S = 2</span>. At <span class="math inline">\theta = 0.3</span> the first dataset has likelihood <span class="math inline">0.3 \cdot 0.3 \cdot 0.7 \cdot 0.7 = 0.0441</span>, and the second has <span class="math inline">0.7 \cdot 0.3 \cdot 0.7 \cdot 0.3 = 0.0441</span>. Both equal <span class="math inline">\theta^S(1-\theta)^{N-S} = 0.3^2 \cdot 0.7^2</span>. The order of the flips changed nothing, which is what “<span class="math inline">S</span> is sufficient” means.</p>
+</div>
+</div>
+</div>
 </section>
 <section id="sec-expfam" class="level2">
 <h2 class="anchored" data-anchor-id="sec-expfam">Exponential families</h2>
@@ -618,6 +781,44 @@ Note
 </table>
 <p>The <span class="math inline">K</span>-class Multinomial below uses the same shape, <span class="math inline">\eta_i = \log(q_i/q_K)</span>, with Bernoulli as the <span class="math inline">K=2</span> case.</p>
 <p>A check against the general fact <span class="math inline">\mathbb{E}[T(X)] = A'(\eta)</span> proved later: <span class="math inline">A(\eta) = \log(1+e^\eta)</span> has <span class="math inline">A'(\eta) = e^\eta/(1+e^\eta) = \theta = \mathbb{E}[X]</span>, and <span class="math inline">A''(\eta) = \theta(1-\theta)</span>, the Bernoulli variance.</p>
+<div class="clarification callout callout-style-default callout-tip callout-titled" title="Recap: Exponential families">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-7-contents" aria-controls="callout-7" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Recap: Exponential families
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-7" class="callout-7-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>What the symbols stand for:</p>
+<ul>
+<li><span class="math inline">\eta</span>: the natural parameter, the coefficient that multiplies the data inside the exponent.</li>
+<li><span class="math inline">T(x)</span>: the sufficient statistic, the function of the data that <span class="math inline">\eta</span> multiplies.</li>
+<li><span class="math inline">\eta^\top T(x)</span>: their inner product. When both are vectors this is <span class="math inline">\sum_j \eta_j T_j(x)</span>; when both are scalars it is just <span class="math inline">\eta\,T(x)</span>.</li>
+<li><span class="math inline">A(\eta)</span>: the log-partition function, the normalizer that makes the probabilities sum to 1.</li>
+<li><span class="math inline">h(x)</span>: the carrying measure, everything that depends on the data alone.</li>
+<li><span class="math inline">\theta</span>: the familiar parameter (for a Bernoulli, the probability of heads). <span class="math inline">\eta</span> is the same information in different coordinates.</li>
+</ul>
+<p>Taking the template apart:</p>
+<p><span class="math display">p(x \mid \eta) = h(x)\exp\{\eta^\top T(x) - A(\eta)\}</span></p>
+<ul>
+<li><span class="math inline">\eta^\top T(x)</span> is the only place where data and parameter interact. Different outcomes <span class="math inline">x</span> get different scores through this term.</li>
+<li><span class="math inline">-A(\eta)</span> is the same for every outcome. Its job is to shift the scores so the probabilities add to 1.</li>
+<li><span class="math inline">h(x)</span> adjusts outcomes in a way that does not depend on the parameter.</li>
+</ul>
+<p>For the Bernoulli, <span class="math inline">\eta = \log\frac{\theta}{1-\theta}</span> (log-odds), <span class="math inline">T(x) = x</span>, <span class="math inline">A(\eta) = \log(1+e^\eta)</span>, <span class="math inline">h(x) = 1</span>. The map back from <span class="math inline">\eta</span> to <span class="math inline">\theta</span> is the sigmoid <span class="math inline">\theta = e^\eta/(1+e^\eta)</span>.</p>
+<p>A teaching example. Take a coin with <span class="math inline">\theta = 0.8</span>. Its log-odds is <span class="math inline">\eta = \log(0.8/0.2) = \log 4 \approx 1.386</span>, and <span class="math inline">A(\eta) = \log(1 + 4) = \log 5 \approx 1.609</span>. Plug both outcomes into the template:</p>
+<ul>
+<li><span class="math inline">x = 1</span>: <span class="math inline">\exp\{1.386 - 1.609\} = \exp\{-0.223\} \approx 0.8</span>.</li>
+<li><span class="math inline">x = 0</span>: <span class="math inline">\exp\{0 - 1.609\} = 1/5 = 0.2</span>.</li>
+</ul>
+<p>The template reproduces the coin. Going back through the sigmoid, <span class="math inline">e^\eta/(1+e^\eta) = 4/5 = 0.8 = \theta</span>, and <span class="math inline">A''(\eta) = 0.8 \times 0.2 = 0.16</span> is the coin’s variance.</p>
+</div>
+</div>
+</div>
 </section>
 </section>
 <section id="sec-multinomial" class="level2">
@@ -636,6 +837,37 @@ Note
 <p>Setting <span class="math inline">\partial L/\partial q_i = 0</span> gives <span class="math inline">q_i = N_i/\lambda</span>; the constraint pins <span class="math inline">\lambda = N</span>, so</p>
 <p><span class="math display">\hat q_{i,\text{MLE}} = \frac{N_i}{N}.</span></p>
 <p>Each class probability’s MLE is its observed relative frequency (Bernoulli is the <span class="math inline">K=2</span> case).</p>
+<div class="clarification callout callout-style-default callout-tip callout-titled" title="Recap: Multinomial as an exponential family">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-8-contents" aria-controls="callout-8" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Recap: Multinomial as an exponential family
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-8" class="callout-8-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>What the symbols stand for:</p>
+<ul>
+<li><span class="math inline">K</span>: the number of possible states (faces of the die, classes).</li>
+<li><span class="math inline">q_i</span>: the probability of state <span class="math inline">i</span>. The vector <span class="math inline">\mathbf{q} = (q_1, \dots, q_K)</span> must sum to 1.</li>
+<li><span class="math inline">N</span>: the number of draws. <span class="math inline">N_i</span>: how many draws landed in state <span class="math inline">i</span>, so <span class="math inline">\sum_i N_i = N</span>.</li>
+<li><span class="math inline">\mathbb{1}[x^{(n)} = i]</span>: the indicator, 1 if draw <span class="math inline">n</span> is state <span class="math inline">i</span> and 0 otherwise. Summing it over draws counts them.</li>
+<li><span class="math inline">\eta_i = \log(q_i / q_K)</span>: the natural parameter, the log-odds of state <span class="math inline">i</span> against the last state <span class="math inline">K</span>.</li>
+<li><span class="math inline">\lambda</span>: the Lagrange multiplier that enforces <span class="math inline">\sum_i q_i = 1</span> during the maximization.</li>
+</ul>
+<p>Taking the equations apart:</p>
+<ul>
+<li><span class="math inline">\sum_i N_i \log q_i</span>: each draw in state <span class="math inline">i</span> contributes <span class="math inline">\log q_i</span>, and there are <span class="math inline">N_i</span> of them.</li>
+<li>Peeling out state <span class="math inline">K</span> rewrites this as <span class="math inline">\sum_{i&lt;K} N_i \log(q_i/q_K) + N\log q_K</span>. The first sum is the data-meets-parameter part <span class="math inline">\eta^\top T</span>. The second term depends on the parameters only, so it is <span class="math inline">-A</span>.</li>
+<li>The Lagrangian <span class="math inline">L = \sum_i N_i\log q_i + \lambda(1 - \sum_i q_i)</span> adds a penalty term that is zero exactly when the constraint holds. Its derivative <span class="math inline">N_i/q_i - \lambda = 0</span> says every <span class="math inline">q_i</span> is proportional to its count.</li>
+</ul>
+<p>A teaching example. Roll a three-sided die (<span class="math inline">K = 3</span>) ten times and see counts <span class="math inline">N_1 = 5</span>, <span class="math inline">N_2 = 3</span>, <span class="math inline">N_3 = 2</span>. Each <span class="math inline">q_i = N_i/\lambda</span>, and the constraint <span class="math inline">5/\lambda + 3/\lambda + 2/\lambda = 1</span> forces <span class="math inline">\lambda = 10 = N</span>. So <span class="math inline">\hat{\mathbf{q}} = (0.5, 0.3, 0.2)</span>. In natural coordinates, <span class="math inline">\eta_1 = \log(0.5/0.2) \approx 0.916</span> and <span class="math inline">\eta_2 = \log(0.3/0.2) \approx 0.405</span>. The normalizer is <span class="math inline">A = 10\log(1 + e^{\eta_1} + e^{\eta_2}) = 10\log(1 + 2.5 + 1.5) = 10\log 5</span>, which matches <span class="math inline">N\log(1/q_3) = 10\log 5</span>.</p>
+</div>
+</div>
+</div>
 </section>
 <section id="sec-gaussian" class="level2">
 <h2 class="anchored" data-anchor-id="sec-gaussian">Univariate Gaussian as an exponential family</h2>
@@ -648,6 +880,37 @@ Note
 <p><strong>Step 2.</strong> MLE in the familiar <span class="math inline">(\mu, \sigma^2)</span> coordinates:</p>
 <p><span class="math display">\ell(\theta;\mathcal{D}) = -\frac{N}{2}\log(2\pi\sigma^2) - \frac{1}{2}\sum_n\frac{(x^{(n)}-\mu)^2}{\sigma^2}.</span></p>
 <p>Setting <span class="math inline">\partial \ell/\partial \mu = 0</span> gives <span class="math inline">\hat\mu_{\text{MLE}} = \frac{1}{N}\sum_n x^{(n)}</span>, the sample mean. Setting <span class="math inline">\partial \ell /\partial \sigma^2 = 0</span> gives <span class="math inline">\hat\sigma^2_{\text{MLE}} = \frac{1}{N}\sum_n\big((x^{(n)})^2 - \hat\mu_{\text{MLE}}^2\big)</span>, the sample variance (with divisor <span class="math inline">N</span>, not <span class="math inline">N-1</span>).</p>
+<div class="clarification callout callout-style-default callout-tip callout-titled" title="Recap: Univariate Gaussian as an exponential family">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-9-contents" aria-controls="callout-9" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Recap: Univariate Gaussian as an exponential family
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-9" class="callout-9-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>What the symbols stand for:</p>
+<ul>
+<li><span class="math inline">\mu</span>: the mean, the centre of the bell curve. <span class="math inline">\sigma^2</span>: the variance, its spread.</li>
+<li><span class="math inline">\eta = (\mu/\sigma^2,\; 1/\sigma^2)</span>: the natural parameter, a 2-vector. The second entry, one over the variance, is called the precision.</li>
+<li><span class="math inline">T(x) = (x,\; -x^2/2)</span>: the sufficient statistic, also a 2-vector, because the exponent contains both <span class="math inline">x</span> and <span class="math inline">x^2</span>.</li>
+<li><span class="math inline">\hat\mu_{\text{MLE}}</span>, <span class="math inline">\hat\sigma^2_{\text{MLE}}</span>: the fitted mean and variance.</li>
+</ul>
+<p>Taking the expanded square apart:</p>
+<p><span class="math display">-\frac{(x-\mu)^2}{2\sigma^2} = -\frac{x^2}{2\sigma^2} + \frac{\mu}{\sigma^2}x - \frac{\mu^2}{2\sigma^2}</span></p>
+<ul>
+<li>The <span class="math inline">x</span> term gives <span class="math inline">\eta_1 T_1(x) = (\mu/\sigma^2)\cdot x</span>.</li>
+<li>The <span class="math inline">x^2</span> term gives <span class="math inline">\eta_2 T_2(x) = (1/\sigma^2)\cdot(-x^2/2)</span>.</li>
+<li>The term with no <span class="math inline">x</span> goes into <span class="math inline">A</span>, together with the <span class="math inline">\log(\sqrt{2\pi}\sigma)</span> from the front factor.</li>
+</ul>
+<p>In the MLE, <span class="math inline">\hat\mu</span> is the average of the data and <span class="math inline">\hat\sigma^2</span> is (average of <span class="math inline">x^2</span>) minus (average of <span class="math inline">x</span>) squared.</p>
+<p>A teaching example. Observe <span class="math inline">\{2, 4, 6\}</span>. Then <span class="math inline">\hat\mu = 12/3 = 4</span>. The average of the squares is <span class="math inline">(4 + 16 + 36)/3 = 56/3</span>, so <span class="math inline">\hat\sigma^2 = 56/3 - 16 = 8/3 \approx 2.667</span>, the same as the average squared distance from the mean, <span class="math inline">(4 + 0 + 4)/3</span>. The natural parameter is <span class="math inline">\eta = (4 \cdot 3/8,\; 3/8) = (1.5,\; 0.375)</span>, and going back, <span class="math inline">\eta_1/\eta_2 = 4 = \mu</span> and <span class="math inline">1/\eta_2 = 8/3 = \sigma^2</span>.</p>
+</div>
+</div>
+</div>
 </section>
 <section id="sec-mean" class="level2">
 <h2 class="anchored" data-anchor-id="sec-mean">Mean of sufficient statistics</h2>
@@ -660,6 +923,34 @@ Note
 <p><strong>MLE consequence.</strong> For <span class="math inline">N</span> i.i.d. exponential-family samples, setting <span class="math inline">\partial \ell/\partial\eta = 0</span> gives</p>
 <p><span class="math display">A'(\hat\eta_{\text{MLE}}) = \frac{1}{N}\sum_{i=1}^N T(x^{(i)}).</span></p>
 <p>The MLE sets the model’s expected sufficient statistic equal to the empirical average of the sufficient statistic. Whenever this equation has a closed form, it reproduces the Bernoulli, Multinomial, and Gaussian answers above.</p>
+<div class="clarification callout callout-style-default callout-tip callout-titled" title="Recap: Mean of sufficient statistics">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-10-contents" aria-controls="callout-10" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Recap: Mean of sufficient statistics
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-10" class="callout-10-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>What the symbols stand for:</p>
+<ul>
+<li><span class="math inline">\mathbb{E}_\eta[T(X)]</span>: the average value of the sufficient statistic if we drew many samples from the model with parameter <span class="math inline">\eta</span>.</li>
+<li><span class="math inline">A'(\eta)</span>, <span class="math inline">A''(\eta)</span>: the first and second derivatives of the log-partition function with respect to <span class="math inline">\eta</span>.</li>
+<li><span class="math inline">\mathrm{Var}(T(X))</span>: the variance of the sufficient statistic under the model.</li>
+<li><span class="math inline">\frac{1}{N}\sum_i T(x^{(i)})</span>: the average of the sufficient statistic over the observed data.</li>
+</ul>
+<p>Taking the equations apart:</p>
+<ul>
+<li><span class="math inline">\mathbb{E}_\eta[T(X)] = A'(\eta)</span>: the slope of the normalizer is the model’s predicted average of <span class="math inline">T</span>. We get a mean by differentiating, with no sum or integral over outcomes.</li>
+<li><span class="math inline">A'(\hat\eta) = \frac{1}{N}\sum_i T(x^{(i)})</span>: the left side is what the model predicts, the right side is what the data show. The MLE is the <span class="math inline">\eta</span> that makes them agree.</li>
+</ul>
+<p>A teaching example. Four flips give <span class="math inline">\{1, 1, 1, 0\}</span>, so the data average of <span class="math inline">T(x) = x</span> is <span class="math inline">3/4</span>. For the Bernoulli, <span class="math inline">A'(\eta) = e^\eta/(1+e^\eta)</span>. Setting this equal to <span class="math inline">3/4</span> gives <span class="math inline">e^\eta = 3</span>, so <span class="math inline">\hat\eta = \log 3 \approx 1.099</span>. Converting back, <span class="math inline">\hat\theta = 3/4</span>, the same answer as the fraction of heads from <a href="#sec-mle" class="quarto-xref"><span>Maximum likelihood estimation</span></a>. The variance of a flip under the fitted model is <span class="math inline">A''(\hat\eta) = 0.75 \times 0.25 = 0.1875</span>.</p>
+</div>
+</div>
+</div>
 </section>
 <section id="sec-summary" class="level2">
 <h2 class="anchored" data-anchor-id="sec-summary">Summary</h2>

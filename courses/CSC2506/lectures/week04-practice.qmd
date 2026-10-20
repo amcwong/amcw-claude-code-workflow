@@ -9,32 +9,178 @@ title: "Week 4 practice: Message passing and Monte Carlo"
 </div>
 ```
 
-**Overview.** These problems drill [Week 4](week04.qmd). Problems 1–8 follow the lecture in order: message passing on trees, max-product, loopy BP, ancestral sampling, simple Monte Carlo, importance sampling, and rejection sampling. Problems 9–18, under [Homework 2 practice](#sec-w4p-hw2), go deeper on two techniques: loopy BP on a pixel grid and TrueSkill log-joints. Try each stem before opening the worked solution. Every graph, potential table, image, game record, and sample here is invented for practice. Notation matches the week chapter.
+**Overview.** These problems drill [Week 4](week04.qmd), grouped under the same section headings as the lecture and in the same order, so you can practise a section right after reading it. Several of them (the TrueSkill log-joint problems, the pixel-grid loopy BP problems, and the posterior-samples problem) exercise techniques that Assignment 2 relies on, without reproducing its questions. Try each stem before opening the worked solution. Every graph, potential table, image, game record, and sample here is invented for practice. Notation matches the week chapter.
 
-## Problem 1: Scheduling messages on a tree {#prb-1}
+## Latent variables and the TrueSkill model {#sec-w4p-trueskill}
 
-An undirected graph has six nodes and the edges
-$$1\text{-}2,\quad 2\text{-}3,\quad 2\text{-}4,\quad 4\text{-}5,\quad 4\text{-}6.$$
+Practice for [Latent variables and the TrueSkill model](week04.qmd#sec-trueskill).
 
-1. Check that the graph is a [tree](https://en.wikipedia.org/wiki/Tree_(graph_theory)) and list its leaves. Would it still be a tree if we added the edge $1\text{-}3$?
-2. How many messages does [belief propagation](https://en.wikipedia.org/wiki/Belief_propagation) send in total?
-3. Which messages can be computed before any other message exists?
-4. Which incoming messages must node 4 hold before it can send $m_{4\to2}$? Which must node 2 hold before it can send $m_{2\to1}$?
-5. With node 2 as the root, list the messages of the inward pass and of the outward pass.
+### Problem 1: The log-prior of independent skills {#prb-1}
+
+Three players have independent [normal](https://en.wikipedia.org/wiki/Normal_distribution) priors $z_i\sim\mathcal N(0,1)$. Two candidate skill settings are stored as the rows of a $2\times3$ array:
+
+$$\begin{pmatrix}0&1&-2\\0.5&0.5&0.5\end{pmatrix}.$$
+
+1. Compute the log-prior $\log p(z_1,z_2,z_3)$ for each row.
+2. Why is the joint log-prior a sum, and along which axis of this array does that sum run? What shape is the result?
 
 ::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
-This uses the tree definition in [Week 4, Trees and elimination order](week04.qmd#sec-trees) and the two-pass schedule in [Belief propagation on trees](week04.qmd#sec-bp).
+This uses the prior in the TrueSkill definition of [Week 4, Latent variables and the TrueSkill model](week04.qmd#sec-trueskill).
 
-1. Every node is reachable from node 2 (1, 3, 4 directly; 5, 6 through 4), so the graph is connected. A connected graph on 6 nodes with no cycles has exactly 5 edges, and this one has 5, so it has no cycles and is a tree. The leaves, the nodes with exactly one neighbour, are 1, 3, 5, and 6. Adding $1\text{-}3$ closes the cycle $1\text{-}2\text{-}3\text{-}1$, so the graph would no longer be a tree.
-2. One message in each direction along each edge: $2|\mathcal E|=2\cdot5=10$.
-3. A node can send to $i$ once it has heard from every neighbour other than $i$. A leaf has no other neighbours, so the product in the message formula is empty and it can send right away: $m_{1\to2}$, $m_{3\to2}$, $m_{5\to4}$, $m_{6\to4}$. Nodes 2 and 4 each have at least two neighbours they have not yet heard from, so they must wait.
-4. $N(4)\setminus\{2\}=\{5,6\}$, so node 4 needs $m_{5\to4}$ and $m_{6\to4}$. $N(2)\setminus\{1\}=\{3,4\}$, so node 2 needs $m_{3\to2}$ and $m_{4\to2}$. The second of these itself waited on nodes 5 and 6, which is how $m_{2\to1}$ ends up summarizing the whole subtree on node 2's side.
-5. Inward: $m_{1\to2}$, $m_{3\to2}$, $m_{5\to4}$, $m_{6\to4}$, then $m_{4\to2}$. Outward: $m_{2\to1}$, $m_{2\to3}$, $m_{2\to4}$, then $m_{4\to5}$, $m_{4\to6}$. That is $5+5=10$ messages, matching part 2.
+The standard normal log-density is $\log\mathcal N(z;0,1)=-\tfrac12\log(2\pi)-\tfrac12z^2$, and $\tfrac12\log(2\pi)\approx0.9189$. Because the priors are independent,
+$$\log p(z_1,z_2,z_3)=\sum_{i=1}^3\log\mathcal N(z_i;0,1)=-3\cdot\tfrac12\log(2\pi)-\tfrac12\big(z_1^2+z_2^2+z_3^2\big).$$
+Each of the three players contributes one $-0.9189$, so the constant part is $-3(0.9189)=-2.7568$ for every row.
 
-**Answer.** (1) A tree with leaves 1, 3, 5, 6; adding $1\text{-}3$ makes a cycle. (2) 10. (3) The four leaf messages. (4) Node 4 needs messages from 5 and 6; node 2 needs messages from 3 and 4. (5) As listed above.
+1. Row 1: the squares are $0^2,1^2,(-2)^2=0,1,4$, so $-2.7568-\tfrac12(0+1+4)=-2.7568-2.5=-5.257$. Row 2: the squares are $3\times0.5^2=3\times0.25=0.75$, so $-2.7568-\tfrac12(0.75)=-3.132$.
+2. Independence makes the joint prior a product $\prod_ip(z_i)$, and the log of a product is a sum of logs. Each row is one setting of all players, so the sum runs across the players within a row (axis 1, the column axis), leaving one number per row: shape `(2,)`. Summing down the columns instead would add the same player's log-density across two different settings, which is not the log of any probability in the model.
+
+Row 2 scores higher because all three skills sit near the prior mean of 0; row 1 pays for the player at $-2$.
+
+**Answer.** $-5.257$ and $-3.132$. A sum because of independence, taken across players (axis 1), giving shape `(2,)`.
 :::
 
-## Problem 2: Sum-product on a three-node star {#prb-2}
+### Problem 2: Logs of sums without overflow {#prb-2}
+
+Double-precision floats overflow above about $1.8\times10^{308}$, so $e^{a}$ is stored as infinity once $a$ exceeds roughly 709 ([arithmetic overflow](https://en.wikipedia.org/wiki/Arithmetic_overflow)).
+
+1. Compute $\log\big(e^{1000}+e^{998}\big)$ by hand, without ever forming $e^{1000}$.
+2. The function $\mathrm{logaddexp}(u,v)=\log(e^u+e^v)$ is computed with the same trick. Write $\log(1+e^{a})$ using it. What does the naive formula `log(1 + exp(a))` return at $a=800$, and what is the correct value to many digits?
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+This supports evaluating the logistic function of [Week 4, Latent variables and the TrueSkill model](week04.qmd#sec-trueskill) in log space.
+
+1. Factor out the largest exponential (the [LogSumExp](https://en.wikipedia.org/wiki/LogSumExp) trick). With $m=\max(a,b)$,
+$$\log\big(e^{a}+e^{b}\big)=\log\big(e^{m}(e^{a-m}+e^{b-m})\big)=m+\log\big(e^{a-m}+e^{b-m}\big).$$
+Every exponent on the right is $\le0$, so nothing can overflow. Substituting $a=1000$, $b=998$, $m=1000$:
+$$\log\big(e^{1000}+e^{998}\big)=1000+\log\big(e^{0}+e^{-2}\big)=1000+\log(1.1353)=1000.1269.$$
+The only exponential left to evaluate is $e^{-2}$, which is harmless.
+2. Since $1=e^0$, $\log(1+e^{a})=\mathrm{logaddexp}(0,a)$. Naively, `exp(800)` overflows to infinity and the log of infinity is infinity. Factoring out $e^{a}$ instead gives $800+\log(1+e^{-800})$, and $e^{-800}$ is so small that the answer is $800$ to all printed digits. For very negative $a$ the same trick avoids the opposite problem, where $e^{a}$ underflows toward 0 and the log goes to $-\infty$.
+
+**Answer.** (1) $\approx1000.1269$. (2) $\log(1+e^a)=\mathrm{logaddexp}(0,a)$; the naive formula returns infinity at $a=800$, the true value is $800$ (to double precision).
+:::
+
+### Problem 3: Looking up skills game by game {#prb-3}
+
+Four players have skills `z = np.array([0.5, -1.0, 2.0, 0.0])`. Five games are stored one per row as (winner index, loser index):
+
+```python
+games = np.array([[2, 0],
+                  [0, 1],
+                  [3, 1],
+                  [2, 3],
+                  [1, 0]])
+```
+
+What does `z[games[:, 0]] - z[games[:, 1]]` evaluate to, and what does each entry mean in the model?
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+This sets up the "one factor per game" product of [Week 4, Latent variables and the TrueSkill model](week04.qmd#sec-trueskill).
+
+- `games[:, 0]` is the winner column `[2, 0, 3, 2, 1]`, and indexing `z` with an integer array returns one entry per index: `z[games[:, 0]]` is `[2.0, 0.5, 0.0, 2.0, -1.0]`.
+- `games[:, 1]` is `[0, 1, 1, 3, 0]`, so `z[games[:, 1]]` is `[0.5, -1.0, -1.0, 0.0, 0.5]`.
+- The elementwise difference has shape `(5,)`, one entry per game.
+
+Each entry is $z_{\text{winner}}-z_{\text{loser}}$, the argument of $\sigma$ in that game's likelihood factor. Positive entries are games the stronger player won. The last entry, $-1.5$, is an upset: player 1 beat a player rated higher, so its factor $\sigma(-1.5)\approx0.18$ is small. Player indices may repeat across rows, which is how several games between the same pair, or one player in many games, are handled with no loop.
+
+**Answer.** `array([ 1.5,  1.5,  1. ,  2. , -1.5])`: the winner-minus-loser skill gap for each game.
+:::
+
+### Problem 4: A two-player posterior up to a constant {#prb-4}
+
+Two players $A$ and $B$ have independent priors $z_A,z_B\sim\mathcal N(0,1)$ and the course's TrueSkill likelihood $p(A\text{ beats }B\mid z_A,z_B)=\sigma(z_A-z_B)$. They play four games: $A$ wins three and $B$ wins one.
+
+1. Write $\log p(z_A,z_B,\text{games})$.
+2. Evaluate it, dropping the constant $-\log(2\pi)$, at $(z_A,z_B)=(0,0)$, $(0.5,-0.5)$, and $(1.5,0.5)$. Which is most probable under the posterior?
+3. Why can we draw the posterior's contour lines from $\log p(z_A,z_B,\text{games})$ without ever computing $p(\text{games})$?
+4. Change variables to $d=z_A-z_B$ and $s=z_A+z_B$. Show that the likelihood depends only on $d$, and that the prior factorizes into a function of $d$ times a function of $s$. What does that say about what the games can teach us?
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+This uses the joint distribution in [Week 4, Latent variables and the TrueSkill model](week04.qmd#sec-trueskill) and the unnormalized-density setting of [Sampling from an unnormalized density](week04.qmd#sec-sampling).
+
+1. Prior times one factor per game, with games independent given the skills:
+$$\log p=-\log(2\pi)-\tfrac12\big(z_A^2+z_B^2\big)$$
+$${}+3\log\sigma(z_A-z_B)+\log\sigma(z_B-z_A).$$
+2. Since $\sigma(y)=1/(1+e^{-y})$, $\log\sigma(y)=-\log(1+e^{-y})$. Write $d=z_A-z_B$, so the likelihood part is $3\log\sigma(d)+\log\sigma(-d)$ and the prior part (without the constant) is $-\tfrac12(z_A^2+z_B^2)$. The values we need are $\log\sigma(0)=-\log2=-0.6931$, $\log\sigma(1)=-\log(1+e^{-1})=-0.3133$, and $\log\sigma(-1)=-\log(1+e)=-1.3133$.
+    - $(0,0)$: $d=0$, likelihood $3(-0.6931)+(-0.6931)=-2.7726$, prior $-\tfrac12(0+0)=0$; total $-2.773$.
+    - $(0.5,-0.5)$: $d=1$, likelihood $3(-0.3133)-1.3133=-2.2530$, prior $-\tfrac12(0.25+0.25)=-0.25$; total $-2.503$.
+    - $(1.5,0.5)$: $d=1$ again, so the same likelihood $-2.2530$, prior $-\tfrac12(2.25+0.25)=-1.25$; total $-3.503$.
+
+    $(0.5,-0.5)$ is the most probable of the three.
+3. $p(z_A,z_B\mid\text{games})=p(z_A,z_B,\text{games})/p(\text{games})$, and the denominator does not depend on $(z_A,z_B)$. Dividing by a constant, or subtracting a constant in log space, shifts every height by the same amount, so the [level sets](https://en.wikipedia.org/wiki/Level_set) are the same curves; only their labels change.
+4. The likelihood is a function of $z_A-z_B=d$ alone. For the prior, $z_A=\tfrac{s+d}{2}$ and $z_B=\tfrac{s-d}{2}$, so
+$$z_A^2+z_B^2=\tfrac14\big[(s+d)^2+(s-d)^2\big]=\tfrac12\big(s^2+d^2\big),$$
+and the prior is proportional to $e^{-d^2/4}\,e^{-s^2/4}$. (The change of variables also brings a constant Jacobian factor, which does not affect the shape.) The posterior is therefore $\big[e^{-d^2/4}\times\text{likelihood}(d)\big]\times e^{-s^2/4}$: the games update our belief about the skill *difference*, while the belief about the *sum* stays exactly at the prior. Part 2 shows this: $(0.5,-0.5)$ and $(1.5,0.5)$ share $d=1$ and get the same likelihood, and only the prior separates them.
+
+**Answer.** (2) $-2.773$, $-2.503$, $-3.503$; $(0.5,-0.5)$ is highest. (3) The normalizer is a constant shift. (4) Likelihood in $d$ only, prior $\propto e^{-d^2/4}e^{-s^2/4}$, so data inform $d$ and leave $s$ at its prior.
+:::
+
+## Trees and elimination order {#sec-w4p-trees}
+
+Practice for [Trees and elimination order](week04.qmd#sec-trees).
+
+### Problem 5: Why leaves go first {#prb-5}
+
+A [tree](https://en.wikipedia.org/wiki/Tree_(graph_theory)) has a hub node $h$ joined to five leaves $a,b,c,d,e$, and nothing else. Every variable takes $k=4$ values. The MRF has one potential per node and one per edge, nothing is observed, and we want the normalizer $Z$ by variable elimination.
+
+1. Suppose we sum out the hub $x_h$ first. Which factors does that sum touch, and over how many variables is the intermediate factor it produces? How many entries does that factor have?
+2. Now sum out the five leaves first, one at a time, and the hub last. Over how many variables is each intermediate factor, and how many entries does it have?
+3. Roughly how many multiply-adds does each order cost? Compare the leaf-first count with the $O(nk^2)$ rate from the week chapter.
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+This uses [Week 4, Trees and elimination order](week04.qmd#sec-trees).
+
+1. Every edge potential mentions $x_h$, so the sum over $x_h$ has to wrap $\psi_h$ and all five edge potentials $\psi_{ha},\dots,\psi_{he}$. What is left after summing is a function of all five leaves at once, $\tau(x_a,x_b,x_c,x_d,x_e)$, with $4^5=1024$ entries. This is the "intermediate factor over many variables" the week chapter warns about.
+2. Summing out a leaf, say $x_a$, touches only $\psi_a(x_a)$ and $\psi_{ha}(x_h,x_a)$, because no other factor mentions $x_a$. The result $\tau_a(x_h)=\sum_{x_a}\psi_a(x_a)\,\psi_{ha}(x_h,x_a)$ is a function of $x_h$ alone: 4 entries. The same holds for every leaf. After all five, the hub's sum $\sum_{x_h}\psi_h(x_h)\prod_\ell\tau_\ell(x_h)$ is a single number.
+3. Hub first: $\tau$ has $4^5=1024$ entries, and each entry is a sum of 4 terms (one per value of $x_h$), so filling it takes about $1024\times4=4^6=4096$ multiply-adds, before we even start on the leaves. Leaves first: each $\tau_\ell$ has 4 entries, each a sum of 4 terms, so 16 per leaf and 80 for the five, plus 4 for the hub's final sum. That is about $84$, in line with $nk^2=6\cdot16=96$. No step ever involved more than two variables at once.
+
+**Answer.** (1) A factor over all five leaves, $4^5=1024$ entries. (2) Each leaf leaves a factor over $x_h$ only, 4 entries. (3) About 4096 against about 84: leaves first is the cheap order.
+:::
+
+## Worked example: elimination on a tree becomes message passing {#sec-w4p-tree-example}
+
+Practice for [Worked example: elimination on a tree becomes message passing](week04.qmd#sec-tree-example).
+
+### Problem 6: Pushing sums inward on a different tree {#prb-6}
+
+A four-node tree has edges $1\text{-}2$, $2\text{-}3$, $2\text{-}4$, so node 2 is the centre. All variables are binary, $x_i\in\{0,1\}$. Nodes 1 and 4 are observed, and we want $p(x_3\mid\bar x_1,\bar x_4)$. With the evidence plugged in, the potentials are:
+
+| Potential | Value at 0 | Value at 1 |
+|---|---|---|
+| $\psi_2(x_2)$ | 2 | 1 |
+| $\psi_3(x_3)$ | 1 | 3 |
+| $\psi_{12}(\bar x_1,x_2)$, as a function of $x_2$ | 3 | 1 |
+| $\psi_{24}(x_2,\bar x_4)$, as a function of $x_2$ | 1 | 2 |
+
+The observed node potentials are plain numbers, $\psi_1(\bar x_1)=2$ and $\psi_4(\bar x_4)=1$. The edge between the two unobserved nodes is $\psi_{23}(x_2,x_3)=2$ when $x_2=x_3$ and $1$ otherwise.
+
+1. Name the evidence $x_E$, the query $x_F$, and the variables $x_R$ that get summed out.
+2. Write $p(x_3\mid\bar x_1,\bar x_4)$ as a normalized sum over $x_2$, then group the factors into $m_{1\to2}(x_2)$, $m_{4\to2}(x_2)$, and $m_{2\to3}(x_3)$.
+3. Compute the three messages, the unnormalized belief $\tilde b(x_3)$, and $p(x_3=1\mid\bar x_1,\bar x_4)$.
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+This uses [Week 4, Worked example: elimination on a tree becomes message passing](week04.qmd#sec-tree-example). The shape differs from the lecture's tree: here the one summed-out node sits in the middle, between both pieces of evidence and the query.
+
+1. $x_E=\{x_1,x_4\}$, $x_F=\{x_3\}$, $x_R=\{x_2\}$.
+2. The joint is the product of all seven potentials. Summing out $x_2$ and normalizing over $x_3$:
+$$p(x_3\mid\bar x_1,\bar x_4)=\frac{1}{Z^E}\,\psi_3(x_3)\sum_{x_2}\psi_2(x_2)\,\psi_{23}(x_2,x_3)$$
+$${}\times\big[\psi_1(\bar x_1)\psi_{12}(\bar x_1,x_2)\big]\big[\psi_4(\bar x_4)\psi_{24}(x_2,\bar x_4)\big].$$
+The first bracket involves only $x_2$: it is $m_{1\to2}(x_2)$. The second is $m_{4\to2}(x_2)$. The whole sum over $x_2$ is a function of $x_3$ alone, which is $m_{2\to3}(x_3)$.
+3. Observed senders plug in their value, so
+$$m_{1\to2}=2\cdot(3,\ 1)=(6,\ 2),\qquad m_{4\to2}=1\cdot(1,\ 2)=(1,\ 2).$$
+Node 2 multiplies its own potential by both incoming messages, one number per value of $x_2$: $2\cdot6\cdot1=12$ at $x_2=0$ and $1\cdot2\cdot2=4$ at $x_2=1$. Then it multiplies by the edge and sums out $x_2$:
+$$m_{2\to3}(0)=12\cdot2+4\cdot1=28,\qquad m_{2\to3}(1)=12\cdot1+4\cdot2=20.$$
+The belief is $\tilde b(x_3)=\psi_3(x_3)\,m_{2\to3}(x_3)=(28,\ 60)$, so $Z^E=88$ and
+$$p(x_3=1\mid\bar x_1,\bar x_4)=\frac{60}{88}=\frac{15}{22}\approx0.682.$$
+As a check, listing the four terms of the sum directly gives $24+4=28$ at $x_3=0$ and $36+24=60$ at $x_3=1$. The messages did the same sum in pieces.
+
+**Answer.** (1) $x_E=\{x_1,x_4\}$, $x_F=\{x_3\}$, $x_R=\{x_2\}$. (3) $m_{1\to2}=(6,2)$, $m_{4\to2}=(1,2)$, $m_{2\to3}=(28,20)$, $\tilde b=(28,60)$, $p(x_3=1\mid\bar x_1,\bar x_4)=15/22\approx0.682$.
+:::
+
+## Messages and beliefs {#sec-w4p-messages}
+
+Practice for [Messages and beliefs](week04.qmd#sec-messages).
+
+### Problem 7: Sum-product on a three-node star {#prb-7}
 
 Three binary spins $x_1,x_2,x_3\in\{+1,-1\}$ form a star with centre $x_2$: the edges are $1\text{-}2$ and $2\text{-}3$. The potentials are
 
@@ -71,38 +217,79 @@ Then $\tilde b(x_1)=(\psi_1(+1)\cdot7,\ \psi_1(-1)\cdot5)=(7,\ 10)$, so $b(x_1)\
 **Answer.** (1) $m_{1\to2}=(5,7)$, $m_{3\to2}=(2,1)$, $b(x_2)=(10/17,\ 7/17)$. (2) The table sums to the same $(10,7)$. (3) $m_{2\to1}=(7,5)$, $b(x_1)=(7/17,\ 10/17)$.
 :::
 
-## Problem 3: Max-product against the most likely state of each node {#prb-3}
+### Problem 8: What goes into a message {#prb-8}
 
-Two spins $x_1,x_2\in\{+1,-1\}$ share one edge, with node potentials equal to 1 and edge potential
+Node $j$ in a tree-shaped MRF has three neighbours: $i$, $k$, and $l$.
 
-| | $x_2=+1$ | $x_2=-1$ |
-|---|---|---|
-| $x_1=+1$ | 4 | 1 |
-| $x_1=-1$ | 3 | 3 |
-
-1. Run sum-product: compute both messages, both beliefs, and the setting $(\tilde x_1,\tilde x_2)$ that picks the more likely state of each node separately. What is its probability?
-2. Run max-product and read off $\hat x_i=\arg\max_{x_i}b(x_i)$. What is the probability of $(\hat x_1,\hat x_2)$?
-3. Explain the difference in one or two sentences.
+1. Write $m_{j\to i}(x_i)$ out in full. Which incoming messages appear in it, and which one is left out?
+2. Now suppose $x_j$ is observed with value $\bar x_j$. The messages $m_{k\to j}$ and $m_{l\to j}$ still appear in the formula. As functions of $x_i$, how do they affect $m_{j\to i}$? What does that say about how much node $i$ learns from the far side of $j$?
+3. A classmate says the message $(0.2,\ 0.9)$ must be a bug because its entries do not sum to 1. Are they right?
+4. Leaf $j$ is unobserved, with $\psi_j=(1,1)$ and binary edge potential $\psi_{ij}=2$ when $x_i=x_j$ and $1$ otherwise. Compute $m_{j\to i}$. What does it tell node $i$?
 
 ::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
-This uses [Week 4, Max-product BP and MAP inference](week04.qmd#sec-maxproduct).
+This uses the message definition and the remarks after it in [Week 4, Messages and beliefs](week04.qmd#sec-messages).
 
-The normalizer is $Z=4+1+3+3=11$, so the joint probabilities are the table entries divided by 11.
+1. $$m_{j\to i}(x_i)=\sum_{x_j}\psi_j(x_j)\,\psi_{ij}(x_i,x_j)\,m_{k\to j}(x_j)\,m_{l\to j}(x_j).$$
+The messages from $k$ and $l$ appear. The message $m_{i\to j}$ is left out, because node $i$ already knows what it sent.
+2. With $x_j$ fixed, the formula becomes $\psi_j(\bar x_j)\,\psi_{ij}(x_i,\bar x_j)\,m_{k\to j}(\bar x_j)\,m_{l\to j}(\bar x_j)$. The two incoming messages are each evaluated at one value, so they are just numbers: they scale the whole message by a constant and do not change its shape as a function of $x_i$. After normalizing, $m_{j\to i}$ depends only on $\psi_{ij}(x_i,\bar x_j)$. So node $i$ learns nothing from beyond $j$ once $x_j$ is observed, which is the graph-separation picture of conditional independence in an MRF.
+3. No. A message is a nonnegative score per state, like a potential, not a probability distribution. Only the ratio $0.9/0.2=4.5$ matters, and rescaling never changes a normalized belief.
+4. $m_{j\to i}(x_i)=\sum_{x_j}\psi_{ij}(x_i,x_j)$ gives $2+1=3$ at both values of $x_i$. The message is flat, so it multiplies every belief entry by the same 3 and tells node $i$ nothing. A leaf with no preference and a symmetric edge has no opinion to pass on.
 
-1. Sum-product sums over the sender:
-$$m_{2\to1}(+1)=4+1=5,\qquad m_{2\to1}(-1)=3+3=6,$$
-$$m_{1\to2}(+1)=4+3=7,\qquad m_{1\to2}(-1)=1+3=4.$$
-So $b(x_1)=(5/11,\ 6/11)$ and $b(x_2)=(7/11,\ 4/11)$. Node by node, $\tilde x_1=-1$ and $\tilde x_2=+1$. The pair $(-1,+1)$ has probability $3/11\approx0.273$.
-2. Max-product takes the largest term instead:
-$$m_{2\to1}(+1)=\max(4,1)=4,\qquad m_{2\to1}(-1)=\max(3,3)=3,$$
-$$m_{1\to2}(+1)=\max(4,3)=4,\qquad m_{1\to2}(-1)=\max(1,3)=3.$$
-Both beliefs favour $+1$, so $(\hat x_1,\hat x_2)=(+1,+1)$, with probability $4/11\approx0.364$. This is the largest entry in the table, so it is the [MAP](https://en.wikipedia.org/wiki/Maximum_a_posteriori_estimation) estimate.
-3. A sum-product belief adds up every configuration with $x_1$ in a given state. $x_1=-1$ wins that total ($3+3$ against $4+1$) without containing the single best configuration. A max-product belief scores only the best configuration in each state, so reading those off node by node gives the best joint setting.
-
-**Answer.** (1) $b(x_1)=(5/11,6/11)$, $b(x_2)=(7/11,4/11)$; the node-by-node choice is $(-1,+1)$, probability $3/11$. (2) Max-product gives $(+1,+1)$, probability $4/11$, the MAP estimate. (3) Summed totals and best single configurations can disagree.
+**Answer.** (1) $m_{k\to j}$ and $m_{l\to j}$ appear; $m_{i\to j}$ is excluded. (2) They become constants, so the far side has no effect on node $i$. (3) No: messages need not sum to 1. (4) $(3,\ 3)$, a flat message carrying no information.
 :::
 
-## Problem 4: True or false on loopy BP {#prb-4}
+## Belief propagation on trees {#sec-w4p-bp}
+
+Practice for [Belief propagation on trees](week04.qmd#sec-bp).
+
+### Problem 9: Scheduling messages on a tree {#prb-9}
+
+An undirected graph has six nodes and the edges
+$$1\text{-}2,\quad 2\text{-}3,\quad 2\text{-}4,\quad 4\text{-}5,\quad 4\text{-}6.$$
+
+1. Check that the graph is a tree and list its leaves. Would it still be a tree if we added the edge $1\text{-}3$?
+2. How many messages does [belief propagation](https://en.wikipedia.org/wiki/Belief_propagation) send in total?
+3. Which messages can be computed before any other message exists?
+4. Which incoming messages must node 4 hold before it can send $m_{4\to2}$? Which must node 2 hold before it can send $m_{2\to1}$?
+5. With node 2 as the root, list the messages of the inward pass and of the outward pass.
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+This uses the tree definition in [Week 4, Trees and elimination order](week04.qmd#sec-trees) and the two-pass schedule in [Belief propagation on trees](week04.qmd#sec-bp).
+
+1. Every node is reachable from node 2 (1, 3, 4 directly; 5, 6 through 4), so the graph is connected. A connected graph on 6 nodes with no cycles has exactly 5 edges, and this one has 5, so it has no cycles and is a tree. The leaves, the nodes with exactly one neighbour, are 1, 3, 5, and 6. Adding $1\text{-}3$ closes the cycle $1\text{-}2\text{-}3\text{-}1$, so the graph would no longer be a tree.
+2. One message in each direction along each edge: $2|\mathcal E|=2\cdot5=10$.
+3. A node can send to $i$ once it has heard from every neighbour other than $i$. A leaf has no other neighbours, so the product in the message formula is empty and it can send right away: $m_{1\to2}$, $m_{3\to2}$, $m_{5\to4}$, $m_{6\to4}$. Nodes 2 and 4 each have at least two neighbours they have not yet heard from, so they must wait.
+4. $N(4)\setminus\{2\}=\{5,6\}$, so node 4 needs $m_{5\to4}$ and $m_{6\to4}$. $N(2)\setminus\{1\}=\{3,4\}$, so node 2 needs $m_{3\to2}$ and $m_{4\to2}$. The second of these itself waited on nodes 5 and 6, which is how $m_{2\to1}$ ends up summarizing the whole subtree on node 2's side.
+5. Inward: $m_{1\to2}$, $m_{3\to2}$, $m_{5\to4}$, $m_{6\to4}$, then $m_{4\to2}$. Outward: $m_{2\to1}$, $m_{2\to3}$, $m_{2\to4}$, then $m_{4\to5}$, $m_{4\to6}$. That is $5+5=10$ messages, matching part 2.
+
+**Answer.** (1) A tree with leaves 1, 3, 5, 6; adding $1\text{-}3$ makes a cycle. (2) 10. (3) The four leaf messages. (4) Node 4 needs messages from 5 and 6; node 2 needs messages from 3 and 4. (5) As listed above.
+:::
+
+### Problem 10: Why not just run elimination once per node? {#prb-10}
+
+A chain $x_1\text{-}x_2\text{-}\cdots\text{-}x_n$ has $n$ variables with $k$ states each. Computing one message costs about $k^2$ multiply-adds (a sum over $k$ values for each of $k$ values).
+
+1. How many messages does belief propagation send to get every marginal? About how many multiply-adds is that?
+2. Instead, run variable elimination separately for each node, with that node as the query. One run costs about $(n-1)k^2$. What is the total for all $n$ runs?
+3. Evaluate both totals for $n=100$ and $k=10$.
+4. Which work does the separate-runs approach repeat? Name two runs that share a message.
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+This uses [Week 4, Belief propagation on trees](week04.qmd#sec-bp).
+
+1. A chain with $n$ nodes is a tree with $n-1$ edges, and BP sends one message in each direction along each edge: $2(n-1)$ messages, about $2(n-1)k^2$ multiply-adds.
+2. $n$ runs at $(n-1)k^2$ each: about $n(n-1)k^2$.
+3. BP: $2\cdot99\cdot100=19{,}800$. Separate runs: $100\cdot99\cdot100=990{,}000$. The ratio is $n/2=50$.
+4. The run with query $x_5$ computes $m_{1\to2},m_{2\to3},m_{3\to4},m_{4\to5}$ from the left. The run with query $x_6$ computes those same four messages and then $m_{5\to6}$. Every left-to-right message is recomputed in every run whose query lies to its right, and likewise from the other side. BP computes each of the $2(n-1)$ distinct messages once and lets every node reuse them.
+
+**Answer.** (1) $2(n-1)$ messages, about $2(n-1)k^2$. (2) About $n(n-1)k^2$. (3) $19{,}800$ against $990{,}000$. (4) The queries $x_5$ and $x_6$ share $m_{1\to2},\dots,m_{4\to5}$.
+:::
+
+## Loopy belief propagation {#sec-w4p-loopy}
+
+Practice for [Loopy belief propagation](week04.qmd#sec-loopy).
+
+### Problem 11: True or false on loopy BP {#prb-11}
 
 Say whether each statement is true or false, with a one-line reason.
 
@@ -121,12 +308,246 @@ This uses [Week 4, Loopy belief propagation](week04.qmd#sec-loopy) and the exclu
 3. **True.** Each update is a sum of products that is linear in every incoming message, so a constant factor on one message passes through as a constant factor on later messages and beliefs. Normalizing the belief removes it, as in the three-node chain example. With momentum, scale does matter: blending $(1-\alpha)\,m^{\text{old}}+\alpha\,[\text{update}]$ weights the two vectors by their sizes as well as by $\alpha$. That is one reason to normalize before blending.
 4. **True.** Evidence that leaves a node along one edge of a cycle can return along another and be multiplied in again, like hearing your own rumour back.
 5. **True.** $(1-1)\,m^{\text{old}}+1\cdot[\text{update}]=[\text{update}]$.
-6. **False.** Take the chain $x_1\text{-}x_2$. Then $m_{2\to1}$ would include $m_{1\to2}$, which already carries $\psi_1$, so the belief at $x_1$ would contain $\psi_1$ twice. The exclusion $k\ne i$ is what stops a node's own information from being counted twice.
+6. **False.** Take the chain $x_1\text{-}x_2$. The modified message would be $m_{2\to1}(x_1)=\sum_{x_2}\psi_2(x_2)\,\psi_{12}(x_1,x_2)\,m_{1\to2}(x_2)$, and $m_{1\to2}(x_2)=\sum_{x_1'}\psi_1(x_1')\,\psi_{12}(x_1',x_2)$ is built from node 1's own potential. The belief $b(x_1)\propto\psi_1(x_1)\,m_{2\to1}(x_1)$ would then count node 1's evidence once directly and a second time after a round trip through node 2. Worse, each message would need the other before it could be computed, so on a tree the schedule could never start. The exclusion $k\ne i$ is what stops a node's own information from being counted twice.
 
 **Answer.** True, false, true, true, true, false.
 :::
 
-## Problem 5: Ancestral sampling by hand {#prb-5}
+### Problem 12: One message, by hand {#prb-12}
+
+In a denoising MRF with node potentials $\psi_j(x_j)=e^{\beta y_jx_j}$ and edge potentials $\psi_{ij}(x_i,x_j)=e^{Jx_ix_j}$, take $\beta=0.7$ and an edge $j\text{-}i$ with coupling $J=0.4$. Pixels take values $\pm1$, with $+1$ for white and $-1$ for black (this convention holds for all the denoising problems below). Pixel $j$ is observed black, $y_j=-1$. Its three *other* neighbours currently send it these messages, written $\big(m(+1),\ m(-1)\big)$:
+
+$$(0.6,\ 0.4), \qquad (0.7,\ 0.3), \qquad (0.45,\ 0.55).$$
+
+1. Compute the unnormalized message $m_{j\to i}(x_i)$ for $x_i=+1$ and $x_i=-1$.
+2. Normalize it.
+3. The old message was $(0.5,\ 0.5)$. Apply the momentum update with step size $\alpha=0.6$.
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+This uses the update rule of [Week 4, Loopy belief propagation](week04.qmd#sec-loopy) with the potentials of [the denoising example](week04.qmd#sec-denoise). The message is
+$$m_{j\to i}(x_i)=\sum_{x_j\in\{+1,-1\}}\psi_j(x_j)\,\psi_{ij}(x_i,x_j)\prod_{k\in N(j)\setminus\{i\}}m_{k\to j}(x_j),$$
+and we build it from the inside out.
+
+**Step 1: product of incoming messages, one number per state of $x_j$.**
+$$x_j=+1:\ 0.6\cdot0.7\cdot0.45=0.189, \qquad x_j=-1:\ 0.4\cdot0.3\cdot0.55=0.066.$$
+
+**Step 2: node potential.** Substituting $\beta=0.7$, $y_j=-1$ into $\psi_j(x_j)=e^{\beta y_jx_j}$: $\psi_j(+1)=e^{0.7(-1)(+1)}=e^{-0.7}$ and $\psi_j(-1)=e^{0.7(-1)(-1)}=e^{0.7}$. The observation pulls $x_j$ toward black.
+
+**Step 3: sum over $x_j$ for each $x_i$.** The edge potential is $\psi_{ij}=e^{Jx_ix_j}$, which is $e^{0.4}$ when $x_i,x_j$ agree and $e^{-0.4}$ when they disagree. Node and edge potentials multiply, so their exponents add: $\psi_j(x_j)\,\psi_{ij}(x_i,x_j)=e^{\beta y_jx_j+Jx_ix_j}$. For example, at $x_i=x_j=+1$ the exponent is $0.7(-1)(+1)+0.4(+1)(+1)=-0.7+0.4$. Each line below has the $x_j=+1$ term first and the $x_j=-1$ term second:
+$$m_{j\to i}(+1)=e^{-0.7+0.4}(0.189)+e^{0.7-0.4}(0.066)$$
+$$=0.7408(0.189)+1.3499(0.066)=0.1400+0.0891=0.2291,$$
+$$m_{j\to i}(-1)=e^{-0.7-0.4}(0.189)+e^{0.7+0.4}(0.066)$$
+$$=0.3329(0.189)+3.0042(0.066)=0.0629+0.1983=0.2612.$$
+
+**Normalize.** The total is $0.4903$, giving $(0.4673,\ 0.5327)$.
+
+**Momentum.** $m^{\text{new}}=(1-\alpha)\,m^{\text{old}}+\alpha\,[\text{update}]$:
+$$0.4\,(0.5,\ 0.5)+0.6\,(0.4673,\ 0.5327)=(0.4804,\ 0.5196).$$
+
+Notice the tug of war. Two of the three neighbours lean white, which shows up as the larger product at $x_j=+1$, but the black observation multiplies the $x_j=-1$ branch by $e^{0.7}/e^{-0.7}\approx4$. The message ends up leaning slightly black. In code, the same three steps are an elementwise product, a $2\times2$ table of edge-times-node potentials, and a sum over one axis, as in [Week 3 practice, Problem 13](week03-practice.qmd#prb-13).
+
+**Answer.** Unnormalized $(0.2291,\ 0.2612)$; normalized $(0.4673,\ 0.5327)$; after momentum $(0.4804,\ 0.5196)$.
+:::
+
+### Problem 13: What the step size does {#prb-13}
+
+Loopy BP on a cycle can oscillate. Take a toy version: a single message $(p,\ 1-p)$ whose freshly computed update is always the flipped vector $(1-p,\ p)$. Start from $p=0.8$ and apply the momentum update
+$$m^{\text{new}}=(1-\alpha)\,m^{\text{old}}+\alpha\,[\text{update}].$$
+
+1. Trace $p$ for three iterations with $\alpha=1$, $\alpha=0.5$, and $\alpha=0.25$.
+2. Write $p^{\text{new}}-\tfrac12$ in terms of $p^{\text{old}}-\tfrac12$ and explain the three behaviours.
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+This uses the momentum trick in [Week 4, Loopy belief propagation](week04.qmd#sec-loopy).
+
+1. The first entry updates as $p^{\text{new}}=(1-\alpha)p+\alpha(1-p)$.
+    - $\alpha=1$ (plain replacement): $0.8\to0.2\to0.8\to0.2$. It never settles.
+    - $\alpha=0.5$: $0.5\,(0.8)+0.5\,(0.2)=0.5$, then $0.5$ forever.
+    - $\alpha=0.25$: $0.75p+0.25(1-p)=0.25+0.5p$, so $0.8\to0.65\to0.575\to0.5375$.
+2. Subtracting $\tfrac12$ from both sides,
+$$p^{\text{new}}-\tfrac12=(1-2\alpha)\big(p^{\text{old}}-\tfrac12\big).$$
+The distance from the fixed point $\tfrac12$ is multiplied by $1-2\alpha$ each iteration. At $\alpha=1$ the factor is $-1$: same size, opposite sign, a permanent oscillation. At $\alpha=0.5$ it is $0$ and the oscillation dies in one step. At $\alpha=0.25$ it is $\tfrac12$, so the distance halves each time with no sign flips.
+
+Real BP updates are not this simple map, so no single step size zeroes out oscillation in general. The general point survives: blending in the old message shrinks the jump each iteration, which damps oscillation. The price is that when the plain updates would have converged anyway, a small $\alpha$ makes each iteration move less.
+
+**Answer.** $\alpha=1$: $0.2, 0.8, 0.2$. $\alpha=0.5$: $0.5, 0.5, 0.5$. $\alpha=0.25$: $0.65, 0.575, 0.5375$. The deviation from $\tfrac12$ scales by $1-2\alpha$ per step.
+:::
+
+## Max-product BP and MAP inference {#sec-w4p-maxproduct}
+
+Practice for [Max-product BP and MAP inference](week04.qmd#sec-maxproduct).
+
+### Problem 14: Max-product against the most likely state of each node {#prb-14}
+
+Two spins $x_1,x_2\in\{+1,-1\}$ share one edge, with node potentials equal to 1 and edge potential
+
+| | $x_2=+1$ | $x_2=-1$ |
+|---|---|---|
+| $x_1=+1$ | 4 | 1 |
+| $x_1=-1$ | 3 | 3 |
+
+1. Run sum-product: compute both messages, both beliefs, and the setting $(\tilde x_1,\tilde x_2)$ that picks the more likely state of each node separately. What is its probability?
+2. Run max-product and read off $\hat x_i=\arg\max_{x_i}b(x_i)$. What is the probability of $(\hat x_1,\hat x_2)$?
+3. Explain the difference in one or two sentences.
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+This uses [Week 4, Max-product BP and MAP inference](week04.qmd#sec-maxproduct).
+
+The normalizer is $Z=4+1+3+3=11$, so the joint probabilities are the table entries divided by 11.
+
+1. Each node has one neighbour and node potentials are 1, so the message formula reduces to $m_{2\to1}(x_1)=\sum_{x_2}\psi_{12}(x_1,x_2)$ (a row sum of the table) and $m_{1\to2}(x_2)=\sum_{x_1}\psi_{12}(x_1,x_2)$ (a column sum):
+$$m_{2\to1}(+1)=4+1=5,\qquad m_{2\to1}(-1)=3+3=6,$$
+$$m_{1\to2}(+1)=4+3=7,\qquad m_{1\to2}(-1)=1+3=4.$$
+The belief is $b(x_i)\propto\psi_i(x_i)\,m_{j\to i}(x_i)$ with $\psi_i=1$, so each belief is its incoming message normalized: $b(x_1)=(5,6)/11=(5/11,\ 6/11)$ and $b(x_2)=(7,4)/11=(7/11,\ 4/11)$. Node by node, $\tilde x_1=-1$ and $\tilde x_2=+1$. The pair $(-1,+1)$ has probability $3/11\approx0.273$.
+2. Max-product takes the largest term instead:
+$$m_{2\to1}(+1)=\max(4,1)=4,\qquad m_{2\to1}(-1)=\max(3,3)=3,$$
+$$m_{1\to2}(+1)=\max(4,3)=4,\qquad m_{1\to2}(-1)=\max(1,3)=3.$$
+With $\psi_i=1$ the max-marginals are the messages themselves: $b(x_1)=m_{2\to1}=(4,\ 3)$ and $b(x_2)=m_{1\to2}=(4,\ 3)$. Both peak at $+1$, so $(\hat x_1,\hat x_2)=(+1,+1)$, with probability $4/11\approx0.364$. This is the largest entry in the table, so it is the [MAP](https://en.wikipedia.org/wiki/Maximum_a_posteriori_estimation) estimate.
+3. A sum-product belief adds up every configuration with $x_1$ in a given state. $x_1=-1$ wins that total ($3+3$ against $4+1$) without containing the single best configuration. A max-product belief scores only the best configuration in each state, so reading those off node by node gives the best joint setting.
+
+**Answer.** (1) $b(x_1)=(5/11,6/11)$, $b(x_2)=(7/11,4/11)$; the node-by-node choice is $(-1,+1)$, probability $3/11$. (2) Max-product gives $(+1,+1)$, probability $4/11$, the MAP estimate. (3) Summed totals and best single configurations can disagree.
+:::
+
+### Problem 15: Max-product on a three-node chain {#prb-15}
+
+Binary variables $x_1\text{-}x_2\text{-}x_3$, each in $\{0,1\}$, have node potentials $\psi_1=(2,\ 1)$ (values at 0 and 1) and $\psi_2=\psi_3=1$. The edge potentials are
+
+- $\psi_{12}(x_1,x_2)=3$ if $x_1=x_2$ and $1$ otherwise;
+- $\psi_{23}(x_2,x_3)$ given by the table below.
+
+| | $x_3=0$ | $x_3=1$ |
+|---|---|---|
+| $x_2=0$ | 1 | 4 |
+| $x_2=1$ | 2 | 2 |
+
+1. Run max-product: compute all four messages and the three max-marginals $b(x_1)$, $b(x_2)$, $b(x_3)$. Read off $(\hat x_1,\hat x_2,\hat x_3)$.
+2. Check part 1 by listing $\tilde p(x_1,x_2,x_3)$ for all eight configurations. What is the probability of the MAP setting?
+3. What do the largest entries of the three max-marginals have in common, and why?
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+This uses [Week 4, Max-product BP and MAP inference](week04.qmd#sec-maxproduct). Write each message as (value at 0, value at 1).
+
+1. Each message is the sum-product formula with $\max$ in place of $\sum$.
+$$m_{1\to2}(x_2)=\max_{x_1}\psi_1(x_1)\,\psi_{12}(x_1,x_2):\quad(\max(6,1),\ \max(2,3))=(6,\ 3),$$
+$$m_{3\to2}(x_2)=\max_{x_3}\psi_{23}(x_2,x_3):\quad(\max(1,4),\ \max(2,2))=(4,\ 2).$$
+The other two messages each use the one message the sender received from its other side:
+$$m_{2\to3}(x_3)=\max_{x_2}\psi_{23}(x_2,x_3)\,m_{1\to2}(x_2):\quad(\max(6,6),\ \max(24,6))=(6,\ 24),$$
+$$m_{2\to1}(x_1)=\max_{x_2}\psi_{12}(x_1,x_2)\,m_{3\to2}(x_2):\quad(\max(12,2),\ \max(4,6))=(12,\ 6).$$
+The max-marginal at each node is its own potential times all incoming messages, $b(x_i)=\psi_i(x_i)\prod_jm_{j\to i}(x_i)$. Since $\psi_2=\psi_3=1$, only node 1 has a potential to multiply in: $b(x_1)=\psi_1\cdot m_{2\to1}=(2\cdot12,\ 1\cdot6)=(24,\ 6)$, $b(x_2)=m_{1\to2}\cdot m_{3\to2}=(6\cdot4,\ 3\cdot2)=(24,\ 6)$, and $b(x_3)=m_{2\to3}=(6,\ 24)$. So $(\hat x_1,\hat x_2,\hat x_3)=(0,0,1)$.
+2. $\tilde p=\psi_1(x_1)\,\psi_{12}(x_1,x_2)\,\psi_{23}(x_2,x_3)$:
+
+    | $(x_1,x_2,x_3)$ | 000 | 001 | 010 | 011 | 100 | 101 | 110 | 111 |
+    |---|---|---|---|---|---|---|---|---|
+    | $\tilde p$ | 6 | 24 | 4 | 4 | 1 | 4 | 6 | 6 |
+
+    The largest entry is 24 at $(0,0,1)$, matching part 1. The total is $Z=55$, so the MAP setting has probability $24/55\approx0.436$.
+3. Each one is 24, the score of the MAP configuration. A max-marginal $b(x_i)$ scores the best configuration with node $i$ in state $x_i$, and the best configuration overall has every node in some state, so it shows up as the top entry at every node. The table confirms the other entries too: the best configuration with $x_3=0$ scores 6, which is $b(x_3=0)$.
+
+**Answer.** (1) Messages $(6,3)$, $(4,2)$, $(6,24)$, $(12,6)$; max-marginals $(24,6)$, $(24,6)$, $(6,24)$; MAP $(0,0,1)$. (2) Confirmed, probability $24/55$. (3) All three peak at 24, the MAP score.
+:::
+
+## Tutorial example: image denoising with loopy BP {#sec-w4p-denoise}
+
+Practice for [Tutorial example: image denoising with loopy BP](week04.qmd#sec-denoise).
+
+### Problem 16: Who talks to whom on a 3×3 grid {#prb-16}
+
+A $3\times3$ binary image is flattened into a vector of $n=9$ pixels in [row-major order](https://en.wikipedia.org/wiki/Row-_and_column-major_order), so node $s$ sits in row $\lfloor s/3\rfloor$ and column $s \bmod 3$:
+
+$$\begin{matrix}0&1&2\\3&4&5\\6&7&8\end{matrix}$$
+
+Use the 4-neighbour rule: with $m=3$, node $s$ has right neighbour $s+1$ unless $(s+1)\bmod m=0$, left neighbour $s-1$ unless $s\bmod m=0$, lower neighbour $s+m$ if $s+m<n$, and upper neighbour $s-m$ if $s-m\ge0$.
+
+1. List the neighbours of node 0 (a corner), node 1 (an edge), and node 4 (the centre).
+2. Messages are stored in an array `messages` of shape `(2, 9, 9)`, where `messages[:, j, i]` is the message from node $j$ to node $i$, entry 0 is the value at $x_i=+1$ and entry 1 the value at $x_i=-1$. Which slice holds $m_{4\to1}$?
+3. When node 4 computes its message to node 1, which slices does it multiply together? Is the edge $4\text{-}1$ horizontal or vertical?
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+This uses the message definition in [Week 4, Messages and beliefs](week04.qmd#sec-messages) and the grid model of [the denoising example](week04.qmd#sec-denoise).
+
+1. Node 0: column 0 has no left neighbour and row 0 has no upper one, leaving $\{1,3\}$. Node 1: right 2, left 0, lower 4, no upper, so $\{0,2,4\}$. Node 4: all four exist, $\{1,3,5,7\}$. Corners have 2 neighbours, edges 3, interior pixels 4.
+2. The sender is the middle index and the receiver the last, so $m_{4\to1}$ is `messages[:, 4, 1]`: `messages[0, 4, 1]` is $m_{4\to1}(+1)$ and `messages[1, 4, 1]` is $m_{4\to1}(-1)$.
+3. The product runs over $k\in N(4)\setminus\{1\}=\{3,5,7\}$, and each factor is a message *into* node 4: `messages[:, 3, 4]`, `messages[:, 5, 4]`, `messages[:, 7, 4]`. The message `messages[:, 1, 4]` is left out, because node 4 does not echo back what node 1 told it. Nodes 4 and 1 share column 1 and sit in adjacent rows, so the edge is vertical.
+
+**Answer.** (1) $N(0)=\{1,3\}$, $N(1)=\{0,2,4\}$, $N(4)=\{1,3,5,7\}$. (2) `messages[:, 4, 1]`. (3) The incoming messages from 3, 5, and 7 (second index = sender, third = 4); the edge is vertical.
+:::
+
+### Problem 17: From messages to a pixel decision {#prb-17}
+
+A pixel $i$ in the same model ($\beta=0.7$, $+1$ white, $-1$ black) is observed white, $y_i=+1$. After message passing, its four neighbours send
+
+$$(0.3,\ 0.7), \qquad (0.4,\ 0.6), \qquad (0.35,\ 0.65), \qquad (0.6,\ 0.4).$$
+
+1. Compute the unnormalized belief $\tilde b(x_i)$ and the normalized belief $b(x_i)$.
+2. Using the rule $\hat x_i=\arg\max_{x_i}b(x_i)$, what colour is the denoised pixel?
+3. Suppose the last message had been stored unnormalized as $(6,\ 4)$. Does anything in part 2 change?
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+This uses the belief formula of [Week 4, Messages and beliefs](week04.qmd#sec-messages) and the decision rule at the end of [the denoising example](week04.qmd#sec-denoise).
+
+1. The belief is $\tilde b(x_i)=\psi_i(x_i)\prod_{j\in N(i)}m_{j\to i}(x_i)$. Substituting $\beta=0.7$, $y_i=+1$ into $\psi_i(x_i)=e^{\beta y_ix_i}$ gives $\psi_i(+1)=e^{0.7}=2.0138$ and $\psi_i(-1)=e^{-0.7}=0.4966$. Unlike a message, a belief multiplies in *every* neighbour's message, with no exclusion:
+$$\prod_jm_{j\to i}(+1)=0.3\cdot0.4\cdot0.35\cdot0.6=0.0252,$$
+$$\prod_jm_{j\to i}(-1)=0.7\cdot0.6\cdot0.65\cdot0.4=0.1092.$$
+So $\tilde b=(2.0138\cdot0.0252,\ 0.4966\cdot0.1092)=(0.0507,\ 0.0542)$, and dividing by the total $0.1050$ gives $b=(0.483,\ 0.517)$.
+2. $b(-1)>b(+1)$, so $\hat x_i=-1$: black. Three of four neighbours lean black strongly enough to outvote both the white observation and the one neighbour leaning white, which is how the model corrects a pixel the channel likely flipped.
+3. No. Multiplying one message by 10 multiplies both entries of $\tilde b$ by 10, and normalizing removes it. This is the scaling argument of the week chapter's three-node chain example.
+
+**Answer.** $\tilde b\approx(0.0507,\ 0.0542)$, $b\approx(0.483,\ 0.517)$; the pixel is set to black; rescaling a message changes nothing.
+:::
+
+### Problem 18: Observation strength against coupling {#prb-18}
+
+1. A binary symmetric channel flips each pixel with probability $\epsilon$. Compute $\beta=\tfrac12\log\frac{1-\epsilon}{\epsilon}$ for $\epsilon=0.1$ and $\epsilon=0.25$.
+2. An interior pixel $i$ is observed black ($y_i=-1$; as before, $+1$ is white and $-1$ black). To isolate the trade-off, suppose its four neighbours are known to be white ($+1$), so each sends the message $m(x_i)=e^{Jx_i}$ (one shared coupling $J$ on all four edges). Find the ratio $b(+1)/b(-1)$, and the condition on $J$ under which the pixel's belief favours white.
+3. Evaluate that threshold for both values of $\epsilon$ from part 1.
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+This uses the observation model and the posterior of [Week 4, Tutorial example: image denoising](week04.qmd#sec-denoise).
+
+1. $\epsilon=0.1$: $\beta=\tfrac12\log9=\log3\approx1.099$. $\epsilon=0.25$: $\beta=\tfrac12\log3\approx0.549$. Noisier observations deserve less trust, and $\beta$ shrinks accordingly.
+2. The node potential gives $e^{-\beta}$ at $x_i=+1$ and $e^{\beta}$ at $x_i=-1$. Each neighbour message gives $e^{J}$ versus $e^{-J}$, four times over. So
+$$\frac{b(+1)}{b(-1)}=\frac{e^{-\beta}\,e^{4J}}{e^{\beta}\,e^{-4J}}=e^{8J-2\beta}.$$
+The belief favours white exactly when $8J>2\beta$, that is $J>\beta/4$.
+3. $\epsilon=0.1$: $J>0.275$. $\epsilon=0.25$: $J>0.137$.
+
+The inequality is a vote. The observation contributes $2\beta$ toward black, and each agreeing neighbour contributes $2J$ toward white. With noisier data a weaker coupling is enough to outvote the observation. The inequality has no way of knowing whether the black pixel is noise or a genuine one-pixel detail of the image: it treats both the same.
+
+**Answer.** (1) $\beta\approx1.099$ and $0.549$. (2) $b(+1)/b(-1)=e^{8J-2\beta}$; white wins when $J>\beta/4$. (3) $J>0.275$ and $J>0.137$.
+:::
+
+## Sampling from an unnormalized density {#sec-w4p-sampling}
+
+Practice for [Sampling from an unnormalized density](week04.qmd#sec-sampling).
+
+### Problem 19: What needs $Z$ and what does not {#prb-19}
+
+1. A model on a huge state space can evaluate $\tilde p$ but not $Z$. For four particular states it reports $\tilde p(s_1)=6$, $\tilde p(s_2)=2$, $\tilde p(s_3)=0.5$, $\tilde p(s_4)=6$. For each question, say whether it can be answered without $Z$, and answer it if so.
+    a. How many times more probable is $s_1$ than $s_3$?
+    b. Which of $s_1,s_2$ is more probable?
+    c. Is $p(s_1)>0.01$?
+    d. What is $p(s_1)+p(s_4)$?
+2. In the denoising posterior $p(x\mid y)\propto\exp\{J\sum_{s\sim t}x_sx_t+\beta\sum_sy_sx_s\}$, take $J=0.5$ and $\beta=1$. Pixel $s$ has $x_s=+1$ (white), four neighbours all equal to $+1$, and observation $y_s=-1$ (black). Let $x'$ be the same image with only $x_s$ flipped to $-1$. Find $p(x\mid y)/p(x'\mid y)$.
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+This uses [Week 4, Sampling from an unnormalized density](week04.qmd#sec-sampling) and the posterior of [the denoising example](week04.qmd#sec-denoise).
+
+1. Since $p=\tilde p/Z$, any ratio of probabilities cancels $Z$, and any single probability needs it.
+    a. No $Z$ needed: $6/0.5=12$ times.
+    b. No $Z$ needed: $s_1$, three times as probable.
+    c. Needs $Z$. $p(s_1)=6/Z$, and without $Z$ that could be anything.
+    d. Needs $Z$: it is $12/Z$. We can say $s_1$ and $s_4$ are equally probable, but not how much of the total they hold.
+2. The ratio is $\exp\{E(x)-E(x')\}$ where $E$ is the exponent. Every term that does not involve pixel $s$ is the same in both images and cancels, along with $Z$. The terms that involve $s$ are $x_s\big(J\sum_{t\in N(s)}x_t+\beta y_s\big)$, and flipping $x_s$ flips their sign, so
+$$E(x)-E(x')=2x_s\Big(J\sum_{t\in N(s)}x_t+\beta y_s\Big)=2\,(0.5\cdot4-1)=2.$$
+The ratio is $e^2\approx7.39$. Agreeing with four white neighbours outweighs disagreeing with the black observation. The calculation looked at five pixels and never touched $Z$, which is a sum over all $2^n$ images.
+
+**Answer.** (1a) 12. (1b) $s_1$. (1c) and (1d) need $Z$. (2) $e^2\approx7.39$.
+:::
+
+## Ancestral sampling {#sec-w4p-ancestral}
+
+Practice for [Ancestral sampling](week04.qmd#sec-ancestral).
+
+### Problem 20: Ancestral sampling by hand {#prb-20}
 
 A DAG over binary variables $A,B,C,D\in\{0,1\}$ has edges $A\to B$, $A\to C$, $B\to D$, $C\to D$, with
 
@@ -151,29 +572,152 @@ This uses [Week 4, Ancestral sampling](week04.qmd#sec-ancestral).
     - $C$: $p(C=1\mid A=1)=0.1$ and $0.05<0.1$, so $C=1$.
     - $D$: $p(D=1\mid B=0,C=1)=0.5$ and $0.47<0.5$, so $D=1$.
 
-    The sample is $(A,B,C,D)=(1,0,1,1)$. Its probability is the product of the factors used: $0.3\cdot0.3\cdot0.1\cdot0.5=0.0045$.
+    The sample is $(A,B,C,D)=(1,0,1,1)$. A DAG's joint factorizes as $p(A)\,p(B\mid A)\,p(C\mid A)\,p(D\mid B,C)$, so its probability is the product of the four factors used, each read at the values drawn:
+    $$p(A=1)\,p(B=0\mid A=1)\,p(C=1\mid A=1)\,p(D=1\mid B=0,C=1)=0.3\cdot(1-0.7)\cdot0.1\cdot0.5=0.0045.$$
+    The second factor is $0.3$ because $B$ came out 0, so we need $1-p(B=1\mid A=1)$.
 3. No. $D$ is drawn last, from its parents, so its value is an output of the procedure, not something we can fix in advance. Nothing in the procedure sets $D=1$ and then updates $A$. The lecture notes that ancestral sampling draws from the joint with nothing observed and does not directly give conditional samples.
 
 **Answer.** (1) (a) and (b). (2) $(1,0,1,1)$, probability $0.0045$. (3) No: the observed variable is a child, drawn last.
 :::
 
-## Problem 6: How many samples? {#prb-6}
+## What sampling is for {#sec-w4p-goals}
 
-1. A test function has $\mathrm{var}[\phi(x)]=9$ under $p$. How many independent samples does simple [Monte Carlo](https://en.wikipedia.org/wiki/Monte_Carlo_method) need for the standard deviation of $\hat\Phi$ to be at most $0.1$? At most $0.05$?
-2. We want $\mathbb P(x\in A)$ to within a standard deviation of $0.01$, using the [indicator function](https://en.wikipedia.org/wiki/Indicator_function) as the test function. Show that $\mathrm{var}[\mathbf 1_{\{x\in A\}}]\le\tfrac14$ and find an $R$ that is enough whatever the true probability is. How many would suffice if we knew the probability was about $0.1$?
-3. A grid with 50 points per axis is used to approximate $Z$ instead. How many grid points are there for $D=3$ and for $D=10$?
+Practice for [What sampling is for](week04.qmd#sec-goals).
+
+### Problem 21: Picking the test function {#prb-21}
+
+A random variable takes values $x\in\{0,1,2,3\}$ with probabilities $p=(0.1,\ 0.4,\ 0.3,\ 0.2)$. For each question, write the test function $\phi$ whose expectation answers it, then compute the exact answer.
+
+1. The mean of $x$.
+2. The variance of $x$.
+3. $\mathbb P(x\ge2)$.
+4. $\mathbb P(x\text{ is odd and }x\ge2)$.
+5. Apply the variance recipe of part 2 to the test function of part 3. What do you get, and why is the formula so short?
 
 ::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
-This uses the variance formula in [Week 4, Simple Monte Carlo](week04.qmd#sec-simplemc) and the grid example in [Why the normalizing constant is hard](week04.qmd#sec-hardz).
+This uses [Week 4, What sampling is for](week04.qmd#sec-goals).
+
+1. $\phi_1(x)=x$: $\Phi_1=0(0.1)+1(0.4)+2(0.3)+3(0.2)=1.6$.
+2. The lecture's recipe adds a second test function $\phi_2(x)=x^2$: $\Phi_2=0^2(0.1)+1^2(0.4)+2^2(0.3)+3^2(0.2)=0+0.4+1.2+1.8=3.4$, so the variance is $\Phi_2-\Phi_1^2=3.4-1.6^2=3.4-2.56=0.84$. Once the mean is known, the single test function $\phi(x)=(x-1.6)^2$ gives the same answer directly: $2.56(0.1)+0.36(0.4)+0.16(0.3)+1.96(0.2)=0.84$.
+3. The [indicator function](https://en.wikipedia.org/wiki/Indicator_function) $\phi(x)=\mathbf 1_{\{x\ge2\}}$: its expectation is $0.3+0.2=0.5$.
+4. $\phi(x)=\mathbf 1_{\{x\text{ odd}\}}\cdot\mathbf 1_{\{x\ge2\}}$. A product of indicators is 1 only when both events hold, so it is the indicator of the intersection, here $\{3\}$: the answer is $0.2$.
+5. An indicator only takes the values 0 and 1, so it equals its own square, and $\Phi_2=\Phi_1=0.5$. The variance is $0.5-0.5^2=0.25$, the familiar $p(1-p)$. This is the quantity that sets how many samples a probability estimate needs.
+
+**Answer.** (1) $1.6$. (2) $0.84$. (3) $0.5$. (4) $0.2$. (5) $0.25=p(1-p)$, because an indicator squared is itself.
+:::
+
+### Problem 22: A probability from posterior samples {#prb-22}
+
+Suppose some sampler has produced eight draws from a joint posterior over two players' skills $(z_i,z_j)$:
+
+| $r$ | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 |
+|---|---|---|---|---|---|---|---|---|
+| $z_i$ | 1.2 | 0.4 | 1.5 | 0.9 | 0.3 | 1.1 | 1.8 | 0.7 |
+| $z_j$ | 0.8 | 0.9 | 1.1 | 0.2 | 0.6 | 1.3 | 0.7 | 0.4 |
+
+1. Estimate $\mathbb P(z_i\ge z_j\mid\text{games})$.
+2. Estimate the posterior mean and standard deviation of $z_i$.
+3. If the draws were independent, roughly how uncertain is the estimate in part 1?
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+This uses [Week 4, What sampling is for](week04.qmd#sec-goals) and [Simple Monte Carlo](week04.qmd#sec-simplemc).
+
+1. A probability is the expectation of an indicator function: $\mathbb P(z_i\ge z_j)=\mathbb E\big[\mathbf 1_{\{z_i\ge z_j\}}\big]$. The simple [Monte Carlo](https://en.wikipedia.org/wiki/Monte_Carlo_method) estimate is the fraction of samples where the event holds. Row by row the indicator is $1,0,1,1,0,0,1,1$, so the estimate is $5/8=0.625$.
+2. Mean: average the test function $\phi_1=z_i$ over the draws. The $z_i$ row sums to $1.2+0.4+1.5+0.9+0.3+1.1+1.8+0.7=7.9$, so $\hat\Phi_1=7.9/8=0.9875$. For the spread, use the second test function $\phi_2=z_i^2$. The squares are $1.44,\ 0.16,\ 2.25,\ 0.81,\ 0.09,\ 1.21,\ 3.24,\ 0.49$, summing to $9.69$, so $\hat\Phi_2=9.69/8=1.2113$, so the variance estimate is $\hat\Phi_2-\hat\Phi_1^2=1.2113-0.9752=0.2361$ and the standard deviation is $0.486$.
+3. The indicator has variance $p(1-p)$, so with independent draws $\mathrm{var}[\hat\Phi]=p(1-p)/R\approx0.625\cdot0.375/8=0.029$, a standard deviation of about $0.17$. Eight samples cannot pin the probability down. The $1/R$ rate assumes independent draws; samplers that produce each draw from the previous one give correlated samples, and then the error shrinks more slowly than this formula says.
+
+**Answer.** (1) $0.625$. (2) Mean $0.9875$, standard deviation $\approx0.486$. (3) About $\pm0.17$ (one standard deviation) for independent draws.
+:::
+
+## Simple Monte Carlo {#sec-w4p-simplemc}
+
+Practice for [Simple Monte Carlo](week04.qmd#sec-simplemc).
+
+### Problem 23: How many samples? {#prb-23}
+
+1. A test function has $\mathrm{var}[\phi(x)]=9$ under $p$. How many independent samples does simple Monte Carlo need for the standard deviation of $\hat\Phi$ to be at most $0.1$? At most $0.05$?
+2. We want $\mathbb P(x\in A)$ to within a standard deviation of $0.01$, using the indicator function as the test function. Show that $\mathrm{var}[\mathbf 1_{\{x\in A\}}]\le\tfrac14$ and find an $R$ that is enough whatever the true probability is. How many would suffice if we knew the probability was about $0.1$?
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+This uses the variance formula in [Week 4, Simple Monte Carlo](week04.qmd#sec-simplemc).
 
 1. $\mathrm{var}[\hat\Phi]=\mathrm{var}[\phi]/R=9/R$. A standard deviation of $0.1$ means variance $0.01$, so $R\ge900$. Halving the standard deviation to $0.05$ means variance $0.0025$, so $R\ge3600$. Halving the error costs four times the samples.
 2. The indicator is 1 with probability $p$ and 0 otherwise, so its variance is $p(1-p)$, a parabola with its maximum $\tfrac14$ at $p=\tfrac12$. We need $p(1-p)/R\le0.01^2$. Using the bound, $R\ge0.25/0.0001=2500$ is enough whatever $p$ is. If $p\approx0.1$, then $p(1-p)=0.09$ and $R\ge900$ suffices.
-3. $50^3=125{,}000$ points for $D=3$ and $50^{10}\approx9.8\times10^{16}$ for $D=10$. The grid grows exponentially with $D$ (the [curse of dimensionality](https://en.wikipedia.org/wiki/Curse_of_dimensionality)). The sample counts in parts 1 and 2 do not mention $D$ at all. The catch is that they assume we can already draw samples from $p$.
 
-**Answer.** (1) $900$ and $3600$. (2) $p(1-p)\le\tfrac14$; $R=2500$ always suffices, $R=900$ if $p\approx0.1$. (3) $125{,}000$ and about $9.8\times10^{16}$.
+**Answer.** (1) $900$ and $3600$. (2) $p(1-p)\le\tfrac14$; $R=2500$ always suffices, $R=900$ if $p\approx0.1$.
 :::
 
-## Problem 7: Importance sampling with an unnormalized target {#prb-7}
+### Problem 24: An estimator small enough to list completely {#prb-24}
+
+A biased coin gives $x=1$ with probability $0.3$ and $x=0$ otherwise. We estimate $\Phi=\mathbb E[x]=0.3$ by simple Monte Carlo with $\phi(x)=x$ and only $R=2$ independent draws.
+
+1. List every possible pair of draws, its probability, and the value of $\hat\Phi$.
+2. From that list, compute $\mathbb E[\hat\Phi]$ and $\mathrm{var}[\hat\Phi]$. Compare them with $\Phi$ and with $\mathrm{var}[\phi(x)]/R$.
+3. What is the probability that $\hat\Phi$ equals $0.3$ exactly? Does that contradict part 2?
+4. Suppose a bug made the second draw a copy of the first. What is $\mathrm{var}[\hat\Phi]$ now?
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+This uses the unbiasedness and variance results of [Week 4, Simple Monte Carlo](week04.qmd#sec-simplemc).
+
+1. Draws are independent, so probabilities multiply:
+
+    | Draws | $(0,0)$ | $(0,1)$ | $(1,0)$ | $(1,1)$ |
+    |---|---|---|---|---|
+    | Probability | $0.49$ | $0.21$ | $0.21$ | $0.09$ |
+    | $\hat\Phi$ | $0$ | $0.5$ | $0.5$ | $1$ |
+
+2. $\mathbb E[\hat\Phi]=0.42(0.5)+0.09(1)=0.30=\Phi$: unbiased, as promised. For the variance, $\mathbb E[\hat\Phi^2]=0.42(0.25)+0.09(1)=0.195$, so $\mathrm{var}[\hat\Phi]=0.195-0.09=0.105$. The single-draw variance is $\mathrm{var}[\phi]=0.3\cdot0.7=0.21$, and $0.21/2=0.105$. The formula holds exactly.
+3. Zero: $\hat\Phi$ can only be $0$, $0.5$, or $1$. No contradiction. Unbiased means the estimates are right *on average* over repetitions, not that any one estimate is right. The variance measures how far a typical estimate lands from $\Phi$.
+4. With a copy, $\hat\Phi=\tfrac12(x+x)=x$, so $\mathrm{var}[\hat\Phi]=0.21$, no better than one draw. The $1/R$ in the formula came from adding the variances of independent terms; a copied draw adds no new information.
+
+**Answer.** (2) $\mathbb E[\hat\Phi]=0.3$, $\mathrm{var}[\hat\Phi]=0.105=0.21/2$. (3) Probability 0, consistent with unbiasedness. (4) $0.21$.
+:::
+
+## Why the normalizing constant is hard {#sec-w4p-hardz}
+
+Practice for [Why the normalizing constant is hard](week04.qmd#sec-hardz).
+
+### Problem 25: Counting grid points {#prb-25}
+
+A grid with 50 points per axis is used to approximate $Z$ by adding up $\tilde p$ at every grid point.
+
+1. How many grid points are there for $D=3$ and for $D=10$?
+2. If one evaluation of $\tilde p$ takes a nanosecond, how long does each grid take?
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+This uses the grid example in [Week 4, Why the normalizing constant is hard](week04.qmd#sec-hardz).
+
+1. $50^3=125{,}000$ points for $D=3$ and $50^{10}\approx9.8\times10^{16}$ for $D=10$. The grid grows exponentially with $D$ (the [curse of dimensionality](https://en.wikipedia.org/wiki/Curse_of_dimensionality)).
+2. Time is (number of points) × $10^{-9}$ s. $D=3$: $125{,}000\times10^{-9}=1.25\times10^{-4}$ s, about $0.1$ milliseconds. $D=10$: $9.8\times10^{16}\times10^{-9}=9.8\times10^{7}$ seconds, and dividing by about $3.15\times10^{7}$ seconds per year gives roughly three years. A $10\times10$ binary image already has $D=100$.
+
+Compare the sample counts in [Problem 23](#prb-23): they do not mention $D$ at all. The catch is that they assume we can already draw samples from $p$.
+
+**Answer.** (1) $125{,}000$ and about $9.8\times10^{16}$. (2) About $0.1$ ms against about three years.
+:::
+
+### Problem 26: The canyon a boat never finds {#prb-26}
+
+On the unit cube $[0,1]^D$, a density puts 90% of its mass inside the small corner cube $[0,\tfrac12]^D$ and spreads the other 10% thinly over the rest. We know nothing about where the mass is, so we place "boat" locations uniformly at random in the cube, as in the lecture's lake picture.
+
+1. What fraction $f$ of the cube's volume is the corner cube, for $D=1$, $D=10$, and $D=30$?
+2. With $R=1000$ uniform draws, what is the probability that none lands in the corner cube, for $D=10$ and $D=30$?
+3. We estimate $Z=\int\tilde p$ by the average of $\tilde p$ over the uniform draws (the cube has volume 1). If no draw lands in the corner cube, roughly what will the estimate be, compared with the true $Z$? Would anything in the output warn us?
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+This uses the lake analogy in [Week 4, Why the normalizing constant is hard](week04.qmd#sec-hardz).
+
+1. $f=(\tfrac12)^D$: $0.5$ for $D=1$, $1/1024\approx9.8\times10^{-4}$ for $D=10$, and $(\tfrac12)^{30}\approx9.3\times10^{-10}$ for $D=30$.
+2. Each draw misses with probability $1-f$, independently, so all miss with probability $(1-f)^{R}$ with $R=1000$. For small $f$, $\log(1-f)\approx-f$, so $(1-f)^R\approx e^{-Rf}$. For $D=10$, $Rf=1000/1024\approx0.977$ and the probability is about $e^{-0.977}\approx0.38$. For $D=30$, $Rf=1000\times9.3\times10^{-10}=9.3\times10^{-7}$, so $e^{-Rf}\approx1-Rf=1-9.3\times10^{-7}$: essentially certain.
+3. The average of $\tilde p$ is a simple Monte Carlo estimate of $\int\tilde p$ under the uniform distribution. If every draw misses the corner, the draws only see the thin 10% part, so the estimate comes out near $0.1\,Z$, ten times too small. Nothing in the output flags this: the sampled values look perfectly ordinary, because the method never visited the place where it went wrong. This is the narrow, deep canyon from the lecture, holding most of the water and almost never visited.
+
+**Answer.** (1) $0.5$, about $10^{-3}$, about $10^{-9}$. (2) About $0.38$ and essentially 1. (3) Near $0.1\,Z$, with no warning sign.
+:::
+
+## Importance sampling {#sec-w4p-importance}
+
+Practice for [Importance sampling](week04.qmd#sec-importance).
+
+### Problem 27: Importance sampling with an unnormalized target {#prb-27}
 
 A target on $\{1,2,3,4\}$ is known only up to a constant: $\tilde p=(1,\ 2,\ 4,\ 1)$. The proposal is uniform, $\tilde q(x)=1$ for every $x$. Five draws from $q$ come out as
 $$1,\quad 3,\quad 3,\quad 2,\quad 4.$$
@@ -187,14 +731,42 @@ $$1,\quad 3,\quad 3,\quad 2,\quad 4.$$
 This uses [Week 4, Importance sampling](week04.qmd#sec-importance).
 
 1. $\tilde w_r=\tilde p(x^{(r)})/\tilde q(x^{(r)})=\tilde p(x^{(r)})$ here, giving $1,4,4,2,1$. They sum to $12$, so $w_r=\tfrac1{12},\tfrac4{12},\tfrac4{12},\tfrac2{12},\tfrac1{12}$.
-2. The self-normalized estimate is $\sum_r x^{(r)}w_r=(1\cdot1+3\cdot4+3\cdot4+2\cdot2+4\cdot1)/12=33/12=2.75$. Exactly, $Z_p=8$ and $\mathbb E_p[x]=(1\cdot1+2\cdot2+3\cdot4+4\cdot1)/8=21/8=2.625$. Five samples land fairly close.
+2. The self-normalized estimate is $\sum_r x^{(r)}w_r=(1\cdot1+3\cdot4+3\cdot4+2\cdot2+4\cdot1)/12=33/12=2.75$. Exactly, $Z_p=\sum_x\tilde p(x)=1+2+4+1=8$ and $\mathbb E_p[x]=(1\cdot1+2\cdot2+3\cdot4+4\cdot1)/8=21/8=2.625$. Five samples land fairly close.
 3. The average weight estimates $Z_p/Z_q$: $12/5=2.4$. Exactly, $Z_p=8$ and $Z_q=4$, so the ratio is $2$. Neither normalizer was needed to form the estimate in part 2; the ratio cancels in the self-normalized form.
 4. $\tilde w=4/0.05=80$, against at most $2$ for the other values. The proposal rarely visits $x=3$, which holds half of $p$'s mass, so a run either misses it (and underestimates $\mathbb E_p[x]$) or hits it once and lets that one sample dominate the sum. This is the poor-coverage failure the week chapter warns about.
 
 **Answer.** (1) $\tilde w=(1,4,4,2,1)$, $w=(1,4,4,2,1)/12$. (2) $2.75$ against $2.625$. (3) $2.4$ against $2$. (4) Weight $80$: one rare draw dominates.
 :::
 
-## Problem 8: Rejection sampling, and what dimension does to it {#prb-8}
+### Problem 28: Choosing between two proposals {#prb-28}
+
+A target on $\{1,2,3\}$ is $p=(0.1,\ 0.1,\ 0.8)$, and we want $\Phi=\mathbb E_p[x]$. In this small example we know $p$ and $q$ exactly, so we can use the middle form of the week chapter's derivation, $\hat\Phi=\frac1R\sum_r\phi(x^{(r)})\,p(x^{(r)})/q(x^{(r)})$, with $x^{(r)}\sim q$.
+
+1. Compute $\Phi$.
+2. For proposal A, uniform $q=(\tfrac13,\tfrac13,\tfrac13)$, and proposal B, $q=(0.2,\ 0.2,\ 0.6)$: compute the weights $p/q$, check that $\mathbb E_q[\phi\,p/q]=\Phi$, and compute the variance of one term $\phi(x)\,p(x)/q(x)$ under $q$.
+3. How many samples does each proposal need for a standard deviation of $0.1$?
+4. Proposal C is $q=(0.5,\ 0.5,\ 0)$. What does the estimate converge to?
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+This uses [Week 4, Importance sampling](week04.qmd#sec-importance) together with the variance formula of [Simple Monte Carlo](week04.qmd#sec-simplemc).
+
+1. $\Phi=1(0.1)+2(0.1)+3(0.8)=2.7$.
+2. Write $g(x)=\phi(x)\,p(x)/q(x)$ for one term.
+    - A: weights $p/q=(0.3,\ 0.3,\ 2.4)$, so $g=(0.3,\ 0.6,\ 7.2)$. Then $\mathbb E_q[g]=(0.3+0.6+7.2)/3=8.1/3=2.7$ and $\mathbb E_q[g^2]=(0.09+0.36+51.84)/3=52.29/3=17.43$, so $\mathrm{var}_q[g]=17.43-2.7^2=10.14$.
+    - B: weights $(0.5,\ 0.5,\ 1.333)$, so $g=(0.5,\ 1,\ 4)$. Then $\mathbb E_q[g]=0.1+0.2+2.4=2.7$ and $\mathbb E_q[g^2]=0.05+0.2+9.6=9.85$, so $\mathrm{var}_q[g]=2.56$.
+
+    Both are unbiased. A rarely visits $x=3$, where most of $p$ sits, and pays with a large weight there.
+3. $\mathrm{var}[\hat\Phi]=\mathrm{var}_q[g]/R\le0.01$ needs $R\ge1014$ for A and $R\ge256$ for B. The proposal that resembles $p$ is four times cheaper.
+4. C never proposes $x=3$, so every term is $1(0.2)$ or $2(0.2)$ and the estimate converges to $\tfrac12(0.2+0.4)=0.3$, not $2.7$. More samples do not help: a proposal must put mass wherever $p$ does, or that part of $p$ is invisible.
+
+**Answer.** (1) $2.7$. (2) Variances $10.14$ (A) and $2.56$ (B). (3) About 1014 and 256. (4) $0.3$: C misses $x=3$ entirely.
+:::
+
+## Rejection sampling {#sec-w4p-rejection}
+
+Practice for [Rejection sampling](week04.qmd#sec-rejection).
+
+### Problem 29: Rejection sampling, and what dimension does to it {#prb-29}
 
 Take $\tilde p(x)=x(1-x)$ on $[0,1]$ and the uniform proposal $q(x)=1$ on $[0,1]$, so $\tilde q=q$ and $Z_q=1$.
 
@@ -216,7 +788,9 @@ This uses [Week 4, Rejection sampling](week04.qmd#sec-rejection), including the 
 
     The accepted samples are $0.2$, $0.5$, $0.05$.
 3. $c=0.5$ is still a valid envelope, but the rate becomes $\tfrac16/\tfrac12=\tfrac13$: half as many acceptances for the same work. $c=0.2$ is invalid because $0.2<\tilde p(x)$ near $x=\tfrac12$. There every $u$ is at most $0.2$, so every proposal is accepted, and the accepted samples follow $\min(\tilde p(x),\,0.2)$ rather than $\tilde p$. The peak is flattened and the samples are no longer from $p$.
-4. The product's maximum is $(\tfrac14)^D$, so the smallest $c$ is $(\tfrac14)^D$, while $Z_p=(\tfrac16)^D$ and $Z_q=1$. The rate is $(\tfrac23)^D$.
+4. Each factor $x_d(1-x_d)$ depends on its own coordinate only, so the product is maximized by putting every $x_d=\tfrac12$: the maximum is $(\tfrac14)^D$, and the smallest $c$ is $(\tfrac14)^D$. For the same reason the integral over the cube splits into a product of one-dimensional integrals,
+$$Z_p=\int_{[0,1]^D}\prod_{d=1}^Dx_d(1-x_d)\,d\mathbf x=\prod_{d=1}^D\int_0^1x_d(1-x_d)\,dx_d=\big(\tfrac16\big)^D,$$
+and the uniform proposal has $Z_q=1$. The rate is $(\tfrac23)^D$.
     - $D=10$: $(\tfrac23)^{10}\approx0.0173$, about 58 proposals per accepted sample.
     - $D=100$: $(\tfrac23)^{100}\approx2.5\times10^{-18}$, about $4\times10^{17}$ proposals per accepted sample.
 
@@ -225,247 +799,24 @@ This uses [Week 4, Rejection sampling](week04.qmd#sec-rejection), including the 
 **Answer.** (1) $Z_p=\tfrac16$, $c=\tfrac14$, rate $\tfrac23$. (2) Accept, reject, accept, accept, reject. (3) Rate $\tfrac13$; $c=0.2$ is not an envelope and gives samples from the wrong distribution. (4) $(\tfrac23)^D$: about $0.017$ at $D=10$, about $2.5\times10^{-18}$ at $D=100$.
 :::
 
-## Homework 2 practice {#sec-w4p-hw2}
+### Problem 30: Rejection sampling with a non-uniform proposal {#prb-30}
 
-These problems go deeper on two Week 4 techniques. Problems 9–13 drill loopy BP messages and beliefs on a binary pixel grid. Problems 14–18 drill writing and evaluating a TrueSkill log-joint and reading quantities off posterior samples.
+A target on $\{1,2,3\}$ has $\tilde p=(1,\ 3,\ 2)$. The proposal is $q=(0.5,\ 0.25,\ 0.25)$, with $\tilde q=q$ and $Z_q=1$. Given a proposed $x$, $u$ is drawn uniformly from $[0,\ c\,\tilde q(x)]$ as in the week chapter's algorithm.
 
-### Problem 9: Who talks to whom on a 3×3 grid {#prb-9}
-
-A $3\times3$ binary image is flattened into a vector of $n=9$ pixels in [row-major order](https://en.wikipedia.org/wiki/Row-_and_column-major_order), so node $s$ sits in row $\lfloor s/3\rfloor$ and column $s \bmod 3$:
-
-$$\begin{matrix}0&1&2\\3&4&5\\6&7&8\end{matrix}$$
-
-Use the 4-neighbour rule: with $m=3$, node $s$ has right neighbour $s+1$ unless $(s+1)\bmod m=0$, left neighbour $s-1$ unless $s\bmod m=0$, lower neighbour $s+m$ if $s+m<n$, and upper neighbour $s-m$ if $s-m\ge0$.
-
-1. List the neighbours of node 0 (a corner), node 1 (an edge), and node 4 (the centre).
-2. Messages are stored in an array `messages` of shape `(2, 9, 9)`, where `messages[:, j, i]` is the message from node $j$ to node $i$, entry 0 is the value at $x_i=+1$ and entry 1 the value at $x_i=-1$. Which slice holds $m_{4\to1}$?
-3. When node 4 computes its message to node 1, which slices does it multiply together? Is the edge $4\text{-}1$ horizontal or vertical?
+1. Find the smallest valid $c$.
+2. With that $c$, compute the probability of accepting each $x$, and the probability of proposing $x$ *and* accepting it. Show that the accepted draws follow $p$, and find the overall acceptance rate two ways.
+3. Repeat the acceptance rate for the proposal $q=(0.2,\ 0.4,\ 0.4)$. Why is it higher?
 
 ::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
-This uses the message definition in [Week 4, Messages and beliefs](week04.qmd#sec-messages) and the grid model of [the denoising example](week04.qmd#sec-denoise).
-
-1. Node 0: column 0 has no left neighbour and row 0 has no upper one, leaving $\{1,3\}$. Node 1: right 2, left 0, lower 4, no upper, so $\{0,2,4\}$. Node 4: all four exist, $\{1,3,5,7\}$. Corners have 2 neighbours, edges 3, interior pixels 4.
-2. The sender is the middle index and the receiver the last, so $m_{4\to1}$ is `messages[:, 4, 1]`: `messages[0, 4, 1]` is $m_{4\to1}(+1)$ and `messages[1, 4, 1]` is $m_{4\to1}(-1)$.
-3. The product runs over $k\in N(4)\setminus\{1\}=\{3,5,7\}$, and each factor is a message *into* node 4: `messages[:, 3, 4]`, `messages[:, 5, 4]`, `messages[:, 7, 4]`. The message `messages[:, 1, 4]` is left out, because node 4 does not echo back what node 1 told it. Nodes 4 and 1 share column 1 and sit in adjacent rows, so the edge is vertical.
-
-**Answer.** (1) $N(0)=\{1,3\}$, $N(1)=\{0,2,4\}$, $N(4)=\{1,3,5,7\}$. (2) `messages[:, 4, 1]`. (3) The incoming messages from 3, 5, and 7 (second index = sender, third = 4); the edge is vertical.
-:::
-
-### Problem 10: One message, by hand {#prb-10}
-
-In a denoising MRF with node potentials $\psi_j(x_j)=e^{\beta y_jx_j}$ and edge potentials $\psi_{ij}(x_i,x_j)=e^{Jx_ix_j}$, take $\beta=0.7$ and an edge $j\text{-}i$ with coupling $J=0.4$. Pixel $j$ is observed black, $y_j=-1$. Its three *other* neighbours currently send it these messages, written $\big(m(+1),\ m(-1)\big)$:
-
-$$(0.6,\ 0.4), \qquad (0.7,\ 0.3), \qquad (0.45,\ 0.55).$$
-
-1. Compute the unnormalized message $m_{j\to i}(x_i)$ for $x_i=+1$ and $x_i=-1$.
-2. Normalize it.
-3. The old message was $(0.5,\ 0.5)$. Apply the momentum update with step size $\alpha=0.6$.
-
-::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
-This uses the update rule of [Week 4, Loopy belief propagation](week04.qmd#sec-loopy) with the potentials of [the denoising example](week04.qmd#sec-denoise).
-
-**Step 1: product of incoming messages, one number per state of $x_j$.**
-$$x_j=+1:\ 0.6\cdot0.7\cdot0.45=0.189, \qquad x_j=-1:\ 0.4\cdot0.3\cdot0.55=0.066.$$
-
-**Step 2: node potential.** With $y_j=-1$, $\psi_j(+1)=e^{-0.7}$ and $\psi_j(-1)=e^{0.7}$. The observation pulls $x_j$ toward black.
-
-**Step 3: sum over $x_j$ for each $x_i$.** The edge potential is $e^{0.4}$ when $x_i,x_j$ agree and $e^{-0.4}$ when they disagree, and it combines with $\psi_j$ in the exponent:
-$$m_{j\to i}(+1)=e^{-0.7+0.4}(0.189)+e^{0.7-0.4}(0.066)$$
-$$=0.7408(0.189)+1.3499(0.066)=0.1400+0.0891=0.2291,$$
-$$m_{j\to i}(-1)=e^{-0.7-0.4}(0.189)+e^{0.7+0.4}(0.066)$$
-$$=0.3329(0.189)+3.0042(0.066)=0.0629+0.1983=0.2612.$$
-
-**Normalize.** The total is $0.4903$, giving $(0.4673,\ 0.5327)$.
-
-**Momentum.** $m^{\text{new}}=(1-\alpha)\,m^{\text{old}}+\alpha\,[\text{update}]$:
-$$0.4\,(0.5,\ 0.5)+0.6\,(0.4673,\ 0.5327)=(0.4804,\ 0.5196).$$
-
-Notice the tug of war. Two of the three neighbours lean white, which shows up as the larger product at $x_j=+1$, but the black observation multiplies the $x_j=-1$ branch by $e^{0.7}/e^{-0.7}\approx4$. The message ends up leaning slightly black. In code, the same three steps are an elementwise product, a $2\times2$ table of edge-times-node potentials, and a sum over one axis, as in [Week 3 practice, Problem 13](week03-practice.qmd#prb-13).
-
-**Answer.** Unnormalized $(0.2291,\ 0.2612)$; normalized $(0.4673,\ 0.5327)$; after momentum $(0.4804,\ 0.5196)$.
-:::
-
-### Problem 11: From messages to a pixel decision {#prb-11}
-
-A pixel $i$ in the same model ($\beta=0.7$) is observed white, $y_i=+1$. After message passing, its four neighbours send
-
-$$(0.3,\ 0.7), \qquad (0.4,\ 0.6), \qquad (0.35,\ 0.65), \qquad (0.6,\ 0.4).$$
-
-1. Compute the unnormalized belief $\tilde b(x_i)$ and the normalized belief $b(x_i)$.
-2. Using the rule $\hat x_i=\arg\max_{x_i}b(x_i)$, what colour is the denoised pixel?
-3. Suppose the last message had been stored unnormalized as $(6,\ 4)$. Does anything in part 2 change?
-
-::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
-This uses the belief formula of [Week 4, Messages and beliefs](week04.qmd#sec-messages) and the decision rule at the end of [the denoising example](week04.qmd#sec-denoise).
-
-1. The node potential is $\psi_i(+1)=e^{0.7}=2.0138$, $\psi_i(-1)=e^{-0.7}=0.4966$. Unlike a message, a belief multiplies in *every* neighbour's message, with no exclusion:
-$$\prod_jm_{j\to i}(+1)=0.3\cdot0.4\cdot0.35\cdot0.6=0.0252,$$
-$$\prod_jm_{j\to i}(-1)=0.7\cdot0.6\cdot0.65\cdot0.4=0.1092.$$
-So $\tilde b=(2.0138\cdot0.0252,\ 0.4966\cdot0.1092)=(0.0507,\ 0.0542)$, and dividing by the total $0.1050$ gives $b=(0.483,\ 0.517)$.
-2. $b(-1)>b(+1)$, so $\hat x_i=-1$: black. Three of four neighbours lean black strongly enough to outvote the white observation, which is how the model removes an isolated flipped pixel.
-3. No. Multiplying one message by 10 multiplies both entries of $\tilde b$ by 10, and normalizing removes it. This is the scaling argument of the week chapter's three-node chain example.
-
-**Answer.** $\tilde b\approx(0.0507,\ 0.0542)$, $b\approx(0.483,\ 0.517)$; the pixel is set to black; rescaling a message changes nothing.
-:::
-
-### Problem 12: What the step size does {#prb-12}
-
-Loopy BP on a cycle can oscillate. Take a toy version: a single message $(p,\ 1-p)$ whose freshly computed update is always the flipped vector $(1-p,\ p)$. Start from $p=0.8$ and apply the momentum update
-$$m^{\text{new}}=(1-\alpha)\,m^{\text{old}}+\alpha\,[\text{update}].$$
-
-1. Trace $p$ for three iterations with $\alpha=1$, $\alpha=0.5$, and $\alpha=0.25$.
-2. Write $p^{\text{new}}-\tfrac12$ in terms of $p^{\text{old}}-\tfrac12$ and explain the three behaviours.
-
-::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
-This uses the momentum trick in [Week 4, Loopy belief propagation](week04.qmd#sec-loopy).
-
-1. The first entry updates as $p^{\text{new}}=(1-\alpha)p+\alpha(1-p)$.
-    - $\alpha=1$ (plain replacement): $0.8\to0.2\to0.8\to0.2$. It never settles.
-    - $\alpha=0.5$: $0.5\,(0.8)+0.5\,(0.2)=0.5$, then $0.5$ forever.
-    - $\alpha=0.25$: $0.75p+0.25(1-p)=0.25+0.5p$, so $0.8\to0.65\to0.575\to0.5375$.
-2. Subtracting $\tfrac12$ from both sides,
-$$p^{\text{new}}-\tfrac12=(1-2\alpha)\big(p^{\text{old}}-\tfrac12\big).$$
-The distance from the fixed point $\tfrac12$ is multiplied by $1-2\alpha$ each iteration. At $\alpha=1$ the factor is $-1$: same size, opposite sign, a permanent oscillation. At $\alpha=0.5$ it is $0$ and the oscillation dies in one step. At $\alpha=0.25$ it is $\tfrac12$, so the distance halves each time with no sign flips.
-
-Real BP updates are not this simple map, so no single step size zeroes out oscillation in general. The general point survives: blending in the old message shrinks the jump each iteration, which damps oscillation. The price is that when the plain updates would have converged anyway, a small $\alpha$ makes each iteration move less.
-
-**Answer.** $\alpha=1$: $0.2, 0.8, 0.2$. $\alpha=0.5$: $0.5, 0.5, 0.5$. $\alpha=0.25$: $0.65, 0.575, 0.5375$. The deviation from $\tfrac12$ scales by $1-2\alpha$ per step.
-:::
-
-### Problem 13: Observation strength against coupling {#prb-13}
-
-1. A binary symmetric channel flips each pixel with probability $\epsilon$. Compute $\beta=\tfrac12\log\frac{1-\epsilon}{\epsilon}$ for $\epsilon=0.1$ and $\epsilon=0.25$.
-2. An interior pixel $i$ is observed black ($y_i=-1$). To isolate the trade-off, suppose its four neighbours are known to be white, so each sends the message $m(x_i)=e^{Jx_i}$ (one shared coupling $J$ on all four edges). Find the ratio $b(+1)/b(-1)$, and the condition on $J$ under which the pixel's belief favours white.
-3. Evaluate that threshold for both values of $\epsilon$ from part 1.
-
-::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
-This uses the observation model and the posterior of [Week 4, Tutorial example: image denoising](week04.qmd#sec-denoise).
-
-1. $\epsilon=0.1$: $\beta=\tfrac12\log9=\log3\approx1.099$. $\epsilon=0.25$: $\beta=\tfrac12\log3\approx0.549$. Noisier observations deserve less trust, and $\beta$ shrinks accordingly.
-2. The node potential gives $e^{-\beta}$ at $x_i=+1$ and $e^{\beta}$ at $x_i=-1$. Each neighbour message gives $e^{J}$ versus $e^{-J}$, four times over. So
-$$\frac{b(+1)}{b(-1)}=\frac{e^{-\beta}\,e^{4J}}{e^{\beta}\,e^{-4J}}=e^{8J-2\beta}.$$
-The belief favours white exactly when $8J>2\beta$, that is $J>\beta/4$.
-3. $\epsilon=0.1$: $J>0.275$. $\epsilon=0.25$: $J>0.137$.
-
-The inequality is a vote. The observation contributes $2\beta$ toward black, and each agreeing neighbour contributes $2J$ toward white. With noisier data a weaker coupling is enough to outvote the observation. The inequality has no way of knowing whether the black pixel is noise or a genuine one-pixel detail of the image: it treats both the same.
-
-**Answer.** (1) $\beta\approx1.099$ and $0.549$. (2) $b(+1)/b(-1)=e^{8J-2\beta}$; white wins when $J>\beta/4$. (3) $J>0.275$ and $J>0.137$.
-:::
-
-### Problem 14: The log-prior of independent skills {#prb-14}
-
-Three players have independent [normal](https://en.wikipedia.org/wiki/Normal_distribution) priors $z_i\sim\mathcal N(0,1)$. Two candidate skill settings are stored as the rows of a $2\times3$ array:
-
-$$\begin{pmatrix}0&1&-2\\0.5&0.5&0.5\end{pmatrix}.$$
-
-1. Compute the log-prior $\log p(z_1,z_2,z_3)$ for each row.
-2. Why is the joint log-prior a sum, and along which axis of this array does that sum run? What shape is the result?
-
-::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
-This uses the prior in the TrueSkill definition of [Week 4, Latent variables and the TrueSkill model](week04.qmd#sec-trueskill).
-
-The standard normal log-density is $\log\mathcal N(z;0,1)=-\tfrac12\log(2\pi)-\tfrac12z^2$, and $\tfrac12\log(2\pi)\approx0.9189$.
-
-1. Row 1: $-3(0.9189)-\tfrac12(0+1+4)=-2.7568-2.5=-5.257$. Row 2: $-2.7568-\tfrac12(0.75)=-3.132$.
-2. Independence makes the joint prior a product $\prod_ip(z_i)$, and the log of a product is a sum of logs. Each row is one setting of all players, so the sum runs across the players within a row (axis 1, the column axis), leaving one number per row: shape `(2,)`. Summing down the columns instead would add the same player's log-density across two different settings, which is not the log of any probability in the model.
-
-Row 2 scores higher because all three skills sit near the prior mean of 0; row 1 pays for the player at $-2$.
-
-**Answer.** $-5.257$ and $-3.132$. A sum because of independence, taken across players (axis 1), giving shape `(2,)`.
-:::
-
-### Problem 15: Logs of sums without overflow {#prb-15}
-
-Double-precision floats overflow above about $1.8\times10^{308}$, so $e^{a}$ is stored as infinity once $a$ exceeds roughly 709 ([arithmetic overflow](https://en.wikipedia.org/wiki/Arithmetic_overflow)).
-
-1. Compute $\log\big(e^{1000}+e^{998}\big)$ by hand, without ever forming $e^{1000}$.
-2. The function $\mathrm{logaddexp}(u,v)=\log(e^u+e^v)$ is computed with the same trick. Write $\log(1+e^{a})$ using it. What does the naive formula `log(1 + exp(a))` return at $a=800$, and what is the correct value to many digits?
-
-::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
-This supports evaluating the logistic function of [Week 4, Latent variables and the TrueSkill model](week04.qmd#sec-trueskill) in log space.
-
-1. Factor out the largest exponential (the [LogSumExp](https://en.wikipedia.org/wiki/LogSumExp) trick):
-$$\log\big(e^{1000}+e^{998}\big)=1000+\log\big(1+e^{-2}\big)=1000+0.1269=1000.1269.$$
-The only exponential left to evaluate is $e^{-2}$, which is harmless.
-2. Since $1=e^0$, $\log(1+e^{a})=\mathrm{logaddexp}(0,a)$. Naively, `exp(800)` overflows to infinity and the log of infinity is infinity. Factoring out $e^{a}$ instead gives $800+\log(1+e^{-800})$, and $e^{-800}$ is so small that the answer is $800$ to all printed digits. For very negative $a$ the same trick avoids the opposite problem, where $e^{a}$ underflows toward 0 and the log goes to $-\infty$.
-
-**Answer.** (1) $\approx1000.1269$. (2) $\log(1+e^a)=\mathrm{logaddexp}(0,a)$; the naive formula returns infinity at $a=800$, the true value is $800$ (to double precision).
-:::
-
-### Problem 16: A two-player posterior up to a constant {#prb-16}
-
-Two players $A$ and $B$ have independent priors $z_A,z_B\sim\mathcal N(0,1)$ and the course's TrueSkill likelihood $p(A\text{ beats }B\mid z_A,z_B)=\sigma(z_A-z_B)$. They play four games: $A$ wins three and $B$ wins one.
-
-1. Write $\log p(z_A,z_B,\text{games})$.
-2. Evaluate it, dropping the constant $-\log(2\pi)$, at $(z_A,z_B)=(0,0)$, $(0.5,-0.5)$, and $(1.5,0.5)$. Which is most probable under the posterior?
-3. Why can we draw the posterior's contour lines from $\log p(z_A,z_B,\text{games})$ without ever computing $p(\text{games})$?
-4. Change variables to $d=z_A-z_B$ and $s=z_A+z_B$. Show that the likelihood depends only on $d$, and that the prior factorizes into a function of $d$ times a function of $s$. What does that say about what the games can teach us?
-
-::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
-This uses the joint distribution in [Week 4, Latent variables and the TrueSkill model](week04.qmd#sec-trueskill) and the unnormalized-density setting of [Sampling from an unnormalized density](week04.qmd#sec-sampling).
-
-1. Prior times one factor per game, with games independent given the skills:
-$$\log p=-\log(2\pi)-\tfrac12\big(z_A^2+z_B^2\big)$$
-$${}+3\log\sigma(z_A-z_B)+\log\sigma(z_B-z_A).$$
-2. Using $\log\sigma(0)=-0.6931$, $\log\sigma(1)=-0.3133$, $\log\sigma(-1)=-1.3133$:
-    - $(0,0)$: likelihood $4(-0.6931)=-2.7726$, prior $0$; total $-2.773$.
-    - $(0.5,-0.5)$: $d=1$, likelihood $3(-0.3133)-1.3133=-2.2530$, prior $-0.25$; total $-2.503$.
-    - $(1.5,0.5)$: $d=1$ again, so the same likelihood $-2.2530$, prior $-\tfrac12(2.25+0.25)=-1.25$; total $-3.503$.
-
-    $(0.5,-0.5)$ is the most probable of the three.
-3. $p(z_A,z_B\mid\text{games})=p(z_A,z_B,\text{games})/p(\text{games})$, and the denominator does not depend on $(z_A,z_B)$. Dividing by a constant, or subtracting a constant in log space, shifts every height by the same amount, so the [level sets](https://en.wikipedia.org/wiki/Level_set) are the same curves; only their labels change.
-4. The likelihood is a function of $z_A-z_B=d$ alone. For the prior, $z_A=\tfrac{s+d}{2}$ and $z_B=\tfrac{s-d}{2}$, so
-$$z_A^2+z_B^2=\tfrac14\big[(s+d)^2+(s-d)^2\big]=\tfrac12\big(s^2+d^2\big),$$
-and the prior is proportional to $e^{-d^2/4}\,e^{-s^2/4}$. (The change of variables also brings a constant Jacobian factor, which does not affect the shape.) The posterior is therefore $\big[e^{-d^2/4}\times\text{likelihood}(d)\big]\times e^{-s^2/4}$: the games update our belief about the skill *difference*, while the belief about the *sum* stays exactly at the prior. Part 2 shows this: $(0.5,-0.5)$ and $(1.5,0.5)$ share $d=1$ and get the same likelihood, and only the prior separates them.
-
-**Answer.** (2) $-2.773$, $-2.503$, $-3.503$; $(0.5,-0.5)$ is highest. (3) The normalizer is a constant shift. (4) Likelihood in $d$ only, prior $\propto e^{-d^2/4}e^{-s^2/4}$, so data inform $d$ and leave $s$ at its prior.
-:::
-
-### Problem 17: Looking up skills game by game {#prb-17}
-
-Four players have skills `z = np.array([0.5, -1.0, 2.0, 0.0])`. Five games are stored one per row as (winner index, loser index):
-
-```python
-games = np.array([[2, 0],
-                  [0, 1],
-                  [3, 1],
-                  [2, 3],
-                  [1, 0]])
-```
-
-What does `z[games[:, 0]] - z[games[:, 1]]` evaluate to, and what does each entry mean in the model?
-
-::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
-This sets up the "one factor per game" product of [Week 4, Latent variables and the TrueSkill model](week04.qmd#sec-trueskill).
-
-- `games[:, 0]` is the winner column `[2, 0, 3, 2, 1]`, and indexing `z` with an integer array returns one entry per index: `z[games[:, 0]]` is `[2.0, 0.5, 0.0, 2.0, -1.0]`.
-- `games[:, 1]` is `[0, 1, 1, 3, 0]`, so `z[games[:, 1]]` is `[0.5, -1.0, -1.0, 0.0, 0.5]`.
-- The elementwise difference has shape `(5,)`, one entry per game.
-
-Each entry is $z_{\text{winner}}-z_{\text{loser}}$, the argument of $\sigma$ in that game's likelihood factor. Positive entries are games the stronger player won. The last entry, $-1.5$, is an upset: player 1 beat a player rated higher, so its factor $\sigma(-1.5)\approx0.18$ is small. Player indices may repeat across rows, which is how several games between the same pair, or one player in many games, are handled with no loop.
-
-**Answer.** `array([ 1.5,  1.5,  1. ,  2. , -1.5])`: the winner-minus-loser skill gap for each game.
-:::
-
-### Problem 18: A probability from posterior samples {#prb-18}
-
-Suppose some sampler has produced eight draws from a joint posterior over two players' skills $(z_i,z_j)$:
-
-| $r$ | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 |
-|---|---|---|---|---|---|---|---|---|
-| $z_i$ | 1.2 | 0.4 | 1.5 | 0.9 | 0.3 | 1.1 | 1.8 | 0.7 |
-| $z_j$ | 0.8 | 0.9 | 1.1 | 0.2 | 0.6 | 1.3 | 0.7 | 0.4 |
-
-1. Estimate $\mathbb P(z_i\ge z_j\mid\text{games})$.
-2. Estimate the posterior mean and standard deviation of $z_i$.
-3. If the draws were independent, roughly how uncertain is the estimate in part 1?
-
-::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
-This uses [Week 4, What sampling is for](week04.qmd#sec-goals) and [Simple Monte Carlo](week04.qmd#sec-simplemc).
-
-1. A probability is the expectation of an indicator function: $\mathbb P(z_i\ge z_j)=\mathbb E\big[\mathbf 1_{\{z_i\ge z_j\}}\big]$. The simple Monte Carlo estimate is the fraction of samples where the event holds. Row by row the indicator is $1,0,1,1,0,0,1,1$, so the estimate is $5/8=0.625$.
-2. Mean: $\hat\Phi_1=7.9/8=0.9875$. For the spread, use the second test function $\phi_2=z_i^2$: $\hat\Phi_2=9.69/8=1.2113$, so the variance estimate is $\hat\Phi_2-\hat\Phi_1^2=1.2113-0.9752=0.2361$ and the standard deviation is $0.486$.
-3. The indicator has variance $p(1-p)$, so with independent draws $\mathrm{var}[\hat\Phi]=p(1-p)/R\approx0.625\cdot0.375/8=0.029$, a standard deviation of about $0.17$. Eight samples cannot pin the probability down. The $1/R$ rate assumes independent draws; samplers that produce each draw from the previous one (next week's topic) give correlated samples, and then the error shrinks more slowly than this formula says.
-
-**Answer.** (1) $0.625$. (2) Mean $0.9875$, standard deviation $\approx0.486$. (3) About $\pm0.17$ (one standard deviation) for independent draws.
+This uses [Week 4, Rejection sampling](week04.qmd#sec-rejection), including the proof that accepted samples follow $p$.
+
+1. We need $c\,q(x)\ge\tilde p(x)$ at every $x$, so $c\ge\max(1/0.5,\ 3/0.25,\ 2/0.25)=\max(2,12,8)=12$. The envelope is $12q=(6,\ 3,\ 3)$.
+2. Given $x$, acceptance has probability $\tilde p(x)/(c\,\tilde q(x))$:
+$$\Big(\tfrac16,\ 1,\ \tfrac23\Big).$$
+Multiplying by $q(x)$ gives the probability of proposing $x$ and accepting it:
+$$\Big(\tfrac1{12},\ \tfrac3{12},\ \tfrac2{12}\Big).$$
+These add to $\tfrac6{12}=\tfrac12$, the acceptance rate. Dividing by it gives the distribution of accepted draws, $(\tfrac16,\ \tfrac12,\ \tfrac13)$, which is exactly $p=\tilde p/6$. The formula agrees: $Z_p/(cZ_q)=6/12=\tfrac12$.
+3. Now $c\ge\max(1/0.2,\ 3/0.4,\ 2/0.4)=\max(5,\ 7.5,\ 5)=7.5$, so the rate is $6/7.5=0.8$. The constant $c$ is set by the worst ratio $\tilde p/q$. The first proposal spent half its mass on $x=1$, where $p$ is small, and starved $x=2$, which forced a large $c$. A proposal shaped more like $p$ needs a smaller envelope and wastes fewer draws.
+
+**Answer.** (1) $c=12$. (2) Acceptance $(\tfrac16,1,\tfrac23)$ given $x$; joint $(\tfrac1{12},\tfrac3{12},\tfrac2{12})$; accepted draws follow $(\tfrac16,\tfrac12,\tfrac13)=p$; rate $\tfrac12$. (3) Rate $0.8$.
 :::
