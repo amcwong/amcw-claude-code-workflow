@@ -230,6 +230,22 @@ $$A_{12}(3) = A_{11}(2)\,A_{12} + A_{12}(2)\,A_{22} = 0.84(0.1) + 0.16(0.7) = 0.
 The full first row of $A^3$ is $(0.804, 0.196)$. These numbers reappear in @sec-unique as the distribution after three steps from state 1.
 :::
 
+::: {.callout-tip collapse="true" .clarification title="Question: How do I read row $i$ of $A(m)$ times column $j$ of $A(n)$?"}
+The product in the Chapman-Kolmogorov equation is $A(m+n) = A(m)\,A(n)$, so the entry $A_{ij}(m+n)$ is row $i$ of the first factor times column $j$ of the second. Each index has a fixed meaning, and the sum runs over the one index the two factors share.
+
+- **Row $i$ of $A(m)$** is a starting point and a list of destinations. Its entry in column $k$ is $A_{ik}(m)$, the probability of being in state $k$ after $m$ steps, starting from $i$. Because the chain must be somewhere after $m$ steps, these entries sum to 1: row $i$ is a probability distribution over $k$.
+- **Column $j$ of $A(n)$** is a fixed endpoint and a list of origins. Its entry in row $k$ is $A_{kj}(n)$, the probability of reaching $j$ in $n$ further steps, starting from $k$.
+- **The shared index $k$** is the state the chain occupies at step $m$. It is the column index of the first factor and the row index of the second, so the two factors line up on the same state space. That alignment is why the product is defined, and why the sum is over $k$ and not over $i$ or $j$.
+
+Put together, $A_{ij}(m+n)$ is a weighted average over the intermediate state. Each $k$ is weighted by how likely the chain is to be there at step $m$ (the row), and scored by how likely it is to reach $j$ from there in $n$ steps (the column). Every route from $i$ to $j$ is counted once, at the state where it sits after $m$ steps.
+
+Check with the worked example. Row 1 of $A(2)$ is $(0.84,\ 0.16)$, and column 2 of $A(1)=A$ is $(0.1,\ 0.7)$. Their product is $0.84(0.1)+0.16(0.7)=0.196$, which matches the entry $A_{12}(3)$ above.
+
+The two factors are $A(m)$ and $A(n)$, which need not be equal. When $m = n$ the product is $A(m)A(m)$, and it gives $A(2m)$, the matrix for $2m$ steps. Keep the order as written: the first factor is the first $m$ steps, and the second is the last $n$.
+
+**Is $A(m)A(n)$ the same as $A(n)A(m)$?** Both products are $K \times K$, so both are defined, but matching sizes does not make matrix products equal. In general $XY \ne YX$. Here they are equal because both factors are powers of the same $A$: $A(m)A(n) = A^m A^n = A^{m+n} = A^n A^m = A(n)A(m)$. The equality depends on that fact, not on the shapes. Two arbitrary $K \times K$ matrices would not generally commute. The entries agree, but the reading changes: $A(n)A(m)$ takes the first $n$ steps, then the next $m$, and the total probability of $i \to j$ in $m+n$ steps is the same either way.
+:::
+
 ## Application: Markov language models {#sec-langmodel}
 
 A Markov chain can serve as a **[language model](https://en.wikipedia.org/wiki/Language_model)**, a probability distribution over sequences of words. The state space is the set of all words (the vocabulary, of size $K$), and $x_t$ is the $t$-th word of a sentence. A first-order model predicts each word from the previous word alone, so it is built from word pairs, or **[bigrams](https://en.wikipedia.org/wiki/Bigram)**.
