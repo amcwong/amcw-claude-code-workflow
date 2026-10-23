@@ -39,14 +39,14 @@ Model tier is the second cost lever; **effort is the first.** Every model runs a
 
 Set per skill/agent with the `effort:` frontmatter field. Several skills ship at `effort: high` for genuinely hard gates (e.g. `/seven-pass-review`, `/simulation-study`, `/r-package-check`). Match effort to the cognitive demand the same way you match model tier — and tune effort before you swap models.
 
-## Where Fable 5 fits — and where it does not
+## Where the Fable tier fits — and where it does not
 
-**Fable 5** (GA 2026-06-09) is the most capable model in Claude Code — and this rule deliberately does **not** route any of the template's fleet to it. Two verified reasons:
+The **Fable tier** is Anthropic's model for the most demanding reasoning and long-horizon work — and this rule deliberately does **not** route any of the template's fleet to it. Two reasons:
 
-1. **Cost discipline.** Fable 5 is priced above the Opus tier <!-- model-allow --> — a premium on exactly the judgment tier the 70/20/10 split exists to guard. The referee/editor/verifier agents are bounded, single-sitting tasks; Fable's premium is priced for *long-horizon, larger-than-one-sitting* autonomous work, which the fleet is not.
-2. **Protocol maturity — STALE, needs re-measurement (flagged 2026-08-21).** In one *launch-week (2026-06)* fan-out, Fable 5 subagents failed the forced structured-output tool protocol 28/28 times vs 0 on the then-current Opus <!-- model-allow -->. That observation is ~10 weeks old and predates Opus 5; **treat this justification as unverified until re-measured.** It was a single-session signal, not a benchmark, but exactly the failure mode that matters here: in a fan-out fleet, a silent tool-protocol failure means a review lens returns *nothing*. (Same logic as the "don't push Opus down a tier" anti-pattern: a too-immature judge is as bad as a too-cheap one.)
+1. **Cost discipline.** The Fable tier is priced above the Opus tier — a premium on exactly the judgment tier the 70/20/10 split exists to guard. The referee/editor/verifier agents are bounded, single-sitting tasks; Fable's premium is priced for *long-horizon, larger-than-one-sitting* autonomous work, which the fleet is not.
+2. **Protocol maturity — STALE, needs re-measurement (flagged 2026-08-21, still unmeasured 2026-10-23).** In one *launch-week (2026-06)* fan-out, historical Fable 5 subagents failed the forced structured-output tool protocol 28/28 times vs 0 on the then-current Opus <!-- model-allow -->. That observation is ~4 months old and predates the current Fable and Opus point releases; **treat this justification as unverified until re-measured.** It was a single-session signal, not a benchmark, but exactly the failure mode that matters here: in a fan-out fleet, a silent tool-protocol failure means a review lens returns *nothing*. (Same logic as the "don't push Opus down a tier" anti-pattern: a too-immature judge is as bad as a too-cheap one.)
 
-**Where Fable 5 *is* the right call:** your own interactive sessions on the hardest long-horizon work — a multi-day refactor, a deep research synthesis you'll steer by hand — where you are in the loop to catch a protocol hiccup and the task actually exploits the model's horizon. Select it per-session (`/model fable`); leave the fleet's `model:` pins alone. Re-evaluate at Fable point releases (the protocol gap is the kind of thing that gets fixed); when it does, the high-judgment tier is the natural first candidate.
+**Where the Fable tier *is* the right call:** your own interactive sessions on the hardest long-horizon work — a multi-day refactor, a deep research synthesis you'll steer by hand — where you are in the loop to catch a protocol hiccup and the task actually exploits the model's horizon. Select it per-session (`/model fable`); leave the fleet's `model:` pins alone. Re-evaluate at Fable point releases (the protocol gap is the kind of thing that gets fixed); when it does, the high-judgment tier is the natural first candidate.
 
 **Cost reality check (grad-student budgets):** a full `/review-paper --peer` runs a meaningful fraction of a dollar-denominated token budget at Opus prices; doubling the judgment tier doubles that line item with no quality evidence yet. When cost-constrained, drop *effort* first (the first lever, above), then tier — never the reverse.
 
@@ -56,7 +56,7 @@ Cost reduction on routed skills is typically **50–80%** with no quality loss o
 
 ## Routing recipe per task type
 
-### Mechanical (Haiku 4.5)
+### Mechanical (Haiku tier)
 
 - **TikZ → SVG extraction** (`extract-tikz`'s execution agent).
 - **Bib formatting / citation rewrites** (`validate-bib`'s mechanical fix path).

@@ -8,6 +8,12 @@ If you have forked this template, see the **Upgrading** section at the bottom fo
 
 ## Unreleased
 
+### Changed — model refresh (re-verified 2026-10-23)
+
+- `.claude/references/model-versions.md` now names Fable 5.1, Opus 5.5, Sonnet 5.5, and Haiku 5.5 as current, with the per-provider alias table, account defaults, minimum Claude Code versions, and Opus 5.5 fast-mode pricing re-checked against the platform and Claude Code docs. Expiry moves to 2026-12-22.
+- README, `guide/workflow-guide.qmd`, `model-routing.md`, and `agent-fleet.md` now name tiers instead of point versions where they had pinned Fable 5 or Haiku 4.5 as current. The guide no longer claims a fixed default effort for the Opus tier, which changed between point releases.
+- The Fable routing caveat in `model-routing.md` is still unmeasured: its evidence is a 2026-06 observation on Fable 5. The advisor-tool note was not re-checked in this pass and says so.
+
 ### Added — `/commit nopr`
 
 - `/commit nopr` (same as `--nopr`) skips the branch/PR/merge cycle: commit on `main` and `git push origin main`. Gates and hooks still run. Never force-push.

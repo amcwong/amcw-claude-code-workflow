@@ -39,7 +39,7 @@ A wrong "looks fine" from one of these is expensive (a desk-reject, a hallucinat
 | `quarto-fixer` | Applies `quarto-critic`'s diffs, re-renders, verifies | **writes** | `/qa-quarto` |
 | `beamer-translator` | Beamer→Quarto slide-by-slide translation | **writes** | `/translate-to-quarto` |
 
-## Mechanical / voting tier — Haiku 4.5
+## Mechanical / voting tier — Haiku tier
 
 | Agent | Role | Read/Write | Dispatched by |
 |---|---|---|---|
