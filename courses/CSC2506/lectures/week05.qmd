@@ -434,6 +434,16 @@ Unchanged, so $(0.2, 0.8)$ is stationary. State 2 is now the sticky one (left wi
 **Definition.** A Markov chain is **irreducible** if every state can be reached from every other state (in some number of steps). It is **regular** if some power $A^n$ has all entries strictly positive, that is, for some single $n$ the chain can go from any state to any state in exactly $n$ steps.
 :::
 
+:::: {.callout-tip collapse="true" .clarification title="Question: What do irreducible and regular mean in plain words, and what does $A^n$ tell us?"}
+**Irreducible, in plain words.** Picture the states as places a walker can visit. Irreducible means no place is cut off: wherever the walker starts, some route leads to every other place, even if it is a long detour. The walker is never trapped in one part of the map for good.
+
+**Regular, in plain words.** Regular is stricter. It asks for one fixed number of steps $n$ such that, after exactly $n$ steps, the walker could be at any place, no matter where it started. An irreducible chain can reach everywhere but only on a rhythm, for example only after an odd number of steps. Regular rules that rhythm out.
+
+**What $A^n$ means here.** $A$ records a single step: entry $A_{ij}$ is the probability of moving from state $i$ to state $j$ in one step. Multiplying matrices composes steps, so $A^n$ records $n$ steps: entry $(A^n)_{ij}$ is the probability of being in state $j$ after exactly $n$ steps, starting from state $i$ (the Chapman-Kolmogorov equations recapped above). Saying every entry of $A^n$ is strictly positive means every (start, finish) pair has nonzero probability after exactly $n$ steps. Positive means *possible*, not *likely*: a tiny probability still counts.
+
+The single $n$ is the important part. Different pairs may need different numbers of steps to become possible, and regular asks for one $n$ that works for all pairs at once, which is why the definition takes a power of the whole matrix. The swap chain from the example below fails this test. It moves to the other state only after an odd number of steps and returns to its own state only after an even number, so no single $n$ covers both.
+::::
+
 Regular implies irreducible, but not the other way round. The payoff is the following theorem, stated in MLPP for finite state spaces.
 
 ::: {.definition-block}
@@ -609,16 +619,51 @@ Two distributions build the model.
 **Definition.** The **[Binomial distribution](https://en.wikipedia.org/wiki/Binomial_distribution)** $\mathrm{Binomial}(N,\theta)$ is the distribution of the number of successes $H$ in $N$ independent Bernoulli($\theta$) trials, $p(H\mid\theta)=\binom{N}{H}\theta^H(1-\theta)^{N-H}$. The **[Beta distribution](https://en.wikipedia.org/wiki/Beta_distribution)** $\mathrm{Beta}(a,b)$ with $a,b>0$ is the distribution on $(0,1)$ with density proportional to $\theta^{a-1}(1-\theta)^{b-1}$. $\mathrm{Beta}(1,1)$ is the uniform distribution on $(0,1)$.
 :::
 
-With likelihood $H\mid\theta\sim\mathrm{Binomial}(45,\theta)$ and the uniform prior $\theta\sim\mathrm{Beta}(1,1)$, Bayes' rule gives
+With likelihood $H\mid\theta\sim\mathrm{Binomial}(45,\theta)$ and the uniform prior $\theta\sim\mathrm{Beta}(1,1)$, Bayes' rule writes the posterior as likelihood times prior, divided by a normalizer:
 
-$$p(\theta\mid D) = \frac{\tilde p(\theta)}{Z}, \qquad \tilde p(\theta) = p(D\mid\theta)\,p(\theta) \propto \theta^{18}(1-\theta)^{27},$$
+$$p(\theta\mid D) = \frac{p(D\mid\theta)\,p(\theta)}{Z}, \qquad Z = p(D) = \int_0^1 p(D\mid\theta)\,p(\theta)\,d\theta.$$
 
-where $Z=p(D)=\int p(D\mid\theta)p(\theta)\,d\theta$ is the normalizer we pretend not to know. In this particular model the posterior happens to be another Beta distribution, $\mathrm{Beta}(1+18,\ 1+27)=\mathrm{Beta}(19,28)$, with mean $19/47\approx0.404$, because a Beta prior is **[conjugate](https://en.wikipedia.org/wiki/Conjugate_prior)** to a Binomial likelihood. The closed form is used only to check the sampler.
+The numerator is the unnormalized target $\tilde p(\theta)$ that MH evaluates. We get it by substituting the data into the two densities defined above.
+
+- **Likelihood.** Put $N=45$ and $H=18$ into the Binomial formula: $p(D\mid\theta)=\binom{45}{18}\theta^{18}(1-\theta)^{45-18}$. The exponent $18$ counts the hits, and the exponent $27=45-18$ counts the misses. Each hit contributes a factor $\theta$ and each miss a factor $1-\theta$.
+- **Prior.** $\mathrm{Beta}(1,1)$ has density $\theta^{1-1}(1-\theta)^{1-1}=1$ on $(0,1)$, so multiplying by it changes nothing there.
+
+Multiplying the two gives
+
+$$\tilde p(\theta) = \binom{45}{18}\,\theta^{18}(1-\theta)^{27} \quad\text{for } 0<\theta<1, \qquad \tilde p(\theta)=0 \text{ otherwise}.$$
+
+The binomial coefficient $\binom{45}{18}$ does not depend on $\theta$, so like $Z$ it cancels in every MH ratio. That is why the target is often written $\tilde p(\theta)\propto\theta^{18}(1-\theta)^{27}$.
+
+$Z$ is the normalizer we pretend not to know. In this particular model the posterior happens to be another Beta distribution, $\mathrm{Beta}(1+18,\ 1+27)=\mathrm{Beta}(19,28)$, with mean $19/47\approx0.404$, because a Beta prior is **[conjugate](https://en.wikipedia.org/wiki/Conjugate_prior)** to a Binomial likelihood. The closed form is used only to check the sampler.
+
+**How the example fills in the MH algorithm.** Each symbol of the algorithm in @sec-mh has a concrete value here.
+
+| MH symbol | In the baseball example |
+|---|---|
+| state $x$ | the hit probability $\theta$ |
+| current state $x^{(t)}$ | $\theta^{(t)}$, for instance $0.40$ |
+| candidate $x'$ | $\theta'=\theta^{(t)}+0.2\,\varepsilon$, with $\varepsilon\sim\mathcal N(0,1)$ |
+| proposal $q(x'\mid x^{(t)})$ | $\mathcal N(\theta^{(t)},\ 0.2^2)$, a Gaussian centred at the current value |
+| unnormalized target $\tilde p(x)$ | $\binom{45}{18}\theta^{18}(1-\theta)^{27}$ on $(0,1)$ |
+| normalizer $Z$ | $p(D)$, never computed |
+
+The proposal density is $q(\theta'\mid\theta)\propto\exp\!\big(-(\theta'-\theta)^2/(2\cdot0.2^2)\big)$. It depends only on the squared distance between $\theta$ and $\theta'$, so $q(\theta\mid\theta')=q(\theta'\mid\theta)$. The proposal is symmetric, the correction factor in the MH ratio is 1, and the Metropolis rule $\alpha=\min\{1,\ \tilde p(\theta')/\tilde p(\theta^{(t)})\}$ applies.
 
 ::: {.callout-note}
-**Worked example: one acceptance decision.** The tutorial uses a Gaussian random walk, $\theta'=\theta+0.2\,\varepsilon$ with $\varepsilon\sim\mathcal N(0,1)$, which is symmetric, so the Metropolis rule applies. Suppose the chain is at $\theta=0.40$ and proposes $\theta'=0.30$. The ratio is
-$$\frac{\tilde p(0.30)}{\tilde p(0.40)} = \Big(\frac{0.30}{0.40}\Big)^{18}\Big(\frac{0.70}{0.60}\Big)^{27} \approx \frac{1}{2.76} \approx 0.36.$$
-The constant $\binom{45}{18}$ cancelled, along with $Z$. So the move is accepted with probability about $0.36$. The reverse move, from $0.30$ to $0.40$, has ratio $2.76>1$ and is always accepted. Over many steps, the chain visits $\theta=0.40$ about $2.76$ times as often as $\theta=0.30$ (per unit of $\theta$), which is exactly the ratio of the posterior densities.
+**Worked example: one MH step.**
+
+1. **Current state.** The chain is at $\theta^{(t)}=0.40$.
+2. **Propose.** Draw $\varepsilon\sim\mathcal N(0,1)$. Suppose $\varepsilon=-0.5$. Then $\theta'=0.40+0.2\times(-0.5)=0.30$.
+3. **Proposal correction.** Both directions cover the same distance $0.10$, so $q(0.40\mid0.30)/q(0.30\mid0.40)=1$.
+4. **Target ratio.** Substitute $\theta'=0.30$ and $\theta^{(t)}=0.40$ into $\tilde p$. The miss factors are $1-0.30=0.70$ and $1-0.40=0.60$:
+$$\frac{\tilde p(0.30)}{\tilde p(0.40)} = \frac{\binom{45}{18}\,(0.30)^{18}(0.70)^{27}}{\binom{45}{18}\,(0.40)^{18}(0.60)^{27}} = \Big(\frac{0.30}{0.40}\Big)^{18}\Big(\frac{0.70}{0.60}\Big)^{27}.$$
+The binomial coefficients cancel. The hit factor is $(0.75)^{18}\approx0.00564$: the candidate makes the 18 hits much less likely. The miss factor is $(7/6)^{27}\approx64.2$: the candidate makes the 27 misses more likely. Their product is $0.00564\times64.2\approx0.362$.
+5. **Acceptance probability.** $\alpha=\min\{1,\ 0.362\times1\}\approx0.36$.
+6. **Accept or reject.** Draw $u\sim\mathrm{Uniform}(0,1)$. If $u\le0.36$, set $\theta^{(t+1)}=0.30$. Otherwise set $\theta^{(t+1)}=0.40$, recording the current value again.
+
+By hand, large powers are easier in logs: $18\ln0.75+27\ln(7/6)=-5.178+4.162=-1.016$, and $e^{-1.016}\approx0.36$.
+
+The reverse move, from $0.30$ to $0.40$, has ratio $1/0.362\approx2.76>1$, so $\alpha=1$ and it is always accepted. Over many steps, the chain visits $\theta=0.40$ about $2.76$ times as often as $\theta=0.30$ (per unit of $\theta$), which is exactly the ratio of the posterior densities.
 
 A proposal outside $(0,1)$ has $\tilde p(\theta')=0$, so its acceptance probability is 0 and it is always rejected.
 :::
@@ -1224,3 +1269,46 @@ The lecture is candid about the limits of this rule. Even when the simulations a
 ## Quick self-check
 
 If you can explain why detailed balance makes a distribution stationary, why the Metropolis-Hastings acceptance rule satisfies detailed balance without ever needing $Z$, and why a chain that accepts almost every proposal can still be a poor sampler, you have understood the core of Week 5.
+
+
+## High-level overview {#sec-overview5}
+
+This section retells each part of the week in plain language and without formulas, using the lecture's own examples. Read it before the chapter for orientation, or after it as a review.
+
+**From independent to dependent samples (@sec-dependent).** This week each sample is a small change from the one before, so the samples depend on each other. Dependence shows up in data too: today's stock price is close to yesterday's, and the next word in a sentence depends on the words before it.
+
+**Markov chains (@sec-markov).** The simplest model of a sequence: the next step depends only on the current one, not on the whole history. To guess the next word, look only at the current word.
+
+**Transition matrices and state transition diagrams (@sec-transition).** A table of "if I am here now, where do I go next?", with one row per current state giving the chance of each next state. Each row adds up to 1, because the chain has to go somewhere.
+
+**n-step transitions (@sec-nstep).** Where can the chain be after several steps? Multiply the table by itself that many times.
+
+**Markov language models (@sec-langmodel).** Treat each word as a state and learn the table from text. The chance that "York" follows "New" is the number of times "New York" appears divided by the number of times "New" is followed by any word. Sampling one word at a time from the chain generates new text.
+
+**The stationary distribution (@sec-stationary).** Run a chain long enough and the share of time it spends in each state often settles down, whatever state it started in. That long-run mix is the stationary distribution.
+
+**When is the stationary distribution unique? (@sec-unique).** Picture a walker moving between places. If every place can be reached from every other, and the walker is not locked into a fixed rhythm (only reaching some places after an odd number of steps, say), then there is exactly one long-run mix, and the walker approaches it from any starting point.
+
+**Detailed balance (@sec-detailed).** An easy check that a mix is the long-run one: in the long run, the flow of walkers from any place A to place B equals the flow from B back to A. If every pair of places balances, the overall mix never changes. This gives us a way to design a chain with the long-run mix we want.
+
+**Why MCMC (@sec-whymcmc).** Turn Week 4's problem around. Instead of finding one easy distribution that covers the target everywhere, build a wandering chain whose long-run mix is the target, and record where it goes. Each move only has to be a sensible small step from the current point.
+
+**The Metropolis-Hastings algorithm (@sec-mh).** Propose a random move. If the new spot is more probable, go there. If it is less probable, go there only some of the time, with a chance equal to how much less probable it is (adjusted when proposals are lopsided). Only ratios of probabilities appear, so the unknown scaling constant never matters. Occasionally accepting a move downhill is what makes this a sampler rather than a hill-climber. In the tutorial, MH estimates Roberto Clemente's true hitting ability from his first 45 at-bats. The step size matters there: tiny steps are almost always accepted but crawl, while huge steps are mostly rejected.
+
+**Why Metropolis-Hastings works (@sec-mh-proof).** The accept rule is built so that detailed balance holds for the target, which guarantees the target is the chain's long-run mix.
+
+**Gibbs sampling (@sec-gibbs).** For a distribution over many variables, update one variable at a time by drawing it fresh from its distribution given all the others. These moves are always accepted. Gibbs works well when those one-at-a-time distributions are easy, as in the Ising model, where each pixel depends only on its neighbours.
+
+**The bivariate Gaussian and the Gibbs example (@sec-gauss-cond, @sec-gibbs-gauss).** For two strongly correlated variables, the probable region is a long, thin diagonal ridge. Gibbs moves along only one axis at a time, so it zig-zags along the ridge in small steps and explores it slowly.
+
+**Hamiltonian Monte Carlo (@sec-hmc).** Treat the target as a landscape in which probable regions are valleys, give a ball a random push, and let it roll. The ball follows the slope of the landscape, so in one move it can travel far along a narrow ridge instead of stumbling in random directions. This needs the gradient of the landscape.
+
+**The leapfrog integrator and the HMC algorithm (@sec-leapfrog).** A computer cannot simulate the rolling exactly, so it takes many small alternating updates of speed and position. Because those steps are slightly off, a final accept-or-reject check, as in MH, corrects for the error.
+
+**MCMC diagnostics (@sec-diagnostics).** How do we know a chain has run long enough? Run several chains from very different starting points and compare them.
+
+**The $\hat R$ statistic (@sec-rhat).** If each chain looks like the whole collection, they have probably all found the same distribution. If they disagree, for example because each is stuck in a different region, the spread between chains is larger than the spread within each one, and $\hat R$ comes out well above 1.
+
+**Effective sample size (@sec-ess).** Neighbouring samples from a chain are similar, so 1000 correlated samples carry less information than 1000 independent ones. The effective sample size estimates how many independent samples they are worth.
+
+**Diagnostics rule of thumb (@sec-rule).** Use the samples once $\hat R$ is near 1 and the effective sample size is more than 10 per chain. Passing these checks shows only that the chains look mixed. All of them could still have missed a region that none of them ever visited.

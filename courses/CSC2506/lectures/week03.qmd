@@ -1335,3 +1335,34 @@ Each visible unit that agrees with the sign of its coupling pushes the hidden un
 ## Quick self-check
 
 If you can explain, in your own words, why the same variable-elimination algorithm works on both a DAG and an MRF once conditional probability tables are treated as potentials, and why a bipartite Ising model makes the hidden units of a restricted Boltzmann machine conditionally independent given the visible ones, you have understood the core of Week 3.
+
+
+## High-level overview {#sec-overview3}
+
+This section retells each part of the week in plain language and without formulas, using the lecture's own examples. Read it before the chapter for orientation, or after it as a review.
+
+**From DAGs to undirected graphs (@sec-motivate).** Some relationships have no direction. Neighbouring pixels in an image influence each other symmetrically, and neither one causes the other. Forcing arrows onto a grid of pixels makes certain diagonal pixels look related to a pixel through explaining away, even though we only wanted each pixel tied to its four neighbours.
+
+**Markov random fields, cliques, and the factorization theorem (@sec-mrf).** An MRF drops the arrows: an edge only says "these two interact". Each group of variables that are all linked to each other (a clique) gets a compatibility score that is high for combinations that go well together, such as two neighbouring pixels sharing a colour. The scores are not probabilities, so the product of all of them is divided by one overall constant to make everything add up to 1.
+
+**The Hammersley-Clifford theorem (@sec-hc).** An undirected graph can be read two ways: as a recipe for building the distribution from clique scores, or as a list of independence statements ("a variable depends only on its neighbours"). The theorem says that, as long as no combination has zero probability, the two readings describe exactly the same distributions. For the image, once we know a pixel's neighbours, the rest of the picture tells us nothing more about that pixel.
+
+**Worked example (@sec-mrf-example).** Practice on a seven-node graph: find the cliques, write down the product of scores, and read off independences by checking whether the observed nodes cut one group off from another.
+
+**What MRFs can express that DAGs cannot, and vice versa (@sec-mrf-vs-dag).** Neither kind of graph is strictly better. Four variables in a ring, each linked to its two neighbours, cannot be drawn as any DAG without changing what is independent. In the other direction, explaining away (rain, ballgame, traffic) cannot be drawn as any MRF.
+
+**MRFs as exponential families (@sec-mrf-expfam).** To learn clique scores from data, we write them in Week 1's exponential-family template, so the same fitting machinery applies.
+
+**The Ising model (@sec-ising).** The simplest MRF. Each variable takes one of two values (originally the up or down spin of a tiny magnet), and each edge has one number saying how strongly its two ends prefer to agree. For a black-and-white image, a positive number means neighbouring pixels tend to share a colour.
+
+**Gaussian graphical models (@sec-ggm).** The continuous version. For bell-curve-shaped data, one matrix of numbers (the precision matrix) encodes the whole graph. A zero in position $(i,j)$ means variables $i$ and $j$ have no direct link once all the others are known, so the graph can be read off by looking for zeros.
+
+**Exact inference as a conditional distribution (@sec-inference).** Everything so far described distributions. Now we compute with them. Inference answers questions like "given what we observed, what are the chances for this variable?", which means adding up over every variable we neither observed nor asked about.
+
+**Variable elimination (@sec-ve).** Adding up over every combination of the unobserved variables grows exponentially. Variable elimination removes them one at a time: each sum touches only the factors that involve that variable, and the result is stored for reuse. On the chain $A\to B\to C\to D$, finding the distribution of $D$ means summing out $A$ (which involves only $A$ and $B$), then $B$, then $C$, so no step ever handles more than two variables. The elimination order never changes the answer, but it can change the cost enormously.
+
+**Sum-product inference (@sec-sum-product).** A DAG's conditional probability tables and an MRF's clique scores are both just tables of nonnegative numbers. So one algorithm (multiply the relevant tables, then sum a variable out) works on both kinds of graph.
+
+**Variable elimination on a Bayes net, with and without evidence (@sec-ve-student, @sec-ve-evidence).** The student network links, among other things, a course's difficulty and a student's intelligence to their grade, the grade to a recommendation letter, and the letter to a job offer. Elimination answers questions like "how likely is a job offer?" When we observe something, such as the grade, that variable is held at its observed value instead of being summed out, and the answer is renormalized at the end.
+
+**Restricted Boltzmann machines (@sec-rbm).** A layer of visible units (for example, pixels) is connected to a layer of hidden units, with no connections inside either layer. Because of that structure, once the pixels are known the hidden units are independent of each other, so each one can be computed separately in a single cheap step. The familiar sigmoid activation from neural networks falls out of this structure rather than being chosen by hand.

@@ -65,6 +65,9 @@ $$\mathbb{E}_\eta[T(X)] = A'(\eta), \qquad \mathrm{Var}_\eta(T(X)) = A''(\eta)$$
 
 $$\text{MLE condition:}\qquad A'(\hat\eta) = \frac{1}{N}\sum_{i=1}^N T(x^{(i)})$$
 
+- **Symbols:** $x$ is one outcome. $\eta$ is the **natural parameter**, $T(x)$ the **sufficient statistic** (the summary of $x$ the density depends on), $h(x)$ the **carrying measure** (the factor with no $\eta$ in it), and $A(\eta)$ the **log-partition function** that makes the probabilities sum to 1. $A'$ and $A''$ are derivatives in $\eta$ (gradient and Hessian if $\eta$ is a vector).
+- **Two different sums:** the $\sum_x$ inside $A$ runs over **every possible** outcome. The $\sum_{i=1}^N$ in the MLE condition runs over the $N$ **observed** data points $x^{(1)},\dots,x^{(N)}$. So the MLE sets the model's expected $T$ equal to the data's average $T$.
+
 - **Unnormalized model** $p_\theta(x)\propto\exp\{\theta\,T(x)\}$: group the configurations by their value of $T$, then $A(\theta)=\log\sum_x e^{\theta T(x)}$ is a finite sum.
 - **Bernoulli:** $T(x)=x$, $\eta=\log\frac{\theta}{1-\theta}$, $A(\eta)=\log(1+e^\eta)$, and back again $\theta=\frac{e^\eta}{1+e^\eta}$.
 - **Gaussian:** $T(x)=(x,\,-x^2/2)$, $\eta=(\mu/\sigma^2,\,1/\sigma^2)$.
@@ -76,6 +79,9 @@ $$\text{MLE condition:}\qquad A'(\hat\eta) = \frac{1}{N}\sum_{i=1}^N T(x^{(i)})$
 $$p(\text{mistake}) = \int_{\mathcal{R}_1} p(x,\mathcal{C}_2)\,dx + \int_{\mathcal{R}_2} p(x,\mathcal{C}_1)\,dx$$
 
 $$\mathbb{E}[L] = \sum_k\sum_j\int_{\mathcal{R}_j} L_{kj}\,p(x,\mathcal{C}_k)\,dx$$
+
+- **Symbols:** $\mathcal{C}_k$ is true class $k$. $\mathcal{R}_j$ is **decision region** $j$, the set of inputs $x$ we assign to class $j$ (the regions split the input space with no overlap). $L_{kj}$ is the **loss** for deciding $j$ when the truth is $k$ (row $k$ = truth, column $j$ = decision; 0-1 loss has $L_{kk}=0$ and $L_{kj}=1$ for $k\neq j$).
+- **Why sum over $k$ and $j$:** every (truth $k$, decision $j$) pair is a possible outcome. $\int_{\mathcal{R}_j}p(x,\mathcal{C}_k)\,dx$ is the probability that the truth is $k$ **and** $x$ lands where we decide $j$; multiply by its cost $L_{kj}$ and add over all pairs. With two classes and 0-1 loss only the $k\neq j$ terms survive, which is exactly $p(\text{mistake})$: $\mathcal{R}_1$ with truth $\mathcal{C}_2$, plus $\mathcal{R}_2$ with truth $\mathcal{C}_1$.
 
 - **Misclassification rule:** decide the class with the larger joint $p(x,\mathcal{C}_k)$, equivalently the larger posterior. The boundary is where the **joint** densities cross.
 - **Discriminant rule:** decide the $j$ that minimizes $\sum_k L_{kj}\,p(\mathcal{C}_k\mid x)$.
@@ -91,6 +97,10 @@ $$\mathbb{E}[L] = \sum_k\sum_j\int_{\mathcal{R}_j} L_{kj}\,p(x,\mathcal{C}_k)\,d
 ### Week 3: Markov random fields and variable elimination
 
 $$p(\boldsymbol{x}) = \frac{1}{Z}\prod_{C\in\mathcal{C}}\psi_C(x_C), \qquad Z=\sum_{\boldsymbol{x}}\prod_{C\in\mathcal{C}}\psi_C(x_C)$$
+
+- **Symbols:** $\boldsymbol{x}$ is the full set of variables. $\mathcal{C}$ is the set of cliques that carry a potential, $C$ is one of them, and $x_C$ is the variables in $C$. $\psi_C(x_C)\ge0$ is a **potential**: a score, not a probability, so it need not sum to 1. $Z$ is the **partition function**, the normalizer.
+- **Why the product and the sum:** each potential scores only its own clique, and multiplying them scores a whole configuration. $Z$ sums that product over **every** joint configuration $\boldsymbol{x}$, which is why it is expensive.
+- **Ising symbols:** $x_s\in\{-1,+1\}$ is the spin at node $s$, $s\sim t$ means $s$ and $t$ share an edge, $J_{st}$ is the **coupling** (positive favours agreeing neighbours), and $b_s$ is the **external field** biasing node $s$ alone. In the Markov property, $A$, $B$, $S$ are sets of nodes.
 
 - **Factorization to graph:** join every pair of variables that appear together in some potential.
 - **Graph to factorization:** one potential per maximal clique.
@@ -108,15 +118,22 @@ $$\text{observed } x_j=\bar x_j:\qquad m_{j\to i}(x_i) = \psi_j(\bar x_j)\,\psi_
 
 $$b(x_i)\propto\psi_i(x_i)\prod_{j\in N(i)}m_{j\to i}(x_i)$$
 
+- **Symbols:** $m_{j\to i}(x_i)$ is the **message** from node $j$ to node $i$: a table with one entry per value of $x_i$. $\psi_j(x_j)$ is the node (unary) potential at $j$, $\psi_{ij}(x_i,x_j)$ the edge potential, and $N(j)$ the neighbours of $j$. $N(j)\setminus\{i\}$ is every neighbour of $j$ **except** the recipient $i$. $\bar x_j$ is the observed value of $x_j$. $b(x_i)$ is the **belief**, the estimate of the marginal $p(x_i)$.
+- **Why sum over $x_j$ and multiply over $k$:** $j$ first collects what its other neighbours $k$ told it, then sums $x_j$ out so the message depends only on $x_i$. If $x_j$ is observed there is nothing to sum, so the single term $x_j=\bar x_j$ is kept.
+
 - **Schedule:** a node sends to a neighbour once it has heard from all its other neighbours. One pass from the leaves to the root gives the root's marginal. Two passes (in, then out) give every marginal, using $2|\mathcal{E}|$ messages.
 - **Messages can be rescaled** at any point without changing a normalized belief.
 - **Loopy BP** iterates the same update on a graph with cycles; the beliefs are approximate and often overconfident. **Max-product** replaces each sum with a max.
 
 $$\hat\Phi = \frac1N\sum_{i=1}^N\phi(x^{(i)}), \qquad \mathbb{E}[\hat\Phi]=\Phi, \qquad \mathrm{var}[\hat\Phi]=\frac{\mathrm{var}[\phi(x)]}{N}$$
 
+- **Symbols:** $\phi$ is the **test function** whose average we want, $\Phi=\mathbb{E}_p[\phi(x)]$ is the true value, and $\hat\Phi$ is the estimate from $N$ samples $x^{(i)}\sim p$. $q$ is the **proposal** we can sample from when $p$ is hard. $\tilde w_r$ is the weight of sample $r$, and $c$ is the constant that lifts $c\,\tilde q$ above $\tilde p$ in rejection sampling.
+
 - **Indicator test function:** $\phi=\mathbf{1}_E$ with $P(E)=p$ gives $\mathrm{var}[\hat\Phi]=\frac{p(1-p)}{N}$.
 - **Conditional probability:** a ratio of two indicator sums, $\hat P(E\mid F)=\sum_i\mathbf{1}(E\cap F)\big/\sum_i\mathbf{1}(F)$.
 - **Importance sampling:** $\tilde w_r=\tilde p(x^{(r)})/\tilde q(x^{(r)})$, $\Phi\approx\sum_r\phi(x^{(r)})\tilde w_r\big/\sum_r\tilde w_r$, and $\frac1R\sum_r\tilde w_r\approx Z_p/Z_q$.
+- **Unnormalized densities:** $p(x)=\tilde p(x)/Z_p$ and $q(x)=\tilde q(x)/Z_q$. Here $\tilde p$ and $\tilde q$ are the parts of each density that depend on $x$, with constants such as $1/\sqrt{2\pi}$ or $1/\sigma$ dropped. $Z_p=\int\tilde p(x)\,dx$ and $Z_q=\int\tilde q(x)\,dx$ are those dropped constants, so $\tilde p=Z_p\,p$ and $\tilde q=Z_q\,q$. If $q$ is already normalized, $\tilde q=q$ and $Z_q=1$.
+- **Normal example:** $p=N(0,1)$ gives $\tilde p(x)=e^{-x^2/2}$ and $Z_p=\sqrt{2\pi}$. $q=N(0,\sigma^2)$ gives $\tilde q(x)=e^{-x^2/(2\sigma^2)}$ and $Z_q=\sqrt{2\pi}\,\sigma$.
 - **Rejection sampling:** needs $c\,\tilde q(x)\ge\tilde p(x)$ for all $x$. Draw $x\sim q$ and $u\sim\mathrm{Uniform}[0,\,c\tilde q(x)]$; accept if $u\le\tilde p(x)$. Acceptance rate $Z_p/(cZ_q)$. Accepted samples are exact and independent.
 - **Ancestral sampling:** sample each node given its parents, in a topological order.
 - **Notation clash:** Week 4 writes $R$ samples indexed by $r$; the practice midterm writes $N$ samples indexed by $(i)$. They mean the same thing.
@@ -132,6 +149,10 @@ $$A=\begin{pmatrix}1-\alpha&\alpha\\\beta&1-\beta\end{pmatrix}:\qquad \pi=\Big(\
 $$p_{t+1}-\pi_1 = (1-\alpha-\beta)\,(p_t-\pi_1), \qquad p_t = P(x_t=1)$$
 
 $$\alpha(x'\mid x) = \min\Big\{1,\ \frac{\tilde p(x')\,q(x\mid x')}{\tilde p(x)\,q(x'\mid x)}\Big\}$$
+
+- **Symbols:** $x_t$ is the state at time $t$. $A_{ij}$ is the probability of moving from state $i$ to state $j$ (row $i$ = now, column $j$ = next, so each row sums to 1). $\pi_t$ is the column vector of state probabilities at time $t$; the transpose appears because rows index where we come **from**. $A^n$ gives the $n$-step probabilities, and $\pi$ with no subscript is the stationary distribution.
+- **Two-state chain:** $\alpha$ is the probability of leaving state 1 and $\beta$ of leaving state 2. $p_t=P(x_t=1)$ and $\pi_1$ is its stationary value, so $1-\alpha-\beta$ is the factor the gap shrinks by each step.
+- **MH symbols:** $x$ is the current state, $x'$ the proposed one, and $q(x'\mid x)$ the probability of proposing $x'$ from $x$. $\tilde p$ is the unnormalized target; $Z_p$ cancels in the ratio. $\alpha(x'\mid x)$ is the **acceptance probability**, a different $\alpha$ from the two-state chain's. In the chain MLE, $N_{jk}$ counts observed $j\to k$ transitions.
 
 - **Detailed balance** $\pi_iA_{ij}=\pi_jA_{ji}$ implies $\pi$ is stationary. It is sufficient, not necessary, and says nothing about convergence.
 - **Uniqueness and convergence:** guaranteed when the chain is regular (some $A^n$ has all entries positive).
@@ -156,7 +177,9 @@ $$\log p(x) = \underbrace{\mathbb{E}_{q}\big[\log p(x,z)-\log q(z)\big]}_{\text{
 
 $$\text{naive mean field:}\qquad q_i(x_i)\propto\exp\Big\{\sum_{j\in N(i)}\sum_{x_j}q_j(x_j)\,\phi_{ij}(x_i,x_j)\Big\}$$
 
-- **Notation:** $\pi$ is the initial distribution, $\Psi(i,j)=p(z_{t+1}=j\mid z_t=i)$, $\psi_t(j)=p(x_t\mid z_t=j)$.
+- **Notation:** $z_t$ is the hidden state and $x_t$ the observation at time $t$, with $x_{1:T}$ meaning $x_1,\dots,x_T$. $\pi$ is the initial distribution, $\Psi(i,j)=p(z_{t+1}=j\mid z_t=i)$, $\psi_t(j)=p(x_t\mid z_t=j)$, and $\odot$ is entry-by-entry multiplication. These $\alpha$, $\beta$, $\pi$ are not Week 5's.
+- **What each vector holds:** $\alpha_t(j)=p(z_t=j\mid x_{1:t})$ (filtering, past evidence), $\beta_t(i)=p(x_{t+1:T}\mid z_t=i)$ (future evidence), $\gamma_t(j)=p(z_t=j\mid x_{1:T})$ (smoothing, all evidence). $\delta_t(j)$ is the probability of the single best hidden path ending in state $j$ at time $t$, together with $x_{1:t}$. $\Psi^\top\alpha_{t-1}$ sums over the previous state $i$; Viterbi swaps that sum for a max.
+- **VI symbols:** $p$ is the target, $q$ the approximation we choose, and $z$ the latent variables we cannot see given observed $x$. In mean field, $q_i$ is the factor for node $i$ alone, $\phi_{ij}$ is the **log**-potential on edge $\{i,j\}$ (so $p\propto\exp\sum\phi_{ij}$), and the sums average $\phi_{ij}$ over the neighbours' current $q_j$.
 - **Viterbi backpointer:** $\theta_t(j)=\arg\max_i\big[\delta_{t-1}(i)\Psi(i,j)\big]$; pick $\arg\max_j\delta_T(j)$ and follow the pointers back.
 - **KL facts:** zero only when $q=p$; not symmetric; infinite if the first argument puts mass where the second has none.
 - **I-projection** $\arg\min_q\mathrm{KL}(q\|p)$ (used by VI): avoids putting mass where $p$ is small, so it locks onto one mode. **M-projection** $\arg\min_q\mathrm{KL}(p\|q)$: covers all of $p$'s mass; for Gaussian $q$ it matches the mean and variance.
@@ -619,7 +642,13 @@ So $m_{2\to4}=(24,33)\propto(8,11)$.
 
 $$\tilde b(x_4)=\psi_4(x_4)\,m_{2\to4}(x_4)\,m_{5\to4}(x_4)\,m_{6\to4}(x_4)=\big(24\cdot5\cdot3,\ 33\cdot4\cdot3\big)=(360,\ 396).$$
 
-Normalizing by $756$: $p(x_4\mid\bar x_3)=\big(\frac{10}{21},\frac{11}{21}\big)$. The pull toward 1 from the evidence and $\psi_1$ slightly outweighs the pull toward 0 from $\psi_5$.
+**Where the normalizer comes from.** The tilde marks an *unnormalized* belief. Each entry $\tilde b(x_4)$ is the product of all the potentials, with $x_3$ clamped to 1, summed over every other unobserved variable ($x_1,x_2,x_5,x_6$). That is $\tilde p(x_4,\bar x_3)$, the unnormalized joint of $x_4$ and the evidence. To turn it into a conditional we divide by its sum over the values of $x_4$, because
+$$p(x_4\mid\bar x_3)=\frac{\tilde p(x_4,\bar x_3)}{\sum_{x_4'}\tilde p(x_4',\bar x_3)}.$$
+The global partition function $Z$ cancels between top and bottom, so we never need it. Here the sum is $360+396=756$, and dividing each entry by it gives
+$$p(x_4\mid\bar x_3)=\Big(\tfrac{360}{756},\ \tfrac{396}{756}\Big)=\Big(\tfrac{10}{21},\ \tfrac{11}{21}\Big),$$
+after cancelling the common factor 36 ($360=36\cdot10$, $396=36\cdot11$, $756=36\cdot21$). The two entries add to 1, which is the check that we normalized correctly.
+
+The pull toward 1 from the evidence and $\psi_1$ slightly outweighs the pull toward 0 from $\psi_5$.
 
 **3. A node that is not the root.** Node 2's belief needs a message from each of its neighbours 1, 3, and 4. The inward pass produced $m_{1\to2}$ and $m_{3\to2}$ but sent $m_{2\to4}$ the wrong way, so we need $m_{4\to2}$, the first message of the outward pass. Node 4 sends it after hearing from 5 and 6:
 
@@ -632,7 +661,11 @@ So $m_{4\to2}\propto(14,13)$. The belief is
 
 $$\tilde b(x_2)=\psi_2(x_2)\,m_{1\to2}(x_2)\,m_{3\to2}(x_2)\,m_{4\to2}(x_2)=\big(5\cdot1\cdot14,\ 7\cdot2\cdot13\big)=(70,\ 182).$$
 
-Normalizing by $252$: $p(x_2\mid\bar x_3)=\big(\frac5{18},\frac{13}{18}\big)$. Node 2 sits next to the evidence, so it leans toward 1 more strongly than node 4 does.
+The normalizer is found the same way: add the two entries, $70+182=252$, and divide each by the sum. Cancelling the common factor 14 ($70=14\cdot5$, $182=14\cdot13$, $252=14\cdot18$) gives $p(x_2\mid\bar x_3)=\big(\frac5{18},\frac{13}{18}\big)$. Node 2 sits next to the evidence, so it leans toward 1 more strongly than node 4 does.
+
+::: {.callout-note}
+**Why 252 and not 756?** Without any rescaling, every node's unnormalized belief sums to the same number, $\sum_{x_1,x_2,x_4,x_5,x_6}\tilde p(x_1,x_2,\bar x_3,x_4,x_5,x_6)$, the total weight of all configurations consistent with the evidence. We got 756 at node 4. At node 2 we got 252 because we rescaled $(15,12)$ to $(5,4)$, dropping a factor of 3; the unrescaled message would be $m_{4\to2}=(42,39)$, giving $\tilde b(x_2)=(210,546)$, which sums to $756$. Rescaling a message by a constant rescales the belief by that constant and the normalizer by the same constant, so the normalized marginal is unchanged. That is why we may write messages "up to proportionality" ($\propto$) and why each node's normalizer is simply whatever its own entries sum to.
+:::
 
 **Answer.** (1) $m_{1\to2}=(5,7)$, $m_{3\to2}=(1,2)$, $m_{2\to4}=(24,33)\propto(8,11)$, $m_{5\to4}=(5,4)$, $m_{6\to4}=(3,3)$. (2) $p(x_4\mid\bar x_3)=(\frac{10}{21},\frac{11}{21})$. (3) $m_{4\to2}\propto(14,13)$; $p(x_2\mid\bar x_3)=(\frac5{18},\frac{13}{18})$.
 
@@ -642,6 +675,47 @@ Normalizing by $252$: $p(x_2\mid\bar x_3)=\big(\frac5{18},\frac{13}{18}\big)$. N
 - At the root, one inward pass gives the belief. Any other node needs one outward message from its parent toward the root.
 - An observed leaf sends its node and edge potentials evaluated at the observed value, with no sum. A leaf with a flat potential sends a flat message, which changes no belief.
 - Check a small answer by brute force: summing the unnormalized joint over all configurations consistent with the evidence must give the same marginal.
+:::
+
+### Problem 2.6: Who chooses the root? {#prb-2-6}
+
+Keep the tree and numbers of Problem 2.5. Each part below answers one question about the root.
+
+1. *Can we pick any root?* Suppose we root the tree at node 1 instead of node 4, run the inward pass to node 1, and then send the outward messages needed for $x_4$. Write the formula for $m_{2\to4}$ under this schedule. Is it the same message as in Problem 2.5, and is $p(x_4\mid\bar x_3)$ the same?
+2. *Why would we ever root somewhere else?* We have already run the inward pass to node 1, because last time we wanted $p(x_1\mid\bar x_3)$. Now we want $p(x_4\mid\bar x_3)$. How many messages does it cost to start over with node 4 as the root? How many new messages if we keep the stored ones?
+3. *Can there be two roots?* We want both $p(x_1\mid\bar x_3)$ and $p(x_4\mid\bar x_3)$. Count the messages if the root is node 4, then if it is node 1. Why can one inward pass not end at both nodes?
+4. *Do we need a root at all?* Apply only the rule "a node sends to a neighbour once it has heard from all its other neighbours", starting from the leaves. Which messages get computed, and where does a root appear?
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+This reteaches [Week 4, Belief propagation on trees](week04.qmd#sec-bp).
+
+The key fact for every part: the graph is undirected and has no root. The root is a bookkeeping choice we make to schedule the messages, and the formula for a message never mentions it.
+
+**1. Any root works.** Under root 1, $m_{2\to4}$ is sent during the outward pass, after node 2 has heard from 1 and 3:
+
+$$m_{2\to4}(x_4)=\sum_{x_2}\psi_2(x_2)\,\psi_{24}(x_2,x_4)\,m_{1\to2}(x_2)\,m_{3\to2}(x_2).$$
+
+This is the same formula with the same inputs, $m_{1\to2}=(5,7)$ and $m_{3\to2}=(1,2)$, so it gives the same $(24,33)$. The messages $m_{5\to4}$ and $m_{6\to4}$ are also unchanged, so $p(x_4\mid\bar x_3)=(\frac{10}{21},\frac{11}{21})$ again. On a tree, every root gives the same exact marginals; only the order and the number of messages change.
+
+**2. Reuse is the reason to root elsewhere.** Starting over with root 4 costs 5 messages. The inward pass to node 1 already stored $m_{3\to2}$, $m_{5\to4}$, $m_{6\to4}$, $m_{4\to2}$, and $m_{2\to1}$. Node 4's belief needs $m_{2\to4}$, $m_{5\to4}$, and $m_{6\to4}$. Only $m_{2\to4}$ is missing, and it needs $m_{1\to2}$, which is also missing. So reuse costs **2 new messages**, not 5. In practice the root is often fixed by an earlier query, or by the order in which data arrives (an HMM's forward pass roots the chain at the latest time step), not by the node we want now.
+
+**3. One root, but more than one marginal.**
+
+- Root 4: the inward pass costs 5 messages and gives $x_4$. For $x_1$ we need $m_{2\to1}$, which needs $m_{4\to2}$: 2 more. Total 7.
+- Root 1: the inward pass costs 5 and gives $x_1$. For $x_4$ we need $m_{1\to2}$ and $m_{2\to4}$: 2 more. Total 7.
+
+The totals match. The path from 1 to 4 runs through edges $1\text{-}2$ and $2\text{-}4$, and both beliefs need messages along that path in both directions. One pass sends each edge's message in one direction only, so it cannot end at both nodes. That is why a pass has exactly one root, and why a second node costs extra messages along the path between them.
+
+**4. No root is needed.** With the "heard from all other neighbours" rule, the leaves 1, 3, 5, and 6 send first. Node 2 can then send to 4 (it has heard from 1 and 3), and node 4 can send to 2 (it has heard from 5 and 6). After that, nodes 2 and 4 can send back to the leaves. All $2|\mathcal{E}|=10$ messages get computed and every node gets its marginal, with no root ever named. The root only matters when we want fewer than all the marginals and are deciding which messages to skip.
+
+**Answer.** (1) Yes, any node can be the root: $m_{2\to4}=(24,33)$ and $p(x_4\mid\bar x_3)=(\frac{10}{21},\frac{11}{21})$ as before. (2) 5 to start over, 2 with reuse. (3) 7 either way; one pass sends each edge's message in only one direction, so it has one root. (4) All 10 messages, with no root required.
+
+**Takeaways.**
+
+- The root is our scheduling choice, not part of the model. Any root gives the same exact marginals on a tree.
+- If we want one marginal from scratch, root at that node. We root elsewhere when messages are already stored, or when the order in which data arrives fixes it.
+- A pass has one root because it sends each edge's message in only one direction. Each extra marginal costs the messages along the path back from the root.
+- For every marginal, skip the root: run the "heard from all other neighbours" rule until all $2|\mathcal{E}|$ messages are sent.
 :::
 
 ## Section 3: Decision theory {#sec-mid-3}

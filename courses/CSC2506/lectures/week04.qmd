@@ -1063,20 +1063,55 @@ $$\hat\Phi = \frac{1(1) + 9(3) + 9(3) + 4(2)}{1 + 3 + 3 + 2} = \frac{63}{9} = 7.
 With only four samples the estimate is off by 1, but it improves as $R$ grows. As a side product, the average weight $9/4 = 2.25$ estimates $Z_p/Z_q = 6/3 = 2$.
 :::
 
-::: {.callout-tip collapse="true" .clarification title="Question: How does importance sampling differ from regular Monte Carlo?"}
-In plain terms: regular Monte Carlo averages a quantity over samples that already follow the target, so every sample counts equally. Importance sampling is for the case where we cannot draw from the target. We draw from an easier distribution instead, then correct for the mismatch by giving each sample a weight. A sample the target favours more than the proposal did gets more say in the average. A sample the proposal produced too often gets less.
+::: {.callout-tip collapse="true" .clarification title="Question: What problem does importance sampling solve, and how does it differ from regular Monte Carlo?"}
+**The idea in plain terms.** We want an average over some population, but we cannot pick members of that population fairly at random. What we can do is pick members in some other, convenient way, and for each one we pick, measure how much it *should* count. Importance sampling then takes a weighted average: members that the convenient method under-represents count for more, and members it over-represents count for less. Regular Monte Carlo is the special case where we could pick fairly in the first place, so every member counts once.
 
-Here is one estimate done both ways. Three states $a$, $b$, $c$ have values $\phi = 10, 20, 30$. The target has unnormalized weights $\tilde p = (1, 4, 5)$, so $Z_p = 10$ and $p = (0.1, 0.4, 0.5)$. The true value is $\Phi = 0.1(10) + 0.4(20) + 0.5(30) = 24$.
+The proposal $q$ is chosen before any sampling, because it is easy to draw from. It is not built from the samples. The samples come out of $q$, and the weights are then computed one sample at a time.
 
-**Regular Monte Carlo** needs draws from $p$ itself. Suppose we get $b, c, b, c$. Every sample gets weight 1, so
+**What we are given, and what we get.**
 
-$$\hat\Phi = \frac{20 + 30 + 20 + 30}{4} = 25.$$
+| | In general | In the lake |
+| --- | --- | --- |
+| Want | $\Phi = \mathbb{E}_p[\phi(x)]$ | the average plankton concentration over all the lake's water |
+| Cannot do | sample from $p$, or compute $Z_p$ | pick a drop of water uniformly from the whole volume, or know the volume |
+| Can do | evaluate $\tilde p(x)$ and $\phi(x)$ at any single $x$ we choose | go to a spot and measure its depth and its plankton |
+| Can do | sample from a proposal $q$ | pick a spot on the surface uniformly at random |
+| Get | a weighted estimate of $\Phi$, and of $Z_p/Z_q$ | an estimate of the average concentration, and of the average depth |
 
-**Importance sampling** does not draw from $p$. It draws from the proposal $q$, which here is uniform: $q = (1/3, 1/3, 1/3)$, which is easy to sample. Suppose the four draws from $q$ are $a, c, b, c$. These are samples from $q$, not from $p$. Since $q$ treats the three states equally, the draws do not match $p$'s frequencies (where $p(c) = 0.5$ and $p(a) = 0.1$), and the weights correct for that. The weights are $\tilde w = \tilde p / \tilde q$ with $\tilde q = (1, 1, 1)$, so $\tilde w = 1, 5, 4, 5$ for $a, c, b, c$. Then
+So we never know $p$ as a whole. We only learn $\tilde p$ at the handful of points we actually visit, one measurement at a time. We also never know the true $\Phi$: estimating it is the whole purpose.
 
-$$\hat\Phi = \frac{1(10) + 5(30) + 4(20) + 5(30)}{1 + 5 + 4 + 5} = \frac{390}{15} = 26.$$
+**The problem.** Return to the lake from @sec-hardz. A survey team wants the average plankton concentration in the lake's water. Plankton is not spread evenly, so the answer depends on where the water is. A deep spot holds more water than a shallow one and should count for more.
 
-The two estimators have the same shape, a weighted average of $\phi$. Regular Monte Carlo gives every sample weight 1. Importance sampling gives each sample a weight that corrects for where it came from. The cost is that the weighted estimate is not exactly unbiased for a fixed $R$, though it converges to the right answer as $R$ grows.
+Regular Monte Carlo would need water samples drawn uniformly from the lake's volume, so that every drop is equally likely. That is Problem 1, and the team cannot do it: choosing a drop uniformly requires already knowing the shape of the lakebed everywhere.
+
+What the team can do is pick spots uniformly on the **surface** (a map and a random number generator are enough) and, at each spot, lower a line to read the depth $\tilde p(\boldsymbol{x})$ and take a reading of the concentration $\phi(\boldsymbol{x})$. Surface spots are the proposal: $\tilde q(\boldsymbol{x}) = 1$ everywhere on the surface, and $Z_q$ is the surface area. The importance weight of a spot is
+
+$$\tilde w = \frac{\tilde p(\boldsymbol{x})}{\tilde q(\boldsymbol{x})} = \text{depth at that spot}.$$
+
+**The data.** A teaching example with four random surface spots (invented numbers):
+
+| Spot | Depth $\tilde w$ (m) | Plankton $\phi$ (cells per mL) |
+| --- | --- | --- |
+| 1 | 1 | 30 |
+| 2 | 2 | 25 |
+| 3 | 8 | 10 |
+| 4 | 1 | 35 |
+
+**The naive answer** treats each surface spot as equal, as if every spot held the same amount of water:
+
+$$\frac{30 + 25 + 10 + 35}{4} = 25.$$
+
+**The importance-sampling answer** weights each spot by its depth, because spot 3 sits over eight times as much water as spot 1:
+
+$$\hat\Phi = \frac{1(30) + 2(25) + 8(10) + 1(35)}{1 + 2 + 8 + 1} = \frac{195}{12} = 16.25.$$
+
+The deep, low-plankton water pulls the estimate down. The naive average overstated the concentration because the surface method over-represents the shallows relative to how much water they hold.
+
+**The side product.** The average weight is $12/4 = 3$ m. It estimates $Z_p/Z_q$, the lake's volume divided by its surface area, which is the average depth. Multiplying by the known surface area estimates the volume, which no one ever measured directly.
+
+**How the two methods compare.** Both produce a weighted average of $\phi$. Regular Monte Carlo needs samples from $p$ and gives each weight 1. Importance sampling uses samples from a proposal we can draw from and gives each a weight $\tilde p/\tilde q$ that corrects for where it came from. The weighted estimate is not exactly unbiased for a fixed $R$, though it converges to the right answer as $R$ grows.
+
+**Where it goes wrong.** If the lake has a narrow canyon that no random surface spot happens to land on, the canyon's water never enters the sum and the estimate is off, with nothing in the four readings to warn us. When a spot does land on the canyon, its huge depth dominates the weights. This is the failure described above, where a proposal rarely visits where $p$ has mass and a few samples with huge weights dominate the sum.
 :::
 
 ## Rejection sampling {#sec-rejection}
@@ -1268,3 +1303,40 @@ Why not the others, and where this breaks: ancestral sampling and simple Monte C
 ## Quick self-check
 
 If you can explain why a message $m_{j\to i}$ excludes what $i$ itself sent to $j$, why that same rule makes loopy BP over-confident on a cycle, and why importance sampling and rejection sampling both avoid ever computing $Z_p$, you have understood the core of Week 4.
+
+
+## High-level overview {#sec-overview4}
+
+This section retells each part of the week in plain language and without formulas, using the lecture's own examples. Read it before the chapter for orientation, or after it as a review.
+
+**Latent variables and TrueSkill (@sec-trueskill).** Some quantities matter but are never observed. In TrueSkill, each player has a hidden skill, and all we see is who beat whom. The stronger player is more likely to win, but upsets happen. One game links the two players' skills: if A beat B, then A is strong, or B is weak, or both. With many players and games, finding everyone's skill exactly requires a huge integral, which motivates the rest of the week.
+
+**Trees and elimination order (@sec-trees).** On a tree (a graph with no loops), variable elimination is easy: always remove a leaf first. Removing a leaf touches only its one neighbour, so no large intermediate table ever appears.
+
+**Worked example: elimination becomes message passing (@sec-tree-example).** On a five-node tree, eliminating from the leaves inward means each step produces a small summary that one node hands to its neighbour. These summaries are the messages.
+
+**Messages and beliefs (@sec-messages).** A message from node $j$ to node $i$ is $j$'s summary of everything on its side of the tree, phrased as "how well each value of $i$ fits with what I know". A node's belief combines its own local evidence with every message it receives. On a tree, that belief is exactly the correct probability for the node.
+
+**Belief propagation on trees (@sec-bp).** To get every node's probabilities, not just one node's, send messages inward to a root and then back out again. Each message is computed once and reused, so all the answers together cost about twice as much as a single one.
+
+**Loopy belief propagation (@sec-loopy).** A graph with loops has no leaves to start from. Loopy BP starts every message at "no opinion" and keeps updating until things settle. The answers are approximate and tend to be overconfident, because evidence travelling around a loop gets counted more than once, and sometimes the updates never settle at all.
+
+**Max-product BP and MAP inference (@sec-maxproduct).** Sometimes we want the single best overall explanation rather than a probability for each variable. Replacing "add up the possibilities" with "keep the best possibility" in every message gives that best explanation.
+
+**Image denoising with loopy BP (@sec-denoise).** A black-and-white Mona Lisa passes through a channel that flips some pixels at random. Cleaning it up balances two pulls on each pixel: stay close to the colour that was received, and agree with the neighbours, since real images have large smooth regions. Loopy BP balances these pulls across the whole grid, so isolated flipped pixels get pulled back to match their surroundings.
+
+**Sampling from an unnormalized density (@sec-sampling).** The second half switches strategy: instead of computing sums, draw random examples and average over them. The catch is that we often know a distribution only up to an unknown scaling constant. We can say one point is twice as likely as another, but not the actual probability of either.
+
+**Ancestral sampling (@sec-ancestral).** In a DAG, sampling is easy: sample the variables without parents first, then each child given its parents' values, and so on down the graph. For the weather chain, first decide whether the pressure is low, then whether it rains given the pressure, then the traffic given the rain.
+
+**What sampling is for (@sec-goals).** Two separate jobs. The first is to produce random examples that follow the distribution. The second is to estimate an average, such as an expected value, under it.
+
+**Simple Monte Carlo (@sec-simplemc).** If we can draw examples, we estimate an average by averaging over them. To estimate a fair die's average roll, roll it many times and take the mean. The estimate is right on average, and its typical error shrinks as samples are added (four times as many samples halve it), however many dimensions the problem has.
+
+**Why the normalizing constant is hard (@sec-hardz).** The lecture's lake picture: we want the average plankton concentration in a lake, and from a boat we can measure the depth and the plankton at any spot. If a few narrow, very deep canyons hold much of the water, randomly chosen spots rarely land on them, and we badly misjudge the total. High-dimensional distributions behave like this, with most of the probability in tiny regions. Checking every point on a grid is no escape, because the number of grid points multiplies with every added dimension.
+
+**Importance sampling (@sec-importance).** When we cannot sample from the distribution we care about, we sample from an easier one and correct the mismatch with weights. A point the easy distribution produces too often gets a small weight, and a point it produces too rarely gets a large one. The weighted average then estimates the average we wanted, and the unknown scaling constants cancel. It works only if the easy distribution covers the important regions. If it misses a canyon, a few huge weights dominate the answer.
+
+**Rejection sampling (@sec-rejection).** Choose an easy distribution that, once scaled up, lies above the target everywhere. Propose points from it and keep each one with a chance equal to the target's height divided by the cover's height at that point. The points we keep are exact samples from the target. In high dimensions, though, almost every proposal is rejected.
+
+**Comparing the sampling methods (@sec-sampling-compare).** Every method above depends on an easy distribution that resembles the target, and such a distribution is very hard to find in high dimensions. Week 5's Markov chain methods avoid needing one.

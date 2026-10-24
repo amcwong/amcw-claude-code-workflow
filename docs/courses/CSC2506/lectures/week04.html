@@ -267,6 +267,7 @@ window.Quarto = {
   <li><a href="#sec-sampling-compare" id="toc-sec-sampling-compare" class="nav-link" data-scroll-target="#sec-sampling-compare">Comparing the sampling methods</a></li>
   <li><a href="#sec-summary4" id="toc-sec-summary4" class="nav-link" data-scroll-target="#sec-summary4">Summary</a></li>
   <li><a href="#quick-self-check" id="toc-quick-self-check" class="nav-link" data-scroll-target="#quick-self-check">Quick self-check</a></li>
+  <li><a href="#sec-overview4" id="toc-sec-overview4" class="nav-link" data-scroll-target="#sec-overview4">High-level overview</a></li>
   </ul>
 </nav>
     </div>
@@ -1401,25 +1402,107 @@ p(x_1{=}1, x_2{=}0, x_3{=}1, x_4{=}1, x_5{=}0)
 </div>
 </div>
 </div>
-<div class="clarification callout callout-style-default callout-tip callout-titled" title="Question: How does importance sampling differ from regular Monte Carlo?">
+<div class="clarification callout callout-style-default callout-tip callout-titled" title="Question: What problem does importance sampling solve, and how does it differ from regular Monte Carlo?">
 <div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-22-contents" aria-controls="callout-22" aria-expanded="false" aria-label="Toggle callout">
 <div class="callout-icon-container">
 <i class="callout-icon"></i>
 </div>
 <div class="callout-title-container flex-fill">
-<span class="screen-reader-only">Tip</span>Question: How does importance sampling differ from regular Monte Carlo?
+<span class="screen-reader-only">Tip</span>Question: What problem does importance sampling solve, and how does it differ from regular Monte Carlo?
 </div>
 <div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
 </div>
 <div id="callout-22" class="callout-22-contents callout-collapse collapse">
 <div class="callout-body-container callout-body">
-<p>In plain terms: regular Monte Carlo averages a quantity over samples that already follow the target, so every sample counts equally. Importance sampling is for the case where we cannot draw from the target. We draw from an easier distribution instead, then correct for the mismatch by giving each sample a weight. A sample the target favours more than the proposal did gets more say in the average. A sample the proposal produced too often gets less.</p>
-<p>Here is one estimate done both ways. Three states <span class="math inline">a</span>, <span class="math inline">b</span>, <span class="math inline">c</span> have values <span class="math inline">\phi = 10, 20, 30</span>. The target has unnormalized weights <span class="math inline">\tilde p = (1, 4, 5)</span>, so <span class="math inline">Z_p = 10</span> and <span class="math inline">p = (0.1, 0.4, 0.5)</span>. The true value is <span class="math inline">\Phi = 0.1(10) + 0.4(20) + 0.5(30) = 24</span>.</p>
-<p><strong>Regular Monte Carlo</strong> needs draws from <span class="math inline">p</span> itself. Suppose we get <span class="math inline">b, c, b, c</span>. Every sample gets weight 1, so</p>
-<p><span class="math display">\hat\Phi = \frac{20 + 30 + 20 + 30}{4} = 25.</span></p>
-<p><strong>Importance sampling</strong> does not draw from <span class="math inline">p</span>. It draws from the proposal <span class="math inline">q</span>, which here is uniform: <span class="math inline">q = (1/3, 1/3, 1/3)</span>, which is easy to sample. Suppose the four draws from <span class="math inline">q</span> are <span class="math inline">a, c, b, c</span>. These are samples from <span class="math inline">q</span>, not from <span class="math inline">p</span>. Since <span class="math inline">q</span> treats the three states equally, the draws do not match <span class="math inline">p</span>’s frequencies (where <span class="math inline">p(c) = 0.5</span> and <span class="math inline">p(a) = 0.1</span>), and the weights correct for that. The weights are <span class="math inline">\tilde w = \tilde p / \tilde q</span> with <span class="math inline">\tilde q = (1, 1, 1)</span>, so <span class="math inline">\tilde w = 1, 5, 4, 5</span> for <span class="math inline">a, c, b, c</span>. Then</p>
-<p><span class="math display">\hat\Phi = \frac{1(10) + 5(30) + 4(20) + 5(30)}{1 + 5 + 4 + 5} = \frac{390}{15} = 26.</span></p>
-<p>The two estimators have the same shape, a weighted average of <span class="math inline">\phi</span>. Regular Monte Carlo gives every sample weight 1. Importance sampling gives each sample a weight that corrects for where it came from. The cost is that the weighted estimate is not exactly unbiased for a fixed <span class="math inline">R</span>, though it converges to the right answer as <span class="math inline">R</span> grows.</p>
+<p><strong>The idea in plain terms.</strong> We want an average over some population, but we cannot pick members of that population fairly at random. What we can do is pick members in some other, convenient way, and for each one we pick, measure how much it <em>should</em> count. Importance sampling then takes a weighted average: members that the convenient method under-represents count for more, and members it over-represents count for less. Regular Monte Carlo is the special case where we could pick fairly in the first place, so every member counts once.</p>
+<p>The proposal <span class="math inline">q</span> is chosen before any sampling, because it is easy to draw from. It is not built from the samples. The samples come out of <span class="math inline">q</span>, and the weights are then computed one sample at a time.</p>
+<p><strong>What we are given, and what we get.</strong></p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 33%">
+<col style="width: 33%">
+<col style="width: 33%">
+</colgroup>
+<thead>
+<tr class="header">
+<th></th>
+<th>In general</th>
+<th>In the lake</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>Want</td>
+<td><span class="math inline">\Phi = \mathbb{E}_p[\phi(x)]</span></td>
+<td>the average plankton concentration over all the lake’s water</td>
+</tr>
+<tr class="even">
+<td>Cannot do</td>
+<td>sample from <span class="math inline">p</span>, or compute <span class="math inline">Z_p</span></td>
+<td>pick a drop of water uniformly from the whole volume, or know the volume</td>
+</tr>
+<tr class="odd">
+<td>Can do</td>
+<td>evaluate <span class="math inline">\tilde p(x)</span> and <span class="math inline">\phi(x)</span> at any single <span class="math inline">x</span> we choose</td>
+<td>go to a spot and measure its depth and its plankton</td>
+</tr>
+<tr class="even">
+<td>Can do</td>
+<td>sample from a proposal <span class="math inline">q</span></td>
+<td>pick a spot on the surface uniformly at random</td>
+</tr>
+<tr class="odd">
+<td>Get</td>
+<td>a weighted estimate of <span class="math inline">\Phi</span>, and of <span class="math inline">Z_p/Z_q</span></td>
+<td>an estimate of the average concentration, and of the average depth</td>
+</tr>
+</tbody>
+</table>
+<p>So we never know <span class="math inline">p</span> as a whole. We only learn <span class="math inline">\tilde p</span> at the handful of points we actually visit, one measurement at a time. We also never know the true <span class="math inline">\Phi</span>: estimating it is the whole purpose.</p>
+<p><strong>The problem.</strong> Return to the lake from <a href="#sec-hardz" class="quarto-xref"><span>Why the normalizing constant is hard</span></a>. A survey team wants the average plankton concentration in the lake’s water. Plankton is not spread evenly, so the answer depends on where the water is. A deep spot holds more water than a shallow one and should count for more.</p>
+<p>Regular Monte Carlo would need water samples drawn uniformly from the lake’s volume, so that every drop is equally likely. That is Problem 1, and the team cannot do it: choosing a drop uniformly requires already knowing the shape of the lakebed everywhere.</p>
+<p>What the team can do is pick spots uniformly on the <strong>surface</strong> (a map and a random number generator are enough) and, at each spot, lower a line to read the depth <span class="math inline">\tilde p(\boldsymbol{x})</span> and take a reading of the concentration <span class="math inline">\phi(\boldsymbol{x})</span>. Surface spots are the proposal: <span class="math inline">\tilde q(\boldsymbol{x}) = 1</span> everywhere on the surface, and <span class="math inline">Z_q</span> is the surface area. The importance weight of a spot is</p>
+<p><span class="math display">\tilde w = \frac{\tilde p(\boldsymbol{x})}{\tilde q(\boldsymbol{x})} = \text{depth at that spot}.</span></p>
+<p><strong>The data.</strong> A teaching example with four random surface spots (invented numbers):</p>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th>Spot</th>
+<th>Depth <span class="math inline">\tilde w</span> (m)</th>
+<th>Plankton <span class="math inline">\phi</span> (cells per mL)</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>1</td>
+<td>1</td>
+<td>30</td>
+</tr>
+<tr class="even">
+<td>2</td>
+<td>2</td>
+<td>25</td>
+</tr>
+<tr class="odd">
+<td>3</td>
+<td>8</td>
+<td>10</td>
+</tr>
+<tr class="even">
+<td>4</td>
+<td>1</td>
+<td>35</td>
+</tr>
+</tbody>
+</table>
+<p><strong>The naive answer</strong> treats each surface spot as equal, as if every spot held the same amount of water:</p>
+<p><span class="math display">\frac{30 + 25 + 10 + 35}{4} = 25.</span></p>
+<p><strong>The importance-sampling answer</strong> weights each spot by its depth, because spot 3 sits over eight times as much water as spot 1:</p>
+<p><span class="math display">\hat\Phi = \frac{1(30) + 2(25) + 8(10) + 1(35)}{1 + 2 + 8 + 1} = \frac{195}{12} = 16.25.</span></p>
+<p>The deep, low-plankton water pulls the estimate down. The naive average overstated the concentration because the surface method over-represents the shallows relative to how much water they hold.</p>
+<p><strong>The side product.</strong> The average weight is <span class="math inline">12/4 = 3</span> m. It estimates <span class="math inline">Z_p/Z_q</span>, the lake’s volume divided by its surface area, which is the average depth. Multiplying by the known surface area estimates the volume, which no one ever measured directly.</p>
+<p><strong>How the two methods compare.</strong> Both produce a weighted average of <span class="math inline">\phi</span>. Regular Monte Carlo needs samples from <span class="math inline">p</span> and gives each weight 1. Importance sampling uses samples from a proposal we can draw from and gives each a weight <span class="math inline">\tilde p/\tilde q</span> that corrects for where it came from. The weighted estimate is not exactly unbiased for a fixed <span class="math inline">R</span>, though it converges to the right answer as <span class="math inline">R</span> grows.</p>
+<p><strong>Where it goes wrong.</strong> If the lake has a narrow canyon that no random surface spot happens to land on, the canyon’s water never enters the sum and the estimate is off, with nothing in the four readings to warn us. When a spot does land on the canyon, its huge depth dominates the weights. This is the failure described above, where a proposal rarely visits where <span class="math inline">p</span> has mass and a few samples with huge weights dominate the sum.</p>
 </div>
 </div>
 </div>
@@ -1713,6 +1796,26 @@ Note
 <section id="quick-self-check" class="level2">
 <h2 class="anchored" data-anchor-id="quick-self-check">Quick self-check</h2>
 <p>If you can explain why a message <span class="math inline">m_{j\to i}</span> excludes what <span class="math inline">i</span> itself sent to <span class="math inline">j</span>, why that same rule makes loopy BP over-confident on a cycle, and why importance sampling and rejection sampling both avoid ever computing <span class="math inline">Z_p</span>, you have understood the core of Week 4.</p>
+</section>
+<section id="sec-overview4" class="level2">
+<h2 class="anchored" data-anchor-id="sec-overview4">High-level overview</h2>
+<p>This section retells each part of the week in plain language and without formulas, using the lecture’s own examples. Read it before the chapter for orientation, or after it as a review.</p>
+<p><strong>Latent variables and TrueSkill (<a href="#sec-trueskill" class="quarto-xref"><span>Latent variables and the TrueSkill model</span></a>).</strong> Some quantities matter but are never observed. In TrueSkill, each player has a hidden skill, and all we see is who beat whom. The stronger player is more likely to win, but upsets happen. One game links the two players’ skills: if A beat B, then A is strong, or B is weak, or both. With many players and games, finding everyone’s skill exactly requires a huge integral, which motivates the rest of the week.</p>
+<p><strong>Trees and elimination order (<a href="#sec-trees" class="quarto-xref"><span>Trees and elimination order</span></a>).</strong> On a tree (a graph with no loops), variable elimination is easy: always remove a leaf first. Removing a leaf touches only its one neighbour, so no large intermediate table ever appears.</p>
+<p><strong>Worked example: elimination becomes message passing (<a href="#sec-tree-example" class="quarto-xref"><span>Worked example: elimination on a tree becomes message passing</span></a>).</strong> On a five-node tree, eliminating from the leaves inward means each step produces a small summary that one node hands to its neighbour. These summaries are the messages.</p>
+<p><strong>Messages and beliefs (<a href="#sec-messages" class="quarto-xref"><span>Messages and beliefs</span></a>).</strong> A message from node <span class="math inline">j</span> to node <span class="math inline">i</span> is <span class="math inline">j</span>’s summary of everything on its side of the tree, phrased as “how well each value of <span class="math inline">i</span> fits with what I know”. A node’s belief combines its own local evidence with every message it receives. On a tree, that belief is exactly the correct probability for the node.</p>
+<p><strong>Belief propagation on trees (<a href="#sec-bp" class="quarto-xref"><span>Belief propagation on trees</span></a>).</strong> To get every node’s probabilities, not just one node’s, send messages inward to a root and then back out again. Each message is computed once and reused, so all the answers together cost about twice as much as a single one.</p>
+<p><strong>Loopy belief propagation (<a href="#sec-loopy" class="quarto-xref"><span>Loopy belief propagation</span></a>).</strong> A graph with loops has no leaves to start from. Loopy BP starts every message at “no opinion” and keeps updating until things settle. The answers are approximate and tend to be overconfident, because evidence travelling around a loop gets counted more than once, and sometimes the updates never settle at all.</p>
+<p><strong>Max-product BP and MAP inference (<a href="#sec-maxproduct" class="quarto-xref"><span>Max-product BP and MAP inference</span></a>).</strong> Sometimes we want the single best overall explanation rather than a probability for each variable. Replacing “add up the possibilities” with “keep the best possibility” in every message gives that best explanation.</p>
+<p><strong>Image denoising with loopy BP (<a href="#sec-denoise" class="quarto-xref"><span>Tutorial example: image denoising with loopy BP</span></a>).</strong> A black-and-white Mona Lisa passes through a channel that flips some pixels at random. Cleaning it up balances two pulls on each pixel: stay close to the colour that was received, and agree with the neighbours, since real images have large smooth regions. Loopy BP balances these pulls across the whole grid, so isolated flipped pixels get pulled back to match their surroundings.</p>
+<p><strong>Sampling from an unnormalized density (<a href="#sec-sampling" class="quarto-xref"><span>Sampling from an unnormalized density</span></a>).</strong> The second half switches strategy: instead of computing sums, draw random examples and average over them. The catch is that we often know a distribution only up to an unknown scaling constant. We can say one point is twice as likely as another, but not the actual probability of either.</p>
+<p><strong>Ancestral sampling (<a href="#sec-ancestral" class="quarto-xref"><span>Ancestral sampling</span></a>).</strong> In a DAG, sampling is easy: sample the variables without parents first, then each child given its parents’ values, and so on down the graph. For the weather chain, first decide whether the pressure is low, then whether it rains given the pressure, then the traffic given the rain.</p>
+<p><strong>What sampling is for (<a href="#sec-goals" class="quarto-xref"><span>What sampling is for</span></a>).</strong> Two separate jobs. The first is to produce random examples that follow the distribution. The second is to estimate an average, such as an expected value, under it.</p>
+<p><strong>Simple Monte Carlo (<a href="#sec-simplemc" class="quarto-xref"><span>Simple Monte Carlo</span></a>).</strong> If we can draw examples, we estimate an average by averaging over them. To estimate a fair die’s average roll, roll it many times and take the mean. The estimate is right on average, and its typical error shrinks as samples are added (four times as many samples halve it), however many dimensions the problem has.</p>
+<p><strong>Why the normalizing constant is hard (<a href="#sec-hardz" class="quarto-xref"><span>Why the normalizing constant is hard</span></a>).</strong> The lecture’s lake picture: we want the average plankton concentration in a lake, and from a boat we can measure the depth and the plankton at any spot. If a few narrow, very deep canyons hold much of the water, randomly chosen spots rarely land on them, and we badly misjudge the total. High-dimensional distributions behave like this, with most of the probability in tiny regions. Checking every point on a grid is no escape, because the number of grid points multiplies with every added dimension.</p>
+<p><strong>Importance sampling (<a href="#sec-importance" class="quarto-xref"><span>Importance sampling</span></a>).</strong> When we cannot sample from the distribution we care about, we sample from an easier one and correct the mismatch with weights. A point the easy distribution produces too often gets a small weight, and a point it produces too rarely gets a large one. The weighted average then estimates the average we wanted, and the unknown scaling constants cancel. It works only if the easy distribution covers the important regions. If it misses a canyon, a few huge weights dominate the answer.</p>
+<p><strong>Rejection sampling (<a href="#sec-rejection" class="quarto-xref"><span>Rejection sampling</span></a>).</strong> Choose an easy distribution that, once scaled up, lies above the target everywhere. Propose points from it and keep each one with a chance equal to the target’s height divided by the cover’s height at that point. The points we keep are exact samples from the target. In high dimensions, though, almost every proposal is rejected.</p>
+<p><strong>Comparing the sampling methods (<a href="#sec-sampling-compare" class="quarto-xref"><span>Comparing the sampling methods</span></a>).</strong> Every method above depends on an easy distribution that resembles the target, and such a distribution is very hard to find in high dimensions. Week 5’s Markov chain methods avoid needing one.</p>
 
 
 </section>
