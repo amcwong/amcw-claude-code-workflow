@@ -2,12 +2,13 @@
 # sync_course_notes_to_docs.sh
 # Render a course-notes Quarto book and sync _site/ to docs/courses/<slug>/ for GitHub Pages.
 #
-# Usage: ./scripts/sync_course_notes_to_docs.sh [slug|all]
-# With no argument, deploys all courses (same as `all`).
+# Usage: ./scripts/sync_course_notes_to_docs.sh [slug|all|changed] [--dry-run]
+# With no argument, deploys only courses that changed since their last deploy.
 # Examples:
-#   ./scripts/sync_course_notes_to_docs.sh            # all courses (default)
+#   ./scripts/sync_course_notes_to_docs.sh            # changed courses (default)
+#   ./scripts/sync_course_notes_to_docs.sh --dry-run  # list what would deploy
 #   ./scripts/sync_course_notes_to_docs.sh CSC2506
-#   ./scripts/sync_course_notes_to_docs.sh all
+#   ./scripts/sync_course_notes_to_docs.sh all        # force a full rebuild
 #   ./scripts/sync_course_notes_to_docs.sh ALL   # same as all (case-insensitive)
 
 set -euo pipefail
@@ -19,10 +20,11 @@ QUALITY="$REPO_ROOT/scripts/quality_score.py"
 MIN_SCORE=80
 
 usage() {
-    echo "Usage: $0 [slug|all]" >&2
-    echo "  slug  Course directory name under courses/ (e.g. CSC2506)" >&2
-    echo "  all   Deploy every courses/* book that has _quarto.yml (case-insensitive: ALL, All)" >&2
-    echo "  (no argument) same as all" >&2
+    echo "Usage: $0 [slug|all|changed] [--dry-run]" >&2
+    echo "  slug     Course directory name under courses/ (e.g. CSC2506)" >&2
+    echo "  all      Deploy every courses/* book that has _quarto.yml (case-insensitive: ALL, All)" >&2
+    echo "  changed  Deploy only courses changed since their last deploy (default)" >&2
+    echo "  --dry-run  Print which courses would deploy, then exit" >&2
     exit 1
 }
 
@@ -128,23 +130,25 @@ list_course_slugs() {
 score_course_chapters() {
     local course_dir="$1"
     local slug="$2"
-    local qmd failed=0
+    local qmd
+    local -a existing=()
 
     echo "=== Quality gate: courses/${slug} (min ${MIN_SCORE}) ==="
     shopt -s nullglob
     local chapters=("$course_dir/index.qmd" "$course_dir/glossary.qmd" "$course_dir"/lectures/week*.qmd)
     shopt -u nullglob
     for qmd in "${chapters[@]}"; do
-        if [[ ! -f "$qmd" ]]; then
-            continue
-        fi
-        echo "  Scoring $(basename "$qmd")..."
-        if ! python3 "$QUALITY" "$qmd" --summary; then
-            failed=1
+        if [[ -f "$qmd" ]]; then
+            existing+=("$qmd")
         fi
     done
+    if [[ ${#existing[@]} -eq 0 ]]; then
+        return 0
+    fi
 
-    if [[ "$failed" -ne 0 ]]; then
+    # One process for the whole course: the book render cache is per process,
+    # so the book is rendered once here instead of once per chapter.
+    if ! python3 "$QUALITY" "${existing[@]}" --summary; then
         echo "Error: quality score below ${MIN_SCORE} for courses/${slug}. Fix chapters before deploy." >&2
         return 1
     fi
@@ -202,25 +206,72 @@ deploy_one() {
     return 0
 }
 
-if [[ $# -gt 1 ]]; then
+#   Changed-course check: a course is "changed" when courses/<slug>/ differs from
+#   the last commit that published docs/courses/<slug>/, or has uncommitted work.
+#   A course that has never been published is always changed.
+course_changed() {
+    local slug="$1"
+    local base
+    base="$(git -C "$REPO_ROOT" log -1 --format=%H -- "docs/courses/${slug}" 2>/dev/null || true)"
+    if [[ -z "$base" ]]; then
+        return 0
+    fi
+    if [[ -n "$(git -C "$REPO_ROOT" status --porcelain -- "courses/${slug}")" ]]; then
+        return 0
+    fi
+    if [[ -n "$(git -C "$REPO_ROOT" diff --name-only "$base" -- "courses/${slug}")" ]]; then
+        return 0
+    fi
+    return 1
+}
+
+DRY_RUN=0
+ARGS=()
+for arg in "$@"; do
+    if [[ "$arg" == "--dry-run" ]]; then
+        DRY_RUN=1
+    else
+        ARGS+=("$arg")
+    fi
+done
+if [[ ${#ARGS[@]} -gt 1 ]]; then
     usage
 fi
 
-# Default target is every course
-TARGET="${1:-all}"
+# Default target is changed courses only
+TARGET="${ARGS[0]:-changed}"
 # Case-insensitive "all" / "ALL" / "All"
 TARGET_LC="$(printf '%s' "$TARGET" | tr '[:upper:]' '[:lower:]')"
 
-if [[ "$TARGET_LC" == "all" ]]; then
-    SLUGS=()
+if [[ "$TARGET_LC" == "changed" || "$TARGET_LC" == "all" ]]; then
+    ALL_SLUGS=()
     while IFS= read -r slug; do
-        [[ -n "$slug" ]] && SLUGS+=("$slug")
+        [[ -n "$slug" ]] && ALL_SLUGS+=("$slug")
     done < <(list_course_slugs) || true
-    if [[ ${#SLUGS[@]} -eq 0 ]]; then
+    if [[ ${#ALL_SLUGS[@]} -eq 0 ]]; then
         echo "Error: no courses with _quarto.yml under courses/" >&2
         exit 1
     fi
-    echo "=== Deploying all courses (${#SLUGS[@]}): ${SLUGS[*]} ==="
+
+    SLUGS=()
+    for slug in "${ALL_SLUGS[@]}"; do
+        if [[ "$TARGET_LC" == "all" ]] || course_changed "$slug"; then
+            SLUGS+=("$slug")
+        fi
+    done
+
+    if [[ ${#SLUGS[@]} -eq 0 ]]; then
+        echo "No courses changed since their last deploy. Nothing to do."
+        echo "Use 'all' to force a full rebuild."
+        exit 0
+    fi
+
+    if [[ "$DRY_RUN" -eq 1 ]]; then
+        echo "Would deploy (${#SLUGS[@]}): ${SLUGS[*]}"
+        exit 0
+    fi
+
+    echo "=== Deploying ${TARGET_LC} courses (${#SLUGS[@]}): ${SLUGS[*]} ==="
     FAILED=()
     OK=()
     for slug in "${SLUGS[@]}"; do
@@ -234,7 +285,7 @@ if [[ "$TARGET_LC" == "all" ]]; then
         fi
     done
     echo ""
-    echo "=== All-courses summary ==="
+    echo "=== Deploy summary ==="
     if [[ ${#OK[@]} -gt 0 ]]; then
         echo "Succeeded (${#OK[@]}): ${OK[*]}"
     else
@@ -246,5 +297,9 @@ if [[ "$TARGET_LC" == "all" ]]; then
     fi
     echo "Failed (0): (none)"
 else
+    if [[ "$DRY_RUN" -eq 1 ]]; then
+        echo "Would deploy (1): ${TARGET}"
+        exit 0
+    fi
     deploy_one "$TARGET" || exit 1
 fi
