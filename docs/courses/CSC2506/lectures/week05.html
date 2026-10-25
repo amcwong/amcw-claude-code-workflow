@@ -262,6 +262,14 @@ window.Quarto = {
   <ul class="collapse">
   <li><a href="#sec-mh-baseball" id="toc-sec-mh-baseball" class="nav-link" data-scroll-target="#sec-mh-baseball">Tutorial example: Clemente’s batting average</a></li>
   </ul></li>
+  <li><a href="#sec-a2" id="toc-sec-a2" class="nav-link" data-scroll-target="#sec-a2">Assignment 2: sampling the TrueSkill posterior</a>
+  <ul class="collapse">
+  <li><a href="#sec-a2-setup" id="toc-sec-a2-setup" class="nav-link" data-scroll-target="#sec-a2-setup">The setup</a></li>
+  <li><a href="#sec-a2-z-toy" id="toc-sec-a2-z-toy" class="nav-link" data-scroll-target="#sec-a2-z-toy">How <span class="math inline">Z</span> was “calculated” for two players</a></li>
+  <li><a href="#sec-a2-z-full" id="toc-sec-a2-z-full" class="nav-link" data-scroll-target="#sec-a2-z-full">Why <span class="math inline">Z</span> cannot be calculated for the chess data</a></li>
+  <li><a href="#sec-a2-step" id="toc-sec-a2-step" class="nav-link" data-scroll-target="#sec-a2-step">One Metropolis step without <span class="math inline">Z</span></a></li>
+  <li><a href="#sec-a2-questions" id="toc-sec-a2-questions" class="nav-link" data-scroll-target="#sec-a2-questions">Questions about the assignment</a></li>
+  </ul></li>
   <li><a href="#sec-mh-proof" id="toc-sec-mh-proof" class="nav-link" data-scroll-target="#sec-mh-proof">Why Metropolis-Hastings works</a></li>
   <li><a href="#sec-gibbs" id="toc-sec-gibbs" class="nav-link" data-scroll-target="#sec-gibbs">Gibbs sampling</a></li>
   <li><a href="#sec-gauss-cond" id="toc-sec-gauss-cond" class="nav-link" data-scroll-target="#sec-gauss-cond">The conditional distribution of a bivariate Gaussian</a></li>
@@ -1014,7 +1022,10 @@ Note
 <li><strong>Current state.</strong> The chain is at <span class="math inline">\theta^{(t)}=0.40</span>.</li>
 <li><strong>Propose.</strong> Draw <span class="math inline">\varepsilon\sim\mathcal N(0,1)</span>. Suppose <span class="math inline">\varepsilon=-0.5</span>. Then <span class="math inline">\theta'=0.40+0.2\times(-0.5)=0.30</span>.</li>
 <li><strong>Proposal correction.</strong> Both directions cover the same distance <span class="math inline">0.10</span>, so <span class="math inline">q(0.40\mid0.30)/q(0.30\mid0.40)=1</span>.</li>
-<li><strong>Target ratio.</strong> Substitute <span class="math inline">\theta'=0.30</span> and <span class="math inline">\theta^{(t)}=0.40</span> into <span class="math inline">\tilde p</span>. The miss factors are <span class="math inline">1-0.30=0.70</span> and <span class="math inline">1-0.40=0.60</span>: <span class="math display">\frac{\tilde p(0.30)}{\tilde p(0.40)} = \frac{\binom{45}{18}\,(0.30)^{18}(0.70)^{27}}{\binom{45}{18}\,(0.40)^{18}(0.60)^{27}} = \Big(\frac{0.30}{0.40}\Big)^{18}\Big(\frac{0.70}{0.60}\Big)^{27}.</span> The binomial coefficients cancel. The hit factor is <span class="math inline">(0.75)^{18}\approx0.00564</span>: the candidate makes the 18 hits much less likely. The miss factor is <span class="math inline">(7/6)^{27}\approx64.2</span>: the candidate makes the 27 misses more likely. Their product is <span class="math inline">0.00564\times64.2\approx0.362</span>.</li>
+<li><strong>Target ratio.</strong> Substitute <span class="math inline">\theta'=0.30</span> and <span class="math inline">\theta^{(t)}=0.40</span> into <span class="math inline">\tilde p</span>. The miss factors are <span class="math inline">1-0.30=0.70</span> and <span class="math inline">1-0.40=0.60</span>: <span class="math display">\begin{aligned}
+\frac{\tilde p(0.30)}{\tilde p(0.40)} &amp;= \frac{\binom{45}{18}\,(0.30)^{18}(0.70)^{27}}{\binom{45}{18}\,(0.40)^{18}(0.60)^{27}} \\
+&amp;= \Big(\frac{0.30}{0.40}\Big)^{18}\Big(\frac{0.70}{0.60}\Big)^{27}.
+\end{aligned}</span> The binomial coefficients cancel. The hit factor is <span class="math inline">(0.75)^{18}\approx0.00564</span>: the candidate makes the 18 hits much less likely. The miss factor is <span class="math inline">(7/6)^{27}\approx64.2</span>: the candidate makes the 27 misses more likely. Their product is <span class="math inline">0.00564\times64.2\approx0.362</span>.</li>
 <li><strong>Acceptance probability.</strong> <span class="math inline">\alpha=\min\{1,\ 0.362\times1\}\approx0.36</span>.</li>
 <li><strong>Accept or reject.</strong> Draw <span class="math inline">u\sim\mathrm{Uniform}(0,1)</span>. If <span class="math inline">u\le0.36</span>, set <span class="math inline">\theta^{(t+1)}=0.30</span>. Otherwise set <span class="math inline">\theta^{(t+1)}=0.40</span>, recording the current value again.</li>
 </ol>
@@ -1043,6 +1054,12 @@ Note
 </div>
 <div id="callout-17" class="callout-17-contents callout-collapse collapse">
 <div class="callout-body-container callout-body">
+<p>In plain terms:</p>
+<ul>
+<li><strong>Stationary.</strong> This is the distribution-over-states meaning from <a href="#sec-stationary" class="quarto-xref"><span>The stationary distribution</span></a>, not the fixed-transition-rule meaning from <a href="#sec-markov" class="quarto-xref"><span>Markov chains</span></a>. Picture 1000 walkers on the two-state chain that moves from state 1 to state 2 with probability 0.1 and from state 2 to state 1 with probability 0.3. With 750 walkers in state 1 and 250 in state 2, 75 leave each state per step, so the head count stays at 750 and 250 even though individual walkers keep moving. A stationary distribution is a split that one more step leaves unchanged. One walker run for a long time spends the same shares of its steps in each state, here <span class="math inline">75\%</span> in state 1.</li>
+<li><strong>Making a Metropolis chain.</strong> Earlier in the chapter we were given a transition matrix <span class="math inline">A</span> and found its stationary distribution. MCMC runs the other way: the target <span class="math inline">p</span> (playing the role of <span class="math inline">\pi</span>) is given, and we design a chain that has <span class="math inline">p</span> as its stationary distribution. Metropolis does this by proposing a symmetric move, accepting it with probability <span class="math inline">\min\{1,\ \tilde p(x')/\tilde p(x^{(t)})\}</span>, and otherwise staying put.</li>
+<li><strong>Evaluating versus sampling.</strong> Evaluating <span class="math inline">p</span> means scoring any point we are handed (here, up to <span class="math inline">Z</span>). Sampling from <span class="math inline">p</span> means producing random points whose frequencies follow <span class="math inline">p</span>. For a few textbook distributions a library recipe gives us both, such as <code>torch.randn</code> for a Gaussian. For most posteriors we only have the first ability, and MH converts it into the second.</li>
+</ul>
 <p>What the symbols stand for:</p>
 <ul>
 <li><span class="math inline">x^{(t)}</span>: the current state. <span class="math inline">x'</span>: the proposed candidate.</li>
@@ -1066,6 +1083,119 @@ Note
 </div>
 </div>
 </div>
+</section>
+</section>
+<section id="sec-a2" class="level2">
+<h2 class="anchored" data-anchor-id="sec-a2">Assignment 2: sampling the TrueSkill posterior</h2>
+<p>Assignment 2’s TrueSkill question (<a href="week04.html#sec-trueskill" class="quarto-xref"><span>Latent variables and the TrueSkill model</span></a> in Week 4) is where this chapter’s ideas meet a real posterior. In the assignment we wrote the log-prior of the players’ skills, the log-likelihood of the observed games, and their sum, and then ran Hamiltonian Monte Carlo (<a href="#sec-hmc" class="quarto-xref"><span>Hamiltonian Monte Carlo</span></a>) on a chess data set. This section works through why each of those pieces was needed. It uses an invented two-player record so that every number can be checked by hand, then scales the same reasoning up to the size of the chess data. The assignment’s own computations are left to it. Plain-language definitions of “stationary”, “making a Metropolis chain”, and “evaluating versus sampling” are in the recap at the end of <a href="#sec-mh" class="quarto-xref"><span>The Metropolis-Hastings algorithm</span></a>.</p>
+<section id="sec-a2-setup" class="level3">
+<h3 class="anchored" data-anchor-id="sec-a2-setup">The setup</h3>
+<p>Two players, A and B, have skills <span class="math inline">z=(z_A,z_B)</span>. The prior makes them independent with <span class="math inline">z_A,z_B\sim\mathcal N(0,1.5^2)</span>. A player with skill <span class="math inline">z_W</span> beats a player with skill <span class="math inline">z_L</span> with probability <span class="math inline">\sigma(z_W-z_L)</span>, where <span class="math inline">\sigma(y)=1/(1+e^{-y})</span>. The invented record: A beat B twice, and B beat A once. Write <span class="math inline">d=z_A-z_B</span> for the skill gap.</p>
+<p>The quantity we want is the posterior over the skills. Bayes’ rule writes it as</p>
+<p><span class="math display">p(z\mid\text{games})=\frac{p(\text{games}\mid z)\,p(z)}{p(\text{games})}.</span></p>
+<p>The numerator is the joint, <span class="math inline">p(z,\text{games})</span>. The denominator is a single number, the probability of the observed games averaged over all skill vectors.</p>
+<p><strong>Recap.</strong> <strong>The target <span class="math inline">p</span> is <span class="math inline">p(z\mid\text{games})</span></strong>, and it <strong>equals <span class="math inline">p(z,\text{games})</span> divided by the normalizing factor <span class="math inline">Z=p(\text{games})</span></strong>. This <strong>maps to the equation <span class="math inline">p=\tilde p/Z</span></strong> from Week 4, which we use when we have a distribution <span class="math inline">p</span> and <strong>an unnormalized version <span class="math inline">\tilde p</span> that is easier to calculate</strong>. Here <strong><span class="math inline">\tilde p(z)=p(z,\text{games})=p(\text{games}\mid z)\,p(z)</span></strong>. Notice how well this <strong>maps onto Bayes’ theorem</strong>: <strong><span class="math inline">\tilde p</span> is likelihood times prior</strong>, and <strong><span class="math inline">Z</span> is the normalization constant, which Bayes’ theorem calls the evidence</strong>.</p>
+<p><strong>Evaluating <span class="math inline">\tilde p</span> at one point is easy.</strong> The three game outcomes give <span class="math inline">p(\text{games}\mid z)=\sigma(d)^2\,\sigma(-d)</span>: two factors for A’s wins and one for B’s.</p>
+<ul>
+<li>At <span class="math inline">z=(0,0)</span> the gap is <span class="math inline">d=0</span> and <span class="math inline">\sigma(0)=\tfrac12</span>, so the likelihood is <span class="math inline">\tfrac18=0.125</span>.</li>
+<li>The prior density there is <span class="math inline">\frac{1}{2\pi\cdot2.25}\approx0.0707</span>.</li>
+<li>So <span class="math inline">\tilde p(0,0)\approx0.0707\times0.125\approx0.00884</span>.</li>
+</ul>
+<p>This number is not the posterior density at <span class="math inline">(0,0)</span>. It is the posterior density multiplied by <span class="math inline">Z</span>.</p>
+<p><strong>Why compute <span class="math inline">p(z,\text{games})</span> when we want <span class="math inline">p(z\mid\text{games})</span>?</strong> The joint is the only one of the two we can compute (<a href="#sec-a2-z-full" class="quarto-xref"><span>Why Z cannot be calculated for the chess data</span></a> shows why the posterior is out of reach), and it carries all the information the posterior has about the skills. Once the games are observed, <span class="math inline">Z=p(\text{games})</span> is one fixed number that does not depend on <span class="math inline">z</span>. Dividing by it rescales every value of the joint by the same factor, so the joint and the posterior have the same shape as functions of <span class="math inline">z</span>:</p>
+<p><span class="math display">p(z\mid\text{games})=\frac{1}{Z}\,p(z,\text{games})\quad\text{for every } z.</span></p>
+<p>The only thing the joint is missing is the overall scale, which is what turns “twice as plausible” into “probability density <span class="math inline">0.121</span>” (<a href="#sec-a2-z-toy" class="quarto-xref"><span>How Z was “calculated” for two players</span></a>).</p>
+<section id="sec-a2-compare" class="level4">
+<h4 class="anchored" data-anchor-id="sec-a2-compare">How the comparison works</h4>
+<p>A Metropolis step asks one question: how much more or less plausible is the candidate <span class="math inline">z'</span> than the current state <span class="math inline">z</span>? Under the true posterior the answer is</p>
+<p><span class="math display">\frac{p(z'\mid\text{games})}{p(z\mid\text{games})}=\frac{\tilde p(z')/Z}{\tilde p(z)/Z}=\frac{\tilde p(z')}{\tilde p(z)}.</span></p>
+<p>The same <span class="math inline">Z</span> divides the top and the bottom, so it cancels. If the joint is twice as large at one skill vector as at another, so is the posterior. We cannot compute <span class="math inline">Z</span>, but a comparison between two points never needs it. <a href="#sec-a2-step" class="quarto-xref"><span>One Metropolis step without Z</span></a> carries this out with numbers.</p>
+<p><strong>The same trick in importance sampling.</strong> Week 4’s importance weight (<a href="week04.html#sec-importance" class="quarto-xref"><span>Importance sampling</span></a> in Week 4) is</p>
+<p><span class="math display">\tilde w(x)=\frac{\tilde p(x)}{\tilde q(x)}.</span></p>
+<p>Importance sampling draws its points from a proposal <span class="math inline">q</span>, because we cannot draw from <span class="math inline">p</span>. But <span class="math inline">q</span> hands out points at the wrong frequencies: it oversamples some regions that <span class="math inline">p</span> cares little about and undersamples others. The weight is a correction factor attached to each sample. A sample counts <span class="math inline">\tilde w</span> times as much as an ordinary one, so a point that <span class="math inline">p</span> wants three times as often as <span class="math inline">q</span> produced it gets weight 3. In Week 4’s teaching example, the target on <span class="math inline">\{1,2,3\}</span> is <span class="math inline">\tilde p=(1,2,3)</span>, so <span class="math inline">p</span> wants state 3 half the time, while a uniform <span class="math inline">q</span> produces it a third of the time. The draws <span class="math inline">1,3,3,2</span> get weights <span class="math inline">1,3,3,2</span>, and each 3 counts three times as much as the 1.</p>
+<p>Both methods cancel an unknown constant inside a ratio, but they compare different things.</p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 33%">
+<col style="width: 33%">
+<col style="width: 33%">
+</colgroup>
+<thead>
+<tr class="header">
+<th></th>
+<th>What is compared</th>
+<th>Where the constant cancels</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>Importance sampling</td>
+<td>target and proposal at the <strong>same</strong> point, <span class="math inline">\tilde p(x)/\tilde q(x)</span></td>
+<td>dividing by <span class="math inline">\sum_r\tilde w_r</span> removes <span class="math inline">Z_p/Z_q</span> from the estimate</td>
+</tr>
+<tr class="even">
+<td>Metropolis</td>
+<td>target at <strong>two</strong> points, <span class="math inline">\tilde p(z')/\tilde p(z)</span></td>
+<td><span class="math inline">Z</span> sits above and below the line</td>
+</tr>
+</tbody>
+</table>
+<p>Importance sampling still relies on one global <span class="math inline">q</span> that already resembles <span class="math inline">p</span>, which fails in high dimensions (<a href="#sec-whymcmc" class="quarto-xref"><span>Why MCMC</span></a>). Metropolis needs only local comparisons.</p>
+</section>
+</section>
+<section id="sec-a2-z-toy" class="level3">
+<h3 class="anchored" data-anchor-id="sec-a2-z-toy">How <span class="math inline">Z</span> was “calculated” for two players</h3>
+<p><span class="math inline">Z</span> adds up the numerator over every possible skill vector:</p>
+<p><span class="math display">Z=p(\text{games})=\iint p(\text{games}\mid z)\,p(z)\,dz_A\,dz_B.</span></p>
+<p>A Gaussian times a product of sigmoids has no closed-form integral, so there is no formula to plug into. With two players we can still approximate it numerically, which is the sense in which it was “calculated”:</p>
+<ol type="1">
+<li>Lay a grid with spacing <span class="math inline">0.05</span> over <span class="math inline">[-10,10]^2</span>. That is <span class="math inline">401</span> values per axis and <span class="math inline">401^2\approx160{,}000</span> points. Almost all of the posterior’s mass lies inside this square.</li>
+<li>Evaluate <span class="math inline">\tilde p</span> at every grid point.</li>
+<li>Multiply each value by the cell area <span class="math inline">0.05^2</span> and add.</li>
+</ol>
+<p>That gives <span class="math inline">Z\approx0.0730</span>. The posterior density at <span class="math inline">(0,0)</span> is then <span class="math inline">0.00884/0.0730\approx0.121</span>. The assignment’s two-player contour plots rest on the same grid evaluation, except that they never divide by <span class="math inline">Z</span>, because the contours have the same shape either way.</p>
+</section>
+<section id="sec-a2-z-full" class="level3">
+<h3 class="anchored" data-anchor-id="sec-a2-z-full">Why <span class="math inline">Z</span> cannot be calculated for the chess data</h3>
+<p>The assignment’s chess data has 1163 players and 2543 games. The same integral becomes</p>
+<p><span class="math display">Z=\int\!\cdots\!\int \prod_{i=1}^{1163}p(z_i)\prod_{\text{games }g}\sigma\big(z_{W(g)}-z_{L(g)}\big)\,dz_1\cdots dz_{1163},</span></p>
+<p>where <span class="math inline">W(g)</span> and <span class="math inline">L(g)</span> are the winner and loser of game <span class="math inline">g</span>. Each way of computing it breaks down.</p>
+<ul>
+<li><strong>It does not split into one-dimensional integrals.</strong> Each game factor contains two players’ skills, and the games link the players into one web, so we cannot integrate out one player at a time.</li>
+<li><strong>A grid explodes.</strong> 401 points per axis would need <span class="math inline">401^{1163}</span> evaluations, a number with more than 3000 digits.</li>
+<li><strong>Averaging over the prior fails.</strong> We could write <span class="math inline">Z=\mathbb E_{z\sim p(z)}[p(\text{games}\mid z)]</span> and average over prior draws. This is the global-proposal problem of <a href="#sec-whymcmc" class="quarto-xref"><span>Why MCMC</span></a>: almost no prior draw agrees with all 2543 outcomes at once, so the average is driven by a few rare draws and has enormous variance.</li>
+</ul>
+<p>So we can compute <span class="math inline">\tilde p(z)</span> at any single <span class="math inline">z</span>, but we cannot divide it by <span class="math inline">Z</span>.</p>
+</section>
+<section id="sec-a2-step" class="level3">
+<h3 class="anchored" data-anchor-id="sec-a2-step">One Metropolis step without <span class="math inline">Z</span></h3>
+<p>Back to the two-player record. The proposal is a Gaussian random walk on both skills. It is symmetric, so the Metropolis rule applies.</p>
+<ol type="1">
+<li><strong>Current state.</strong> <span class="math inline">z^{(t)}=(0,0)</span>.</li>
+<li><strong>Propose.</strong> Suppose the random walk draws <span class="math inline">z'=(1,-1)</span>, so the gap becomes <span class="math inline">d'=2</span>.</li>
+<li><strong>Target ratio.</strong> Split it into the prior factor and the likelihood factor.
+<ul>
+<li>Prior: <span class="math inline">\exp\!\big(-(1^2+1^2)/(2\cdot2.25)\big)=e^{-0.444}\approx0.641</span>. The prior’s constant <span class="math inline">\frac{1}{2\pi\cdot2.25}</span> cancels.</li>
+<li>Likelihood: <span class="math inline">\sigma(2)^2\sigma(-2)/0.125=(0.881)^2(0.119)/0.125\approx0.0925/0.125\approx0.740</span>. <span class="math display">\frac{\tilde p(z')}{\tilde p(z^{(t)})}\approx0.641\times0.740\approx0.474.</span></li>
+</ul></li>
+<li><strong>Accept or reject.</strong> <span class="math inline">\alpha=\min\{1,\ 0.474\}\approx0.47</span>. Draw <span class="math inline">u\sim\mathrm{Uniform}(0,1)</span>. If <span class="math inline">u\le0.47</span>, move to <span class="math inline">(1,-1)</span>. Otherwise record <span class="math inline">(0,0)</span> again.</li>
+</ol>
+<p>The candidate puts the players further apart than a two-to-one record supports, and the prior also penalizes skills far from 0, so the move is accepted less than half the time. <span class="math inline">Z</span> never appeared. Dividing both values by the grid’s <span class="math inline">Z</span> gives <span class="math inline">(0.00419/0.0730)/(0.00884/0.0730)</span>, the same <span class="math inline">0.474</span>.</p>
+<p><strong>The same step at full size.</strong> With 1163 players, the state is a skill vector of length 1163, and the proposal nudges all of it. The ratio needs <span class="math inline">\tilde p</span> at two vectors, which costs 1163 prior terms and 2543 game terms each. That cost grows with the number of players and games, not exponentially like the grid. After many steps, the visited vectors are samples from <span class="math inline">p(z\mid\text{games})</span>. Any summary, such as a player’s mean skill or the probability that one player is stronger than another, is then an average over those samples. The assignment uses Hamiltonian Monte Carlo, a Metropolis-Hastings chain with a gradient-guided proposal, but the reason for using a chain is the same.</p>
+</section>
+<section id="sec-a2-questions" class="level3">
+<h3 class="anchored" data-anchor-id="sec-a2-questions">Questions about the assignment</h3>
+<p><em>Is the issue computing <span class="math inline">p(z)</span>, or computing <span class="math inline">p(z\mid\text{games})</span>?</em> It is <span class="math inline">p(z\mid\text{games})</span>. The prior <span class="math inline">p(z)</span> is a product of independent Gaussians, so we can evaluate it and even sample it directly (one <code>torch.randn</code> draw times 1.5 per player). Within the posterior, the numerator is also not the problem: <span class="math inline">p(\text{games}\mid z)\,p(z)</span> is cheap at any one <span class="math inline">z</span> (<a href="#sec-a2-setup" class="quarto-xref"><span>The setup</span></a>). The hard part is the denominator <span class="math inline">p(\text{games})</span>, because it needs the numerator at every <span class="math inline">z</span> at once (<a href="#sec-a2-z-full" class="quarto-xref"><span>Why Z cannot be calculated for the chess data</span></a>).</p>
+<p><em>We computed <span class="math inline">p(z\mid\text{games})=p(\text{games}\mid z)\,p(z)</span> and skipped <span class="math inline">p(\text{games})</span>. How does that relate to <span class="math inline">Z</span> being out of reach?</em> One correction first: <span class="math inline">p(\text{games}\mid z)\,p(z)</span> is the joint <span class="math inline">p(z,\text{games})</span>, not the posterior. It equals <span class="math inline">p(z\mid\text{games})\times p(\text{games})</span>, the posterior multiplied by an unknown constant. That constant is <span class="math inline">Z</span>. “Skipping <span class="math inline">p(\text{games})</span>” and “<span class="math inline">Z</span> is out of reach” describe the same thing.</p>
+<p>Skipping it is harmless whenever the constant cancels:</p>
+<ul>
+<li>In a contour plot, multiplying every value by the same constant does not move the contours, which is why the assignment’s two-player plots can use the log joint.</li>
+<li>In a Metropolis ratio, the constant appears above and below the line and cancels (<a href="#sec-a2-compare" class="quarto-xref"><span>How the comparison works</span></a>).</li>
+</ul>
+<p>Skipping it stops being harmless once we want a number about the posterior. A posterior mean, or the probability that one player is stronger than another, is an integral against the normalized posterior:</p>
+<p><span class="math display">\mathbb E[\phi(z)\mid\text{games}]=\frac{1}{Z}\int\phi(z)\,\tilde p(z)\,dz.</span></p>
+<p>Both <span class="math inline">Z</span> and the integral on top are 1163-dimensional integrals of the kind <a href="#sec-a2-z-full" class="quarto-xref"><span>Why Z cannot be calculated for the chess data</span></a> could not do.</p>
+<p><em>Why use Metropolis-Hastings, then?</em> It takes us from what we can do cheaply (evaluate <span class="math inline">\tilde p</span> at a point) to what we need (posterior averages) without ever computing those integrals. It uses only ratios of <span class="math inline">\tilde p</span>, so <span class="math inline">Z</span> cancels, and its samples have long-run frequencies that follow the normalized posterior (<a href="#sec-mh-proof" class="quarto-xref"><span>Why Metropolis-Hastings works</span></a>). An average over the samples replaces the integral above. Without a sampler, skipping <span class="math inline">p(\text{games})</span> would leave us with a function that scores skill vectors but cannot answer any posterior question.</p>
 </section>
 </section>
 <section id="sec-mh-proof" class="level2">
