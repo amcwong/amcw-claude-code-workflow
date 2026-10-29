@@ -384,6 +384,8 @@ $$\pi = A^\top\pi, \qquad\text{that is,}\qquad \pi_j = \sum_i \pi_i A_{ij}\ \tex
 
 If the chain's state is distributed according to $\pi$ at some time, it stays distributed according to $\pi$ forever after. (As noted in @sec-markov, this is the "distribution over states" meaning of stationary, not the "fixed transition rule" meaning.)
 
+**Stationary is not the same as convergence.** The two words make different claims. *Stationary* is a property of one distribution: if $\pi_{t-1}=\pi$, then $\pi_t=\pi$. Nothing moves once the chain is there. *Convergence* is a property of a sequence: starting from a given $\pi_0$, the distributions $\pi_t$ approach a limit as $t\to\infty$. Convergence to $\pi$ implies that $\pi$ is stationary, because passing to the limit in $\pi_t = A^\top\pi_{t-1}$ gives $\pi = A^\top\pi$. The reverse fails. A chain can have a stationary $\pi$ that some starting distributions never reach. The three-state cycle in the question under @sec-detailed is an example. So "stationary" is the fixed-point condition on $\pi$, and "converges to $\pi$" is the stronger claim that the chain actually gets there from a given start. @sec-unique gives the conditions under which the chain converges to the stationary distribution from every start.
+
 **Finding it with linear algebra.** The definition says $\pi$ is an **[eigenvector](https://en.wikipedia.org/wiki/Eigenvalues_and_eigenvectors)** of $A^\top$ with eigenvalue 1. So we solve
 
 $$A^\top v = v$$
@@ -456,6 +458,29 @@ The two-state chain shows what goes wrong without each property.
 - **Irreducible but not regular:** $\alpha=\beta=1$, so the chain swaps state at every step. Its only stationary distribution is $(0.5,0.5)$, but the powers of $A$ alternate between the swap matrix and the identity, so no power is all-positive. Started in state 1, the distribution of $x_t$ alternates $(1,0),(0,1),(1,0),\dots$ and never converges.
 - **Regular:** $\alpha=0.1$, $\beta=0.3$. Every entry of $A$ is already positive. Starting from $\pi_0=(1,0)$, we get $\pi_1=(0.9,0.1)$, $\pi_2=(0.84,0.16)$, $\pi_3=(0.804,0.196)$. The first entry approaches its stationary value $0.75$, with gaps $0.25,\ 0.15,\ 0.09,\ 0.054$ at $t=0,1,2,3$, shrinking by a factor $0.6=1-\alpha-\beta$ each step.
 
+::: {.callout-tip collapse="true" .clarification title="Question: What exactly is $\pi$, and how is being stationary different from converging?"}
+Four quantities are easy to blur together here. Keeping them apart answers the question.
+
+- **$\pi_t$, the distribution at time $t$.** A vector with one entry per state, $\pi_t(j)=p(x_t=j)$: the probability of being in state $j$ after $t$ steps, averaged over the random start $x_0\sim\pi_0$ and over every path the chain could have taken. It is not conditioned on the previous state. That conditional probability is $A_{ij}=p(x_t=j\mid x_{t-1}=i)$, and $\pi_t$ mixes it over all the states the chain could have been in. To picture $\pi_t$, run many independent copies of the chain, each started from a draw of $\pi_0$, and look at all of them at step $t$. The fraction of copies in state $j$ is close to $\pi_t(j)$. A single run is always in exactly one state; $\pi_t$ describes the whole collection of runs.
+- **$\pi$, a stationary distribution.** Any distribution with $\pi=A^\top\pi$. It is a fixed point: if $\pi_t=\pi$, then $\pi_{t+1}=\pi$. Nothing in the definition says the chain ever arrives there. (Many books write distributions as row vectors and the condition as $\pi P=\pi$, with $P$ the transition matrix. That is the same equation, transposed.)
+- **$\lim_{t\to\infty}\pi_t$, the limit, when it exists.** Convergence means $\pi_t$ gets arbitrarily close to some fixed vector as $t$ grows. The limit is usually approached rather than reached: for the regular chain above started at $\pi_0=(1,0)$, the gap shrinks by a factor $0.6$ each step but never hits zero. When the limit exists it is stationary, by taking limits on both sides of $\pi_{t+1}=A^\top\pi_t$. When the stationary distribution is not unique, the limit can depend on $\pi_0$.
+- **The long-run fraction of time.** Follow one run for $T$ steps and record the share of steps it spends in state $j$, $\frac1T\sum_{t=1}^T\mathbf{1}[x_t=j]$. This is an average over time along one path, not an average over many runs at one time.
+
+**When they agree.** For a regular finite chain, the last three coincide. The theorem above says $\pi$ is unique and $\pi_t\to\pi$ from any start, and the long-run fraction of time in state $j$ also tends to $\pi_j$.
+
+**When they come apart.** Take three states in a cycle, where each step moves to the next state with probability 1:
+$$A=\begin{pmatrix}0&1&0\\0&0&1\\1&0&0\end{pmatrix}.$$
+The chain is irreducible but not regular: it can return to a state only after a multiple of 3 steps, so every power $A^n$ still has zeros. A chain whose returns are possible only on such a fixed rhythm is called **periodic**, here with period 3.
+
+- **Stationary holds.** $\pi=(\tfrac13,\tfrac13,\tfrac13)$ satisfies $A^\top\pi=\pi$, since each state receives all of the probability of the state before it. It is the only stationary distribution. (Every finite irreducible chain has exactly one, regular or not. This is a standard fact the lecture does not state.)
+- **Convergence fails from some starts.** From $\pi_0=(1,0,0)$, every copy starts in state 1 and all copies move in lockstep, so $\pi_1=(0,1,0)$, $\pi_2=(0,0,1)$, $\pi_3=(1,0,0)$, and the pattern repeats. The sequence has no limit. Started from $\pi_0=(\tfrac13,\tfrac13,\tfrac13)$ instead, $\pi_t$ stays there at every step. Whether $\pi_t$ converges therefore depends on the start, and periodicity is what allows it to fail.
+- **The long-run fraction still matches $\pi$.** A single run visits $1,2,3,1,2,3,\dots$, so after $3k$ steps it has spent exactly $k$ steps in each state, a fraction $\tfrac13$ each. Averaging the oscillating distributions over one period gives the same answer: $\tfrac13(\pi_0+\pi_1+\pi_2)=(\tfrac13,\tfrac13,\tfrac13)$.
+
+So for a finite irreducible chain, $\pi_j$ is the long-run fraction of time spent in state $j$, periodic or not (the ergodic theorem for Markov chains, which the lecture does not prove). It is also the probability of being in state $j$ at a single far-off time only when $\pi_t$ actually converges, which regularity guarantees.
+
+**Why MCMC uses both meanings.** An MCMC estimate averages along one chain (@sec-whymcmc), which relies on the long-run-fraction meaning. Discarding the early samples as burn-in assumes $\pi_t$ has come close to its limit, which relies on the convergence meaning.
+:::
+
 For MCMC this is the property we will want: a chain that forgets where it started and settles into one target distribution. For continuous state spaces the precise conditions are more technical (MLPP states them under the name ergodicity); the lecture and these notes do not go into them.
 
 ## Detailed balance {#sec-detailed}
@@ -479,6 +504,17 @@ The left side is the probability of being in $i$ and then moving to $j$; the rig
 $$\sum_{i=1}^K\pi_iA_{ij} \overset{\text{(DB)}}{=} \sum_{i=1}^K\pi_jA_{ji} = \pi_j\sum_{i=1}^K A_{ji} = \pi_j.$$
 
 The converse is false: a chain can have a stationary distribution without satisfying detailed balance. Detailed balance is a **sufficient** condition, chosen because it is easy to check one pair of states at a time. It also says nothing about uniqueness or convergence; for those we still need the conditions of @sec-unique. The swapping chain with $\alpha=\beta=1$ satisfies detailed balance with respect to $(0.5,0.5)$, since $0.5\cdot1=0.5\cdot1$, and still never converges.
+
+::: {.callout-tip collapse="true" .clarification title="Question: Can a chain be stationary without satisfying detailed balance?"}
+Yes. Take three states in a cycle, where each step moves to the next state with probability 1:
+$$A = \begin{pmatrix} 0 & 1 & 0 \\ 0 & 0 & 1 \\ 1 & 0 & 0 \end{pmatrix}.$$
+
+- **Stationary.** Try $\pi = (1/3, 1/3, 1/3)$. Column $j$ of $A$ has a single nonzero entry, $A_{j-1,j}=1$, so $(A^\top\pi)_j = \pi_{j-1} = 1/3 = \pi_j$ for every $j$.
+- **Detailed balance fails.** For the pair $(1,2)$, $\pi_1A_{12} = 1/3 \cdot 1 = 1/3$, but $\pi_2A_{21} = 1/3 \cdot 0 = 0$. Probability flows around the loop in one direction only, and no reverse flow balances it.
+- **Convergence fails.** Start at $\pi_0 = (1,0,0)$. The distributions cycle through $(1,0,0)$, $(0,1,0)$, $(0,0,1)$, $(1,0,0)$, and so on, and never settle. This chain is irreducible but periodic, so it is not regular, and the conditions of @sec-unique rule it out.
+
+So a stationary distribution can exist even when the chain fails both detailed balance and convergence. Detailed balance is one way to certify stationarity, not a description of it.
+:::
 
 ::: {.callout-note}
 **Worked example: detailed balance on the two-state chain.** There is only one pair of distinct states, so detailed balance is the single equation $\pi_1\alpha=\pi_2\beta$. That is exactly the equation we solved in @sec-stationary. With $\alpha=0.1$, $\beta=0.3$ and $\pi=(0.75,0.25)$: $0.75\times0.1 = 0.075 = 0.25\times0.3$. Every two-state chain with $\alpha,\beta>0$ is therefore time reversible.
@@ -779,6 +815,71 @@ That gives $Z\approx0.0730$. The posterior density at $(0,0)$ is then $0.00884/0
 
 ### Why $Z$ cannot be calculated for the chess data {#sec-a2-z-full}
 
+::: {.callout-tip collapse="true" .clarification title="Code example: computing Z on a grid for two players, and what the same code would need for 1163"}
+**Two players: the grid in code.** This is the computation from @sec-a2-z-toy for the invented record (A beat B twice, B beat A once), written in PyTorch like the assignment.
+
+```python
+import math, torch
+import torch.nn.functional as F
+
+sigma_z = 1.5
+
+def log_p_tilde(zA, zB):
+    # log prior: two independent N(0, 1.5^2) densities
+    log_prior = (-0.5 * (zA**2 + zB**2) / sigma_z**2
+                 - math.log(2 * math.pi * sigma_z**2))
+    # log likelihood: A won twice, B won once
+    d = zA - zB
+    log_lik = 2 * F.logsigmoid(d) + F.logsigmoid(-d)
+    return log_prior + log_lik
+
+h = 0.05                                                    # grid spacing
+axis = torch.arange(-10, 10 + h / 2, h, dtype=torch.float64)  # 401 values
+zA, zB = torch.meshgrid(axis, axis, indexing="ij")          # 401 x 401 grid
+
+# Z ≈ sum over grid points of p_tilde(z) * h^2, computed in log space
+logZ = torch.logsumexp(log_p_tilde(zA, zB).flatten(), 0) + 2 * math.log(h)
+Z = logZ.exp()                                              # about 0.0730
+```
+
+Reading it line by line:
+
+- `log_p_tilde` is $\log\tilde p(z)=\log p(z)+\log p(\text{games}\mid z)$. Working in logs avoids multiplying many small numbers.
+- `meshgrid` builds every pair $(z_A,z_B)$ on the grid, $401^2=160{,}801$ points, and `log_p_tilde` scores all of them at once.
+- `torch.logsumexp(v, 0)` computes $\log\sum_k e^{v_k}$ without overflow or underflow. Adding $2\log h$ multiplies every term by the cell area $h^2$. Exponentiating gives $Z\approx\sum_{\text{grid}}\tilde p(z)\,h^2\approx0.0730$.
+
+The whole grid takes a fraction of a second.
+
+**1163 players: the same code, in theory.** Nothing about the formula changes. Only the number of axes does. Written naively, the grid becomes a loop over every combination of 401 values for each of 1163 players:
+
+```python
+import itertools
+
+# Not runnable: this loop has 401**1163 iterations.
+Z = 0.0
+for z in itertools.product(axis.tolist(), repeat=1163):     # one skill per player
+    z = torch.tensor(z, dtype=torch.float64)
+    Z += math.exp(log_p_tilde_all(z)) * h**1163            # cell volume h^1163
+```
+
+Here `log_p_tilde_all(z)` stands for the full log joint: 1163 log-prior terms plus the sum over the 2543 games of $\log\sigma(z_W-z_L)$, which is what the assignment builds. Three things go wrong.
+
+- **The loop count.** $401^{1163}$ has 3028 digits. At a billion iterations per second, the loop would still need more than $10^{3000}$ seconds. The age of the universe is about $4\times10^{17}$ seconds.
+- **The cell volume underflows.** $0.05^{1163}\approx10^{-1513}$, which is $0.0$ in floating point. Working in logs, as in the two-player code, fixes this part but not the loop count.
+- **The integral does not factor.** If each player's skill could be integrated separately, the loop would become 1163 one-dimensional sums of 401 terms each. The game terms tie pairs of players together, so this is not possible.
+
+**1163 players: averaging over the prior instead.** A runnable alternative uses $Z=\mathbb E_{z\sim p(z)}[p(\text{games}\mid z)]$: draw skill vectors from the prior, which `torch.randn` can do, and average their likelihoods.
+
+```python
+R = 100_000
+zs = sigma_z * torch.randn(R, 1163, dtype=torch.float64)    # R draws from the prior
+log_w = log_likelihood(zs, games)                           # shape (R,): log p(games | z) per draw
+logZ_hat = torch.logsumexp(log_w, 0) - math.log(R)          # log of the average likelihood
+```
+
+This runs, but the answer cannot be trusted. Each draw's log-likelihood is a sum over 2543 games, so different prior draws disagree by hundreds of units of $\log$, and the average is decided by whichever draw happened to fit best. In a simulated data set of the same size (1163 random players and 2543 random games, not the assignment's data), 10,000 prior draws had log-likelihoods spread from about $-3140$ to $-2510$, and a single draw carried about $72\%$ of the total weight. Rerun with new draws, the estimate jumps. This is the global-proposal problem of @sec-whymcmc with the prior as the proposal. For two players, the same code agrees with the grid to within about $1\%$, because three games barely constrain the skills.
+:::
+
 The assignment's chess data has 1163 players and 2543 games. The same integral becomes
 
 $$Z=\int\!\cdots\!\int \prod_{i=1}^{1163}p(z_i)\prod_{\text{games }g}\sigma\big(z_{W(g)}-z_{L(g)}\big)\,dz_1\cdots dz_{1163},$$
@@ -806,6 +907,32 @@ Back to the two-player record. The proposal is a Gaussian random walk on both sk
 The candidate puts the players further apart than a two-to-one record supports, and the prior also penalizes skills far from 0, so the move is accepted less than half the time. $Z$ never appeared. Dividing both values by the grid's $Z$ gives $(0.00419/0.0730)/(0.00884/0.0730)$, the same $0.474$.
 
 **The same step at full size.** With 1163 players, the state is a skill vector of length 1163, and the proposal nudges all of it. The ratio needs $\tilde p$ at two vectors, which costs 1163 prior terms and 2543 game terms each. That cost grows with the number of players and games, not exponentially like the grid. After many steps, the visited vectors are samples from $p(z\mid\text{games})$. Any summary, such as a player's mean skill or the probability that one player is stronger than another, is then an average over those samples. The assignment uses Hamiltonian Monte Carlo, a Metropolis-Hastings chain with a gradient-guided proposal, but the reason for using a chain is the same.
+
+::: {.callout-tip collapse="true" .clarification title="Question: How do Metropolis-Hastings and Hamiltonian Monte Carlo compare? Do they use the same $\tilde p$, and do both accept or reject proposals?"}
+**The same $\tilde p$.** Both samplers target the same unnormalized posterior, $\tilde p(z)=p(\text{games}\mid z)\,p(z)$, and neither needs $Z$. They use it in different ways.
+
+- Metropolis-Hastings uses only values of $\tilde p$, in the ratio $\tilde p(z')/\tilde p(z)$ (@sec-a2-step).
+- HMC uses $\tilde p$ through the energy $E(z)=-\log\tilde p(z)$ (@sec-hmc). The gradient of $E$ steers the leapfrog steps, and $E$ also appears in the accept step through $H(z,v)=E(z)+\tfrac12\|v\|^2$.
+
+HMC samples pairs $(z,v)$ from $p(z,v)\propto\tilde p(z)\,e^{-\|v\|^2/2}$. The momentum factor does not depend on $z$, so summing it out leaves the posterior. Keeping $z$ and throwing $v$ away therefore gives samples from $p(z\mid\text{games})$. In the assignment's code, the accept step scores the log momentum density plus the log posterior, which is $-H$.
+
+**Both accept or reject.** HMC is a Metropolis-Hastings algorithm with a special proposal, so every iteration ends with the same accept-or-reject step. A rejected proposal records the current $z$ again in both samplers. The assignment's `metropolis_hastings` function computes $\exp(\text{log target at new}-\text{log target at old})$ and accepts when a uniform draw falls below it. A ratio above 1 is always accepted, which is the $\min\{1,\cdot\}$. There is no $q$ term because the proposal is symmetric.
+
+**What differs.**
+
+| | Random-walk Metropolis-Hastings | Hamiltonian Monte Carlo |
+|---|---|---|
+| State | $z$ only | $(z,v)$, with $v$ drawn fresh each iteration and discarded |
+| Proposal | a small random nudge, such as $z'=z+\text{noise}$ | draw $v\sim\mathcal N(0,I)$, run $L$ leapfrog steps, flip $v$ |
+| Information used | values of $\tilde p$ | values and gradients of $\log\tilde p$ |
+| Acceptance ratio | $\tilde p(z')/\tilde p(z)$ for a symmetric proposal | $e^{H_{\text{start}}-H_{\text{end}}}$, which also counts the change in kinetic energy |
+| Typical move | short, so the acceptance rate stays reasonable | long, yet usually accepted because leapfrog nearly conserves $H$ |
+| Cost per iteration | one evaluation of $\tilde p$ | $L$ gradient evaluations |
+| Settings to tune | proposal step size | step size $\epsilon$ and number of steps $L$ |
+| Where it applies | discrete or continuous states | continuous states with a differentiable $\log\tilde p$ |
+
+**Why the assignment uses HMC.** With 1163 skills, a random walk must take tiny steps to keep proposals from landing in low-probability regions. Its samples are then strongly correlated, and the effective sample size is small (@sec-ess). HMC follows the gradient of the posterior, so one proposal can travel far and still be accepted. Each sample costs more, but far fewer samples are needed.
+:::
 
 ### Questions about the assignment {#sec-a2-questions}
 

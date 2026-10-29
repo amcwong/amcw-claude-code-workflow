@@ -133,6 +133,10 @@ $$\mathbb{E}[L] = \sum_k\sum_j\int_{\mathcal{R}_j} L_{kj}\,p(x,\mathcal{C}_k)\,d
 - **Three canonical structures:** chain $X\to Y\to Z$ and fork (common cause) $X\leftarrow Y\to Z$ both give $X\perp Z\mid Y$ but not $X\perp Z$. Collider $X\to Y\leftarrow Z$ gives $X\perp Z$ but not $X\perp Z\mid Y$ (**explaining away**).
 - **Naive Bayes:** $p(c,x_1,\dots,x_D)=p(c)\prod_{d}p(x_d\mid c)$; the features are conditionally independent given the class.
 - **Bayes Ball:** at a chain or fork node, shaded blocks and unshaded passes. At a collider, unshaded blocks, and the ball passes if the collider **or any descendant** is shaded.
+- **Triplet rule for a path:** break the path into consecutive groups of 3 nodes and judge each triplet by its structure.
+    - **Chain or fork:** open by default, blocked if the middle node is observed.
+    - **Collider:** blocked by default, opened if the collider or any of its descendants is observed.
+    - The path is active only if every triplet is open.
 - **DAG Markov blanket:** parents, children, and children's other parents (co-parents).
 
 ### Week 3: Markov random fields and variable elimination
@@ -245,7 +249,10 @@ $$\pi = A^\top\pi \iff \pi_j=\sum_i\pi_iA_{ij}$$
 
 $$\pi_i\ge0, \qquad \sum_i\pi_i=1$$
 
-- **Symbols:** $x_t$ is the state at time $t$. The chain is **homogeneous** (the lecture also says stationary) when $A$ does not depend on $t$. $A$ is $K\times K$, one row and one column per state. $A_{ij}$ is the probability of moving from state $i$ to state $j$ (row $i$ = now, column $j$ = next, so each row sums to 1; columns need not). $\pi_t$ is the column vector of state probabilities at time $t$; the transpose appears because rows index where we come **from**. $\pi$ with no subscript is the stationary distribution.
+- **Symbols:** $x_t$ is the state at time $t$. The chain is **homogeneous** (the lecture also says stationary) when $A$ does not depend on $t$. $A$ is $K\times K$, one row and one column per state. $A_{ij}$ is the probability of moving from state $i$ to state $j$ (row $i$ = now, column $j$ = next, so each row sums to 1; columns need not). The transpose in $\pi_t=A^\top\pi_{t-1}$ appears because rows of $A$ index where we come **from**.
+- **What $\pi_t$ is:** a column vector with one entry per state. Entry $\pi_t(j)=P(x_t=j)$ is the probability of being in state $j$ after $t$ steps, averaged over the random start $x_0\sim\pi_0$ and every path. It is not conditioned on the previous state (that is $A_{ij}$), and it depends on the whole vector $\pi_{t-1}$, not just $\pi_{t-1}(j)$. Picture: the fraction of many independent runs that are in state $j$ at step $t$.
+- **What $\pi$ is:** $\pi$ with no subscript is a stationary distribution, any solution of $\pi=A^\top\pi$. It does not depend on $t$.
+- **Stationary is not converged:** if $\pi_t$ has a limit, the limit is stationary; the reverse fails. The 3-cycle $1\to2\to3\to1$ has stationary $(\tfrac13,\tfrac13,\tfrac13)$, but from $\pi_0=(1,0,0)$, $\pi_t$ cycles forever. For a finite irreducible chain, $\pi_j$ is always the long-run fraction of steps spent in $j$; it is the limit of $\pi_t(j)$ only when $\pi_t$ converges (guaranteed if regular).
 - **$n$ steps:** entry $(i,j)$ of $A^n$ is the probability of going from $i$ to $j$ in exactly $n$ steps, summed over every path through intermediate states. Row $i$ of $A^n$ is the distribution after $n$ steps from state $i$, so it sums to 1.
 - **Building $A^n$:** take $n-1$ steps to some $k$, then one more step to $j$, so $A^3=A^2A$: compute $A^2$ first. Multiplying $A(n-1)$ by **itself** gives $A^{2(n-1)}$, not $A^n$; that is the special case $m=n$ of Chapman-Kolmogorov, which doubles the steps ($A^4=A^2A^2$).
 - **By hand, carry one row:** if the chain starts in state $i$, only row $i$ matters. Multiply row $i$ of $A$ by $A$ to get row $i$ of $A^2$, and again for $A^3$. For a single entry $A^3_{ij}$, dot row $i$ of $A^2$ with column $j$ of $A$.
@@ -328,11 +335,58 @@ $$p_{t+1}-\pi_1 = (1-\alpha-\beta)\,(p_t-\pi_1)$$
 
 $$\alpha(x'\mid x) = \min\Big\{1,\ \frac{\tilde p(x')\,q(x\mid x')}{\tilde p(x)\,q(x'\mid x)}\Big\}$$
 
+- **Each piece:**
+    - $x$ is the **current state**, where the chain sits before this step.
+    - $x'$ is the **proposed state**, drawn from $q(x'\mid x)$.
+    - $q(x'\mid x)$ is the probability of proposing the move $x\to x'$. The reverse term $q(x\mid x')$ is the probability of proposing the move back.
+    - $\tilde p$ is the **unnormalized target**. Its normalizer $Z_p$ appears in the numerator and denominator, so it cancels and is never needed.
+    - $\alpha(x'\mid x)$ is the **acceptance probability**, between 0 and 1. It is not the two-state chain's $\alpha$.
+    - **What sums to 1:** $q(\cdot\mid x)$ sums to 1 over $x'$ for each $x$, since it is a proposal distribution. $\tilde p$ need not sum to 1, because $Z_p$ cancels and is never computed. $\alpha(x'\mid x)$ is a probability for one pair, so it does not sum to 1 over $x'$.
+    - The $\min\{1,\cdot\}$ caps the probability at 1. The ratio is large when $x'$ has more target mass than $x$, or when the move back is easier to propose than the move forward. Either way the chain should visit $x'$ often, so it is accepted for sure.
+
+::: {.callout-tip collapse="true" .clarification title="Question: How does the acceptance probability generate draws? Trace the exam's two-state example"}
+**The sampler.** Each iteration proposes a move, accepts or rejects it, and records the state. A rejected move leaves the chain where it was, and the recorded state repeats.
+
+```
+x ← 2
+for t = 1, ..., N:
+    draw x' ~ A[x, ·]                    # propose from row x of A
+    α ← min{1, A[x', x] / A[x, x']}      # uniform target: p̃ cancels
+    draw u ~ Uniform(0, 1)
+    if u ≤ α:  x ← x'                    # accept
+    record x                             # rejected: x stays put
+```
+
+The ratio $A[x',x]/A[x,x']$ is the formula above with $\tilde p$ equal for both states and $q=A$. Here $q(x\mid x')=A_{x'x}$ and $q(x'\mid x)=A_{xx'}$.
+
+**One $\alpha$ per proposed move, not per state.** Each iteration draws one proposal $x'$ from row $x$ of $A$, then computes $\alpha(x'\mid x)$ for that pair. A state has one acceptance probability for each state it could propose, so there are four values in all:
+
+| Current $x$ | Proposed $x'$ | $\alpha(x'\mid x)$ |
+|---|---|---|
+| 1 | 1 | 1 |
+| 1 | 2 | 1 |
+| 2 | 1 | $\tfrac23$ |
+| 2 | 2 | 1 |
+
+Staying put ($x'=x$) always has $\alpha=1$. The probability of an actual move is the proposal probability times the acceptance: from 2 to 1 it is $\tfrac12\cdot\tfrac23=\tfrac13$. The rest of the mass from 2 stays at 2, so the sampler's effective transition probabilities are $P(2\to1)=\tfrac13$, $P(2\to2)=\tfrac23$, $P(1\to1)=\tfrac23$, and $P(1\to2)=\tfrac13$. These have stationary distribution $(\tfrac12,\tfrac12)$, which is the uniform target.
+
+**A trace with numbers.** Start at $x_0=2$.
+
+- *Propose:* row 2 of $A$ is $(\tfrac12,\tfrac12)$, so suppose $x'=1$.
+- *Acceptance:* $\alpha=\min\{1,\ A_{12}/A_{21}\}=\min\{1,\ (1/3)/(1/2)\}=\tfrac23$.
+- *Accept or reject:* draw $u=0.5$. Since $0.5\le\tfrac23$, accept, so $x_1=1$.
+- *Next step from 1:* row 1 of $A$ is $(\tfrac23,\tfrac13)$.
+    - Proposing $x'=1$ (probability $\tfrac23$): the ratio is $A_{11}/A_{11}=1$, so it is accepted.
+    - Proposing $x'=2$ (probability $\tfrac13$): the ratio is $A_{21}/A_{12}=(1/2)/(1/3)=\tfrac32$, which is above 1, so it is accepted.
+
+So from state 1 every move is accepted, and only the 2→1 move can be rejected. One possible run is $x_0=2,\ x_1=1,\ x_2=1,\ x_3=2,\dots$ Because the target is uniform, the time spent in each state should approach $\tfrac12$. Discard the early states as burn-in, then average $\phi(x^{(t)})$ over the rest to estimate $\mathbb{E}_p[\phi(x)]$.
+:::
+
 **MCMC estimate (after discarding burn-in)**
 
 $$\mathbb{E}_p[\phi(x)]\approx\frac1N\sum_{t=1}^N\phi\big(x^{(t)}\big)$$
 
-- **MH symbols:** $x$ is the current state, $x'$ the proposed one, and $q(x'\mid x)$ the probability of proposing $x'$ from $x$. $\tilde p$ is the unnormalized target; $Z_p$ cancels in the ratio. $\alpha(x'\mid x)$ is the **acceptance probability**, a different $\alpha$ from the two-state chain's. In the chain MLE, $N_{jk}$ counts observed $j\to k$ transitions.
+- In the chain MLE, $N_{jk}$ counts observed $j\to k$ transitions.
 - **Special cases of the MH formula above:**
     - **Transition matrix as proposal:** $q(x'\mid x)=A_{xx'}$, so the ratio is $\frac{p(x')A_{x'x}}{p(x)A_{xx'}}$. A proposal to stay put always has ratio 1.
     - **Metropolis:** symmetric $q$, so the $q$ terms cancel and the ratio is $\tilde p(x')/\tilde p(x)$.
