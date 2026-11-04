@@ -191,6 +191,33 @@ $$b(x_i)\propto\psi_i(x_i)\prod_{j\in N(i)}m_{j\to i}(x_i)$$
 - **Messages can be rescaled** at any point without changing a normalized belief.
 - **Loopy BP** iterates the same update on a graph with cycles; the beliefs are approximate and often overconfident.
 - **MAP and max-product:** the MAP estimate is $\arg\max_{x_F}p(x_F\mid x_E)$. Max-product BP replaces each $\sum_{x_j}$ in the message with $\max_{x_j}$, then decodes $\hat x_i=\arg\max_{x_i}b(x_i)$.
+- **Marginal $p(x_a)$, no evidence:** the belief at $a$ is the marginal. Multiply $a$'s own potential by every incoming message, then normalize over $x_a$:
+$$p(x_a)=b(x_a)=\frac{\tilde b(x_a)}{\sum_{x_a'}\tilde b(x_a')},\qquad \tilde b(x_a)=\psi_a(x_a)\prod_{j\in N(a)}m_{j\to a}(x_a)$$
+- **Conditional $p(x_a\mid\bar x_b)$, with evidence:** clamp the observed node $b$ to $\bar x_b$ everywhere it appears: in $\psi_b$, in the edge potentials that touch $b$, and in every message that passes through $b$. Then run the same belief formula and normalize over $x_a$ only. The normalizer is over $x_a$ alone because $\bar x_b$ is fixed. Every conditional is a belief computed with the evidence clamped.
+- **Worked example:** the exam's $p(x_5\mid\bar x_6)$ is this recipe, with the query at node 5 and the evidence at node 6. It is parked below.
+
+::: {.callout-tip collapse="true" .clarification title="Question: How do I write p(x5 | x6) for any x6, and what does the bar mean?"}
+
+The bar on $\bar x_6$ means $x_6$ is observed. $p(x_5\mid\bar x_6)$ is the belief for $x_5$ with $x_6$ clamped to its observed value. Leaving $x_6$ free instead keeps it as a conditioning argument, so the message from node 6 becomes a function of $x_6$:
+
+$$m_{6\to4}(x_4\mid x_6)=\psi_6(x_6)\,\psi_{4,6}(x_4,x_6)$$
+
+Substituting it into the solution's steps gives one unnormalised belief per value of $x_6$:
+
+$$\tilde p(x_5\mid x_6)=\psi_5(x_5)\sum_{x_4}m_{3\to4}(x_4)\,\psi_4(x_4)\,\psi_{4,5}(x_4,x_5)\,\psi_6(x_6)\,\psi_{4,6}(x_4,x_6)$$
+
+$$p(x_5\mid x_6)=\frac{\tilde p(x_5\mid x_6)}{\sum_{x_5'}\tilde p(x_5'\mid x_6)}$$
+
+The normalizer runs over $x_5$ for each fixed $x_6$, so the answer is a table with one row per value of $x_6$:
+
+| $x_6$ | $m_{6\to4}(x_4)$ | unnormalised $\tilde p(x_5\mid x_6)$ | $p(x_5\mid x_6)$ |
+|---|---|---|---|
+| 1 | $(2,4)$ | $(12,9)$ | $(4/7,\ 3/7)$ |
+| 0 | $(2,1)$ | $(6,3)$ | $(2/3,\ 1/3)$ |
+
+The $x_6=1$ row is the solution's answer. The factor $\psi_6(x_6)$ does not depend on $x_5$, so it only changes the scale of the message and cancels when we normalize.
+
+:::
 
 **Simple Monte Carlo estimator**
 
@@ -1941,4 +1968,311 @@ This reteaches [Week 5, Detailed balance](week05.qmd#sec-detailed) and [When is 
 
 - Detailed balance implies stationarity, but not the other way around.
 - Stationarity does not imply convergence from any start. That needs extra conditions, such as regularity.
+:::
+
+### Problem 9.8: Metropolis versus Metropolis-Hastings {#prb-9-8}
+
+Compare the Metropolis algorithm and Metropolis-Hastings in terms of (i) the proposal densities they allow and (ii) the acceptance probability.
+
+(iii) Take a uniform target on the states $\{1,2\}$ and a proposal that ignores the current state, with $q(1)=\frac34$ and $q(2)=\frac14$. Which distribution does the chain settle on if we wrongly use the Metropolis rule? Which if we use the MH rule?
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+This reteaches [Week 5, The Metropolis-Hastings algorithm](week05.qmd#sec-mh).
+
+**Similarities.** Both propose a move, accept or reject it, and record the current state again on a rejection. Both use only ratios of $\tilde p$, so $Z_p$ cancels, and both produce dependent samples. Metropolis is the special case of MH with a symmetric proposal.
+
+**(i) Proposals.** Metropolis requires a symmetric proposal, $q(x'\mid x)=q(x\mid x')$, such as a Gaussian centred at the current state. MH allows any $q(x'\mid x)$ we can sample from and evaluate.
+
+**(ii) Acceptance.** Metropolis uses $\min\{1,\ \tilde p(x')/\tilde p(x)\}$. MH multiplies the ratio by the correction $q(x\mid x')/q(x'\mid x)$, which lowers the acceptance of moves the proposal already favours. When $q$ is symmetric the correction is 1, and the two rules are the same.
+
+**(iii) Why the correction matters.** This $q$ is not symmetric, since $q(2\mid1)=\frac14$ but $q(1\mid2)=\frac34$.
+
+Under the Metropolis rule, the target ratio is always 1, so every proposal is accepted. The chain then just copies $q$ and settles on $(\frac34,\frac14)$, which is not the target.
+
+Under the MH rule, the two acceptance probabilities are
+
+$$\alpha(2\mid1)=\min\Big\{1,\ \frac{3/4}{1/4}\Big\}=1, \qquad \alpha(1\mid2)=\min\Big\{1,\ \frac{1/4}{3/4}\Big\}=\frac13.$$
+
+The actual moves have probabilities $P(1\to2)=\frac14\cdot1=\frac14$ and $P(2\to1)=\frac34\cdot\frac13=\frac14$. They are equal, so detailed balance holds for the uniform distribution and the chain settles on $(\frac12,\frac12)$.
+
+**Answer.** Metropolis needs a symmetric proposal and accepts on the target ratio alone. MH allows any proposal and adds the correction $q(x\mid x')/q(x'\mid x)$. Without it, this chain settles on $(\frac34,\frac14)$; with it, on the target $(\frac12,\frac12)$.
+
+**Takeaways.**
+
+- Metropolis is MH with a symmetric proposal, where the correction equals 1.
+- The correction is what keeps $p$ stationary when the proposal favours some moves. Dropping it makes the chain sample the wrong distribution.
+:::
+
+### Problem 9.9: Gibbs sampling versus random-walk Metropolis {#prb-9-9}
+
+Compare Gibbs sampling and random-walk Metropolis in terms of (i) the proposal, (ii) how often proposals are rejected, (iii) what we must be able to compute about the target, and (iv) what we must tune.
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+This reteaches [Week 5, Gibbs sampling](week05.qmd#sec-gibbs) and [The Metropolis-Hastings algorithm](week05.qmd#sec-mh).
+
+**Similarities.** Both are MCMC methods: each builds a Markov chain with $p$ as its stationary distribution, needs no $Z_p$, produces dependent samples, and needs burn-in. Gibbs is a special case of MH ([Problem 9.4](#prb-9-4)).
+
+| | Gibbs sampling | Random-walk Metropolis |
+| --- | --- | --- |
+| Proposal | one coordinate at a time, from its full conditional $p(x_j\mid x_{-j})$ | usually the whole state at once, $x'\sim\mathcal N(x,\sigma^2I)$ |
+| Rejections | none; the acceptance probability is exactly 1 | any proposal can be rejected, with acceptance $\min\{1,\ \tilde p(x')/\tilde p(x)\}$ |
+| Must compute | must sample each full conditional exactly | only needs to evaluate $\tilde p$ |
+| Tuning | no step size | the step size $\sigma$ |
+
+The two weak points differ. Gibbs fails to apply when the full conditionals are not available in a form we can sample. It suits models such as the Ising model, where a node's full conditional depends only on its neighbours. Metropolis applies whenever $\tilde p$ can be evaluated, but a poor $\sigma$ wastes the run: too small and the chain crawls, too large and it rarely moves.
+
+**Answer.** Gibbs resamples one coordinate from its exact full conditional, never rejects, and has no step size, but needs conditionals we can sample. Random-walk Metropolis moves all coordinates with a blind proposal, may reject, and needs a tuned step size, but only needs to evaluate $\tilde p$.
+
+**Takeaways.**
+
+- Gibbs trades the need for exact conditionals against having no rejections and no step size.
+- Metropolis asks the least of the target, and pays for it in rejections and tuning.
+:::
+
+### Problem 9.10: Three samplers on a narrow ridge {#prb-9-10}
+
+The target is a bivariate Gaussian with zero means, unit variances, and correlation $\rho=0.96$. Compare random-walk Metropolis, Gibbs sampling, and Hamiltonian Monte Carlo in terms of (i) the direction of each move, (ii) what limits the size of each move, and (iii) the extra work or information each one needs.
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+This reteaches [Week 5, Example: Gibbs sampling a bivariate Gaussian](week05.qmd#sec-gibbs-gauss), [Hamiltonian Monte Carlo](week05.qmd#sec-hmc), and [The leapfrog integrator](week05.qmd#sec-leapfrog).
+
+The target's mass lies on a long, thin ridge along the diagonal $x_1=x_2$.
+
+| | Random-walk Metropolis | Gibbs sampling | HMC |
+| --- | --- | --- | --- |
+| Direction | random, ignoring the shape of $\tilde p$ | along one coordinate axis at a time | steered by $\nabla\log\tilde p$, along the ridge |
+| Move size limited by | the ridge's narrow width, since large steps leave it and are rejected | the conditional standard deviation $\sqrt{1-\rho^2}$ | the leapfrog error, set by $\epsilon$; the length is set by $L\epsilon$ |
+| Extra needs | only evaluations of $\tilde p$ | exact full conditionals | one gradient per leapfrog step, so $L$ per proposal, and a continuous $x$ |
+
+For Gibbs, the conditional variance is $1-0.96^2=0.0784$, so each move has standard deviation $0.28$, while the target spreads with standard deviation 1 in each coordinate. The chain must zig-zag along the ridge in small axis-parallel steps. Gibbs accepts every draw and still mixes slowly, so a high acceptance rate alone does not mean a good sampler.
+
+Random-walk Metropolis has the same problem for a different reason. Most random directions leave the ridge, so the step must shrink to the ridge's width. HMC is the only one of the three that uses the slope of the target. One trajectory can travel far along the ridge and still be accepted with high probability, because $H$ stays nearly constant. It pays for that with gradient evaluations and two settings, $\epsilon$ and $L$.
+
+**Answer.** Random-walk Metropolis moves blindly and must keep its steps as small as the ridge is narrow. Gibbs moves along the axes in steps of about $0.28$. HMC follows the gradient along the ridge and makes long moves that are usually accepted, at a cost of $L$ gradient evaluations per proposal.
+
+**Takeaways.**
+
+- Random walk and Gibbs both slow down on a correlated target, because neither move direction follows the ridge.
+- HMC uses the gradient to move along the ridge, which is why it needs a differentiable $\log\tilde p$ over a continuous $x$.
+:::
+
+### Problem 9.11: $\hat R$ versus effective sample size {#prb-9-11}
+
+Compare $\hat R$ and the effective sample size in terms of (i) the question each answers and (ii) what each is computed from.
+
+(iii) Describe a run that passes the $\hat R$ check but has an $n_{\text{eff}}$ far below its number of draws. As a number to go with it, find $n_{\text{eff}}$ for 4 chains of 900 draws each with $\rho_t=0.8^t$.
+
+(iv) Describe a run that passes both checks and is still wrong.
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+This reteaches [Week 5, The $\hat R$ statistic](week05.qmd#sec-rhat), [Effective sample size](week05.qmd#sec-ess), and [Diagnostics rule of thumb](week05.qmd#sec-rule).
+
+**Similarity.** Both are computed from the chains after burn-in, and both are used together in the rule of thumb: $\hat R$ near 1 and $\hat n_{\text{eff}}>10$ per chain.
+
+**(i) The questions.** $\hat R$ asks whether the chains agree with each other, that is, whether they appear to have reached the same distribution. $n_{\text{eff}}$ asks how many independent draws the correlated samples are worth.
+
+**(ii) The inputs.** $\hat R$ compares the between-chain variance $B$ with the within-chain variance $W$, so it needs at least two chains. $n_{\text{eff}}$ uses the total number of draws $mn$ and the autocorrelations $\rho_t$.
+
+**(iii) Agreement without information.** Several chains can all drift slowly over the same region. Their means agree, so $\hat R$ is near 1, but neighbouring draws are nearly identical. With $\rho_t=0.8^t$ the inflation factor is
+
+$$\frac{1+\rho}{1-\rho}=\frac{1.8}{0.2}=9, \qquad n_{\text{eff}}=\frac{4\times900}{9}=400.$$
+
+So 3600 draws are worth 400 independent ones.
+
+**(iv) Passing is not converging.** Suppose the target has two modes and every chain starts near the same one. The chains agree and mix well inside that mode, so both checks pass, yet none of them has found the other mode. Passing shows only that the chains appear stationary and well mixed.
+
+**Answer.** $\hat R$ measures agreement between chains; $n_{\text{eff}}$ measures how much information correlated draws carry. Slow chains over the same region pass $\hat R$ with a much reduced $n_{\text{eff}}$ (here 400 from 3600 draws). Chains that all miss the same mode pass both.
+
+**Takeaways.**
+
+- $\hat R$ needs several chains and looks at their means. $n_{\text{eff}}$ looks at the correlation between draws.
+- Neither check can detect a region that no chain has visited.
+:::
+
+### Problem 9.12: Filtering versus smoothing {#prb-9-12}
+
+For an HMM, compare filtering and smoothing in terms of (i) the observations each conditions on, (ii) how each is computed, and (iii) when the two give the same answer. (iv) When would we have to use filtering rather than smoothing?
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+This reteaches [Week 6, The forward algorithm](week06.qmd#sec-forward) and [The forward-backward algorithm](week06.qmd#sec-fb).
+
+**Similarities.** Both give a normalized distribution over the hidden state $z_t$, not a single state. Both are exact, because the HMM graph is a tree, and both cost on the order of $TK^2$.
+
+**(i) Evidence.** Filtering gives $\alpha_t(j)=p(z_t=j\mid x_{1:t})$, which uses the observations up to time $t$. Smoothing gives $\gamma_t(j)=p(z_t=j\mid x_{1:T})$, which uses all of them, including those after $t$.
+
+**(ii) Computation.** Filtering needs only the forward pass, $\alpha_t\propto\psi_t\odot(\Psi^\top\alpha_{t-1})$. Smoothing also needs the backward pass, which carries the future evidence in $\beta_t$, and then combines the two with $\gamma_t\propto\alpha_t\odot\beta_t$.
+
+**(iii) When they agree.** At the last step, $\beta_T=\mathbf 1$ because no future observations remain, so $\gamma_T=\alpha_T$. At every earlier step they can differ, since later observations can change our belief about $z_t$.
+
+**(iv) When filtering is forced.** Smoothing needs the whole sequence. If observations arrive one at a time and we must decide now, the future is not available, and filtering is all we can compute. It also updates in one step per new observation.
+
+**Answer.** Filtering conditions on $x_{1:t}$ and needs one forward pass. Smoothing conditions on $x_{1:T}$ and needs forward and backward passes. They agree at $t=T$, where $\beta_T=\mathbf 1$. Filtering is the choice when the future observations have not arrived yet.
+
+**Takeaways.**
+
+- $\alpha_t$ holds past and present evidence, $\beta_t$ holds future evidence, and $\gamma_t$ combines them.
+- The difference between $\alpha_t$ and $\gamma_t$ is exactly the future evidence, which is why they coincide at $t=T$.
+:::
+
+### Problem 9.13: Forward-backward versus Viterbi {#prb-9-13}
+
+Compare forward-backward and Viterbi in terms of (i) the question each answers, (ii) the operation at the core of each recursion, and (iii) their connection to belief propagation.
+
+(iv) An HMM has three states, $\pi=(0.4,\ 0.35,\ 0.25)$, two time steps, and observations that carry no information ($\psi_t(j)$ is the same for every state $j$). The transition matrix is
+
+$$\Psi=\begin{pmatrix}0.5&0&0.5\\0&1&0\\0&1&0\end{pmatrix}.$$
+
+Find the most probable state at each step separately, and the most probable sequence. Why is the first answer unusable as a sequence?
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+This reteaches [Week 6, Two inference questions](week06.qmd#sec-hmm-goals), [The forward-backward algorithm](week06.qmd#sec-fb), and [The Viterbi algorithm](week06.qmd#sec-viterbi).
+
+**Similarities.** Both replace the $K^T$ brute-force enumeration with a recursion along the chain, and both cost on the order of $TK^2$.
+
+**(i) The question.** Forward-backward finds the posterior of each hidden state on its own, $p(z_t\mid x_{1:T})$. Viterbi finds the single most probable whole sequence, $\arg\max_{z_{1:T}}p(z_{1:T}\mid x_{1:T})$.
+
+**(ii) The operation.** Forward-backward sums over the previous state. Viterbi maximizes over it and stores a back-pointer, so it can trace the best path back from the end.
+
+**(iii) Belief propagation.** Forward-backward is sum-product BP on a chain, and Viterbi is max-product BP on a chain.
+
+**(iv) A case where they disagree.** The observations carry no information, so the posterior is the prior over paths. Each sequence's probability is $\pi(z_1)\,\Psi(z_1,z_2)$, and the nonzero ones are
+
+| $(z_1,z_2)$ | $(1,1)$ | $(1,3)$ | $(2,2)$ | $(3,2)$ |
+| --- | --- | --- | --- | --- |
+| probability | $0.2$ | $0.2$ | $0.35$ | $0.25$ |
+
+The marginal of $z_1$ is $\pi$, so the best first state is 1. The marginal of $z_2$ is $(0.2,\ 0.6,\ 0.2)$, so the best second state is 2. Viterbi's answer is the top entry of the table, $(2,2)$, with probability $0.35$.
+
+Putting the two per-step answers together gives $(1,2)$. But $\Psi(1,2)=0$, so this sequence has probability 0. Each marginal adds up probability across different sequences, so the per-step answers need not fit together as one sequence.
+
+**Answer.** Forward-backward gives each state's marginal posterior by summing; Viterbi gives the best whole sequence by maximizing. The per-step best states are $(1,2)$, which is impossible because $\Psi(1,2)=0$, while the most probable sequence is $(2,2)$.
+
+**Takeaways.**
+
+- Sum gives marginals one position at a time. Max gives one coherent sequence.
+- Use forward-backward to report uncertainty about one state, and Viterbi when we need a sequence that hangs together.
+:::
+
+### Problem 9.14: MCMC versus variational inference {#prb-9-14}
+
+Both MCMC and variational inference approximate a posterior $p(z\mid x)$ when the evidence $p(x)$ is intractable. Compare them in terms of (i) the kind of problem each solves, (ii) what each produces, (iii) what happens to the error as we spend more computation, and (iv) how we decide when to stop.
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+This reteaches [Week 6, Why the posterior is hard](week06.qmd#sec-hard-post), [Variational methods](week06.qmd#sec-vi), and [Tutorial: reverse KL and the ELBO](week06.qmd#sec-elbo).
+
+**Similarity.** Both avoid $p(x)$ and need only the joint $p(x,z)$. In MCMC the normalizer cancels in a ratio. In VI, $\log p(x)$ separates out of the KL and does not affect the optimum.
+
+| | MCMC | Variational inference |
+| --- | --- | --- |
+| Problem solved | sampling: simulate a Markov chain | optimization: minimize $\mathrm{KL}(q\Vert p(z\mid x))$, equivalently maximize the ELBO |
+| Produces | correlated samples, which we average | one distribution $q\in Q$ we can evaluate and sample from |
+| Error with more computation | shrinks as the chain runs longer | stops at the best $q\in Q$; any gap between $Q$ and the true posterior remains |
+| Stopping | $\hat R$ and $n_{\text{eff}}$ | the objective stops changing |
+
+The key difference is the third row. MCMC's error comes from running for a finite time, so more iterations reduce it. VI's error comes from the choice of $Q$, so more iterations cannot remove it. The TrueSkill posterior after one game is not Gaussian, so no Gaussian $q$ equals it, however long we optimize. VI accepts that error on purpose in exchange for a simple optimization problem and a tractable $q$.
+
+VI also gives a number MCMC does not: the ELBO is a lower bound on $\log p(x)$. Neither method is safe on a multimodal posterior. A chain can stay in one mode, and the I-projection can settle on one.
+
+**Answer.** MCMC samples and VI optimizes. MCMC gives correlated samples, and its error keeps shrinking as it runs. VI gives a fitted $q$, and its error stops at the distance from $Q$ to the true posterior. Both use only $p(x,z)$, never $p(x)$.
+
+**Takeaways.**
+
+- More computation helps MCMC without limit, in principle. VI is limited by the family $Q$.
+- Both avoid the evidence: MCMC by cancelling it in a ratio, VI by separating it from the objective.
+:::
+
+### Problem 9.15: I-projection versus M-projection {#prb-9-15}
+
+The target is $p(z)=0.25\,\mathcal N(z;-6,1)+0.75\,\mathcal N(z;2,1)$ and $Q$ is all 1D Gaussians. Compare the I-projection and the M-projection in terms of (i) the distribution each expectation is taken under, (ii) the mistake each one punishes, and (iii) the fit each gives for this target. (iv) Which one does variational inference use, and why?
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+This reteaches [Week 6, Which direction? I-projection and M-projection](week06.qmd#sec-projections) and [Why variational inference uses the I-projection](week06.qmd#sec-why-iproj).
+
+**Similarity.** Both pick the member of $Q$ closest to $p$ under a KL divergence, and both reach 0 only if $p$ is in $Q$.
+
+**(i) The expectation.** The I-projection minimizes the reverse KL, $\mathrm{KL}(q\,\|\,p)=\mathbb{E}_q[\log(q/p)]$, averaged under $q$. The M-projection minimizes the forward KL, $\mathrm{KL}(p\,\|\,q)=\mathbb{E}_p[\log(p/q)]$, averaged under $p$.
+
+**(ii) The mistake.** The I-projection punishes $q$ for putting mass where $p$ has almost none. Mass of $p$ that $q$ misses costs little, since those regions are weighted by $q\approx0$. The M-projection does the opposite: it punishes $q$ for missing any region where $p$ has mass.
+
+**(iii) This target.** The M-projection onto Gaussians matches the mean and variance of $p$:
+
+$$\mu^*=0.25(-6)+0.75(2)=0,$$
+
+$$\sigma^{2*}=0.25\big(1+36\big)+0.75\big(1+4\big)=13.$$
+
+So $q^*_{\text{M}}=\mathcal N(0,13)$. It covers both modes, and its peak sits in the valley at $z=0$, where $p$ is small.
+
+The I-projection has no closed form here, but the two modes are far apart, so a good fit sits on one of them. Take $q=\mathcal N(2,1)$. Over the region where $q$ has its mass, $p$ is about $0.75\,q$, so $\log(q/p)\approx\ln\frac43$ and $\mathrm{KL}(q\,\|\,p)\approx0.29$. Sitting on the small mode instead, $q=\mathcal N(-6,1)$ gives about $\ln4\approx1.39$. Both are local minima of the reverse KL, and the one on the larger mode is better.
+
+**(iv) Why VI uses the I-projection.** Its expectation is under $q$, which we chose to be easy, and the unknown $\log p(x)$ separates out of the objective. The forward KL is an expectation under the posterior, which would need the samples or normalizer we do not have.
+
+**Answer.** The I-projection averages under $q$, avoids mass where $p$ is small, and settles on one mode, here approximately $\mathcal N(2,1)$. The M-projection averages under $p$, avoids missing mass, and gives $\mathcal N(0,13)$. VI uses the I-projection because it needs expectations only under $q$.
+
+**Takeaways.**
+
+- The KL is averaged under its first argument, and that argument decides which mistake is punished.
+- Neither fit is right on a bimodal target: one misses a mode, the other puts its peak in the valley.
+- The reverse KL has more than one local minimum here, so the starting point matters.
+:::
+
+### Problem 9.16: Gibbs sampling versus mean field {#prb-9-16}
+
+On a pairwise MRF, both Gibbs sampling and naive mean field sweep through the nodes and update one node at a time using only its neighbours. Compare them in terms of (i) what is updated, (ii) what each one uses from the neighbours, and (iii) what each one produces.
+
+(iv) Take $x_1,x_2\in\{0,1\}$ with one edge and log-potential $\phi_{12}(x_1,x_2)=(2\ln3)\,x_1x_2$. Find Gibbs's probability of $x_1=1$ when $x_2=1$ and when $x_2=0$. Then find the mean-field update for $q_1(1)$ when $q_2(1)=\frac12$.
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+This reteaches [Week 5, Gibbs sampling](week05.qmd#sec-gibbs) and [Week 6, Pairwise MRFs and coordinate ascent](week06.qmd#sec-coord-ascent).
+
+**The similarity is in the formulas.** Each update has the same form, and the neighbour is the only thing that changes:
+
+$$\text{Gibbs:}\quad p(x_i\mid x_{N(i)})\propto\exp\Big\{\sum_{j\in N(i)}\phi_{ij}(x_i,x_j)\Big\}$$
+
+$$\text{Mean field:}\quad q_i(x_i)\propto\exp\Big\{\sum_{j\in N(i)}\sum_{x_j}q_j(x_j)\,\phi_{ij}(x_i,x_j)\Big\}$$
+
+Gibbs plugs in the neighbour's current **value**. Mean field averages over the neighbour's current **distribution**, which is where the name comes from.
+
+**(i) What is updated.** Gibbs replaces the value $x_i$ with a random draw. Mean field replaces the table $q_i$ by a deterministic calculation, so the same start gives the same result every time.
+
+**(ii) What each uses from the neighbours.** As above: a sampled value for Gibbs, an average under $q_j$ for mean field.
+
+**(iii) What each produces.** Gibbs produces samples whose distribution approaches $p$, including the correlations between variables. Mean field produces a factorized $q=\prod_iq_i$, which has no correlations at all, and it converges to a local optimum of its objective.
+
+**(iv) Numbers.** Gibbs with $x_2=1$ has unnormalized values $1$ for $x_1=0$ and $e^{2\ln3}=9$ for $x_1=1$, so the probability is $\frac{9}{10}$. With $x_2=0$ the potential is 0 either way, so it is $\frac12$.
+
+For mean field with $q_2(1)=\frac12$, the average of $\phi_{12}$ over $x_2$ at $x_1=1$ is $\frac12\cdot2\ln3=\ln3$, and at $x_1=0$ it is 0. So $q_1(1)=\frac{e^{\ln 3}}{1+e^{\ln3}}=\frac{3}{1+3}=\frac34$.
+
+The average of the two Gibbs probabilities is $0.7$, not $0.75$: mean field averages the log-potential inside the exponential, not the resulting probabilities.
+
+**Answer.** Gibbs draws a new value of $x_i$ from a neighbour's sampled value and gives correlated samples that approach $p$. Mean field recomputes a distribution $q_i$ from the neighbours' averages and gives a factorized approximation. The numbers are $\frac{9}{10}$, $\frac12$, and $\frac34$.
+
+**Takeaways.**
+
+- The updates have the same shape: Gibbs uses the neighbour's value, mean field uses its average.
+- Gibbs is random and keeps the correlations. Mean field is deterministic and loses them.
+:::
+
+### Problem 9.17: Belief propagation versus mean field {#prb-9-17}
+
+Compare sum-product belief propagation and naive mean field on a pairwise MRF in terms of (i) what is stored and passed between nodes, (ii) whether the result is exact on a tree, and (iii) their convergence on a graph with cycles.
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+This reteaches [Week 4, Belief propagation on trees](week04.qmd#sec-bp), [Loopy belief propagation](week04.qmd#sec-loopy), and [Week 6, Pairwise MRFs and coordinate ascent](week06.qmd#sec-coord-ascent).
+
+**Similarities.** Both are local: each node's update uses only its neighbours, and both estimate single-node marginals without computing $Z$.
+
+**(i) What is stored.** BP keeps one message per direction of each edge, so $2|\mathcal E|$ tables. A message from $j$ to $i$ leaves out what $i$ told $j$. Mean field keeps one table $q_i$ per node, and every neighbour reads the same table, with nothing left out.
+
+**(ii) Trees.** BP is exact on a tree. Mean field generally is not, because a factorized $q$ cannot represent the dependence between neighbouring variables. Week 6's two-node example is a tree, and there the exact marginal is about $0.807$ while mean field gives about $0.844$.
+
+**(iii) Cycles.** Loopy BP uses the same update on a graph with cycles. Its beliefs are approximate, and it may not converge at all. Mean field always converges, because each coordinate step can only increase an objective bounded above by $\log Z$. It may stop at a local optimum, though, and different starts can give different answers.
+
+Mean field therefore comes with a guarantee that loopy BP lacks: the value it optimizes is a lower bound on $\log Z$. BP gives the exact answer on trees, and mean field gives an approximation that converges on any graph. Both can be overconfident.
+
+**Answer.** BP passes a directed message along each edge, excluding the recipient's own contribution, and is exact on trees, but on cycles it is approximate and may not converge. Mean field keeps one factor per node, is generally inexact even on trees, but always converges, possibly to a local optimum.
+
+**Takeaways.**
+
+- Exactness on trees belongs to BP. Guaranteed convergence belongs to mean field.
+- Mean field's error comes from the factorized family, so a simpler graph does not remove it unless the variables really are independent.
 :::

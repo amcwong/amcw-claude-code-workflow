@@ -9,7 +9,7 @@ title: "Week 5: Sampling with MCMC"
 </div>
 ```
 
-**Overview.** Week 4 ended with two ways to use a distribution $p(x)=\tilde p(x)/Z$ that we can evaluate only up to its normalizing constant: importance sampling and rejection sampling. Both draw from one fixed proposal $q(x)$, and both work only when $q$ already resembles $p$, which is hopeless in high dimensions. This lecture gives up on independent samples. Instead we build a random sequence $x^{(1)},x^{(2)},\dots$ in which each sample depends on the one before, arranged so that the sequence spends time in each region in proportion to $p$. The first half develops the needed theory of **Markov chains**: transition matrices, the **stationary distribution** a chain settles into, and the **detailed balance** condition that certifies it. The second half uses that theory to build **Markov chain Monte Carlo (MCMC)** samplers: **Metropolis-Hastings**, **Gibbs sampling**, and **Hamiltonian Monte Carlo**. It ends with **diagnostics** for judging whether a run has gone on long enough.
+**Overview.** Week 4 ended with two ways to use a distribution $p(x)=\tilde p(x)/Z$ that we can evaluate only up to its normalizing constant: importance sampling and rejection sampling. Both draw from one fixed proposal $q(x)$, and both work only when $q$ already resembles $p$, which is hopeless in high dimensions. This lecture gives up on independent samples. Instead we build a random sequence $x^{(1)},x^{(2)},\dots$ in which each sample depends on the one before, arranged so that the sequence spends time in each region in proportion to $p$. The first half develops the needed theory of **Markov chains**: transition matrices, the **stationary distribution** a chain settles into, and the **detailed balance** condition that certifies it. The second half uses that theory to build **Markov chain Monte Carlo (MCMC)** samplers: **Metropolis-Hastings**, **Gibbs sampling**, and **Hamiltonian Monte Carlo**. It then gives **diagnostics** for judging whether a run has gone on long enough, and it ends by showing how each of these ideas appears in Assignment 2's TrueSkill sampler.
 
 Skipped: the title slide. The two agenda slides (slides 2 and 21) became the paragraph above.
 
@@ -594,7 +594,7 @@ $$\mathbb{E}_{x\sim p}[\phi(x)] \approx \frac1T\sum_{t=1}^T\phi(x^{(t)}).$$
 The lake picture from Week 4 (@sec-hardz in Week 4) fits this exactly. We can measure the depth $\tilde p$ wherever we steer the boat, but never the volume $Z$ of the whole lake. An MCMC sampler steers toward deep water and lingers there, without ever surveying the whole lake.
 
 ::: {.callout-note}
-**Homework-relevant.** Assignment 2's TrueSkill question (@sec-trueskill in Week 4) approximates the posterior over player skills by MCMC and then summarizes it with sample averages: posterior means, standard deviations, and probabilities written as expectations of indicators (@sec-goals in Week 4). The ideas to bring to it are the ones above: the chain targets a posterior known only up to $Z$, early samples are not yet from that posterior, and every summary is an average over the chain. The specific estimates are left to the assignment.
+**Homework-relevant.** Assignment 2's TrueSkill question (@sec-trueskill in Week 4) approximates the posterior over player skills by MCMC and then summarizes it with sample averages: posterior means, standard deviations, and probabilities written as expectations of indicators (@sec-goals in Week 4). The ideas to bring to it are the ones above: the chain targets a posterior known only up to $Z$, early samples are not yet from that posterior, and every summary is an average over the chain. The specific estimates are left to the assignment. @sec-a2 at the end of this chapter walks through the sampler.
 :::
 
 ::: {.callout-tip collapse="true" .clarification title="Recap: Why MCMC"}
@@ -745,213 +745,6 @@ A teaching example on three states with $\tilde p = (1, 2, 3)$.
 - Symmetric proposal, current state 3, propose 1: $\alpha = \min\{1, 1/3\} = 1/3$. Propose 2 from 1: $\alpha = \min\{1, 2\} = 1$.
 - Biased proposal with $q(2 \mid 1) = 0.9$ and $q(1 \mid 2) = 0.3$. From 1, propose 2: $\alpha = \min\{1,\ \tfrac{2}{1} \cdot \tfrac{0.3}{0.9}\} = 2/3$. The move is uphill, yet it is not always accepted, because the proposal already sends the chain toward 2 three times as eagerly as it sends it back.
 :::
-
-## Assignment 2: sampling the TrueSkill posterior {#sec-a2}
-
-Assignment 2's TrueSkill question (@sec-trueskill in Week 4) is where this chapter's ideas meet a real posterior. In the assignment we wrote the log-prior of the players' skills, the log-likelihood of the observed games, and their sum, and then ran Hamiltonian Monte Carlo (@sec-hmc) on a chess data set. This section works through why each of those pieces was needed. It uses an invented two-player record so that every number can be checked by hand, then scales the same reasoning up to the size of the chess data. The assignment's own computations are left to it. Plain-language definitions of "stationary", "making a Metropolis chain", and "evaluating versus sampling" are in the recap at the end of @sec-mh.
-
-### The setup {#sec-a2-setup}
-
-Two players, A and B, have skills $z=(z_A,z_B)$. The prior makes them independent with $z_A,z_B\sim\mathcal N(0,1.5^2)$. A player with skill $z_W$ beats a player with skill $z_L$ with probability $\sigma(z_W-z_L)$, where $\sigma(y)=1/(1+e^{-y})$. The invented record: A beat B twice, and B beat A once. Write $d=z_A-z_B$ for the skill gap.
-
-The quantity we want is the posterior over the skills. Bayes' rule writes it as
-
-$$p(z\mid\text{games})=\frac{p(\text{games}\mid z)\,p(z)}{p(\text{games})}.$$
-
-The numerator is the joint, $p(z,\text{games})$. The denominator is a single number, the probability of the observed games averaged over all skill vectors.
-
-**Recap.** **The target $p$ is $p(z\mid\text{games})$**, and it **equals $p(z,\text{games})$ divided by the normalizing factor $Z=p(\text{games})$**. This **maps to the equation $p=\tilde p/Z$** from Week 4, which we use when we have a distribution $p$ and **an unnormalized version $\tilde p$ that is easier to calculate**. Here **$\tilde p(z)=p(z,\text{games})=p(\text{games}\mid z)\,p(z)$**. Notice how well this **maps onto Bayes' theorem**: **$\tilde p$ is likelihood times prior**, and **$Z$ is the normalization constant, which Bayes' theorem calls the evidence**.
-
-**Evaluating $\tilde p$ at one point is easy.** The three game outcomes give $p(\text{games}\mid z)=\sigma(d)^2\,\sigma(-d)$: two factors for A's wins and one for B's.
-
-- At $z=(0,0)$ the gap is $d=0$ and $\sigma(0)=\tfrac12$, so the likelihood is $\tfrac18=0.125$.
-- The prior density there is $\frac{1}{2\pi\cdot2.25}\approx0.0707$.
-- So $\tilde p(0,0)\approx0.0707\times0.125\approx0.00884$.
-
-This number is not the posterior density at $(0,0)$. It is the posterior density multiplied by $Z$.
-
-**Why compute $p(z,\text{games})$ when we want $p(z\mid\text{games})$?** The joint is the only one of the two we can compute (@sec-a2-z-full shows why the posterior is out of reach), and it carries all the information the posterior has about the skills. Once the games are observed, $Z=p(\text{games})$ is one fixed number that does not depend on $z$. Dividing by it rescales every value of the joint by the same factor, so the joint and the posterior have the same shape as functions of $z$:
-
-$$p(z\mid\text{games})=\frac{1}{Z}\,p(z,\text{games})\quad\text{for every } z.$$
-
-The only thing the joint is missing is the overall scale, which is what turns "twice as plausible" into "probability density $0.121$" (@sec-a2-z-toy).
-
-#### How the comparison works {#sec-a2-compare}
-
-A Metropolis step asks one question: how much more or less plausible is the candidate $z'$ than the current state $z$? Under the true posterior the answer is
-
-$$\frac{p(z'\mid\text{games})}{p(z\mid\text{games})}=\frac{\tilde p(z')/Z}{\tilde p(z)/Z}=\frac{\tilde p(z')}{\tilde p(z)}.$$
-
-The same $Z$ divides the top and the bottom, so it cancels. If the joint is twice as large at one skill vector as at another, so is the posterior. We cannot compute $Z$, but a comparison between two points never needs it. @sec-a2-step carries this out with numbers.
-
-**The same trick in importance sampling.** Week 4's importance weight (@sec-importance in Week 4) is
-
-$$\tilde w(x)=\frac{\tilde p(x)}{\tilde q(x)}.$$
-
-Importance sampling draws its points from a proposal $q$, because we cannot draw from $p$. But $q$ hands out points at the wrong frequencies: it oversamples some regions that $p$ cares little about and undersamples others. The weight is a correction factor attached to each sample. A sample counts $\tilde w$ times as much as an ordinary one, so a point that $p$ wants three times as often as $q$ produced it gets weight 3. In Week 4's teaching example, the target on $\{1,2,3\}$ is $\tilde p=(1,2,3)$, so $p$ wants state 3 half the time, while a uniform $q$ produces it a third of the time. The draws $1,3,3,2$ get weights $1,3,3,2$, and each 3 counts three times as much as the 1.
-
-Both methods cancel an unknown constant inside a ratio, but they compare different things.
-
-| | What is compared | Where the constant cancels |
-|---|---|---|
-| Importance sampling | target and proposal at the **same** point, $\tilde p(x)/\tilde q(x)$ | dividing by $\sum_r\tilde w_r$ removes $Z_p/Z_q$ from the estimate |
-| Metropolis | target at **two** points, $\tilde p(z')/\tilde p(z)$ | $Z$ sits above and below the line |
-
-Importance sampling still relies on one global $q$ that already resembles $p$, which fails in high dimensions (@sec-whymcmc). Metropolis needs only local comparisons.
-
-### How $Z$ was "calculated" for two players {#sec-a2-z-toy}
-
-$Z$ adds up the numerator over every possible skill vector:
-
-$$Z=p(\text{games})=\iint p(\text{games}\mid z)\,p(z)\,dz_A\,dz_B.$$
-
-A Gaussian times a product of sigmoids has no closed-form integral, so there is no formula to plug into. With two players we can still approximate it numerically, which is the sense in which it was "calculated":
-
-1. Lay a grid with spacing $0.05$ over $[-10,10]^2$. That is $401$ values per axis and $401^2\approx160{,}000$ points. Almost all of the posterior's mass lies inside this square.
-2. Evaluate $\tilde p$ at every grid point.
-3. Multiply each value by the cell area $0.05^2$ and add.
-
-That gives $Z\approx0.0730$. The posterior density at $(0,0)$ is then $0.00884/0.0730\approx0.121$. The assignment's two-player contour plots rest on the same grid evaluation, except that they never divide by $Z$, because the contours have the same shape either way.
-
-### Why $Z$ cannot be calculated for the chess data {#sec-a2-z-full}
-
-::: {.callout-tip collapse="true" .clarification title="Code example: computing Z on a grid for two players, and what the same code would need for 1163"}
-**Two players: the grid in code.** This is the computation from @sec-a2-z-toy for the invented record (A beat B twice, B beat A once), written in PyTorch like the assignment.
-
-```python
-import math, torch
-import torch.nn.functional as F
-
-sigma_z = 1.5
-
-def log_p_tilde(zA, zB):
-    # log prior: two independent N(0, 1.5^2) densities
-    log_prior = (-0.5 * (zA**2 + zB**2) / sigma_z**2
-                 - math.log(2 * math.pi * sigma_z**2))
-    # log likelihood: A won twice, B won once
-    d = zA - zB
-    log_lik = 2 * F.logsigmoid(d) + F.logsigmoid(-d)
-    return log_prior + log_lik
-
-h = 0.05                                                    # grid spacing
-axis = torch.arange(-10, 10 + h / 2, h, dtype=torch.float64)  # 401 values
-zA, zB = torch.meshgrid(axis, axis, indexing="ij")          # 401 x 401 grid
-
-# Z ≈ sum over grid points of p_tilde(z) * h^2, computed in log space
-logZ = torch.logsumexp(log_p_tilde(zA, zB).flatten(), 0) + 2 * math.log(h)
-Z = logZ.exp()                                              # about 0.0730
-```
-
-Reading it line by line:
-
-- `log_p_tilde` is $\log\tilde p(z)=\log p(z)+\log p(\text{games}\mid z)$. Working in logs avoids multiplying many small numbers.
-- `meshgrid` builds every pair $(z_A,z_B)$ on the grid, $401^2=160{,}801$ points, and `log_p_tilde` scores all of them at once.
-- `torch.logsumexp(v, 0)` computes $\log\sum_k e^{v_k}$ without overflow or underflow. Adding $2\log h$ multiplies every term by the cell area $h^2$. Exponentiating gives $Z\approx\sum_{\text{grid}}\tilde p(z)\,h^2\approx0.0730$.
-
-The whole grid takes a fraction of a second.
-
-**1163 players: the same code, in theory.** Nothing about the formula changes. Only the number of axes does. Written naively, the grid becomes a loop over every combination of 401 values for each of 1163 players:
-
-```python
-import itertools
-
-# Not runnable: this loop has 401**1163 iterations.
-Z = 0.0
-for z in itertools.product(axis.tolist(), repeat=1163):     # one skill per player
-    z = torch.tensor(z, dtype=torch.float64)
-    Z += math.exp(log_p_tilde_all(z)) * h**1163            # cell volume h^1163
-```
-
-Here `log_p_tilde_all(z)` stands for the full log joint: 1163 log-prior terms plus the sum over the 2543 games of $\log\sigma(z_W-z_L)$, which is what the assignment builds. Three things go wrong.
-
-- **The loop count.** $401^{1163}$ has 3028 digits. At a billion iterations per second, the loop would still need more than $10^{3000}$ seconds. The age of the universe is about $4\times10^{17}$ seconds.
-- **The cell volume underflows.** $0.05^{1163}\approx10^{-1513}$, which is $0.0$ in floating point. Working in logs, as in the two-player code, fixes this part but not the loop count.
-- **The integral does not factor.** If each player's skill could be integrated separately, the loop would become 1163 one-dimensional sums of 401 terms each. The game terms tie pairs of players together, so this is not possible.
-
-**1163 players: averaging over the prior instead.** A runnable alternative uses $Z=\mathbb E_{z\sim p(z)}[p(\text{games}\mid z)]$: draw skill vectors from the prior, which `torch.randn` can do, and average their likelihoods.
-
-```python
-R = 100_000
-zs = sigma_z * torch.randn(R, 1163, dtype=torch.float64)    # R draws from the prior
-log_w = log_likelihood(zs, games)                           # shape (R,): log p(games | z) per draw
-logZ_hat = torch.logsumexp(log_w, 0) - math.log(R)          # log of the average likelihood
-```
-
-This runs, but the answer cannot be trusted. Each draw's log-likelihood is a sum over 2543 games, so different prior draws disagree by hundreds of units of $\log$, and the average is decided by whichever draw happened to fit best. In a simulated data set of the same size (1163 random players and 2543 random games, not the assignment's data), 10,000 prior draws had log-likelihoods spread from about $-3140$ to $-2510$, and a single draw carried about $72\%$ of the total weight. Rerun with new draws, the estimate jumps. This is the global-proposal problem of @sec-whymcmc with the prior as the proposal. For two players, the same code agrees with the grid to within about $1\%$, because three games barely constrain the skills.
-:::
-
-The assignment's chess data has 1163 players and 2543 games. The same integral becomes
-
-$$Z=\int\!\cdots\!\int \prod_{i=1}^{1163}p(z_i)\prod_{\text{games }g}\sigma\big(z_{W(g)}-z_{L(g)}\big)\,dz_1\cdots dz_{1163},$$
-
-where $W(g)$ and $L(g)$ are the winner and loser of game $g$. Each way of computing it breaks down.
-
-- **It does not split into one-dimensional integrals.** Each game factor contains two players' skills, and the games link the players into one web, so we cannot integrate out one player at a time.
-- **A grid explodes.** 401 points per axis would need $401^{1163}$ evaluations, a number with more than 3000 digits.
-- **Averaging over the prior fails.** We could write $Z=\mathbb E_{z\sim p(z)}[p(\text{games}\mid z)]$ and average over prior draws. This is the global-proposal problem of @sec-whymcmc: almost no prior draw agrees with all 2543 outcomes at once, so the average is driven by a few rare draws and has enormous variance.
-
-So we can compute $\tilde p(z)$ at any single $z$, but we cannot divide it by $Z$.
-
-### One Metropolis step without $Z$ {#sec-a2-step}
-
-Back to the two-player record. The proposal is a Gaussian random walk on both skills. It is symmetric, so the Metropolis rule applies.
-
-1. **Current state.** $z^{(t)}=(0,0)$.
-2. **Propose.** Suppose the random walk draws $z'=(1,-1)$, so the gap becomes $d'=2$.
-3. **Target ratio.** Split it into the prior factor and the likelihood factor.
-    - Prior: $\exp\!\big(-(1^2+1^2)/(2\cdot2.25)\big)=e^{-0.444}\approx0.641$. The prior's constant $\frac{1}{2\pi\cdot2.25}$ cancels.
-    - Likelihood: $\sigma(2)^2\sigma(-2)/0.125=(0.881)^2(0.119)/0.125\approx0.0925/0.125\approx0.740$.
-    $$\frac{\tilde p(z')}{\tilde p(z^{(t)})}\approx0.641\times0.740\approx0.474.$$
-4. **Accept or reject.** $\alpha=\min\{1,\ 0.474\}\approx0.47$. Draw $u\sim\mathrm{Uniform}(0,1)$. If $u\le0.47$, move to $(1,-1)$. Otherwise record $(0,0)$ again.
-
-The candidate puts the players further apart than a two-to-one record supports, and the prior also penalizes skills far from 0, so the move is accepted less than half the time. $Z$ never appeared. Dividing both values by the grid's $Z$ gives $(0.00419/0.0730)/(0.00884/0.0730)$, the same $0.474$.
-
-**The same step at full size.** With 1163 players, the state is a skill vector of length 1163, and the proposal nudges all of it. The ratio needs $\tilde p$ at two vectors, which costs 1163 prior terms and 2543 game terms each. That cost grows with the number of players and games, not exponentially like the grid. After many steps, the visited vectors are samples from $p(z\mid\text{games})$. Any summary, such as a player's mean skill or the probability that one player is stronger than another, is then an average over those samples. The assignment uses Hamiltonian Monte Carlo, a Metropolis-Hastings chain with a gradient-guided proposal, but the reason for using a chain is the same.
-
-::: {.callout-tip collapse="true" .clarification title="Question: How do Metropolis-Hastings and Hamiltonian Monte Carlo compare? Do they use the same $\tilde p$, and do both accept or reject proposals?"}
-**The same $\tilde p$.** Both samplers target the same unnormalized posterior, $\tilde p(z)=p(\text{games}\mid z)\,p(z)$, and neither needs $Z$. They use it in different ways.
-
-- Metropolis-Hastings uses only values of $\tilde p$, in the ratio $\tilde p(z')/\tilde p(z)$ (@sec-a2-step).
-- HMC uses $\tilde p$ through the energy $E(z)=-\log\tilde p(z)$ (@sec-hmc). The gradient of $E$ steers the leapfrog steps, and $E$ also appears in the accept step through $H(z,v)=E(z)+\tfrac12\|v\|^2$.
-
-HMC samples pairs $(z,v)$ from $p(z,v)\propto\tilde p(z)\,e^{-\|v\|^2/2}$. The momentum factor does not depend on $z$, so summing it out leaves the posterior. Keeping $z$ and throwing $v$ away therefore gives samples from $p(z\mid\text{games})$. In the assignment's code, the accept step scores the log momentum density plus the log posterior, which is $-H$.
-
-**Both accept or reject.** HMC is a Metropolis-Hastings algorithm with a special proposal, so every iteration ends with the same accept-or-reject step. A rejected proposal records the current $z$ again in both samplers. The assignment's `metropolis_hastings` function computes $\exp(\text{log target at new}-\text{log target at old})$ and accepts when a uniform draw falls below it. A ratio above 1 is always accepted, which is the $\min\{1,\cdot\}$. There is no $q$ term because the proposal is symmetric.
-
-**What differs.**
-
-| | Random-walk Metropolis-Hastings | Hamiltonian Monte Carlo |
-|---|---|---|
-| State | $z$ only | $(z,v)$, with $v$ drawn fresh each iteration and discarded |
-| Proposal | a small random nudge, such as $z'=z+\text{noise}$ | draw $v\sim\mathcal N(0,I)$, run $L$ leapfrog steps, flip $v$ |
-| Information used | values of $\tilde p$ | values and gradients of $\log\tilde p$ |
-| Acceptance ratio | $\tilde p(z')/\tilde p(z)$ for a symmetric proposal | $e^{H_{\text{start}}-H_{\text{end}}}$, which also counts the change in kinetic energy |
-| Typical move | short, so the acceptance rate stays reasonable | long, yet usually accepted because leapfrog nearly conserves $H$ |
-| Cost per iteration | one evaluation of $\tilde p$ | $L$ gradient evaluations |
-| Settings to tune | proposal step size | step size $\epsilon$ and number of steps $L$ |
-| Where it applies | discrete or continuous states | continuous states with a differentiable $\log\tilde p$ |
-
-**Why the assignment uses HMC.** With 1163 skills, a random walk must take tiny steps to keep proposals from landing in low-probability regions. Its samples are then strongly correlated, and the effective sample size is small (@sec-ess). HMC follows the gradient of the posterior, so one proposal can travel far and still be accepted. Each sample costs more, but far fewer samples are needed.
-:::
-
-### Questions about the assignment {#sec-a2-questions}
-
-*Is the issue computing $p(z)$, or computing $p(z\mid\text{games})$?* It is $p(z\mid\text{games})$. The prior $p(z)$ is a product of independent Gaussians, so we can evaluate it and even sample it directly (one `torch.randn` draw times 1.5 per player). Within the posterior, the numerator is also not the problem: $p(\text{games}\mid z)\,p(z)$ is cheap at any one $z$ (@sec-a2-setup). The hard part is the denominator $p(\text{games})$, because it needs the numerator at every $z$ at once (@sec-a2-z-full).
-
-*We computed $p(z\mid\text{games})=p(\text{games}\mid z)\,p(z)$ and skipped $p(\text{games})$. How does that relate to $Z$ being out of reach?* One correction first: $p(\text{games}\mid z)\,p(z)$ is the joint $p(z,\text{games})$, not the posterior. It equals $p(z\mid\text{games})\times p(\text{games})$, the posterior multiplied by an unknown constant. That constant is $Z$. "Skipping $p(\text{games})$" and "$Z$ is out of reach" describe the same thing.
-
-Skipping it is harmless whenever the constant cancels:
-
-- In a contour plot, multiplying every value by the same constant does not move the contours, which is why the assignment's two-player plots can use the log joint.
-- In a Metropolis ratio, the constant appears above and below the line and cancels (@sec-a2-compare).
-
-Skipping it stops being harmless once we want a number about the posterior. A posterior mean, or the probability that one player is stronger than another, is an integral against the normalized posterior:
-
-$$\mathbb E[\phi(z)\mid\text{games}]=\frac{1}{Z}\int\phi(z)\,\tilde p(z)\,dz.$$
-
-Both $Z$ and the integral on top are 1163-dimensional integrals of the kind @sec-a2-z-full could not do.
-
-*Why use Metropolis-Hastings, then?* It takes us from what we can do cheaply (evaluate $\tilde p$ at a point) to what we need (posterior averages) without ever computing those integrals. It uses only ratios of $\tilde p$, so $Z$ cancels, and its samples have long-run frequencies that follow the normalized posterior (@sec-mh-proof). An average over the samples replaces the integral above. Without a sampler, skipping $p(\text{games})$ would leave us with a function that scores skill vectors but cannot answer any posterior question.
 
 ## Why Metropolis-Hastings works {#sec-mh-proof}
 
@@ -1326,7 +1119,7 @@ The tutorial runs both samplers from the same corner for 300 iterations. Random-
 - **Trajectory length $L\epsilon$** controls how far the ball rolls. Too short, and HMC behaves like a random walk. It also should not match the period of the oscillation across the ridge: with $L=10$ in the tutorial, the ball returns to almost where it started across the ridge on every iteration, and that direction stops mixing. The tutorial notes that practical implementations randomize $L$ a little for this reason.
 
 ::: {.callout-note}
-**Homework-relevant.** Assignment 2 (Q2.3 and Q2.4) samples TrueSkill posteriors with HMC, first for two players and then for a chess data set. The pieces to understand before starting it are in this section and the previous one: the energy is minus the log of the unnormalized posterior (log-prior plus log-likelihood), its gradient drives the leapfrog steps (the assignment's code writes them with the gradient of the log density, which is $-\nabla E$), and the accept step corrects for leapfrog error. Writing the posterior, choosing what to plot, and interpreting the samples are left to the assignment.
+**Homework-relevant.** Assignment 2 (Q2.3 and Q2.4) samples TrueSkill posteriors with HMC, first for two players and then for a chess data set. The pieces to understand before starting it are in this section and the previous one: the energy is minus the log of the unnormalized posterior (log-prior plus log-likelihood), its gradient drives the leapfrog steps (the assignment's code writes them with the gradient of the log density, which is $-\nabla E$), and the accept step corrects for leapfrog error. Writing the posterior, choosing what to plot, and interpreting the samples are left to the assignment. @sec-a2 maps this section onto the assignment's code.
 :::
 
 ::: {.callout-tip collapse="true" .clarification title="Recap: The leapfrog integrator and the HMC algorithm"}
@@ -1502,6 +1295,417 @@ The lecture's practical rule: once $\hat R$ is near 1 **and** $\hat n_{\text{eff
 
 The lecture is candid about the limits of this rule. Even when the simulations appear to have converged and pass every test, they may still be far from convergence: all chains might, for example, have missed a region of high probability that none of them ever found. When we declare "convergence", we mean only that all chains **appear** stationary and well mixed.
 
+## Assignment 2: sampling the TrueSkill posterior {#sec-a2}
+
+Assignment 2's TrueSkill question (@sec-trueskill in Week 4) is where this chapter's ideas meet a real posterior. In the assignment we wrote the log-prior of the players' skills, the log-likelihood of the observed games, and their sum, and then ran Hamiltonian Monte Carlo (@sec-hmc) on a chess data set. This section answers, one question at a time, how each of the week's ideas shows up in that work. It uses an invented two-player record so that every number can be checked by hand, then scales the same reasoning up to the size of the chess data. The assignment's own computations are left to it. Plain-language definitions of "stationary", "making a Metropolis chain", and "evaluating versus sampling" are in the recap at the end of @sec-mh.
+
+| Week 5 idea | Where it appears in the assignment | Answered in |
+|---|---|---|
+| Unnormalized target $\tilde p$ | `log_joint_probability` | [the target](#sec-a2-setup) |
+| $Z$ is never needed | `metropolis_hastings` | [the comparison](#sec-a2-compare) |
+| Markov chain | the loop in `draw_samples` | [the chain](#sec-a2-chain) |
+| Energy and its gradient | `grad_fun` | [the energy](#sec-a2-energy) |
+| Leapfrog integrator | `leapfrog` and `iterate_leapfrogs` | [the leapfrog step](#sec-a2-leapfrog) |
+| Hamiltonian and accept step | `metropolis_hastings` | [the accept step](#sec-a2-accept) |
+| Step size $\epsilon$ and steps $L$ | `stepsize` and `num_leapfrog_steps` | [the settings](#sec-a2-tuning) |
+| Monte Carlo averages | Q2.4.d to Q2.4.g | [the summaries](#sec-a2-summaries) |
+| Diagnostics | not asked for | [the checks](#sec-a2-diag) |
+
+### What exactly are we trying to sample? {#sec-a2-setup}
+
+Two players, A and B, have skills $z=(z_A,z_B)$. The prior makes them independent with $z_A,z_B\sim\mathcal N(0,1.5^2)$. A player with skill $z_W$ beats a player with skill $z_L$ with probability $\sigma(z_W-z_L)$, where $\sigma(y)=1/(1+e^{-y})$. The invented record: A beat B twice, and B beat A once. Write $d=z_A-z_B$ for the skill gap.
+
+The quantity we want is the posterior over the skills. Bayes' rule writes it as
+
+$$p(z\mid\text{games})=\frac{p(\text{games}\mid z)\,p(z)}{p(\text{games})}.$$
+
+The numerator is the joint, $p(z,\text{games})$. The denominator is a single number, the probability of the observed games averaged over all skill vectors.
+
+In Week 4's notation, the target is $p(z\mid\text{games})$, the unnormalized version is $\tilde p(z)=p(z,\text{games})=p(\text{games}\mid z)\,p(z)$, and the normalizing factor is $Z=p(\text{games})$. So this is the equation $p=\tilde p/Z$, which we use when we have a distribution $p$ and an unnormalized version $\tilde p$ that is easier to calculate. It is also Bayes' theorem under different names: $\tilde p$ is likelihood times prior, and $Z$ is what Bayes' theorem calls the evidence.
+
+**Evaluating $\tilde p$ at one point is easy.** The three game outcomes give $p(\text{games}\mid z)=\sigma(d)^2\,\sigma(-d)$: two factors for A's wins and one for B's.
+
+- At $z=(0,0)$ the gap is $d=0$ and $\sigma(0)=\tfrac12$, so the likelihood is $\tfrac18=0.125$.
+- The prior density there is $\frac{1}{2\pi\cdot2.25}\approx0.0707$.
+- So $\tilde p(0,0)\approx0.0707\times0.125\approx0.00884$.
+
+This number is not the posterior density at $(0,0)$. It is the posterior density multiplied by $Z$.
+
+### Why compute $p(z,\text{games})$ when we want $p(z\mid\text{games})$? {#sec-a2-joint}
+
+The joint is the only one of the two we can compute ([the chess-data question below](#sec-a2-z-full) shows why the posterior is out of reach), and it carries all the information the posterior has about the skills. Once the games are observed, $Z=p(\text{games})$ is one fixed number that does not depend on $z$. Dividing by it rescales every value of the joint by the same factor, so the joint and the posterior have the same shape as functions of $z$:
+
+$$p(z\mid\text{games})=\frac{1}{Z}\,p(z,\text{games})\quad\text{for every } z.$$
+
+The only thing the joint is missing is the overall scale, which is what turns "twice as plausible" into "probability density $0.121$" ([computed below](#sec-a2-z-toy)).
+
+### How does a comparison avoid $Z$? {#sec-a2-compare}
+
+A Metropolis step asks one question: how much more or less plausible is the candidate $z'$ than the current state $z$? Under the true posterior the answer is
+
+$$\frac{p(z'\mid\text{games})}{p(z\mid\text{games})}=\frac{\tilde p(z')/Z}{\tilde p(z)/Z}=\frac{\tilde p(z')}{\tilde p(z)}.$$
+
+The same $Z$ divides the top and the bottom, so it cancels. If the joint is twice as large at one skill vector as at another, so is the posterior. We cannot compute $Z$, but a comparison between two points never needs it. [The worked Metropolis step](#sec-a2-step) carries this out with numbers.
+
+### Does importance sampling use the same trick? {#sec-a2-is}
+
+Week 4's importance weight (@sec-importance in Week 4) is
+
+$$\tilde w(x)=\frac{\tilde p(x)}{\tilde q(x)}.$$
+
+Importance sampling draws its points from a proposal $q$, because we cannot draw from $p$. But $q$ hands out points at the wrong frequencies: it oversamples some regions that $p$ cares little about and undersamples others. The weight is a correction factor attached to each sample. A sample counts $\tilde w$ times as much as an ordinary one, so a point that $p$ wants three times as often as $q$ produced it gets weight 3. In Week 4's teaching example, the target on $\{1,2,3\}$ is $\tilde p=(1,2,3)$, so $p$ wants state 3 half the time, while a uniform $q$ produces it a third of the time. The draws $1,3,3,2$ get weights $1,3,3,2$, and each 3 counts three times as much as the 1.
+
+Both methods cancel an unknown constant inside a ratio, but they compare different things.
+
+| | What is compared | Where the constant cancels |
+|---|---|---|
+| Importance sampling | target and proposal at the **same** point, $\tilde p(x)/\tilde q(x)$ | dividing by $\sum_r\tilde w_r$ removes $Z_p/Z_q$ from the estimate |
+| Metropolis | target at **two** points, $\tilde p(z')/\tilde p(z)$ | $Z$ sits above and below the line |
+
+Importance sampling still relies on one global $q$ that already resembles $p$, which fails in high dimensions (@sec-whymcmc). Metropolis needs only local comparisons.
+
+### How was $Z$ "calculated" for two players? {#sec-a2-z-toy}
+
+$Z$ adds up the numerator over every possible skill vector:
+
+$$Z=p(\text{games})=\iint p(\text{games}\mid z)\,p(z)\,dz_A\,dz_B.$$
+
+A Gaussian times a product of sigmoids has no closed-form integral, so there is no formula to plug into. With two players we can still approximate it numerically, which is the sense in which it was "calculated":
+
+1. Lay a grid with spacing $0.05$ over $[-10,10]^2$. That is $401$ values per axis and $401^2\approx160{,}000$ points. Almost all of the posterior's mass lies inside this square.
+2. Evaluate $\tilde p$ at every grid point.
+3. Multiply each value by the cell area $0.05^2$ and add.
+
+That gives $Z\approx0.0730$. The posterior density at $(0,0)$ is then $0.00884/0.0730\approx0.121$. The assignment's two-player contour plots rest on the same grid evaluation, except that they never divide by $Z$, because the contours have the same shape either way.
+
+### Why can $Z$ not be calculated for the chess data? {#sec-a2-z-full}
+
+The assignment's chess data has 1163 players and 2543 games. The same integral becomes
+
+$$Z=\int\!\cdots\!\int \prod_{i=1}^{1163}p(z_i)\prod_{\text{games }g}\sigma\big(z_{W(g)}-z_{L(g)}\big)\,dz_1\cdots dz_{1163},$$
+
+where $W(g)$ and $L(g)$ are the winner and loser of game $g$. Each way of computing it breaks down.
+
+- **It does not split into one-dimensional integrals.** Each game factor contains two players' skills, and the games link the players into one web, so we cannot integrate out one player at a time.
+- **A grid explodes.** 401 points per axis would need $401^{1163}$ evaluations, a number with more than 3000 digits.
+- **Averaging over the prior fails.** We could write $Z=\mathbb E_{z\sim p(z)}[p(\text{games}\mid z)]$ and average over prior draws. This is the global-proposal problem of @sec-whymcmc: almost no prior draw agrees with all 2543 outcomes at once, so the average is driven by a few rare draws and has enormous variance.
+
+So we can compute $\tilde p(z)$ at any single $z$, but we cannot divide it by $Z$.
+
+::: {.callout-tip collapse="true" .clarification title="Code example: computing Z on a grid for two players, and what the same code would need for 1163"}
+**Two players: the grid in code.** This is the [two-player grid computation](#sec-a2-z-toy) for the invented record (A beat B twice, B beat A once), written in PyTorch like the assignment.
+
+```python
+import math, torch
+import torch.nn.functional as F
+
+sigma_z = 1.5
+
+def log_p_tilde(zA, zB):
+    # log prior: two independent N(0, 1.5^2) densities
+    log_prior = (-0.5 * (zA**2 + zB**2) / sigma_z**2
+                 - math.log(2 * math.pi * sigma_z**2))
+    # log likelihood: A won twice, B won once
+    d = zA - zB
+    log_lik = 2 * F.logsigmoid(d) + F.logsigmoid(-d)
+    return log_prior + log_lik
+
+h = 0.05                                                    # grid spacing
+axis = torch.arange(-10, 10 + h / 2, h, dtype=torch.float64)  # 401 values
+zA, zB = torch.meshgrid(axis, axis, indexing="ij")          # 401 x 401 grid
+
+# Z ≈ sum over grid points of p_tilde(z) * h^2, computed in log space
+logZ = torch.logsumexp(log_p_tilde(zA, zB).flatten(), 0) + 2 * math.log(h)
+Z = logZ.exp()                                              # about 0.0730
+```
+
+Reading it line by line:
+
+- `log_p_tilde` is $\log\tilde p(z)=\log p(z)+\log p(\text{games}\mid z)$. Working in logs avoids multiplying many small numbers.
+- `meshgrid` builds every pair $(z_A,z_B)$ on the grid, $401^2=160{,}801$ points, and `log_p_tilde` scores all of them at once.
+- `torch.logsumexp(v, 0)` computes $\log\sum_k e^{v_k}$ without overflow or underflow. Adding $2\log h$ multiplies every term by the cell area $h^2$. Exponentiating gives $Z\approx\sum_{\text{grid}}\tilde p(z)\,h^2\approx0.0730$.
+
+The whole grid takes a fraction of a second.
+
+**1163 players: the same code, in theory.** Nothing about the formula changes. Only the number of axes does. Written naively, the grid becomes a loop over every combination of 401 values for each of 1163 players:
+
+```python
+import itertools
+
+# Not runnable: this loop has 401**1163 iterations.
+Z = 0.0
+for z in itertools.product(axis.tolist(), repeat=1163):     # one skill per player
+    z = torch.tensor(z, dtype=torch.float64)
+    Z += math.exp(log_p_tilde_all(z)) * h**1163            # cell volume h^1163
+```
+
+Here `log_p_tilde_all(z)` stands for the full log joint: 1163 log-prior terms plus the sum over the 2543 games of $\log\sigma(z_W-z_L)$, which is what the assignment builds. Three things go wrong.
+
+- **The loop count.** $401^{1163}$ has 3028 digits. At a billion iterations per second, the loop would still need more than $10^{3000}$ seconds. The age of the universe is about $4\times10^{17}$ seconds.
+- **The cell volume underflows.** $0.05^{1163}\approx10^{-1513}$, which is $0.0$ in floating point. Working in logs, as in the two-player code, fixes this part but not the loop count.
+- **The integral does not factor.** If each player's skill could be integrated separately, the loop would become 1163 one-dimensional sums of 401 terms each. The game terms tie pairs of players together, so this is not possible.
+
+**1163 players: averaging over the prior instead.** A runnable alternative uses $Z=\mathbb E_{z\sim p(z)}[p(\text{games}\mid z)]$: draw skill vectors from the prior, which `torch.randn` can do, and average their likelihoods.
+
+```python
+R = 100_000
+zs = sigma_z * torch.randn(R, 1163, dtype=torch.float64)    # R draws from the prior
+log_w = log_likelihood(zs, games)                           # shape (R,): log p(games | z) per draw
+logZ_hat = torch.logsumexp(log_w, 0) - math.log(R)          # log of the average likelihood
+```
+
+This runs, but the answer cannot be trusted. Each draw's log-likelihood is a sum over 2543 games, so different prior draws disagree by hundreds of units of $\log$, and the average is decided by whichever draw happened to fit best. In a simulated data set of the same size (1163 random players and 2543 random games, not the assignment's data), 10,000 prior draws had log-likelihoods spread from about $-3140$ to $-2510$, and a single draw carried about $72\%$ of the total weight. Rerun with new draws, the estimate jumps. This is the global-proposal problem of @sec-whymcmc with the prior as the proposal. For two players, the same code agrees with the grid to within about $1\%$, because three games barely constrain the skills.
+:::
+
+### Is the hard part $p(z)$ or $p(z\mid\text{games})$? {#sec-a2-hard}
+
+It is $p(z\mid\text{games})$. The prior $p(z)$ is a product of independent Gaussians, so we can evaluate it and even sample it directly (one `torch.randn` draw times 1.5 per player). Within the posterior, the numerator is also not the problem: $p(\text{games}\mid z)\,p(z)$ is cheap at any one $z$ ([as computed above](#sec-a2-setup)). The hard part is the denominator $p(\text{games})$, because it needs the numerator at every $z$ at once ([as shown above](#sec-a2-z-full)).
+
+### We skipped $p(\text{games})$. Is that the same as $Z$ being out of reach? {#sec-a2-skip}
+
+We computed $p(\text{games}\mid z)\,p(z)$ and skipped $p(\text{games})$. One correction first: $p(\text{games}\mid z)\,p(z)$ is the joint $p(z,\text{games})$, not the posterior. It equals $p(z\mid\text{games})\times p(\text{games})$, the posterior multiplied by an unknown constant. That constant is $Z$. "Skipping $p(\text{games})$" and "$Z$ is out of reach" describe the same thing.
+
+Skipping it is harmless whenever the constant cancels:
+
+- In a contour plot, multiplying every value by the same constant does not move the contours, which is why the assignment's two-player plots can use the log joint.
+- In a Metropolis ratio, the constant appears above and below the line and cancels ([as shown above](#sec-a2-compare)).
+
+Skipping it stops being harmless once we want a number about the posterior. A posterior mean, or the probability that one player is stronger than another, is an integral against the normalized posterior:
+
+$$\mathbb E[\phi(z)\mid\text{games}]=\frac{1}{Z}\int\phi(z)\,\tilde p(z)\,dz.$$
+
+Both $Z$ and the integral on top are 1163-dimensional integrals of the kind [the chess-data question](#sec-a2-z-full) showed we cannot do.
+
+### Why use Metropolis-Hastings, and how does one step avoid $Z$? {#sec-a2-step}
+
+Metropolis-Hastings takes us from what we can do cheaply (evaluate $\tilde p$ at a point) to what we need (posterior averages) without ever computing those integrals. It uses only ratios of $\tilde p$, so $Z$ cancels, and its samples have long-run frequencies that follow the normalized posterior (@sec-mh-proof). An average over the samples replaces the integral above. Without a sampler, skipping $p(\text{games})$ would leave us with a function that scores skill vectors but cannot answer any posterior question.
+
+Back to the two-player record. The proposal is a Gaussian random walk on both skills. It is symmetric, so the Metropolis rule applies.
+
+1. **Current state.** $z^{(t)}=(0,0)$.
+2. **Propose.** Suppose the random walk draws $z'=(1,-1)$, so the gap becomes $d'=2$.
+3. **Target ratio.** Split it into the prior factor and the likelihood factor.
+    - Prior: $\exp\!\big(-(1^2+1^2)/(2\cdot2.25)\big)=e^{-0.444}\approx0.641$. The prior's constant $\frac{1}{2\pi\cdot2.25}$ cancels.
+    - Likelihood: $\sigma(2)^2\sigma(-2)/0.125=(0.881)^2(0.119)/0.125\approx0.0925/0.125\approx0.740$.
+    $$\frac{\tilde p(z')}{\tilde p(z^{(t)})}\approx0.641\times0.740\approx0.474.$$
+4. **Accept or reject.** $\alpha=\min\{1,\ 0.474\}\approx0.47$. Draw $u\sim\mathrm{Uniform}(0,1)$. If $u\le0.47$, move to $(1,-1)$. Otherwise record $(0,0)$ again.
+
+The candidate puts the players further apart than a two-to-one record supports, and the prior also penalizes skills far from 0, so the move is accepted less than half the time. $Z$ never appeared. Dividing both values by the grid's $Z$ gives $(0.00419/0.0730)/(0.00884/0.0730)$, the same $0.474$.
+
+**The same step at full size.** With 1163 players, the state is a skill vector of length 1163, and the proposal nudges all of it. The ratio needs $\tilde p$ at two vectors, which costs 1163 prior terms and 2543 game terms each. That cost grows with the number of players and games, not exponentially like the grid. After many steps, the visited vectors are samples from $p(z\mid\text{games})$. Any summary, such as a player's mean skill or the probability that one player is stronger than another, is then an average over those samples. The assignment uses Hamiltonian Monte Carlo, a Metropolis-Hastings chain with a gradient-guided proposal, but the reason for using a chain is the same.
+
+### Where is the Markov chain? {#sec-a2-chain}
+
+The loop in `draw_samples` is a Markov chain on skill vectors. The state is $z$, all the players' skills at once. That state space is continuous rather than the finite set of @sec-markov, so a transition density takes the place of the transition matrix, and the sums of @sec-mh-proof become integrals. Each idea from the first half of the chapter has a counterpart.
+
+- **Markov property.** Each iteration draws a fresh momentum and throws it away at the end, so the next $z$ depends on the current $z$ and on no earlier state.
+- **A stationary chain, in the fixed-transition-rule sense of @sec-markov.** The target, `stepsize`, and `num_leapfrog_steps` never change during a run, so the same rule applies at every step.
+- **A stationary distribution, in the distribution-over-states sense of @sec-stationary.** HMC is a Metropolis-Hastings algorithm with a symmetric proposal (@sec-leapfrog), so the detailed balance proof of @sec-mh-proof makes $p(z\mid\text{games})$ a stationary distribution of the chain.
+
+This runs in the opposite direction from the first half of the chapter. There we were handed a transition matrix and looked for its stationary distribution. Here the target is given and `draw_samples` is the chain designed to have it. We never write the transition rule down as a table, and we do not need to: the proof only needs the accept rule.
+
+As @sec-detailed warned, detailed balance gives stationarity, not convergence. It says that a chain already distributed as the posterior stays that way. It does not say how long the chain takes to get there from its start, which is [the question of convergence](#sec-a2-diag) at the end of this section.
+
+### Where does Gibbs sampling fit? {#sec-a2-gibbs}
+
+Gibbs sampling (@sec-gibbs) would resample one player's skill at a time from its full conditional. For player $i$, that conditional is proportional to the prior for $z_i$ times one sigmoid for each of that player's games. This is the same Gaussian-times-sigmoids shape that gave $Z$ [no closed form](#sec-a2-z-toy), so it is not a standard distribution with a library recipe to draw from, and the always-accepted Gibbs update is not available directly. The assignment's introduction mentions that another course's version of this question uses Gibbs sampling; this chapter does not cover how.
+
+One part of HMC does have a Gibbs flavour. Because $z$ and $v$ are independent under the joint distribution of @sec-hmc, drawing a fresh $v\sim\mathcal N(0,I)$ is an exact draw from the conditional of $v$ given $z$, and it is always accepted. Only the leapfrog move needs the accept step.
+
+### Why does a random walk struggle with 1163 players? {#sec-a2-rw}
+
+[The worked Metropolis step](#sec-a2-step) used a Gaussian random walk. Write $s$ for that walk's standard deviation in each coordinate. (The tutorial calls this $\sigma$ in @sec-mh-baseball. In this section $\sigma$ is the logistic function.)
+
+Every proposal nudges all 1163 skills at once, each in a random direction. For a rough count, pretend the posterior is a standard Gaussian in $d$ dimensions, so $\log\tilde p(z)=-\tfrac12\|z\|^2$. Write the proposal as $z+s\varepsilon$ with $\varepsilon\sim\mathcal N(0,I)$. The cross term $z^\top\varepsilon$ averages to zero, which leaves the average fall in log density:
+
+$$\mathbb E\big[\log\tilde p(z)-\log\tilde p(z+s\varepsilon)\big]=\tfrac12\,s^2\,\mathbb E\|\varepsilon\|^2=\tfrac12\,d\,s^2.$$
+
+Each coordinate pays only a little, but there are $d$ of them and the costs add up. With $d=1163$ and $s=0.2$ the fall is about $23$, so a typical acceptance probability is $e^{-23}\approx10^{-10}$. To bring the fall down to a workable size, $s$ has to shrink roughly like $1/\sqrt d$. At $s=0.07$ the fall is about $2.8$.
+
+A simulated data set of the same size (1163 random players and 2543 random games, not the assignment's data) shows the same pattern over 10,000 proposals. Its posterior spread per player is about 1, so the rough count applies.
+
+| Random walk step $s$ | Proposals accepted |
+|---|---|
+| $0.2$ | about $0\%$ |
+| $0.07$ | about $20\%$ |
+| $0.01$ | about $83\%$ |
+
+This is the step-size trade-off of @sec-mh-baseball in a harsher form: $s=0.01$ has a comfortable acceptance rate and moves almost nowhere. HMC keeps its moves larger by letting the gradient steer them.
+
+### How does HMC use the posterior? {#sec-a2-energy}
+
+HMC needs the same $\tilde p$ as Metropolis-Hastings, but through its negative logarithm. Following @sec-hmc, the position is the skill vector $z$, and the potential energy is
+
+$$E(z)=-\log\tilde p(z)=-\log p(z)-\sum_{\text{games }g}\log\sigma\big(z_{W(g)}-z_{L(g)}\big).$$
+
+So the energy is exactly the function we built in the assignment, with its sign flipped. Low energy means skills that fit the prior and the games well. The momentum $v$ has one entry per player.
+
+The gradient is what steers the proposal. The logistic function has a convenient derivative: since $\log\sigma(y)=-\log(1+e^{-y})$,
+
+$$\frac{d}{dy}\log\sigma(y)=\frac{e^{-y}}{1+e^{-y}}=\frac{1}{1+e^{y}}=\sigma(-y).$$
+
+Applying this to every game that includes player $i$, with prior scale $\sigma_z=1.5$, gives
+
+$$\frac{\partial\log\tilde p}{\partial z_i}=-\frac{z_i}{\sigma_z^2}+\sum_{g:\,W(g)=i}\sigma\big(z_{L(g)}-z_i\big)-\sum_{g:\,L(g)=i}\sigma\big(z_i-z_{W(g)}\big).$$
+
+Each term has a meaning. The prior term pulls the skill back toward 0. Each win pushes the skill up, and $\sigma(z_L-z_W)$ is the probability the model gave to that game going the other way, so a surprising win pushes harder than an expected one. Each loss pushes it down by the same rule.
+
+On the invented record at $z=(0,0)$, every sigmoid is $\tfrac12$ and the prior term is 0. Player A's two wins and one loss give $\tfrac12+\tfrac12-\tfrac12=0.5$, and player B's gradient is $-0.5$. So the gradient points toward "A stronger, B weaker", which is what a two-to-one record suggests.
+
+We do not write this sum by hand in the assignment. `grad_fun` marks `zs` as a variable to differentiate, evaluates `log_posterior`, and calls `y.backward()`, which is the automatic differentiation that @sec-leapfrog mentions.
+
+$Z$ does not come back through the gradient. Since $\log p(z\mid\text{games})=\log\tilde p(z)-\log Z$ and $\log Z$ is a constant in $z$, the two gradients are equal.
+
+### What does leapfrog do to the skills? {#sec-a2-leapfrog}
+
+The assignment's starter code is the leapfrog step of @sec-leapfrog, with `params` for $z$, `momentum` for $v$, and `stepsize` for $\epsilon$:
+
+```python
+def leapfrog(params_t0, momentum_t0, stepsize, logprob_grad_fun):
+  momentum_thalf = momentum_t0    + 0.5 * stepsize * logprob_grad_fun(params_t0)
+  params_t1 =      params_t0      +       stepsize * momentum_thalf
+  momentum_t1 =    momentum_thalf + 0.5 * stepsize * logprob_grad_fun(params_t1)
+  return params_t1, momentum_t1
+```
+
+| Line | Formula | What it does |
+|---|---|---|
+| `momentum_thalf` | $v\leftarrow v+\tfrac\epsilon2\nabla\log\tilde p(z)$ | half-kick: the gradient changes the momentum |
+| `params_t1` | $z\leftarrow z+\epsilon\,v$ | drift: the momentum moves the skills |
+| `momentum_t1` | $v\leftarrow v+\tfrac\epsilon2\nabla\log\tilde p(z)$ | half-kick, using the gradient at the new skills |
+
+The plus signs are correct: the code uses the gradient of the log density, which is $-\nabla E$ (@sec-leapfrog). `iterate_leapfrogs` runs this step `num_leapfrog_steps` times.
+
+::: {.callout-note}
+**Worked example: one leapfrog step on the invented record.** Start at $z=(0,0)$ with momentum $v=(1,-0.5)$, an invented draw. Use $\epsilon=0.5$ and $L=1$, far larger than the notebook's step size, so that the change is visible.
+
+1. **Half-kick.** The gradient at $(0,0)$ is $(0.5,-0.5)$. So $v=(1,-0.5)+0.25\,(0.5,-0.5)=(1.125,-0.625)$.
+2. **Drift.** $z=(0,0)+0.5\,(1.125,-0.625)=(0.5625,-0.3125)$. The gap is now $d=0.875$.
+3. **Gradient at the new point.** $\sigma(0.875)\approx0.706$ and $\sigma(-0.875)\approx0.294$, so the three games contribute $2(0.294)-0.706\approx-0.117$ to A and $+0.117$ to B. The prior contributes $-0.5625/2.25=-0.25$ to A and $0.3125/2.25\approx0.139$ to B. The gradient is about $(-0.367,\ 0.256)$.
+4. **Half-kick.** $v\approx(1.125,-0.625)+0.25\,(-0.367,\ 0.256)\approx(1.033,-0.561)$.
+
+The players have moved apart, roughly in the direction of the momentum, and the gradient has started to pull them back because the gap now exceeds what a two-to-one record supports.
+:::
+
+### How does the accept step work in the assignment's code? {#sec-a2-accept}
+
+The end of the trajectory is a proposal, and the notebook scores it with two functions:
+
+```python
+def log_joint_density_over_params_and_momentum(state):
+  params, momentum = state
+  m = Normal(0., 1.)
+  return m.log_prob(momentum).sum(axis=-1) + log_posterior(params)
+
+def metropolis_hastings(state1, state2, log_posterior):
+  accept_prob = torch.exp(log_posterior(state2) - log_posterior(state1))
+  if random.random() < accept_prob:
+    return state2  # Accept
+  else:
+    return state1  # Reject
+```
+
+The first function computes $-H(z,v)$ plus a constant. `m.log_prob(momentum).sum(axis=-1)` is $-\tfrac12\|v\|^2$ plus a constant, which is $-K(v)$. `log_posterior(params)` is $\log\tilde p(z)$, which is $-E(z)$. Despite its name, the notebook's `log_posterior` is the log joint, with no division by $Z$.
+
+The second function subtracts two such values, so the constants cancel exactly as $Z$ does, and `accept_prob` is $e^{H_{\text{start}}-H_{\text{end}}}$, the rule of @sec-leapfrog. Its own `log_posterior` argument is the log density of the pair $(z,v)$ here, not the function of the same name above.
+
+::: {.callout-note}
+**Worked example: accepting the leapfrog step.** Continue from the leapfrog step above, keeping the constant in $E$ so that $e^{-E(0,0)}$ is the $\tilde p(0,0)\approx0.00884$ [from the setup](#sec-a2-setup).
+
+| | $E(z)$ | $K(v)$ | $H(z,v)$ |
+|---|---|---|---|
+| Start, $z=(0,0)$ | $4.728$ | $0.625$ | $5.353$ |
+| End, $z=(0.5625,-0.3125)$ | $4.661$ | $0.691$ | $5.352$ |
+
+Potential and kinetic energy both changed, but their sum barely moved. $H$ fell by about $0.001$, so the acceptance probability is $\min\{1,\ e^{0.001}\}=1$. The move is accepted even though it is a large one for a record of three games. For comparison, the blind proposal of [the worked Metropolis step](#sec-a2-step) had an acceptance probability of $0.47$.
+:::
+
+Three details of the code connect back to the chapter.
+
+- **Rejections are recorded.** `sampleslist.append(theta)` sits at the top of the loop, so after a rejection the unchanged `theta` is appended again. This is the rule of @sec-mh that a rejection is still a sample.
+- **There is no $q$ term.** The proposal is symmetric, so the correction factor of the MH ratio is 1.
+- **There is no momentum flip.** The algorithm in @sec-leapfrog proposes $(z',-v')$, and the code uses $(z',v')$. The flip is what makes the proposal reversible in the proof. It changes no computed number, because $K(-v)=K(v)$ and the momentum is thrown away immediately after the accept step.
+
+::: {.callout-tip collapse="true" .clarification title="Question: How do Metropolis-Hastings and Hamiltonian Monte Carlo compare? Do they use the same $\tilde p$, and do both accept or reject proposals?"}
+**The same $\tilde p$.** Both samplers target the same unnormalized posterior, $\tilde p(z)=p(\text{games}\mid z)\,p(z)$, and neither needs $Z$. They use it in different ways.
+
+- Metropolis-Hastings uses only values of $\tilde p$, in the ratio $\tilde p(z')/\tilde p(z)$ ([the worked step](#sec-a2-step)).
+- HMC uses $\tilde p$ through the energy $E(z)=-\log\tilde p(z)$ (@sec-hmc). The gradient of $E$ steers the leapfrog steps, and $E$ also appears in the accept step through $H(z,v)=E(z)+\tfrac12\|v\|^2$.
+
+HMC samples pairs $(z,v)$ from $p(z,v)\propto\tilde p(z)\,e^{-\|v\|^2/2}$. The momentum factor does not depend on $z$, so summing it out leaves the posterior. Keeping $z$ and throwing $v$ away therefore gives samples from $p(z\mid\text{games})$. In the assignment's code, the accept step scores the log momentum density plus the log posterior, which is $-H$.
+
+**Both accept or reject.** HMC is a Metropolis-Hastings algorithm with a special proposal, so every iteration ends with the same accept-or-reject step. A rejected proposal records the current $z$ again in both samplers. The assignment's `metropolis_hastings` function computes $\exp(\text{log target at new}-\text{log target at old})$ and accepts when a uniform draw falls below it. A ratio above 1 is always accepted, which is the $\min\{1,\cdot\}$. There is no $q$ term because the proposal is symmetric.
+
+**What differs.**
+
+| | Random-walk Metropolis-Hastings | Hamiltonian Monte Carlo |
+|---|---|---|
+| State | $z$ only | $(z,v)$, with $v$ drawn fresh each iteration and discarded |
+| Proposal | a small random nudge, such as $z'=z+\text{noise}$ | draw $v\sim\mathcal N(0,I)$, run $L$ leapfrog steps, flip $v$ |
+| Information used | values of $\tilde p$ | values and gradients of $\log\tilde p$ |
+| Acceptance ratio | $\tilde p(z')/\tilde p(z)$ for a symmetric proposal | $e^{H_{\text{start}}-H_{\text{end}}}$, which also counts the change in kinetic energy |
+| Typical move | short, so the acceptance rate stays reasonable | longer for the same acceptance rate, because leapfrog nearly conserves $H$ |
+| Cost per iteration | one evaluation of $\tilde p$ | $L$ gradient evaluations |
+| Settings to tune | proposal step size | step size $\epsilon$ and number of steps $L$ |
+| Where it applies | discrete or continuous states | continuous states with a differentiable $\log\tilde p$ |
+
+**Why the assignment uses HMC.** With 1163 skills, a random walk must take tiny steps to keep proposals from landing in low-probability regions ([as counted above](#sec-a2-rw)). Its samples are then strongly correlated, and the effective sample size is small (@sec-ess). HMC uses the gradient of the posterior, so it can make moves that a random walk would almost never have accepted. Each sample costs more, and [the next question](#sec-a2-tuning) measures when that pays off.
+:::
+
+
+### What do the step size and the number of leapfrog steps control? {#sec-a2-tuning}
+
+The notebook fixes `stepsize = 0.01` ($\epsilon$) and `num_leapfrog_steps = 20` ($L$) for both the two-player and the chess runs, with 2500 samples for two players and 10,000 for chess. Those settings set the trajectory length $L\epsilon=0.2$. A momentum entry drawn from $\mathcal N(0,1)$ is about 1 in size, so each skill moves about $0.2$ per iteration.
+
+Compare this with the two knobs of @sec-leapfrog.
+
+- **Step size.** $\epsilon=0.01$ is small, so the energy error is tiny and nearly every proposal is accepted.
+- **Trajectory length.** On the simulated data, $0.2$ is about a fifth of a player's posterior spread. @sec-leapfrog warned that a trajectory that is too short behaves like a random walk, and that is what happens here: each iteration moves a short way in a freshly drawn direction. What the gradient buys at these settings is not long-distance travel. It is that a move of size $0.2$ per coordinate is accepted almost always, where [the random walk](#sec-a2-rw) accepted almost none.
+
+**Cost.** @sec-leapfrog counts $L$ gradient evaluations per iteration, because neighbouring half-kicks can share a gradient. The notebook's `leapfrog` does not share them: it calls the gradient at both ends of every step, so one iteration makes $2L=40$ gradient calls, and the second call of each step repeats the first call of the next. The chess run therefore makes $400{,}000$ calls, each a pass over the 2543 games and 1163 prior terms.
+
+**Does the extra cost pay off?** The table compares runs on the simulated data set with the same work, counted as $200{,}000$ evaluations of $\log\tilde p$ or of a distinct gradient. Each run starts at zero and drops its first $20\%$ as burn-in. The last column is the effective sample size (@sec-ess), the median over players.
+
+| Sampler | Settings | Accepted | Effective samples |
+|---|---|---|---|
+| Random walk | $s=0.07$, $200{,}000$ steps | about $21\%$ | about $40$ |
+| HMC | $\epsilon=0.01$, $L=20$, $10{,}000$ iterations | about $100\%$ | about $70$ |
+| HMC | $\epsilon=0.05$, $L=20$, $10{,}000$ iterations | about $99\%$ | about $1900$ |
+| HMC | $\epsilon=0.1$, $L=20$, $10{,}000$ iterations | about $97\%$ | about $8000$ |
+
+The last row is effectively independent: it has about as many effective samples as the $8000$ draws it kept. Reading down the table, longer trajectories barely lower the acceptance rate and raise the effective sample size a great deal, so the settings in the second row are cautious. This is the sense in which a high acceptance rate alone is not the goal (@sec-mh-baseball).
+
+This table describes the simulated data only. The real games may behave differently, and the notebook fixes the settings, so it says nothing about what the assignment's run achieved.
+
+### How do the samples answer questions about players? {#sec-a2-summaries}
+
+Everything after `draw_samples` is the Monte Carlo average of @sec-whymcmc. The output is a table with one row per iteration and one column per player, and each question is an average over rows. Write $z^{(t)}$ for row $t$ of $T$.
+
+- **A player's posterior mean** is that column's average, $\mathbb E[z_i\mid\text{games}]\approx\frac1T\sum_t z_i^{(t)}$. Its posterior standard deviation is that column's standard deviation.
+- **The joint posterior of two players** is a scatter plot of their two columns. Ignoring the other columns is all it takes to marginalize them out, with no integral.
+- **The probability of an event** is the average of an indicator (@sec-goals in Week 4), that is, the fraction of rows where the event holds.
+
+This is where [the posterior-mean integral](#sec-a2-skip) disappears: dividing by the number of rows $T$ takes the place of dividing by $Z$.
+
+For the invented record, [the grid](#sec-a2-z-toy) gives $p(z_A>z_B\mid\text{games})\approx0.71$. Run with the notebook's settings for 40,000 samples, HMC on the same record gave $0.71$ as well, and a mean of about $0.34$ for $z_A$ against the grid's $0.31$. The second gap is Monte Carlo error from correlated samples, which [the next question](#sec-a2-diag) puts a size on. The assignment's own estimates are left to it.
+
+### Did the assignment check that the chain had converged? {#sec-a2-diag}
+
+No. The assignment runs one chain and asks for none of the checks of @sec-diagnostics. `draw_samples` starts every run at `theta = torch.zeros(num_params)`, records from the first iteration, and has no burn-in step, so an average over all rows includes the start.
+
+Starting at zero is a mild choice, because zero is the prior mean. On the simulated data, a chain from zero reached the typical range of $\log\tilde p$ within about 100 iterations, while a chain started at a random vector with spread 3 took several hundred.
+
+Applying the week's advice would take four changes.
+
+1. **Run several chains from spread-out starts.** `draw_samples` would need a starting point as an argument, since every run now begins at zero.
+2. **Discard a burn-in.** Drop the first rows of each chain (@sec-whymcmc).
+3. **Compute $\hat R$ for each player.** In @sec-rhat, $x_{ij}$ becomes one player's skill at draw $i$ of chain $j$. That gives 1163 statistics, and the largest ones are the ones to read.
+4. **Estimate the effective sample size for each player** (@sec-ess), then apply the rule of thumb of @sec-rule.
+
+On the simulated data, four chains with the notebook's settings (one from zero, three from spread-out starts), 10,000 iterations each, and the first 2000 dropped gave a median $\hat R$ of about $1.01$ and a largest value of about $1.05$. One chain's effective sample size was about $70$ for the median player and about $16$ for the smallest. That passes the rule of thumb of $\hat R$ near 1 and more than 10 effective samples per chain.
+
+Passing the rule does not make an individual number precise. With $70$ effective samples, the Monte Carlo error of a posterior mean is about $1/\sqrt{70}\approx0.12$ of that player's posterior spread (@sec-ess). For a probability near $\tfrac12$ it is about $\sqrt{0.25/70}\approx0.06$. So a close comparison between two players can move noticeably from one run to the next, and the limit stated in @sec-rule still applies: all the chains could have missed the same region.
+
 ## Summary {#sec-summary5}
 
 ::: {.callout-note}
@@ -1564,3 +1768,5 @@ This section retells each part of the week in plain language and without formula
 **Effective sample size (@sec-ess).** Neighbouring samples from a chain are similar, so 1000 correlated samples carry less information than 1000 independent ones. The effective sample size estimates how many independent samples they are worth.
 
 **Diagnostics rule of thumb (@sec-rule).** Use the samples once $\hat R$ is near 1 and the effective sample size is more than 10 per chain. Passing these checks shows only that the chains look mixed. All of them could still have missed a region that none of them ever visited.
+
+**Assignment 2 (@sec-a2).** The TrueSkill posterior puts the week to work. We can score any guess at the players' skills, but we cannot divide by the total over all guesses, so we sample instead. Metropolis-Hastings explains why comparing two guesses never needs that total. HMC treats the guess as the position of a rolling ball, the notebook's leapfrog code simulates the rolling, and an accept-or-reject check corrects its errors. Averages over the recorded samples then answer questions about players. The assignment runs no diagnostics, so the last part of the section shows what the week's checks would add.

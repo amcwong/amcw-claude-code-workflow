@@ -322,6 +322,16 @@ window.Quarto = {
   <li><a href="#prb-9-5" id="toc-prb-9-5" class="nav-link" data-scroll-target="#prb-9-5">Problem 9.5: True or false on loopy BP</a></li>
   <li><a href="#prb-9-6" id="toc-prb-9-6" class="nav-link" data-scroll-target="#prb-9-6">Problem 9.6: What each graph type cannot say</a></li>
   <li><a href="#prb-9-7" id="toc-prb-9-7" class="nav-link" data-scroll-target="#prb-9-7">Problem 9.7: What detailed balance does and does not give</a></li>
+  <li><a href="#prb-9-8" id="toc-prb-9-8" class="nav-link" data-scroll-target="#prb-9-8">Problem 9.8: Metropolis versus Metropolis-Hastings</a></li>
+  <li><a href="#prb-9-9" id="toc-prb-9-9" class="nav-link" data-scroll-target="#prb-9-9">Problem 9.9: Gibbs sampling versus random-walk Metropolis</a></li>
+  <li><a href="#prb-9-10" id="toc-prb-9-10" class="nav-link" data-scroll-target="#prb-9-10">Problem 9.10: Three samplers on a narrow ridge</a></li>
+  <li><a href="#prb-9-11" id="toc-prb-9-11" class="nav-link" data-scroll-target="#prb-9-11">Problem 9.11: <span class="math inline">\hat R</span> versus effective sample size</a></li>
+  <li><a href="#prb-9-12" id="toc-prb-9-12" class="nav-link" data-scroll-target="#prb-9-12">Problem 9.12: Filtering versus smoothing</a></li>
+  <li><a href="#prb-9-13" id="toc-prb-9-13" class="nav-link" data-scroll-target="#prb-9-13">Problem 9.13: Forward-backward versus Viterbi</a></li>
+  <li><a href="#prb-9-14" id="toc-prb-9-14" class="nav-link" data-scroll-target="#prb-9-14">Problem 9.14: MCMC versus variational inference</a></li>
+  <li><a href="#prb-9-15" id="toc-prb-9-15" class="nav-link" data-scroll-target="#prb-9-15">Problem 9.15: I-projection versus M-projection</a></li>
+  <li><a href="#prb-9-16" id="toc-prb-9-16" class="nav-link" data-scroll-target="#prb-9-16">Problem 9.16: Gibbs sampling versus mean field</a></li>
+  <li><a href="#prb-9-17" id="toc-prb-9-17" class="nav-link" data-scroll-target="#prb-9-17">Problem 9.17: Belief propagation versus mean field</a></li>
   </ul></li>
   </ul>
 </nav>
@@ -509,7 +519,62 @@ window.Quarto = {
 <li><p><strong>Messages can be rescaled</strong> at any point without changing a normalized belief.</p></li>
 <li><p><strong>Loopy BP</strong> iterates the same update on a graph with cycles; the beliefs are approximate and often overconfident.</p></li>
 <li><p><strong>MAP and max-product:</strong> the MAP estimate is <span class="math inline">\arg\max_{x_F}p(x_F\mid x_E)</span>. Max-product BP replaces each <span class="math inline">\sum_{x_j}</span> in the message with <span class="math inline">\max_{x_j}</span>, then decodes <span class="math inline">\hat x_i=\arg\max_{x_i}b(x_i)</span>.</p></li>
+<li><p><strong>Marginal <span class="math inline">p(x_a)</span>, no evidence:</strong> the belief at <span class="math inline">a</span> is the marginal. Multiply <span class="math inline">a</span>’s own potential by every incoming message, then normalize over <span class="math inline">x_a</span>: <span class="math display">p(x_a)=b(x_a)=\frac{\tilde b(x_a)}{\sum_{x_a'}\tilde b(x_a')},\qquad \tilde b(x_a)=\psi_a(x_a)\prod_{j\in N(a)}m_{j\to a}(x_a)</span></p></li>
+<li><p><strong>Conditional <span class="math inline">p(x_a\mid\bar x_b)</span>, with evidence:</strong> clamp the observed node <span class="math inline">b</span> to <span class="math inline">\bar x_b</span> everywhere it appears: in <span class="math inline">\psi_b</span>, in the edge potentials that touch <span class="math inline">b</span>, and in every message that passes through <span class="math inline">b</span>. Then run the same belief formula and normalize over <span class="math inline">x_a</span> only. The normalizer is over <span class="math inline">x_a</span> alone because <span class="math inline">\bar x_b</span> is fixed. Every conditional is a belief computed with the evidence clamped.</p></li>
+<li><p><strong>Worked example:</strong> the exam’s <span class="math inline">p(x_5\mid\bar x_6)</span> is this recipe, with the query at node 5 and the evidence at node 6. It is parked below.</p></li>
 </ul>
+<div class="clarification callout callout-style-default callout-tip callout-titled" title="Question: How do I write p(x5 | x6) for any x6, and what does the bar mean?">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-1-contents" aria-controls="callout-1" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Question: How do I write p(x5 | x6) for any x6, and what does the bar mean?
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-1" class="callout-1-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>The bar on <span class="math inline">\bar x_6</span> means <span class="math inline">x_6</span> is observed. <span class="math inline">p(x_5\mid\bar x_6)</span> is the belief for <span class="math inline">x_5</span> with <span class="math inline">x_6</span> clamped to its observed value. Leaving <span class="math inline">x_6</span> free instead keeps it as a conditioning argument, so the message from node 6 becomes a function of <span class="math inline">x_6</span>:</p>
+<p><span class="math display">m_{6\to4}(x_4\mid x_6)=\psi_6(x_6)\,\psi_{4,6}(x_4,x_6)</span></p>
+<p>Substituting it into the solution’s steps gives one unnormalised belief per value of <span class="math inline">x_6</span>:</p>
+<p><span class="math display">\tilde p(x_5\mid x_6)=\psi_5(x_5)\sum_{x_4}m_{3\to4}(x_4)\,\psi_4(x_4)\,\psi_{4,5}(x_4,x_5)\,\psi_6(x_6)\,\psi_{4,6}(x_4,x_6)</span></p>
+<p><span class="math display">p(x_5\mid x_6)=\frac{\tilde p(x_5\mid x_6)}{\sum_{x_5'}\tilde p(x_5'\mid x_6)}</span></p>
+<p>The normalizer runs over <span class="math inline">x_5</span> for each fixed <span class="math inline">x_6</span>, so the answer is a table with one row per value of <span class="math inline">x_6</span>:</p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 25%">
+<col style="width: 25%">
+<col style="width: 25%">
+<col style="width: 25%">
+</colgroup>
+<thead>
+<tr class="header">
+<th><span class="math inline">x_6</span></th>
+<th><span class="math inline">m_{6\to4}(x_4)</span></th>
+<th>unnormalised <span class="math inline">\tilde p(x_5\mid x_6)</span></th>
+<th><span class="math inline">p(x_5\mid x_6)</span></th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>1</td>
+<td><span class="math inline">(2,4)</span></td>
+<td><span class="math inline">(12,9)</span></td>
+<td><span class="math inline">(4/7,\ 3/7)</span></td>
+</tr>
+<tr class="even">
+<td>0</td>
+<td><span class="math inline">(2,1)</span></td>
+<td><span class="math inline">(6,3)</span></td>
+<td><span class="math inline">(2/3,\ 1/3)</span></td>
+</tr>
+</tbody>
+</table>
+<p>The <span class="math inline">x_6=1</span> row is the solution’s answer. The factor <span class="math inline">\psi_6(x_6)</span> does not depend on <span class="math inline">x_5</span>, so it only changes the scale of the message and cancels when we normalize.</p>
+</div>
+</div>
+</div>
 <p><strong>Simple Monte Carlo estimator</strong></p>
 <p><span class="math display">\hat\Phi = \frac1N\sum_{i=1}^N\phi(x^{(i)})</span></p>
 <p><strong>Unbiased, with variance shrinking as <span class="math inline">1/N</span></strong></p>
@@ -560,7 +625,7 @@ window.Quarto = {
 <li><strong>Detailed balance theorem:</strong> <span class="math inline">\pi_iA_{ij}=\pi_jA_{ji}</span> for all <span class="math inline">i,j</span> implies <span class="math inline">\pi</span> is stationary (sum both sides over <span class="math inline">i</span> and use that row <span class="math inline">j</span> of <span class="math inline">A</span> sums to 1). It is sufficient, not necessary, and says nothing about convergence. A chain satisfying it is <strong>time reversible</strong>.</li>
 </ul>
 <div class="clarification callout callout-style-default callout-tip callout-titled" title="Question: Why does detailed balance imply stationarity, and what do &quot;sufficient&quot; and &quot;time reversible&quot; mean?">
-<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-1-contents" aria-controls="callout-1" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-2-contents" aria-controls="callout-2" aria-expanded="false" aria-label="Toggle callout">
 <div class="callout-icon-container">
 <i class="callout-icon"></i>
 </div>
@@ -569,7 +634,7 @@ window.Quarto = {
 </div>
 <div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
 </div>
-<div id="callout-1" class="callout-1-contents callout-collapse collapse">
+<div id="callout-2" class="callout-2-contents callout-collapse collapse">
 <div class="callout-body-container callout-body">
 <p><strong>Where the target equation comes from.</strong> A distribution <span class="math inline">\pi</span> is stationary when one step of the chain leaves it unchanged: <span class="math inline">\pi_j=\sum_i\pi_iA_{ij}</span> for every state <span class="math inline">j</span>. The right side is the probability of arriving at <span class="math inline">j</span>, summed over every state <span class="math inline">i</span> we could have come from. Stationarity is therefore a statement about one state <span class="math inline">j</span> at a time, summed over all the ways into it.</p>
 <p><strong>Step 1: a condition on each pair.</strong> Detailed balance is a stronger requirement. It asks for equal flow across each pair of states: the probability of moving <span class="math inline">i\to j</span> in equilibrium, <span class="math inline">\pi_iA_{ij}</span>, equals the probability of moving <span class="math inline">j\to i</span>, <span class="math inline">\pi_jA_{ji}</span>. That gives one equation per pair <span class="math inline">(i,j)</span>, not one per state.</p>
@@ -586,7 +651,7 @@ window.Quarto = {
 </div>
 </div>
 <div class="clarification callout callout-style-default callout-tip callout-titled" title="Question: What does detailed balance mean in plain terms, and how do I spot it on a graph?">
-<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-2-contents" aria-controls="callout-2" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-3-contents" aria-controls="callout-3" aria-expanded="false" aria-label="Toggle callout">
 <div class="callout-icon-container">
 <i class="callout-icon"></i>
 </div>
@@ -595,7 +660,7 @@ window.Quarto = {
 </div>
 <div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
 </div>
-<div id="callout-2" class="callout-2-contents callout-collapse collapse">
+<div id="callout-3" class="callout-3-contents callout-collapse collapse">
 <div class="callout-body-container callout-body">
 <p><strong>The idea.</strong> Run the chain for a long time, so the time shares <span class="math inline">\pi</span> have settled. Detailed balance says that for every pair of states, the traffic from one to the other, per step, equals the traffic back. Nothing is piling up on one side of a link.</p>
 <p><strong>A two-state example with numbers.</strong> Take Sunny and Rainy, with <span class="math inline">A_{\text{Sunny},\text{Rainy}}=0.2</span> and <span class="math inline">A_{\text{Rainy},\text{Sunny}}=0.4</span>. The stationary shares are <span class="math inline">\pi_{\text{Sunny}}=\tfrac23</span> and <span class="math inline">\pi_{\text{Rainy}}=\tfrac13</span>. The traffic on each link is</p>
@@ -652,7 +717,7 @@ window.Quarto = {
 </ul></li>
 </ul>
 <div class="clarification callout callout-style-default callout-tip callout-titled" title="Question: How does the acceptance probability generate draws? Trace the exam's two-state example">
-<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-3-contents" aria-controls="callout-3" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-4-contents" aria-controls="callout-4" aria-expanded="false" aria-label="Toggle callout">
 <div class="callout-icon-container">
 <i class="callout-icon"></i>
 </div>
@@ -661,7 +726,7 @@ window.Quarto = {
 </div>
 <div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
 </div>
-<div id="callout-3" class="callout-3-contents callout-collapse collapse">
+<div id="callout-4" class="callout-4-contents callout-collapse collapse">
 <div class="callout-body-container callout-body">
 <p><strong>The sampler.</strong> Each iteration proposes a move, accepts or rejects it, and records the state. A rejected move leaves the chain where it was, and the recorded state repeats.</p>
 <pre><code>x ← 2
@@ -834,7 +899,7 @@ for t = 1, ..., N:
 <li>Compute <span class="math inline">A''(\hat\theta)</span> and say what it is the variance of.</li>
 </ol>
 <div class="practice-answer callout callout-style-default callout-tip callout-titled" title="Worked solution">
-<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-4-contents" aria-controls="callout-4" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-5-contents" aria-controls="callout-5" aria-expanded="false" aria-label="Toggle callout">
 <div class="callout-icon-container">
 <i class="callout-icon"></i>
 </div>
@@ -843,7 +908,7 @@ for t = 1, ..., N:
 </div>
 <div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
 </div>
-<div id="callout-4" class="callout-4-contents callout-collapse collapse">
+<div id="callout-5" class="callout-5-contents callout-collapse collapse">
 <div class="callout-body-container callout-body">
 <p>This reteaches <a href="../lectures/week01.html#sec-expfam">Week 1, Exponential families</a> and <a href="../lectures/week01.html#sec-mean">Mean of sufficient statistics</a>.</p>
 <p><strong>1. Sufficient statistic.</strong> Match the model to the template <span class="math inline">h(x)\exp\{\eta\,T(x)-A(\eta)\}</span>. The only place the parameter meets the data is the product <span class="math inline">\theta\cdot x_1x_2x_3</span>, so <span class="math inline">\eta=\theta</span>, <span class="math inline">T(x)=x_1x_2x_3</span>, and <span class="math inline">h(x)=1</span>.</p>
@@ -942,7 +1007,7 @@ p_{\hat\theta}(x)=\frac{w(x)}{e^{A(\hat\theta)}},\qquad e^{A(\hat\theta)}=7+\fra
 <li>In the sample, <span class="math inline">x_2=1</span> three times out of four. What does the fitted model give for <span class="math inline">p(x_2=1)</span>, and why can no value of <span class="math inline">\theta</span> match the data’s <span class="math inline">\frac34</span>?</li>
 </ol>
 <div class="practice-answer callout callout-style-default callout-tip callout-titled" title="Worked solution">
-<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-5-contents" aria-controls="callout-5" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-6-contents" aria-controls="callout-6" aria-expanded="false" aria-label="Toggle callout">
 <div class="callout-icon-container">
 <i class="callout-icon"></i>
 </div>
@@ -951,7 +1016,7 @@ p_{\hat\theta}(x)=\frac{w(x)}{e^{A(\hat\theta)}},\qquad e^{A(\hat\theta)}=7+\fra
 </div>
 <div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
 </div>
-<div id="callout-5" class="callout-5-contents callout-collapse collapse">
+<div id="callout-6" class="callout-6-contents callout-collapse collapse">
 <div class="callout-body-container callout-body">
 <p>This reteaches <a href="../lectures/week01.html#sec-mean">Week 1, Mean of sufficient statistics</a>, the same recipe as Problem 1.1 with a different statistic.</p>
 <p><strong>1.</strong> The parameter multiplies <span class="math inline">\mathbf{1}[x_1=x_2]</span>, so <span class="math inline">T(x)=\mathbf{1}[x_1=x_2]</span>. Two configurations agree, <span class="math inline">(0,0)</span> and <span class="math inline">(1,1)</span>, and contribute <span class="math inline">e^\theta</span> each. Two disagree and contribute <span class="math inline">e^0=1</span> each:</p>
@@ -1009,7 +1074,7 @@ p_{\hat\theta}(x)=\frac{w(x)}{e^{A(\hat\theta)}},\qquad e^{A(\hat\theta)}=7+\fra
 <h3 class="anchored" data-anchor-id="prb-1-3">Problem 1.3: Why matching the average is the MLE</h3>
 <p>For <span class="math inline">N</span> i.i.d. observations from <span class="math inline">p_\theta(x)=h(x)\exp\{\theta\,T(x)-A(\theta)\}</span> with scalar <span class="math inline">\theta</span>, show that the maximum likelihood estimate satisfies <span class="math inline">A'(\hat\theta)=\frac1N\sum_iT(x^{(i)})</span>, and explain why this stationary point is a maximum rather than a minimum.</p>
 <div class="practice-answer callout callout-style-default callout-tip callout-titled" title="Worked solution">
-<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-6-contents" aria-controls="callout-6" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-7-contents" aria-controls="callout-7" aria-expanded="false" aria-label="Toggle callout">
 <div class="callout-icon-container">
 <i class="callout-icon"></i>
 </div>
@@ -1018,7 +1083,7 @@ p_{\hat\theta}(x)=\frac{w(x)}{e^{A(\hat\theta)}},\qquad e^{A(\hat\theta)}=7+\fra
 </div>
 <div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
 </div>
-<div id="callout-6" class="callout-6-contents callout-collapse collapse">
+<div id="callout-7" class="callout-7-contents callout-collapse collapse">
 <div class="callout-body-container callout-body">
 <p>This reteaches <a href="../lectures/week01.html#sec-mle">Week 1, Maximum likelihood estimation</a> and <a href="../lectures/week01.html#sec-mean">Mean of sufficient statistics</a>.</p>
 <p>The log-likelihood is a sum of one log-density per observation:</p>
@@ -1046,7 +1111,7 @@ p_{\hat\theta}(x)=\frac{w(x)}{e^{A(\hat\theta)}},\qquad e^{A(\hat\theta)}=7+\fra
 <p><span class="math display">p(A,B,C,D,E,F)=p(A)\,p(B)\,p(C\mid A,B)\,p(D\mid C)\,p(E\mid C)\,p(F\mid D,E).</span></p>
 <p>If every variable is binary, how many parameters do the conditional probability tables need, compared with the full joint?</p>
 <div class="practice-answer callout callout-style-default callout-tip callout-titled" title="Worked solution">
-<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-7-contents" aria-controls="callout-7" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-8-contents" aria-controls="callout-8" aria-expanded="false" aria-label="Toggle callout">
 <div class="callout-icon-container">
 <i class="callout-icon"></i>
 </div>
@@ -1055,7 +1120,7 @@ p_{\hat\theta}(x)=\frac{w(x)}{e^{A(\hat\theta)}},\qquad e^{A(\hat\theta)}=7+\fra
 </div>
 <div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
 </div>
-<div id="callout-7" class="callout-7-contents callout-collapse collapse">
+<div id="callout-8" class="callout-8-contents callout-collapse collapse">
 <div class="callout-body-container callout-body">
 <p>This reteaches <a href="../lectures/week02.html#sec-dag">Week 2, Directed graphical models</a>.</p>
 <p>A DAG factorizes as <span class="math inline">\prod_ip(x_i\mid\text{parents}(x_i))</span>, so we read each factor backwards: whatever sits behind the bar in <span class="math inline">p(\,\cdot\mid\cdot\,)</span> is a parent, and each parent gets an arrow into the child.</p>
@@ -1146,7 +1211,7 @@ p_{\hat\theta}(x)=\frac{w(x)}{e^{A(\hat\theta)}},\qquad e^{A(\hat\theta)}=7+\fra
 <p><span class="math display">p(A,B,C,D,E,F)\propto\phi_{ABC}(A,B,C)\,\phi_{CD}(C,D)\,\phi_{DE}(D,E)\,\phi_{CE}(C,E)\,\phi_{EF}(E,F),</span></p>
 <p>then list its maximal cliques. Is there a maximal clique that has no potential of its own?</p>
 <div class="practice-answer callout callout-style-default callout-tip callout-titled" title="Worked solution">
-<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-8-contents" aria-controls="callout-8" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-9-contents" aria-controls="callout-9" aria-expanded="false" aria-label="Toggle callout">
 <div class="callout-icon-container">
 <i class="callout-icon"></i>
 </div>
@@ -1155,7 +1220,7 @@ p_{\hat\theta}(x)=\frac{w(x)}{e^{A(\hat\theta)}},\qquad e^{A(\hat\theta)}=7+\fra
 </div>
 <div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
 </div>
-<div id="callout-8" class="callout-8-contents callout-collapse collapse">
+<div id="callout-9" class="callout-9-contents callout-collapse collapse">
 <div class="callout-body-container callout-body">
 <p>This reteaches <a href="../lectures/week03.html#sec-mrf">Week 3, Markov random fields, cliques, and the factorization theorem</a>.</p>
 <p>In an MRF two variables share an edge exactly when they appear together in some factor. So each potential becomes a set of edges joining all its arguments:</p>
@@ -1204,7 +1269,7 @@ p_{\hat\theta}(x)=\frac{w(x)}{e^{A(\hat\theta)}},\qquad e^{A(\hat\theta)}=7+\fra
 <li>In one sentence, what is the Markov blanket of a set of variables <span class="math inline">A</span>?</li>
 </ol>
 <div class="practice-answer callout callout-style-default callout-tip callout-titled" title="Worked solution">
-<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-9-contents" aria-controls="callout-9" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-10-contents" aria-controls="callout-10" aria-expanded="false" aria-label="Toggle callout">
 <div class="callout-icon-container">
 <i class="callout-icon"></i>
 </div>
@@ -1213,7 +1278,7 @@ p_{\hat\theta}(x)=\frac{w(x)}{e^{A(\hat\theta)}},\qquad e^{A(\hat\theta)}=7+\fra
 </div>
 <div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
 </div>
-<div id="callout-9" class="callout-9-contents callout-collapse collapse">
+<div id="callout-10" class="callout-10-contents callout-collapse collapse">
 <div class="callout-body-container callout-body">
 <p>This reteaches the opening of <a href="../lectures/week03.html#sec-motivate">Week 3, From DAGs to undirected graphs</a> and the global Markov property in <a href="../lectures/week03.html#sec-hc">The Hammersley-Clifford theorem</a>.</p>
 <p><strong>1. DAG rule:</strong> the blanket is parents, children, and co-parents (the other parents of each child). Co-parents are needed because a child is a collider between its parents: observing the child opens the path between them.</p>
@@ -1247,7 +1312,7 @@ p_{\hat\theta}(x)=\frac{w(x)}{e^{A(\hat\theta)}},\qquad e^{A(\hat\theta)}=7+\fra
 <li>How many messages does it take to get every node’s marginal?</li>
 </ol>
 <div class="practice-answer callout callout-style-default callout-tip callout-titled" title="Worked solution">
-<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-10-contents" aria-controls="callout-10" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-11-contents" aria-controls="callout-11" aria-expanded="false" aria-label="Toggle callout">
 <div class="callout-icon-container">
 <i class="callout-icon"></i>
 </div>
@@ -1256,7 +1321,7 @@ p_{\hat\theta}(x)=\frac{w(x)}{e^{A(\hat\theta)}},\qquad e^{A(\hat\theta)}=7+\fra
 </div>
 <div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
 </div>
-<div id="callout-10" class="callout-10-contents callout-collapse collapse">
+<div id="callout-11" class="callout-11-contents callout-collapse collapse">
 <div class="callout-body-container callout-body">
 <p>This reteaches <a href="../lectures/week04.html#sec-bp">Week 4, Belief propagation on trees</a>.</p>
 <p>The belief at a node needs one message from <strong>every</strong> neighbour: <span class="math inline">b(x_i)\propto\psi_i(x_i)\prod_{j\in N(i)}m_{j\to i}(x_i)</span>. A node may send to a neighbour only after hearing from all of its other neighbours.</p>
@@ -1285,7 +1350,7 @@ p_{\hat\theta}(x)=\frac{w(x)}{e^{A(\hat\theta)}},\qquad e^{A(\hat\theta)}=7+\fra
 <li>Which extra message does <span class="math inline">p(x_2\mid\bar x_3)</span> need? Compute it and the marginal.</li>
 </ol>
 <div class="practice-answer callout callout-style-default callout-tip callout-titled" title="Worked solution">
-<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-12-contents" aria-controls="callout-12" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-13-contents" aria-controls="callout-13" aria-expanded="false" aria-label="Toggle callout">
 <div class="callout-icon-container">
 <i class="callout-icon"></i>
 </div>
@@ -1294,7 +1359,7 @@ p_{\hat\theta}(x)=\frac{w(x)}{e^{A(\hat\theta)}},\qquad e^{A(\hat\theta)}=7+\fra
 </div>
 <div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
 </div>
-<div id="callout-12" class="callout-12-contents callout-collapse collapse">
+<div id="callout-13" class="callout-13-contents callout-collapse collapse">
 <div class="callout-body-container callout-body">
 <p>This reteaches <a href="../lectures/week04.html#sec-messages">Week 4, Messages and beliefs</a>. Section 7 runs the same calculation on a different tree.</p>
 <p>A message from <span class="math inline">j</span> to <span class="math inline">i</span> multiplies <span class="math inline">j</span>’s own potential, the edge potential, and the messages <span class="math inline">j</span> has received from its other neighbours, then sums out <span class="math inline">x_j</span>:</p>
@@ -1361,7 +1426,7 @@ Note
 <li><em>Do we need a root at all?</em> Apply only the rule “a node sends to a neighbour once it has heard from all its other neighbours”, starting from the leaves. Which messages get computed, and where does a root appear?</li>
 </ol>
 <div class="practice-answer callout callout-style-default callout-tip callout-titled" title="Worked solution">
-<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-13-contents" aria-controls="callout-13" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-14-contents" aria-controls="callout-14" aria-expanded="false" aria-label="Toggle callout">
 <div class="callout-icon-container">
 <i class="callout-icon"></i>
 </div>
@@ -1370,7 +1435,7 @@ Note
 </div>
 <div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
 </div>
-<div id="callout-13" class="callout-13-contents callout-collapse collapse">
+<div id="callout-14" class="callout-14-contents callout-collapse collapse">
 <div class="callout-body-container callout-body">
 <p>This reteaches <a href="../lectures/week04.html#sec-bp">Week 4, Belief propagation on trees</a>.</p>
 <p>The key fact for every part: the graph is undirected and has no root. The root is a bookkeeping choice we make to schedule the messages, and the formula for a message never mentions it.</p>
@@ -1412,7 +1477,7 @@ Note
 <li>With <span class="math inline">p=0.9</span>, how large would the failure cost in Option B have to be (instead of 120) for the two options to tie?</li>
 </ol>
 <div class="practice-answer callout callout-style-default callout-tip callout-titled" title="Worked solution">
-<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-14-contents" aria-controls="callout-14" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-15-contents" aria-controls="callout-15" aria-expanded="false" aria-label="Toggle callout">
 <div class="callout-icon-container">
 <i class="callout-icon"></i>
 </div>
@@ -1421,7 +1486,7 @@ Note
 </div>
 <div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
 </div>
-<div id="callout-14" class="callout-14-contents callout-collapse collapse">
+<div id="callout-15" class="callout-15-contents callout-collapse collapse">
 <div class="callout-body-container callout-body">
 <p>This reteaches <a href="../lectures/week02.html#sec-loss">Week 2, Expected loss</a>: when the outcome is random, compare actions by their <strong>expected</strong> loss.</p>
 <p><strong>Expected loss of A.</strong> The delay is <span class="math inline">\mathrm{Uniform}[20,40]</span>. A <a href="https://en.wikipedia.org/wiki/Continuous_uniform_distribution">uniform distribution</a> on <span class="math inline">[a,b]</span> has mean <span class="math inline">\frac{a+b}{2}</span>, so <span class="math inline">\mathbb{E}[L_A]=\frac{20+40}{2}=30</span>.</p>
@@ -1448,7 +1513,7 @@ Note
 <li>With a reject threshold <span class="math inline">\theta=0.8</span>, another image has posteriors <span class="math inline">(0.3,\ 0.7)</span>. What happens?</li>
 </ol>
 <div class="practice-answer callout callout-style-default callout-tip callout-titled" title="Worked solution">
-<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-15-contents" aria-controls="callout-15" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-16-contents" aria-controls="callout-16" aria-expanded="false" aria-label="Toggle callout">
 <div class="callout-icon-container">
 <i class="callout-icon"></i>
 </div>
@@ -1457,7 +1522,7 @@ Note
 </div>
 <div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
 </div>
-<div id="callout-15" class="callout-15-contents callout-collapse collapse">
+<div id="callout-16" class="callout-16-contents callout-collapse collapse">
 <div class="callout-body-container callout-body">
 <p>This reteaches <a href="../lectures/week02.html#sec-discriminant">Week 2, The discriminant rule and the reject option</a>.</p>
 <p>The discriminant rule decides the <span class="math inline">j</span> minimizing <span class="math inline">\sum_kL_{kj}\,p(\mathcal{C}_k\mid x)</span>: for each candidate decision, add up the cost of each possible truth weighted by its posterior.</p>
@@ -1486,7 +1551,7 @@ Note
 <li>An exam figure shows two curves labelled <span class="math inline">p(x,\mathcal{C}_1)</span> and <span class="math inline">p(x,\mathcal{C}_2)</span>. Where is the boundary? What changes if the curves were labelled <span class="math inline">p(x\mid\mathcal{C}_k)</span> instead?</li>
 </ol>
 <div class="practice-answer callout callout-style-default callout-tip callout-titled" title="Worked solution">
-<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-16-contents" aria-controls="callout-16" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-17-contents" aria-controls="callout-17" aria-expanded="false" aria-label="Toggle callout">
 <div class="callout-icon-container">
 <i class="callout-icon"></i>
 </div>
@@ -1495,7 +1560,7 @@ Note
 </div>
 <div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
 </div>
-<div id="callout-16" class="callout-16-contents callout-collapse collapse">
+<div id="callout-17" class="callout-17-contents callout-collapse collapse">
 <div class="callout-body-container callout-body">
 <p>This reteaches <a href="../lectures/week02.html#sec-misclass">Week 2, Misclassification rate</a>.</p>
 <p>The misclassification rate is minimized by assigning each <span class="math inline">x</span> to the class with the larger <strong>joint</strong> <span class="math inline">p(x,\mathcal{C}_k)=p(x\mid\mathcal{C}_k)\,p(\mathcal{C}_k)</span>, so the boundary <span class="math inline">\hat x</span> solves <span class="math inline">p(\hat x,\mathcal{C}_1)=p(\hat x,\mathcal{C}_2)</span>.</p>
@@ -1532,7 +1597,7 @@ Note
 <li>The probability that it runs late on day 3, given that it was <strong>not</strong> late on day 1.</li>
 </ol>
 <div class="practice-answer callout callout-style-default callout-tip callout-titled" title="Worked solution">
-<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-17-contents" aria-controls="callout-17" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-18-contents" aria-controls="callout-18" aria-expanded="false" aria-label="Toggle callout">
 <div class="callout-icon-container">
 <i class="callout-icon"></i>
 </div>
@@ -1541,7 +1606,7 @@ Note
 </div>
 <div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
 </div>
-<div id="callout-17" class="callout-17-contents callout-collapse collapse">
+<div id="callout-18" class="callout-18-contents callout-collapse collapse">
 <div class="callout-body-container callout-body">
 <p>This reteaches <a href="../lectures/week04.html#sec-goals">Week 4, What sampling is for</a> and <a href="../lectures/week04.html#sec-simplemc">Simple Monte Carlo</a>.</p>
 <p>Every target is an expectation <span class="math inline">\Phi=\mathbb{E}[\phi(L)]</span>, and the simple Monte Carlo estimator averages the test function over the samples: <span class="math inline">\hat\Phi=\frac1N\sum_i\phi(l^{(i)})</span>. A probability is the expectation of an indicator, <span class="math inline">P(E)=\mathbb{E}[\mathbf{1}(E)]</span>, so it is estimated by the fraction of samples in which <span class="math inline">E</span> happens.</p>
@@ -1576,7 +1641,7 @@ Note
 <li>In 4.1 part 4, suppose only 5% of samples have late buses on both days 2 and 3. Roughly how many samples does the ratio estimator actually use?</li>
 </ol>
 <div class="practice-answer callout callout-style-default callout-tip callout-titled" title="Worked solution">
-<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-18-contents" aria-controls="callout-18" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-19-contents" aria-controls="callout-19" aria-expanded="false" aria-label="Toggle callout">
 <div class="callout-icon-container">
 <i class="callout-icon"></i>
 </div>
@@ -1585,7 +1650,7 @@ Note
 </div>
 <div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
 </div>
-<div id="callout-18" class="callout-18-contents callout-collapse collapse">
+<div id="callout-19" class="callout-19-contents callout-collapse collapse">
 <div class="callout-body-container callout-body">
 <p>This reteaches the variance calculation in <a href="../lectures/week04.html#sec-simplemc">Week 4, Simple Monte Carlo</a>.</p>
 <p>The general result is <span class="math inline">\mathrm{var}[\hat\Phi]=\frac1N\mathrm{var}[\phi(x)]</span>, because the <span class="math inline">N</span> independent terms add their variances and the <span class="math inline">\frac1N</span> in front is squared.</p>
@@ -1613,7 +1678,7 @@ Note
 <li>What does the average weight estimate, and what is its true value?</li>
 </ol>
 <div class="practice-answer callout callout-style-default callout-tip callout-titled" title="Worked solution">
-<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-19-contents" aria-controls="callout-19" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-20-contents" aria-controls="callout-20" aria-expanded="false" aria-label="Toggle callout">
 <div class="callout-icon-container">
 <i class="callout-icon"></i>
 </div>
@@ -1622,7 +1687,7 @@ Note
 </div>
 <div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
 </div>
-<div id="callout-19" class="callout-19-contents callout-collapse collapse">
+<div id="callout-20" class="callout-20-contents callout-collapse collapse">
 <div class="callout-body-container callout-body">
 <p>This reteaches <a href="../lectures/week04.html#sec-importance">Week 4, Importance sampling</a>.</p>
 <p>We cannot sample from <span class="math inline">p</span>, so we sample from <span class="math inline">q</span> and reweight each sample by how much more likely it is under <span class="math inline">p</span>: <span class="math inline">\tilde w_r=\tilde p(x^{(r)})/\tilde q(x^{(r)})</span>. Because both are unnormalized, we divide by the sum of the weights, which cancels the unknown constants.</p>
@@ -1652,7 +1717,7 @@ Note
 <li>If we had used <span class="math inline">c=1</span> instead, would the accepted samples still come from <span class="math inline">p</span>? What changes?</li>
 </ol>
 <div class="practice-answer callout callout-style-default callout-tip callout-titled" title="Worked solution">
-<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-20-contents" aria-controls="callout-20" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-21-contents" aria-controls="callout-21" aria-expanded="false" aria-label="Toggle callout">
 <div class="callout-icon-container">
 <i class="callout-icon"></i>
 </div>
@@ -1661,7 +1726,7 @@ Note
 </div>
 <div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
 </div>
-<div id="callout-20" class="callout-20-contents callout-collapse collapse">
+<div id="callout-21" class="callout-21-contents callout-collapse collapse">
 <div class="callout-body-container callout-body">
 <p>This reteaches <a href="../lectures/week04.html#sec-rejection">Week 4, Rejection sampling</a>.</p>
 <p>Rejection sampling needs an envelope <span class="math inline">c\,\tilde q(x)\ge\tilde p(x)</span> everywhere. We draw <span class="math inline">x\sim q</span>, draw <span class="math inline">u</span> uniformly under the envelope at that <span class="math inline">x</span>, and keep <span class="math inline">x</span> only if <span class="math inline">u</span> also falls under <span class="math inline">\tilde p</span>.</p>
@@ -1716,7 +1781,7 @@ Note
 <h3 class="anchored" data-anchor-id="prb-5-1">Problem 5.1: The factorization</h3>
 <p>Write the joint distribution <span class="math inline">p(z_{1:T},w_{1:T},x_{1:T})</span> implied by the DAG, with brackets to avoid ambiguity.</p>
 <div class="practice-answer callout callout-style-default callout-tip callout-titled" title="Worked solution">
-<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-21-contents" aria-controls="callout-21" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-22-contents" aria-controls="callout-22" aria-expanded="false" aria-label="Toggle callout">
 <div class="callout-icon-container">
 <i class="callout-icon"></i>
 </div>
@@ -1725,7 +1790,7 @@ Note
 </div>
 <div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
 </div>
-<div id="callout-21" class="callout-21-contents callout-collapse collapse">
+<div id="callout-22" class="callout-22-contents callout-collapse collapse">
 <div class="callout-body-container callout-body">
 <p>This reteaches <a href="../lectures/week02.html#sec-dag">Week 2, Directed graphical models</a>: one factor per node, conditioned on exactly its parents.</p>
 <ul>
@@ -1758,7 +1823,7 @@ Note
 <li><span class="math inline">z_1\perp z_3\mid z_2,x_1,x_3</span>?</li>
 </ol>
 <div class="practice-answer callout callout-style-default callout-tip callout-titled" title="Worked solution">
-<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-22-contents" aria-controls="callout-22" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-23-contents" aria-controls="callout-23" aria-expanded="false" aria-label="Toggle callout">
 <div class="callout-icon-container">
 <i class="callout-icon"></i>
 </div>
@@ -1767,7 +1832,7 @@ Note
 </div>
 <div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
 </div>
-<div id="callout-22" class="callout-22-contents callout-collapse collapse">
+<div id="callout-23" class="callout-23-contents callout-collapse collapse">
 <div class="callout-body-container callout-body">
 <p>This reteaches <a href="../lectures/week02.html#sec-bayesball">Week 2, The Bayes Ball algorithm</a>. Shade the conditioning set. A path is active only if every node on it lets the ball through: a chain or fork node must be <strong>unshaded</strong>, and a collider must be <strong>shaded or have a shaded descendant</strong>. The independence holds when every path is blocked.</p>
 <p>The structural fact that decides most queries: the only connections between the <span class="math inline">z</span> chain and the <span class="math inline">w</span> chain run through some <span class="math inline">x_t</span>, and every <span class="math inline">x_t</span> is a <strong>collider</strong> (<span class="math inline">z_t\to x_t\leftarrow w_t</span>) with no descendants.</p>
@@ -1806,7 +1871,7 @@ Note
 <li>Starting from <span class="math inline">x_0=1</span>, find <span class="math inline">P(x_2=1)</span>.</li>
 </ol>
 <div class="practice-answer callout callout-style-default callout-tip callout-titled" title="Worked solution">
-<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-23-contents" aria-controls="callout-23" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-24-contents" aria-controls="callout-24" aria-expanded="false" aria-label="Toggle callout">
 <div class="callout-icon-container">
 <i class="callout-icon"></i>
 </div>
@@ -1815,7 +1880,7 @@ Note
 </div>
 <div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
 </div>
-<div id="callout-23" class="callout-23-contents callout-collapse collapse">
+<div id="callout-24" class="callout-24-contents callout-collapse collapse">
 <div class="callout-body-container callout-body">
 <p>This reteaches <a href="../lectures/week05.html#sec-stationary">Week 5, The stationary distribution</a> and <a href="../lectures/week05.html#sec-nstep">n-step transitions</a>.</p>
 <p><strong>1.</strong> <span class="math inline">A^\top\pi=\pi</span> says <span class="math inline">\pi_j=\sum_i\pi_iA_{ij}</span>: the probability of being in <span class="math inline">j</span> next step equals the probability of being in <span class="math inline">j</span> now. Its first row is</p>
@@ -1847,7 +1912,7 @@ Note
 <li>Check detailed balance with respect to <span class="math inline">p</span>.</li>
 </ol>
 <div class="practice-answer callout callout-style-default callout-tip callout-titled" title="Worked solution">
-<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-24-contents" aria-controls="callout-24" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-25-contents" aria-controls="callout-25" aria-expanded="false" aria-label="Toggle callout">
 <div class="callout-icon-container">
 <i class="callout-icon"></i>
 </div>
@@ -1856,7 +1921,7 @@ Note
 </div>
 <div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
 </div>
-<div id="callout-24" class="callout-24-contents callout-collapse collapse">
+<div id="callout-25" class="callout-25-contents callout-collapse collapse">
 <div class="callout-body-container callout-body">
 <p>This reteaches <a href="../lectures/week05.html#sec-mh">Week 5, The Metropolis-Hastings algorithm</a> and <a href="../lectures/week05.html#sec-mh-proof">Why Metropolis-Hastings works</a>.</p>
 <p>The MH acceptance probability for a move from <span class="math inline">x</span> to <span class="math inline">x'</span> is</p>
@@ -1889,7 +1954,7 @@ Note
 <h3 class="anchored" data-anchor-id="prb-6-3">Problem 6.3: When the target is the chain’s own stationary distribution</h3>
 <p>Repeat the acceptance calculation of Problem 6.2 with target <span class="math inline">p=(\frac23,\frac13)</span>. What do you notice, and why?</p>
 <div class="practice-answer callout callout-style-default callout-tip callout-titled" title="Worked solution">
-<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-25-contents" aria-controls="callout-25" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-26-contents" aria-controls="callout-26" aria-expanded="false" aria-label="Toggle callout">
 <div class="callout-icon-container">
 <i class="callout-icon"></i>
 </div>
@@ -1898,7 +1963,7 @@ Note
 </div>
 <div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
 </div>
-<div id="callout-25" class="callout-25-contents callout-collapse collapse">
+<div id="callout-26" class="callout-26-contents callout-collapse collapse">
 <div class="callout-body-container callout-body">
 <p>This reteaches <a href="../lectures/week05.html#sec-detailed">Week 5, Detailed balance</a>.</p>
 <p>For <span class="math inline">1\to2</span>: <span class="math inline">\dfrac{p(2)A_{21}}{p(1)A_{12}}=\dfrac{\frac13\cdot\frac12}{\frac23\cdot\frac14}=\dfrac{1/6}{1/6}=1</span>. The move <span class="math inline">2\to1</span> is the reciprocal, also 1. Every proposal is accepted, so the MH chain is <span class="math inline">A</span> itself.</p>
@@ -1947,7 +2012,7 @@ Note
 <li>Compute <span class="math inline">p(x_3\mid\bar x_5)</span>.</li>
 </ol>
 <div class="practice-answer callout callout-style-default callout-tip callout-titled" title="Worked solution">
-<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-26-contents" aria-controls="callout-26" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-27-contents" aria-controls="callout-27" aria-expanded="false" aria-label="Toggle callout">
 <div class="callout-icon-container">
 <i class="callout-icon"></i>
 </div>
@@ -1956,7 +2021,7 @@ Note
 </div>
 <div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
 </div>
-<div id="callout-26" class="callout-26-contents callout-collapse collapse">
+<div id="callout-27" class="callout-27-contents callout-collapse collapse">
 <div class="callout-body-container callout-body">
 <p>This reteaches <a href="../lectures/week04.html#sec-messages">Week 4, Messages and beliefs</a>.</p>
 <p>The message from <span class="math inline">j</span> to <span class="math inline">i</span> multiplies <span class="math inline">j</span>’s own potential, the edge potential, and every message <span class="math inline">j</span> has received from its other neighbours, then sums out <span class="math inline">x_j</span>:</p>
@@ -2000,7 +2065,7 @@ Note
 <li>Which messages did <span class="math inline">p(x_3)</span> need, and which extra ones did <span class="math inline">p(x_2)</span> need?</li>
 </ol>
 <div class="practice-answer callout callout-style-default callout-tip callout-titled" title="Worked solution">
-<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-27-contents" aria-controls="callout-27" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-28-contents" aria-controls="callout-28" aria-expanded="false" aria-label="Toggle callout">
 <div class="callout-icon-container">
 <i class="callout-icon"></i>
 </div>
@@ -2009,7 +2074,7 @@ Note
 </div>
 <div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
 </div>
-<div id="callout-27" class="callout-27-contents callout-collapse collapse">
+<div id="callout-28" class="callout-28-contents callout-collapse collapse">
 <div class="callout-body-container callout-body">
 <p>This reteaches <a href="../lectures/week04.html#sec-bp">Week 4, Belief propagation on trees</a>.</p>
 <p><strong>1.</strong> Node 3 sends to 2 after hearing from its other neighbour, node 5:</p>
@@ -2050,7 +2115,7 @@ Note
 <h3 class="anchored" data-anchor-id="prb-8-1">Problem 8.1: Two steps of the forward algorithm</h3>
 <p>For observations <span class="math inline">x_{1:2}=(0,1)</span>, compute <span class="math inline">\alpha_1</span>, <span class="math inline">\alpha_2</span>, and <span class="math inline">p(x_{1:2})</span>.</p>
 <div class="practice-answer callout callout-style-default callout-tip callout-titled" title="Worked solution">
-<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-28-contents" aria-controls="callout-28" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-29-contents" aria-controls="callout-29" aria-expanded="false" aria-label="Toggle callout">
 <div class="callout-icon-container">
 <i class="callout-icon"></i>
 </div>
@@ -2059,7 +2124,7 @@ Note
 </div>
 <div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
 </div>
-<div id="callout-28" class="callout-28-contents callout-collapse collapse">
+<div id="callout-29" class="callout-29-contents callout-collapse collapse">
 <div class="callout-body-container callout-body">
 <p>This reteaches <a href="../lectures/week06.html#sec-forward">Week 6, The forward algorithm</a>.</p>
 <p>The forward vector <span class="math inline">\alpha_t(j)=p(z_t=j\mid x_{1:t})</span> alternates two steps: <strong>predict</strong> by pushing the previous filter through the transition matrix, then <strong>update</strong> by multiplying in the new emission and normalizing.</p>
@@ -2086,7 +2151,7 @@ Note
 <h3 class="anchored" data-anchor-id="prb-8-2">Problem 8.2: Viterbi over three steps</h3>
 <p>For <span class="math inline">x_{1:3}=(0,1,0)</span>, run the Viterbi recursion with backpointers and give the most likely hidden path. Which state has the larger <span class="math inline">\delta_2</span>, and is it on the final path?</p>
 <div class="practice-answer callout callout-style-default callout-tip callout-titled" title="Worked solution">
-<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-29-contents" aria-controls="callout-29" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-30-contents" aria-controls="callout-30" aria-expanded="false" aria-label="Toggle callout">
 <div class="callout-icon-container">
 <i class="callout-icon"></i>
 </div>
@@ -2095,7 +2160,7 @@ Note
 </div>
 <div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
 </div>
-<div id="callout-29" class="callout-29-contents callout-collapse collapse">
+<div id="callout-30" class="callout-30-contents callout-collapse collapse">
 <div class="callout-body-container callout-body">
 <p>This reteaches <a href="../lectures/week06.html#sec-viterbi">Week 6, The Viterbi algorithm</a>.</p>
 <p><span class="math inline">\delta_t(j)</span> is the probability of the best path that ends in state <span class="math inline">j</span> at time <span class="math inline">t</span>, together with the observations so far. It replaces the forward algorithm’s sum over the previous state with a max, and records which previous state won:</p>
@@ -2132,7 +2197,7 @@ Note
 <li>Use part 2 to explain why the I-projection tends to lock onto one mode while the M-projection spreads out.</li>
 </ol>
 <div class="practice-answer callout callout-style-default callout-tip callout-titled" title="Worked solution">
-<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-30-contents" aria-controls="callout-30" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-31-contents" aria-controls="callout-31" aria-expanded="false" aria-label="Toggle callout">
 <div class="callout-icon-container">
 <i class="callout-icon"></i>
 </div>
@@ -2141,7 +2206,7 @@ Note
 </div>
 <div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
 </div>
-<div id="callout-30" class="callout-30-contents callout-collapse collapse">
+<div id="callout-31" class="callout-31-contents callout-collapse collapse">
 <div class="callout-body-container callout-body">
 <p>This reteaches <a href="../lectures/week06.html#sec-kl">Week 6, The KL divergence</a> and <a href="../lectures/week06.html#sec-projections">Which direction? I-projection and M-projection</a>.</p>
 <p><span class="math display">\mathrm{KL}(q\,\|\,p)=\sum_zq(z)\log\frac{q(z)}{p(z)}.</span></p>
@@ -2173,7 +2238,7 @@ Note
 <li>Which <span class="math inline">q</span> maximizes the ELBO, and what is its value?</li>
 </ol>
 <div class="practice-answer callout callout-style-default callout-tip callout-titled" title="Worked solution">
-<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-31-contents" aria-controls="callout-31" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-32-contents" aria-controls="callout-32" aria-expanded="false" aria-label="Toggle callout">
 <div class="callout-icon-container">
 <i class="callout-icon"></i>
 </div>
@@ -2182,7 +2247,7 @@ Note
 </div>
 <div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
 </div>
-<div id="callout-31" class="callout-31-contents callout-collapse collapse">
+<div id="callout-32" class="callout-32-contents callout-collapse collapse">
 <div class="callout-body-container callout-body">
 <p>This reteaches <a href="../lectures/week06.html#sec-elbo">Week 6, Tutorial: reverse KL and the ELBO</a>.</p>
 <p><strong>1.</strong> Marginalize: <span class="math inline">p(x)=\frac18+\frac38=\frac12</span>. By Bayes’ rule, <span class="math inline">p(z\mid x)=\frac{p(x,z)}{p(x)}=(\frac14,\frac34)</span>.</p>
@@ -2213,7 +2278,7 @@ Note
 <li>What is the exact marginal <span class="math inline">p(x_1=1)</span>, and what does this say about the mean-field answer after one sweep?</li>
 </ol>
 <div class="practice-answer callout callout-style-default callout-tip callout-titled" title="Worked solution">
-<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-32-contents" aria-controls="callout-32" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-33-contents" aria-controls="callout-33" aria-expanded="false" aria-label="Toggle callout">
 <div class="callout-icon-container">
 <i class="callout-icon"></i>
 </div>
@@ -2222,7 +2287,7 @@ Note
 </div>
 <div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
 </div>
-<div id="callout-32" class="callout-32-contents callout-collapse collapse">
+<div id="callout-33" class="callout-33-contents callout-collapse collapse">
 <div class="callout-body-container callout-body">
 <p>This reteaches <a href="../lectures/week06.html#sec-mf-update">Week 6, The coordinate update</a>.</p>
 <p>Each update replaces a neighbour by its <strong>average</strong> effect under its current <span class="math inline">q</span>:</p>
@@ -2274,7 +2339,7 @@ Note
 <li>Is <span class="math inline">X_1\perp X_5\mid X_4</span>? Is <span class="math inline">X_1\perp X_4\mid X_2</span>?</li>
 </ol>
 <div class="practice-answer callout callout-style-default callout-tip callout-titled" title="Worked solution">
-<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-33-contents" aria-controls="callout-33" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-34-contents" aria-controls="callout-34" aria-expanded="false" aria-label="Toggle callout">
 <div class="callout-icon-container">
 <i class="callout-icon"></i>
 </div>
@@ -2283,7 +2348,7 @@ Note
 </div>
 <div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
 </div>
-<div id="callout-33" class="callout-33-contents callout-collapse collapse">
+<div id="callout-34" class="callout-34-contents callout-collapse collapse">
 <div class="callout-body-container callout-body">
 <p>This reteaches <a href="../lectures/week03.html#sec-mrf-example">Week 3, Worked example: cliques, factorization, and independence</a>.</p>
 <p><strong>1.</strong> Start from each triangle and try to grow it. <span class="math inline">\{1,2,3\}</span> is a triangle; adding 4 would need edge <span class="math inline">1\text{-}4</span>, which is missing. <span class="math inline">\{2,3,4\}</span> is a triangle; adding 1 needs <span class="math inline">1\text{-}4</span>, adding 5 needs <span class="math inline">2\text{-}5</span>. <span class="math inline">\{4,5,6\}</span> is a triangle, and nothing else touches 5 or 6. Every edge lies inside one of these three, so there are no other maximal cliques.</p>
@@ -2304,7 +2369,7 @@ Note
 <h3 class="anchored" data-anchor-id="prb-9-2">Problem 9.2: BP and variable elimination</h3>
 <p>On a tree, does belief propagation reduce to variable elimination? What does BP add?</p>
 <div class="practice-answer callout callout-style-default callout-tip callout-titled" title="Worked solution">
-<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-34-contents" aria-controls="callout-34" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-35-contents" aria-controls="callout-35" aria-expanded="false" aria-label="Toggle callout">
 <div class="callout-icon-container">
 <i class="callout-icon"></i>
 </div>
@@ -2313,7 +2378,7 @@ Note
 </div>
 <div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
 </div>
-<div id="callout-34" class="callout-34-contents callout-collapse collapse">
+<div id="callout-35" class="callout-35-contents callout-collapse collapse">
 <div class="callout-body-container callout-body">
 <p>This reteaches <a href="../lectures/week04.html#sec-tree-example">Week 4, Worked example: elimination on a tree becomes message passing</a>.</p>
 <p>Yes. Variable elimination on a tree, with the order running from the leaves inward to a root, produces at each step an intermediate factor over a single variable. Those intermediate factors are exactly the messages <span class="math inline">m_{j\to i}(x_i)</span>. One inward pass of BP is therefore one run of variable elimination for the root’s marginal.</p>
@@ -2332,7 +2397,7 @@ Note
 <h3 class="anchored" data-anchor-id="prb-9-3">Problem 9.3: Three ways to use a proposal</h3>
 <p>Compare importance sampling, rejection sampling, and Metropolis-Hastings on: (i) what they produce, (ii) what they require of the proposal, and (iii) whether their outputs are independent.</p>
 <div class="practice-answer callout callout-style-default callout-tip callout-titled" title="Worked solution">
-<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-35-contents" aria-controls="callout-35" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-36-contents" aria-controls="callout-36" aria-expanded="false" aria-label="Toggle callout">
 <div class="callout-icon-container">
 <i class="callout-icon"></i>
 </div>
@@ -2341,7 +2406,7 @@ Note
 </div>
 <div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
 </div>
-<div id="callout-35" class="callout-35-contents callout-collapse collapse">
+<div id="callout-36" class="callout-36-contents callout-collapse collapse">
 <div class="callout-body-container callout-body">
 <p>This reteaches <a href="../lectures/week04.html#sec-importance">Week 4, Importance sampling</a>, <a href="../lectures/week04.html#sec-rejection">Rejection sampling</a>, and <a href="../lectures/week05.html#sec-whymcmc">Week 5, Why MCMC</a>.</p>
 <table class="caption-top table">
@@ -2402,7 +2467,7 @@ Note
 <h3 class="anchored" data-anchor-id="prb-9-4">Problem 9.4: Why Gibbs never rejects</h3>
 <p>Show that a Gibbs update of <span class="math inline">x_1</span> in a two-variable distribution <span class="math inline">p(x_1,x_2)</span>, viewed as an MH proposal, has acceptance probability 1.</p>
 <div class="practice-answer callout callout-style-default callout-tip callout-titled" title="Worked solution">
-<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-36-contents" aria-controls="callout-36" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-37-contents" aria-controls="callout-37" aria-expanded="false" aria-label="Toggle callout">
 <div class="callout-icon-container">
 <i class="callout-icon"></i>
 </div>
@@ -2411,7 +2476,7 @@ Note
 </div>
 <div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
 </div>
-<div id="callout-36" class="callout-36-contents callout-collapse collapse">
+<div id="callout-37" class="callout-37-contents callout-collapse collapse">
 <div class="callout-body-container callout-body">
 <p>This reteaches <a href="../lectures/week05.html#sec-gibbs">Week 5, Gibbs sampling</a>.</p>
 <p>The Gibbs move from <span class="math inline">(x_1,x_2)</span> to <span class="math inline">(x_1',x_2)</span> uses the proposal <span class="math inline">q(x_1'\mid x_1,x_2)=p(x_1'\mid x_2)</span>, and the reverse move uses <span class="math inline">p(x_1\mid x_2)</span>. The MH ratio is</p>
@@ -2435,7 +2500,7 @@ Note
 <li>Normalizing messages between iterations changes the fixed point.</li>
 </ol>
 <div class="practice-answer callout callout-style-default callout-tip callout-titled" title="Worked solution">
-<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-37-contents" aria-controls="callout-37" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-38-contents" aria-controls="callout-38" aria-expanded="false" aria-label="Toggle callout">
 <div class="callout-icon-container">
 <i class="callout-icon"></i>
 </div>
@@ -2444,7 +2509,7 @@ Note
 </div>
 <div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
 </div>
-<div id="callout-37" class="callout-37-contents callout-collapse collapse">
+<div id="callout-38" class="callout-38-contents callout-collapse collapse">
 <div class="callout-body-container callout-body">
 <p>This reteaches <a href="../lectures/week04.html#sec-loopy">Week 4, Loopy belief propagation</a>.</p>
 <ol type="1">
@@ -2466,7 +2531,7 @@ Note
 <h3 class="anchored" data-anchor-id="prb-9-6">Problem 9.6: What each graph type cannot say</h3>
 <p>Give one independence pattern that a DAG can express and no MRF can, and one that an MRF can express and no DAG can.</p>
 <div class="practice-answer callout callout-style-default callout-tip callout-titled" title="Worked solution">
-<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-38-contents" aria-controls="callout-38" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-39-contents" aria-controls="callout-39" aria-expanded="false" aria-label="Toggle callout">
 <div class="callout-icon-container">
 <i class="callout-icon"></i>
 </div>
@@ -2475,7 +2540,7 @@ Note
 </div>
 <div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
 </div>
-<div id="callout-38" class="callout-38-contents callout-collapse collapse">
+<div id="callout-39" class="callout-39-contents callout-collapse collapse">
 <div class="callout-body-container callout-body">
 <p>This reteaches <a href="../lectures/week03.html#sec-mrf-vs-dag">Week 3, What MRFs can express that DAGs cannot, and vice versa</a>.</p>
 <p><strong>DAG only: the collider</strong> <span class="math inline">X\to Z\leftarrow Y</span>, with <span class="math inline">X\perp Y</span> but <span class="math inline">X\not\perp Y\mid Z</span>. An MRF would need edges <span class="math inline">X\text{-}Z</span> and <span class="math inline">Z\text{-}Y</span>. With no <span class="math inline">X\text{-}Y</span> edge, separation would give <span class="math inline">X\perp Y\mid Z</span>, the wrong statement; adding the edge loses <span class="math inline">X\perp Y</span>. In an MRF, conditioning never creates a dependence.</p>
@@ -2499,7 +2564,7 @@ Note
 <li>Detailed balance guarantees the chain converges to <span class="math inline">\pi</span> from any start.</li>
 </ol>
 <div class="practice-answer callout callout-style-default callout-tip callout-titled" title="Worked solution">
-<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-39-contents" aria-controls="callout-39" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-40-contents" aria-controls="callout-40" aria-expanded="false" aria-label="Toggle callout">
 <div class="callout-icon-container">
 <i class="callout-icon"></i>
 </div>
@@ -2508,7 +2573,7 @@ Note
 </div>
 <div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
 </div>
-<div id="callout-39" class="callout-39-contents callout-collapse collapse">
+<div id="callout-40" class="callout-40-contents callout-collapse collapse">
 <div class="callout-body-container callout-body">
 <p>This reteaches <a href="../lectures/week05.html#sec-detailed">Week 5, Detailed balance</a> and <a href="../lectures/week05.html#sec-unique">When is the stationary distribution unique?</a>.</p>
 <ol type="1">
@@ -2521,6 +2586,469 @@ Note
 <ul>
 <li>Detailed balance implies stationarity, but not the other way around.</li>
 <li>Stationarity does not imply convergence from any start. That needs extra conditions, such as regularity.</li>
+</ul>
+</div>
+</div>
+</div>
+</section>
+<section id="prb-9-8" class="level3">
+<h3 class="anchored" data-anchor-id="prb-9-8">Problem 9.8: Metropolis versus Metropolis-Hastings</h3>
+<p>Compare the Metropolis algorithm and Metropolis-Hastings in terms of (i) the proposal densities they allow and (ii) the acceptance probability.</p>
+<ol start="3" type="i">
+<li>Take a uniform target on the states <span class="math inline">\{1,2\}</span> and a proposal that ignores the current state, with <span class="math inline">q(1)=\frac34</span> and <span class="math inline">q(2)=\frac14</span>. Which distribution does the chain settle on if we wrongly use the Metropolis rule? Which if we use the MH rule?</li>
+</ol>
+<div class="practice-answer callout callout-style-default callout-tip callout-titled" title="Worked solution">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-41-contents" aria-controls="callout-41" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Worked solution
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-41" class="callout-41-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>This reteaches <a href="../lectures/week05.html#sec-mh">Week 5, The Metropolis-Hastings algorithm</a>.</p>
+<p><strong>Similarities.</strong> Both propose a move, accept or reject it, and record the current state again on a rejection. Both use only ratios of <span class="math inline">\tilde p</span>, so <span class="math inline">Z_p</span> cancels, and both produce dependent samples. Metropolis is the special case of MH with a symmetric proposal.</p>
+<p><strong>(i) Proposals.</strong> Metropolis requires a symmetric proposal, <span class="math inline">q(x'\mid x)=q(x\mid x')</span>, such as a Gaussian centred at the current state. MH allows any <span class="math inline">q(x'\mid x)</span> we can sample from and evaluate.</p>
+<p><strong>(ii) Acceptance.</strong> Metropolis uses <span class="math inline">\min\{1,\ \tilde p(x')/\tilde p(x)\}</span>. MH multiplies the ratio by the correction <span class="math inline">q(x\mid x')/q(x'\mid x)</span>, which lowers the acceptance of moves the proposal already favours. When <span class="math inline">q</span> is symmetric the correction is 1, and the two rules are the same.</p>
+<p><strong>(iii) Why the correction matters.</strong> This <span class="math inline">q</span> is not symmetric, since <span class="math inline">q(2\mid1)=\frac14</span> but <span class="math inline">q(1\mid2)=\frac34</span>.</p>
+<p>Under the Metropolis rule, the target ratio is always 1, so every proposal is accepted. The chain then just copies <span class="math inline">q</span> and settles on <span class="math inline">(\frac34,\frac14)</span>, which is not the target.</p>
+<p>Under the MH rule, the two acceptance probabilities are</p>
+<p><span class="math display">\alpha(2\mid1)=\min\Big\{1,\ \frac{3/4}{1/4}\Big\}=1, \qquad \alpha(1\mid2)=\min\Big\{1,\ \frac{1/4}{3/4}\Big\}=\frac13.</span></p>
+<p>The actual moves have probabilities <span class="math inline">P(1\to2)=\frac14\cdot1=\frac14</span> and <span class="math inline">P(2\to1)=\frac34\cdot\frac13=\frac14</span>. They are equal, so detailed balance holds for the uniform distribution and the chain settles on <span class="math inline">(\frac12,\frac12)</span>.</p>
+<p><strong>Answer.</strong> Metropolis needs a symmetric proposal and accepts on the target ratio alone. MH allows any proposal and adds the correction <span class="math inline">q(x\mid x')/q(x'\mid x)</span>. Without it, this chain settles on <span class="math inline">(\frac34,\frac14)</span>; with it, on the target <span class="math inline">(\frac12,\frac12)</span>.</p>
+<p><strong>Takeaways.</strong></p>
+<ul>
+<li>Metropolis is MH with a symmetric proposal, where the correction equals 1.</li>
+<li>The correction is what keeps <span class="math inline">p</span> stationary when the proposal favours some moves. Dropping it makes the chain sample the wrong distribution.</li>
+</ul>
+</div>
+</div>
+</div>
+</section>
+<section id="prb-9-9" class="level3">
+<h3 class="anchored" data-anchor-id="prb-9-9">Problem 9.9: Gibbs sampling versus random-walk Metropolis</h3>
+<p>Compare Gibbs sampling and random-walk Metropolis in terms of (i) the proposal, (ii) how often proposals are rejected, (iii) what we must be able to compute about the target, and (iv) what we must tune.</p>
+<div class="practice-answer callout callout-style-default callout-tip callout-titled" title="Worked solution">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-42-contents" aria-controls="callout-42" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Worked solution
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-42" class="callout-42-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>This reteaches <a href="../lectures/week05.html#sec-gibbs">Week 5, Gibbs sampling</a> and <a href="../lectures/week05.html#sec-mh">The Metropolis-Hastings algorithm</a>.</p>
+<p><strong>Similarities.</strong> Both are MCMC methods: each builds a Markov chain with <span class="math inline">p</span> as its stationary distribution, needs no <span class="math inline">Z_p</span>, produces dependent samples, and needs burn-in. Gibbs is a special case of MH (<a href="#prb-9-4">Problem 9.4</a>).</p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 33%">
+<col style="width: 33%">
+<col style="width: 33%">
+</colgroup>
+<thead>
+<tr class="header">
+<th></th>
+<th>Gibbs sampling</th>
+<th>Random-walk Metropolis</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>Proposal</td>
+<td>one coordinate at a time, from its full conditional <span class="math inline">p(x_j\mid x_{-j})</span></td>
+<td>usually the whole state at once, <span class="math inline">x'\sim\mathcal N(x,\sigma^2I)</span></td>
+</tr>
+<tr class="even">
+<td>Rejections</td>
+<td>none; the acceptance probability is exactly 1</td>
+<td>any proposal can be rejected, with acceptance <span class="math inline">\min\{1,\ \tilde p(x')/\tilde p(x)\}</span></td>
+</tr>
+<tr class="odd">
+<td>Must compute</td>
+<td>must sample each full conditional exactly</td>
+<td>only needs to evaluate <span class="math inline">\tilde p</span></td>
+</tr>
+<tr class="even">
+<td>Tuning</td>
+<td>no step size</td>
+<td>the step size <span class="math inline">\sigma</span></td>
+</tr>
+</tbody>
+</table>
+<p>The two weak points differ. Gibbs fails to apply when the full conditionals are not available in a form we can sample. It suits models such as the Ising model, where a node’s full conditional depends only on its neighbours. Metropolis applies whenever <span class="math inline">\tilde p</span> can be evaluated, but a poor <span class="math inline">\sigma</span> wastes the run: too small and the chain crawls, too large and it rarely moves.</p>
+<p><strong>Answer.</strong> Gibbs resamples one coordinate from its exact full conditional, never rejects, and has no step size, but needs conditionals we can sample. Random-walk Metropolis moves all coordinates with a blind proposal, may reject, and needs a tuned step size, but only needs to evaluate <span class="math inline">\tilde p</span>.</p>
+<p><strong>Takeaways.</strong></p>
+<ul>
+<li>Gibbs trades the need for exact conditionals against having no rejections and no step size.</li>
+<li>Metropolis asks the least of the target, and pays for it in rejections and tuning.</li>
+</ul>
+</div>
+</div>
+</div>
+</section>
+<section id="prb-9-10" class="level3">
+<h3 class="anchored" data-anchor-id="prb-9-10">Problem 9.10: Three samplers on a narrow ridge</h3>
+<p>The target is a bivariate Gaussian with zero means, unit variances, and correlation <span class="math inline">\rho=0.96</span>. Compare random-walk Metropolis, Gibbs sampling, and Hamiltonian Monte Carlo in terms of (i) the direction of each move, (ii) what limits the size of each move, and (iii) the extra work or information each one needs.</p>
+<div class="practice-answer callout callout-style-default callout-tip callout-titled" title="Worked solution">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-43-contents" aria-controls="callout-43" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Worked solution
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-43" class="callout-43-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>This reteaches <a href="../lectures/week05.html#sec-gibbs-gauss">Week 5, Example: Gibbs sampling a bivariate Gaussian</a>, <a href="../lectures/week05.html#sec-hmc">Hamiltonian Monte Carlo</a>, and <a href="../lectures/week05.html#sec-leapfrog">The leapfrog integrator</a>.</p>
+<p>The target’s mass lies on a long, thin ridge along the diagonal <span class="math inline">x_1=x_2</span>.</p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 25%">
+<col style="width: 25%">
+<col style="width: 25%">
+<col style="width: 25%">
+</colgroup>
+<thead>
+<tr class="header">
+<th></th>
+<th>Random-walk Metropolis</th>
+<th>Gibbs sampling</th>
+<th>HMC</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>Direction</td>
+<td>random, ignoring the shape of <span class="math inline">\tilde p</span></td>
+<td>along one coordinate axis at a time</td>
+<td>steered by <span class="math inline">\nabla\log\tilde p</span>, along the ridge</td>
+</tr>
+<tr class="even">
+<td>Move size limited by</td>
+<td>the ridge’s narrow width, since large steps leave it and are rejected</td>
+<td>the conditional standard deviation <span class="math inline">\sqrt{1-\rho^2}</span></td>
+<td>the leapfrog error, set by <span class="math inline">\epsilon</span>; the length is set by <span class="math inline">L\epsilon</span></td>
+</tr>
+<tr class="odd">
+<td>Extra needs</td>
+<td>only evaluations of <span class="math inline">\tilde p</span></td>
+<td>exact full conditionals</td>
+<td>one gradient per leapfrog step, so <span class="math inline">L</span> per proposal, and a continuous <span class="math inline">x</span></td>
+</tr>
+</tbody>
+</table>
+<p>For Gibbs, the conditional variance is <span class="math inline">1-0.96^2=0.0784</span>, so each move has standard deviation <span class="math inline">0.28</span>, while the target spreads with standard deviation 1 in each coordinate. The chain must zig-zag along the ridge in small axis-parallel steps. Gibbs accepts every draw and still mixes slowly, so a high acceptance rate alone does not mean a good sampler.</p>
+<p>Random-walk Metropolis has the same problem for a different reason. Most random directions leave the ridge, so the step must shrink to the ridge’s width. HMC is the only one of the three that uses the slope of the target. One trajectory can travel far along the ridge and still be accepted with high probability, because <span class="math inline">H</span> stays nearly constant. It pays for that with gradient evaluations and two settings, <span class="math inline">\epsilon</span> and <span class="math inline">L</span>.</p>
+<p><strong>Answer.</strong> Random-walk Metropolis moves blindly and must keep its steps as small as the ridge is narrow. Gibbs moves along the axes in steps of about <span class="math inline">0.28</span>. HMC follows the gradient along the ridge and makes long moves that are usually accepted, at a cost of <span class="math inline">L</span> gradient evaluations per proposal.</p>
+<p><strong>Takeaways.</strong></p>
+<ul>
+<li>Random walk and Gibbs both slow down on a correlated target, because neither move direction follows the ridge.</li>
+<li>HMC uses the gradient to move along the ridge, which is why it needs a differentiable <span class="math inline">\log\tilde p</span> over a continuous <span class="math inline">x</span>.</li>
+</ul>
+</div>
+</div>
+</div>
+</section>
+<section id="prb-9-11" class="level3">
+<h3 class="anchored" data-anchor-id="prb-9-11">Problem 9.11: <span class="math inline">\hat R</span> versus effective sample size</h3>
+<p>Compare <span class="math inline">\hat R</span> and the effective sample size in terms of (i) the question each answers and (ii) what each is computed from.</p>
+<ol start="3" type="i">
+<li><p>Describe a run that passes the <span class="math inline">\hat R</span> check but has an <span class="math inline">n_{\text{eff}}</span> far below its number of draws. As a number to go with it, find <span class="math inline">n_{\text{eff}}</span> for 4 chains of 900 draws each with <span class="math inline">\rho_t=0.8^t</span>.</p></li>
+<li><p>Describe a run that passes both checks and is still wrong.</p></li>
+</ol>
+<div class="practice-answer callout callout-style-default callout-tip callout-titled" title="Worked solution">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-44-contents" aria-controls="callout-44" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Worked solution
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-44" class="callout-44-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>This reteaches <a href="../lectures/week05.html#sec-rhat">Week 5, The <span class="math inline">\hat R</span> statistic</a>, <a href="../lectures/week05.html#sec-ess">Effective sample size</a>, and <a href="../lectures/week05.html#sec-rule">Diagnostics rule of thumb</a>.</p>
+<p><strong>Similarity.</strong> Both are computed from the chains after burn-in, and both are used together in the rule of thumb: <span class="math inline">\hat R</span> near 1 and <span class="math inline">\hat n_{\text{eff}}&gt;10</span> per chain.</p>
+<p><strong>(i) The questions.</strong> <span class="math inline">\hat R</span> asks whether the chains agree with each other, that is, whether they appear to have reached the same distribution. <span class="math inline">n_{\text{eff}}</span> asks how many independent draws the correlated samples are worth.</p>
+<p><strong>(ii) The inputs.</strong> <span class="math inline">\hat R</span> compares the between-chain variance <span class="math inline">B</span> with the within-chain variance <span class="math inline">W</span>, so it needs at least two chains. <span class="math inline">n_{\text{eff}}</span> uses the total number of draws <span class="math inline">mn</span> and the autocorrelations <span class="math inline">\rho_t</span>.</p>
+<p><strong>(iii) Agreement without information.</strong> Several chains can all drift slowly over the same region. Their means agree, so <span class="math inline">\hat R</span> is near 1, but neighbouring draws are nearly identical. With <span class="math inline">\rho_t=0.8^t</span> the inflation factor is</p>
+<p><span class="math display">\frac{1+\rho}{1-\rho}=\frac{1.8}{0.2}=9, \qquad n_{\text{eff}}=\frac{4\times900}{9}=400.</span></p>
+<p>So 3600 draws are worth 400 independent ones.</p>
+<p><strong>(iv) Passing is not converging.</strong> Suppose the target has two modes and every chain starts near the same one. The chains agree and mix well inside that mode, so both checks pass, yet none of them has found the other mode. Passing shows only that the chains appear stationary and well mixed.</p>
+<p><strong>Answer.</strong> <span class="math inline">\hat R</span> measures agreement between chains; <span class="math inline">n_{\text{eff}}</span> measures how much information correlated draws carry. Slow chains over the same region pass <span class="math inline">\hat R</span> with a much reduced <span class="math inline">n_{\text{eff}}</span> (here 400 from 3600 draws). Chains that all miss the same mode pass both.</p>
+<p><strong>Takeaways.</strong></p>
+<ul>
+<li><span class="math inline">\hat R</span> needs several chains and looks at their means. <span class="math inline">n_{\text{eff}}</span> looks at the correlation between draws.</li>
+<li>Neither check can detect a region that no chain has visited.</li>
+</ul>
+</div>
+</div>
+</div>
+</section>
+<section id="prb-9-12" class="level3">
+<h3 class="anchored" data-anchor-id="prb-9-12">Problem 9.12: Filtering versus smoothing</h3>
+<p>For an HMM, compare filtering and smoothing in terms of (i) the observations each conditions on, (ii) how each is computed, and (iii) when the two give the same answer. (iv) When would we have to use filtering rather than smoothing?</p>
+<div class="practice-answer callout callout-style-default callout-tip callout-titled" title="Worked solution">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-45-contents" aria-controls="callout-45" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Worked solution
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-45" class="callout-45-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>This reteaches <a href="../lectures/week06.html#sec-forward">Week 6, The forward algorithm</a> and <a href="../lectures/week06.html#sec-fb">The forward-backward algorithm</a>.</p>
+<p><strong>Similarities.</strong> Both give a normalized distribution over the hidden state <span class="math inline">z_t</span>, not a single state. Both are exact, because the HMM graph is a tree, and both cost on the order of <span class="math inline">TK^2</span>.</p>
+<p><strong>(i) Evidence.</strong> Filtering gives <span class="math inline">\alpha_t(j)=p(z_t=j\mid x_{1:t})</span>, which uses the observations up to time <span class="math inline">t</span>. Smoothing gives <span class="math inline">\gamma_t(j)=p(z_t=j\mid x_{1:T})</span>, which uses all of them, including those after <span class="math inline">t</span>.</p>
+<p><strong>(ii) Computation.</strong> Filtering needs only the forward pass, <span class="math inline">\alpha_t\propto\psi_t\odot(\Psi^\top\alpha_{t-1})</span>. Smoothing also needs the backward pass, which carries the future evidence in <span class="math inline">\beta_t</span>, and then combines the two with <span class="math inline">\gamma_t\propto\alpha_t\odot\beta_t</span>.</p>
+<p><strong>(iii) When they agree.</strong> At the last step, <span class="math inline">\beta_T=\mathbf 1</span> because no future observations remain, so <span class="math inline">\gamma_T=\alpha_T</span>. At every earlier step they can differ, since later observations can change our belief about <span class="math inline">z_t</span>.</p>
+<p><strong>(iv) When filtering is forced.</strong> Smoothing needs the whole sequence. If observations arrive one at a time and we must decide now, the future is not available, and filtering is all we can compute. It also updates in one step per new observation.</p>
+<p><strong>Answer.</strong> Filtering conditions on <span class="math inline">x_{1:t}</span> and needs one forward pass. Smoothing conditions on <span class="math inline">x_{1:T}</span> and needs forward and backward passes. They agree at <span class="math inline">t=T</span>, where <span class="math inline">\beta_T=\mathbf 1</span>. Filtering is the choice when the future observations have not arrived yet.</p>
+<p><strong>Takeaways.</strong></p>
+<ul>
+<li><span class="math inline">\alpha_t</span> holds past and present evidence, <span class="math inline">\beta_t</span> holds future evidence, and <span class="math inline">\gamma_t</span> combines them.</li>
+<li>The difference between <span class="math inline">\alpha_t</span> and <span class="math inline">\gamma_t</span> is exactly the future evidence, which is why they coincide at <span class="math inline">t=T</span>.</li>
+</ul>
+</div>
+</div>
+</div>
+</section>
+<section id="prb-9-13" class="level3">
+<h3 class="anchored" data-anchor-id="prb-9-13">Problem 9.13: Forward-backward versus Viterbi</h3>
+<p>Compare forward-backward and Viterbi in terms of (i) the question each answers, (ii) the operation at the core of each recursion, and (iii) their connection to belief propagation.</p>
+<ol start="4" type="i">
+<li>An HMM has three states, <span class="math inline">\pi=(0.4,\ 0.35,\ 0.25)</span>, two time steps, and observations that carry no information (<span class="math inline">\psi_t(j)</span> is the same for every state <span class="math inline">j</span>). The transition matrix is</li>
+</ol>
+<p><span class="math display">\Psi=\begin{pmatrix}0.5&amp;0&amp;0.5\\0&amp;1&amp;0\\0&amp;1&amp;0\end{pmatrix}.</span></p>
+<p>Find the most probable state at each step separately, and the most probable sequence. Why is the first answer unusable as a sequence?</p>
+<div class="practice-answer callout callout-style-default callout-tip callout-titled" title="Worked solution">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-46-contents" aria-controls="callout-46" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Worked solution
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-46" class="callout-46-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>This reteaches <a href="../lectures/week06.html#sec-hmm-goals">Week 6, Two inference questions</a>, <a href="../lectures/week06.html#sec-fb">The forward-backward algorithm</a>, and <a href="../lectures/week06.html#sec-viterbi">The Viterbi algorithm</a>.</p>
+<p><strong>Similarities.</strong> Both replace the <span class="math inline">K^T</span> brute-force enumeration with a recursion along the chain, and both cost on the order of <span class="math inline">TK^2</span>.</p>
+<p><strong>(i) The question.</strong> Forward-backward finds the posterior of each hidden state on its own, <span class="math inline">p(z_t\mid x_{1:T})</span>. Viterbi finds the single most probable whole sequence, <span class="math inline">\arg\max_{z_{1:T}}p(z_{1:T}\mid x_{1:T})</span>.</p>
+<p><strong>(ii) The operation.</strong> Forward-backward sums over the previous state. Viterbi maximizes over it and stores a back-pointer, so it can trace the best path back from the end.</p>
+<p><strong>(iii) Belief propagation.</strong> Forward-backward is sum-product BP on a chain, and Viterbi is max-product BP on a chain.</p>
+<p><strong>(iv) A case where they disagree.</strong> The observations carry no information, so the posterior is the prior over paths. Each sequence’s probability is <span class="math inline">\pi(z_1)\,\Psi(z_1,z_2)</span>, and the nonzero ones are</p>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th><span class="math inline">(z_1,z_2)</span></th>
+<th><span class="math inline">(1,1)</span></th>
+<th><span class="math inline">(1,3)</span></th>
+<th><span class="math inline">(2,2)</span></th>
+<th><span class="math inline">(3,2)</span></th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>probability</td>
+<td><span class="math inline">0.2</span></td>
+<td><span class="math inline">0.2</span></td>
+<td><span class="math inline">0.35</span></td>
+<td><span class="math inline">0.25</span></td>
+</tr>
+</tbody>
+</table>
+<p>The marginal of <span class="math inline">z_1</span> is <span class="math inline">\pi</span>, so the best first state is 1. The marginal of <span class="math inline">z_2</span> is <span class="math inline">(0.2,\ 0.6,\ 0.2)</span>, so the best second state is 2. Viterbi’s answer is the top entry of the table, <span class="math inline">(2,2)</span>, with probability <span class="math inline">0.35</span>.</p>
+<p>Putting the two per-step answers together gives <span class="math inline">(1,2)</span>. But <span class="math inline">\Psi(1,2)=0</span>, so this sequence has probability 0. Each marginal adds up probability across different sequences, so the per-step answers need not fit together as one sequence.</p>
+<p><strong>Answer.</strong> Forward-backward gives each state’s marginal posterior by summing; Viterbi gives the best whole sequence by maximizing. The per-step best states are <span class="math inline">(1,2)</span>, which is impossible because <span class="math inline">\Psi(1,2)=0</span>, while the most probable sequence is <span class="math inline">(2,2)</span>.</p>
+<p><strong>Takeaways.</strong></p>
+<ul>
+<li>Sum gives marginals one position at a time. Max gives one coherent sequence.</li>
+<li>Use forward-backward to report uncertainty about one state, and Viterbi when we need a sequence that hangs together.</li>
+</ul>
+</div>
+</div>
+</div>
+</section>
+<section id="prb-9-14" class="level3">
+<h3 class="anchored" data-anchor-id="prb-9-14">Problem 9.14: MCMC versus variational inference</h3>
+<p>Both MCMC and variational inference approximate a posterior <span class="math inline">p(z\mid x)</span> when the evidence <span class="math inline">p(x)</span> is intractable. Compare them in terms of (i) the kind of problem each solves, (ii) what each produces, (iii) what happens to the error as we spend more computation, and (iv) how we decide when to stop.</p>
+<div class="practice-answer callout callout-style-default callout-tip callout-titled" title="Worked solution">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-47-contents" aria-controls="callout-47" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Worked solution
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-47" class="callout-47-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>This reteaches <a href="../lectures/week06.html#sec-hard-post">Week 6, Why the posterior is hard</a>, <a href="../lectures/week06.html#sec-vi">Variational methods</a>, and <a href="../lectures/week06.html#sec-elbo">Tutorial: reverse KL and the ELBO</a>.</p>
+<p><strong>Similarity.</strong> Both avoid <span class="math inline">p(x)</span> and need only the joint <span class="math inline">p(x,z)</span>. In MCMC the normalizer cancels in a ratio. In VI, <span class="math inline">\log p(x)</span> separates out of the KL and does not affect the optimum.</p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 33%">
+<col style="width: 33%">
+<col style="width: 33%">
+</colgroup>
+<thead>
+<tr class="header">
+<th></th>
+<th>MCMC</th>
+<th>Variational inference</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>Problem solved</td>
+<td>sampling: simulate a Markov chain</td>
+<td>optimization: minimize <span class="math inline">\mathrm{KL}(q\Vert p(z\mid x))</span>, equivalently maximize the ELBO</td>
+</tr>
+<tr class="even">
+<td>Produces</td>
+<td>correlated samples, which we average</td>
+<td>one distribution <span class="math inline">q\in Q</span> we can evaluate and sample from</td>
+</tr>
+<tr class="odd">
+<td>Error with more computation</td>
+<td>shrinks as the chain runs longer</td>
+<td>stops at the best <span class="math inline">q\in Q</span>; any gap between <span class="math inline">Q</span> and the true posterior remains</td>
+</tr>
+<tr class="even">
+<td>Stopping</td>
+<td><span class="math inline">\hat R</span> and <span class="math inline">n_{\text{eff}}</span></td>
+<td>the objective stops changing</td>
+</tr>
+</tbody>
+</table>
+<p>The key difference is the third row. MCMC’s error comes from running for a finite time, so more iterations reduce it. VI’s error comes from the choice of <span class="math inline">Q</span>, so more iterations cannot remove it. The TrueSkill posterior after one game is not Gaussian, so no Gaussian <span class="math inline">q</span> equals it, however long we optimize. VI accepts that error on purpose in exchange for a simple optimization problem and a tractable <span class="math inline">q</span>.</p>
+<p>VI also gives a number MCMC does not: the ELBO is a lower bound on <span class="math inline">\log p(x)</span>. Neither method is safe on a multimodal posterior. A chain can stay in one mode, and the I-projection can settle on one.</p>
+<p><strong>Answer.</strong> MCMC samples and VI optimizes. MCMC gives correlated samples, and its error keeps shrinking as it runs. VI gives a fitted <span class="math inline">q</span>, and its error stops at the distance from <span class="math inline">Q</span> to the true posterior. Both use only <span class="math inline">p(x,z)</span>, never <span class="math inline">p(x)</span>.</p>
+<p><strong>Takeaways.</strong></p>
+<ul>
+<li>More computation helps MCMC without limit, in principle. VI is limited by the family <span class="math inline">Q</span>.</li>
+<li>Both avoid the evidence: MCMC by cancelling it in a ratio, VI by separating it from the objective.</li>
+</ul>
+</div>
+</div>
+</div>
+</section>
+<section id="prb-9-15" class="level3">
+<h3 class="anchored" data-anchor-id="prb-9-15">Problem 9.15: I-projection versus M-projection</h3>
+<p>The target is <span class="math inline">p(z)=0.25\,\mathcal N(z;-6,1)+0.75\,\mathcal N(z;2,1)</span> and <span class="math inline">Q</span> is all 1D Gaussians. Compare the I-projection and the M-projection in terms of (i) the distribution each expectation is taken under, (ii) the mistake each one punishes, and (iii) the fit each gives for this target. (iv) Which one does variational inference use, and why?</p>
+<div class="practice-answer callout callout-style-default callout-tip callout-titled" title="Worked solution">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-48-contents" aria-controls="callout-48" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Worked solution
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-48" class="callout-48-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>This reteaches <a href="../lectures/week06.html#sec-projections">Week 6, Which direction? I-projection and M-projection</a> and <a href="../lectures/week06.html#sec-why-iproj">Why variational inference uses the I-projection</a>.</p>
+<p><strong>Similarity.</strong> Both pick the member of <span class="math inline">Q</span> closest to <span class="math inline">p</span> under a KL divergence, and both reach 0 only if <span class="math inline">p</span> is in <span class="math inline">Q</span>.</p>
+<p><strong>(i) The expectation.</strong> The I-projection minimizes the reverse KL, <span class="math inline">\mathrm{KL}(q\,\|\,p)=\mathbb{E}_q[\log(q/p)]</span>, averaged under <span class="math inline">q</span>. The M-projection minimizes the forward KL, <span class="math inline">\mathrm{KL}(p\,\|\,q)=\mathbb{E}_p[\log(p/q)]</span>, averaged under <span class="math inline">p</span>.</p>
+<p><strong>(ii) The mistake.</strong> The I-projection punishes <span class="math inline">q</span> for putting mass where <span class="math inline">p</span> has almost none. Mass of <span class="math inline">p</span> that <span class="math inline">q</span> misses costs little, since those regions are weighted by <span class="math inline">q\approx0</span>. The M-projection does the opposite: it punishes <span class="math inline">q</span> for missing any region where <span class="math inline">p</span> has mass.</p>
+<p><strong>(iii) This target.</strong> The M-projection onto Gaussians matches the mean and variance of <span class="math inline">p</span>:</p>
+<p><span class="math display">\mu^*=0.25(-6)+0.75(2)=0,</span></p>
+<p><span class="math display">\sigma^{2*}=0.25\big(1+36\big)+0.75\big(1+4\big)=13.</span></p>
+<p>So <span class="math inline">q^*_{\text{M}}=\mathcal N(0,13)</span>. It covers both modes, and its peak sits in the valley at <span class="math inline">z=0</span>, where <span class="math inline">p</span> is small.</p>
+<p>The I-projection has no closed form here, but the two modes are far apart, so a good fit sits on one of them. Take <span class="math inline">q=\mathcal N(2,1)</span>. Over the region where <span class="math inline">q</span> has its mass, <span class="math inline">p</span> is about <span class="math inline">0.75\,q</span>, so <span class="math inline">\log(q/p)\approx\ln\frac43</span> and <span class="math inline">\mathrm{KL}(q\,\|\,p)\approx0.29</span>. Sitting on the small mode instead, <span class="math inline">q=\mathcal N(-6,1)</span> gives about <span class="math inline">\ln4\approx1.39</span>. Both are local minima of the reverse KL, and the one on the larger mode is better.</p>
+<p><strong>(iv) Why VI uses the I-projection.</strong> Its expectation is under <span class="math inline">q</span>, which we chose to be easy, and the unknown <span class="math inline">\log p(x)</span> separates out of the objective. The forward KL is an expectation under the posterior, which would need the samples or normalizer we do not have.</p>
+<p><strong>Answer.</strong> The I-projection averages under <span class="math inline">q</span>, avoids mass where <span class="math inline">p</span> is small, and settles on one mode, here approximately <span class="math inline">\mathcal N(2,1)</span>. The M-projection averages under <span class="math inline">p</span>, avoids missing mass, and gives <span class="math inline">\mathcal N(0,13)</span>. VI uses the I-projection because it needs expectations only under <span class="math inline">q</span>.</p>
+<p><strong>Takeaways.</strong></p>
+<ul>
+<li>The KL is averaged under its first argument, and that argument decides which mistake is punished.</li>
+<li>Neither fit is right on a bimodal target: one misses a mode, the other puts its peak in the valley.</li>
+<li>The reverse KL has more than one local minimum here, so the starting point matters.</li>
+</ul>
+</div>
+</div>
+</div>
+</section>
+<section id="prb-9-16" class="level3">
+<h3 class="anchored" data-anchor-id="prb-9-16">Problem 9.16: Gibbs sampling versus mean field</h3>
+<p>On a pairwise MRF, both Gibbs sampling and naive mean field sweep through the nodes and update one node at a time using only its neighbours. Compare them in terms of (i) what is updated, (ii) what each one uses from the neighbours, and (iii) what each one produces.</p>
+<ol start="4" type="i">
+<li>Take <span class="math inline">x_1,x_2\in\{0,1\}</span> with one edge and log-potential <span class="math inline">\phi_{12}(x_1,x_2)=(2\ln3)\,x_1x_2</span>. Find Gibbs’s probability of <span class="math inline">x_1=1</span> when <span class="math inline">x_2=1</span> and when <span class="math inline">x_2=0</span>. Then find the mean-field update for <span class="math inline">q_1(1)</span> when <span class="math inline">q_2(1)=\frac12</span>.</li>
+</ol>
+<div class="practice-answer callout callout-style-default callout-tip callout-titled" title="Worked solution">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-49-contents" aria-controls="callout-49" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Worked solution
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-49" class="callout-49-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>This reteaches <a href="../lectures/week05.html#sec-gibbs">Week 5, Gibbs sampling</a> and <a href="../lectures/week06.html#sec-coord-ascent">Week 6, Pairwise MRFs and coordinate ascent</a>.</p>
+<p><strong>The similarity is in the formulas.</strong> Each update has the same form, and the neighbour is the only thing that changes:</p>
+<p><span class="math display">\text{Gibbs:}\quad p(x_i\mid x_{N(i)})\propto\exp\Big\{\sum_{j\in N(i)}\phi_{ij}(x_i,x_j)\Big\}</span></p>
+<p><span class="math display">\text{Mean field:}\quad q_i(x_i)\propto\exp\Big\{\sum_{j\in N(i)}\sum_{x_j}q_j(x_j)\,\phi_{ij}(x_i,x_j)\Big\}</span></p>
+<p>Gibbs plugs in the neighbour’s current <strong>value</strong>. Mean field averages over the neighbour’s current <strong>distribution</strong>, which is where the name comes from.</p>
+<p><strong>(i) What is updated.</strong> Gibbs replaces the value <span class="math inline">x_i</span> with a random draw. Mean field replaces the table <span class="math inline">q_i</span> by a deterministic calculation, so the same start gives the same result every time.</p>
+<p><strong>(ii) What each uses from the neighbours.</strong> As above: a sampled value for Gibbs, an average under <span class="math inline">q_j</span> for mean field.</p>
+<p><strong>(iii) What each produces.</strong> Gibbs produces samples whose distribution approaches <span class="math inline">p</span>, including the correlations between variables. Mean field produces a factorized <span class="math inline">q=\prod_iq_i</span>, which has no correlations at all, and it converges to a local optimum of its objective.</p>
+<p><strong>(iv) Numbers.</strong> Gibbs with <span class="math inline">x_2=1</span> has unnormalized values <span class="math inline">1</span> for <span class="math inline">x_1=0</span> and <span class="math inline">e^{2\ln3}=9</span> for <span class="math inline">x_1=1</span>, so the probability is <span class="math inline">\frac{9}{10}</span>. With <span class="math inline">x_2=0</span> the potential is 0 either way, so it is <span class="math inline">\frac12</span>.</p>
+<p>For mean field with <span class="math inline">q_2(1)=\frac12</span>, the average of <span class="math inline">\phi_{12}</span> over <span class="math inline">x_2</span> at <span class="math inline">x_1=1</span> is <span class="math inline">\frac12\cdot2\ln3=\ln3</span>, and at <span class="math inline">x_1=0</span> it is 0. So <span class="math inline">q_1(1)=\frac{e^{\ln 3}}{1+e^{\ln3}}=\frac{3}{1+3}=\frac34</span>.</p>
+<p>The average of the two Gibbs probabilities is <span class="math inline">0.7</span>, not <span class="math inline">0.75</span>: mean field averages the log-potential inside the exponential, not the resulting probabilities.</p>
+<p><strong>Answer.</strong> Gibbs draws a new value of <span class="math inline">x_i</span> from a neighbour’s sampled value and gives correlated samples that approach <span class="math inline">p</span>. Mean field recomputes a distribution <span class="math inline">q_i</span> from the neighbours’ averages and gives a factorized approximation. The numbers are <span class="math inline">\frac{9}{10}</span>, <span class="math inline">\frac12</span>, and <span class="math inline">\frac34</span>.</p>
+<p><strong>Takeaways.</strong></p>
+<ul>
+<li>The updates have the same shape: Gibbs uses the neighbour’s value, mean field uses its average.</li>
+<li>Gibbs is random and keeps the correlations. Mean field is deterministic and loses them.</li>
+</ul>
+</div>
+</div>
+</div>
+</section>
+<section id="prb-9-17" class="level3">
+<h3 class="anchored" data-anchor-id="prb-9-17">Problem 9.17: Belief propagation versus mean field</h3>
+<p>Compare sum-product belief propagation and naive mean field on a pairwise MRF in terms of (i) what is stored and passed between nodes, (ii) whether the result is exact on a tree, and (iii) their convergence on a graph with cycles.</p>
+<div class="practice-answer callout callout-style-default callout-tip callout-titled" title="Worked solution">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-50-contents" aria-controls="callout-50" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Worked solution
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-50" class="callout-50-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>This reteaches <a href="../lectures/week04.html#sec-bp">Week 4, Belief propagation on trees</a>, <a href="../lectures/week04.html#sec-loopy">Loopy belief propagation</a>, and <a href="../lectures/week06.html#sec-coord-ascent">Week 6, Pairwise MRFs and coordinate ascent</a>.</p>
+<p><strong>Similarities.</strong> Both are local: each node’s update uses only its neighbours, and both estimate single-node marginals without computing <span class="math inline">Z</span>.</p>
+<p><strong>(i) What is stored.</strong> BP keeps one message per direction of each edge, so <span class="math inline">2|\mathcal E|</span> tables. A message from <span class="math inline">j</span> to <span class="math inline">i</span> leaves out what <span class="math inline">i</span> told <span class="math inline">j</span>. Mean field keeps one table <span class="math inline">q_i</span> per node, and every neighbour reads the same table, with nothing left out.</p>
+<p><strong>(ii) Trees.</strong> BP is exact on a tree. Mean field generally is not, because a factorized <span class="math inline">q</span> cannot represent the dependence between neighbouring variables. Week 6’s two-node example is a tree, and there the exact marginal is about <span class="math inline">0.807</span> while mean field gives about <span class="math inline">0.844</span>.</p>
+<p><strong>(iii) Cycles.</strong> Loopy BP uses the same update on a graph with cycles. Its beliefs are approximate, and it may not converge at all. Mean field always converges, because each coordinate step can only increase an objective bounded above by <span class="math inline">\log Z</span>. It may stop at a local optimum, though, and different starts can give different answers.</p>
+<p>Mean field therefore comes with a guarantee that loopy BP lacks: the value it optimizes is a lower bound on <span class="math inline">\log Z</span>. BP gives the exact answer on trees, and mean field gives an approximation that converges on any graph. Both can be overconfident.</p>
+<p><strong>Answer.</strong> BP passes a directed message along each edge, excluding the recipient’s own contribution, and is exact on trees, but on cycles it is approximate and may not converge. Mean field keeps one factor per node, is generally inexact even on trees, but always converges, possibly to a local optimum.</p>
+<p><strong>Takeaways.</strong></p>
+<ul>
+<li>Exactness on trees belongs to BP. Guaranteed convergence belongs to mean field.</li>
+<li>Mean field’s error comes from the factorized family, so a simpler graph does not remove it unless the variables really are independent.</li>
 </ul>
 </div>
 </div>
