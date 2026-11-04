@@ -244,12 +244,20 @@ window.Quarto = {
     <h2 id="toc-title">On this page</h2>
    
   <ul>
-  <li><a href="#sec-w7p-equations" id="toc-sec-w7p-equations" class="nav-link active" data-scroll-target="#sec-w7p-equations">Equations to know for the quiz</a>
+  <li><a href="#sec-w7p-dimensions" id="toc-sec-w7p-dimensions" class="nav-link active" data-scroll-target="#sec-w7p-dimensions">Key variables and their dimensions</a>
   <ul class="collapse">
   <li><a href="#attention-in-general" id="toc-attention-in-general" class="nav-link" data-scroll-target="#attention-in-general">Attention in general</a></li>
   <li><a href="#sequence-to-sequence-with-attention" id="toc-sequence-to-sequence-with-attention" class="nav-link" data-scroll-target="#sequence-to-sequence-with-attention">Sequence-to-sequence with attention</a></li>
   <li><a href="#self-attention" id="toc-self-attention" class="nav-link" data-scroll-target="#self-attention">Self-attention</a></li>
   <li><a href="#position-encoding" id="toc-position-encoding" class="nav-link" data-scroll-target="#position-encoding">Position encoding</a></li>
+  <li><a href="#multi-head-attention-and-stacked-rnns" id="toc-multi-head-attention-and-stacked-rnns" class="nav-link" data-scroll-target="#multi-head-attention-and-stacked-rnns">Multi-head attention and stacked RNNs</a></li>
+  </ul></li>
+  <li><a href="#sec-w7p-equations" id="toc-sec-w7p-equations" class="nav-link" data-scroll-target="#sec-w7p-equations">Equations to know for the quiz</a>
+  <ul class="collapse">
+  <li><a href="#attention-in-general-1" id="toc-attention-in-general-1" class="nav-link" data-scroll-target="#attention-in-general-1">Attention in general</a></li>
+  <li><a href="#sequence-to-sequence-with-attention-1" id="toc-sequence-to-sequence-with-attention-1" class="nav-link" data-scroll-target="#sequence-to-sequence-with-attention-1">Sequence-to-sequence with attention</a></li>
+  <li><a href="#self-attention-1" id="toc-self-attention-1" class="nav-link" data-scroll-target="#self-attention-1">Self-attention</a></li>
+  <li><a href="#position-encoding-1" id="toc-position-encoding-1" class="nav-link" data-scroll-target="#position-encoding-1">Position encoding</a></li>
   <li><a href="#multi-head-attention-and-path-length" id="toc-multi-head-attention-and-path-length" class="nav-link" data-scroll-target="#multi-head-attention-and-path-length">Multi-head attention and path length</a></li>
   </ul></li>
   <li><a href="#sec-w7p-official-quiz" id="toc-sec-w7p-official-quiz" class="nav-link" data-scroll-target="#sec-w7p-official-quiz">Part 1: Official Week 8 quiz practice</a>
@@ -295,17 +303,312 @@ window.Quarto = {
 <div class="lecture-header">
   <h1>Week 7 practice: Attention</h1>
 </div>
-<p><strong>Overview.</strong> These problems drill <a href="../lectures/week07.html">Week 7</a>. Try each stem before opening the worked solution. Every solution starts from the equation it rests on, says where that equation comes from, and only then substitutes numbers. An equation sheet comes first, then two parts:</p>
+<p><strong>Overview.</strong> These problems drill <a href="../lectures/week07.html">Week 7</a>. Try each stem before opening the worked solution. Every solution starts from the equation it rests on, says where that equation comes from, and only then substitutes numbers. A table of variable shapes and an equation sheet come first, then two parts:</p>
 <ol type="1">
 <li><strong>Official Week 8 quiz practice.</strong> Four questions provided by the course, which test Week 7 material (and deep RNNs from Week 6), reproduced with their answers.</li>
 <li><strong>More practice.</strong> Four problems on the parts of Week 7 the official questions do not touch: the five ingredients, self-attention in matrix form, what reordering does, and rotary position encoding.</li>
 </ol>
 <p>In Part 2 the numbers and setups are invented for practice. Notation matches the week chapter: inputs <span class="math inline">\bm{x}_t \in \mathbb{R}^m</span>, queries and keys of length <span class="math inline">d_k</span>, values of length <span class="math inline">d_v</span>, projections <span class="math inline">\bm{W}_Q, \bm{W}_K, \bm{W}_V</span>, and for sequence-to-sequence models encoder states <span class="math inline">\bm{h}_i</span> and decoder states <span class="math inline">\bm{s}_{t'}</span>.</p>
+<section id="sec-w7p-dimensions" class="level2">
+<h2 class="anchored" data-anchor-id="sec-w7p-dimensions">Key variables and their dimensions</h2>
+<p>Most counting questions this week come down to knowing the shape of every object. The tables below list the shapes used in the <a href="../lectures/week07.html">Week 7</a> chapter. A vector in <span class="math inline">\mathbb{R}^n</span> has <span class="math inline">n</span> entries; a matrix of shape <span class="math inline">a \times b</span> takes a <span class="math inline">b</span>-vector in and gives an <span class="math inline">a</span>-vector out. Where the lecture leaves a size unnamed (an RNN’s hidden size, for example), the table describes it in words. Shapes marked <em>(ours)</em> follow from the equations but are not stated in the lecture.</p>
+<section id="attention-in-general" class="level3">
+<h3 class="anchored" data-anchor-id="attention-in-general">Attention in general</h3>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th>Variable</th>
+<th>What it is</th>
+<th>Shape</th>
+<th>Where</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><span class="math inline">\bm{q}</span></td>
+<td>the query</td>
+<td><span class="math inline">\mathbb{R}^{d_q}</span>, often with <span class="math inline">d_q = d_k</span></td>
+<td><a href="../lectures/week07.html#sec-abstract">The abstract picture</a></td>
+</tr>
+<tr class="even">
+<td><span class="math inline">\bm{k}_i</span>, <span class="math inline">i = 1, \dots, N</span></td>
+<td>the <span class="math inline">N</span> keys</td>
+<td><span class="math inline">\mathbb{R}^{d_k}</span> each</td>
+<td><a href="../lectures/week07.html#sec-abstract">The abstract picture</a></td>
+</tr>
+<tr class="odd">
+<td><span class="math inline">\bm{v}_i</span></td>
+<td>the value stored with key <span class="math inline">i</span></td>
+<td><span class="math inline">\mathbb{R}^{d_v}</span> each</td>
+<td><a href="../lectures/week07.html#sec-abstract">The abstract picture</a></td>
+</tr>
+<tr class="even">
+<td><span class="math inline">a_i</span>, <span class="math inline">\bm{a}</span></td>
+<td>one score per key, and all of them</td>
+<td>scalar; <span class="math inline">\mathbb{R}^{N}</span></td>
+<td><a href="../lectures/week07.html#sec-abstract">The abstract picture</a></td>
+</tr>
+<tr class="odd">
+<td><span class="math inline">f(\{\bm{v}_i\}, \bm{a})</span></td>
+<td>the reduction’s output</td>
+<td><span class="math inline">\mathbb{R}^{d_v}</span></td>
+<td><a href="../lectures/week07.html#sec-abstract">The abstract picture</a></td>
+</tr>
+<tr class="even">
+<td><span class="math inline">\bm{Y}</span></td>
+<td>one-hot training labels, row <span class="math inline">i</span> for point <span class="math inline">i</span></td>
+<td><span class="math inline">N \times (\text{number of classes})</span></td>
+<td><a href="../lectures/week07.html#sec-one-nn-attention">1-NN as attention</a></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="sequence-to-sequence-with-attention" class="level3">
+<h3 class="anchored" data-anchor-id="sequence-to-sequence-with-attention">Sequence-to-sequence with attention</h3>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th>Variable</th>
+<th>What it is</th>
+<th>Shape</th>
+<th>Where</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><span class="math inline">\bm{h}_1, \dots, \bm{h}_T</span></td>
+<td>encoder states, used as both keys and values</td>
+<td><span class="math inline">T</span> vectors of the encoder’s hidden size</td>
+<td><a href="../lectures/week07.html#sec-seq2seq-ingredients">The five ingredients</a></td>
+</tr>
+<tr class="even">
+<td><span class="math inline">\bm{s}_{t'}</span></td>
+<td>decoder state at output step <span class="math inline">t'</span>; the query is <span class="math inline">\bm{s}_{t'-1}</span></td>
+<td>one vector of the decoder’s hidden size per step</td>
+<td><a href="../lectures/week07.html#sec-seq2seq-ingredients">The five ingredients</a></td>
+</tr>
+<tr class="odd">
+<td><span class="math inline">\bm{W}_q</span>, <span class="math inline">\bm{W}_k</span></td>
+<td>maps of the decoder and encoder states into a shared space, so they can be added</td>
+<td>(MLP width) <span class="math inline">\times</span> (decoder hidden size); (MLP width) <span class="math inline">\times</span> (encoder hidden size) <em>(ours)</em></td>
+<td><a href="../lectures/week07.html#sec-seq2seq-ingredients">The five ingredients</a></td>
+</tr>
+<tr class="even">
+<td><span class="math inline">\bm{w}</span></td>
+<td>weight vector that collapses the <span class="math inline">\tanh</span> output to a score</td>
+<td>a vector of the MLP width <em>(ours)</em></td>
+<td><a href="../lectures/week07.html#sec-seq2seq-ingredients">The five ingredients</a></td>
+</tr>
+<tr class="odd">
+<td><span class="math inline">\bm{a}</span> at step <span class="math inline">t'</span></td>
+<td>one score per encoder state</td>
+<td><span class="math inline">\mathbb{R}^{T}</span></td>
+<td><a href="../lectures/week07.html#sec-seq2seq-ingredients">The five ingredients</a></td>
+</tr>
+<tr class="even">
+<td><span class="math inline">\bm{c}_{t'}</span></td>
+<td>context at step <span class="math inline">t'</span>, a weighted average of encoder states</td>
+<td>same size as one <span class="math inline">\bm{h}_i</span></td>
+<td><a href="../lectures/week07.html#sec-seq2seq-ingredients">The five ingredients</a></td>
+</tr>
+<tr class="odd">
+<td>attention matrix</td>
+<td>one row of weights per output step</td>
+<td><span class="math inline">T_\text{out} \times T_\text{in}</span> <em>(ours)</em></td>
+<td><a href="#quiz-3">Quiz question 3</a></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="self-attention" class="level3">
+<h3 class="anchored" data-anchor-id="self-attention">Self-attention</h3>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th>Variable</th>
+<th>What it is</th>
+<th>Shape</th>
+<th>Where</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><span class="math inline">\bm{x}_t</span></td>
+<td>input at position <span class="math inline">t</span>, <span class="math inline">t = 1, \dots, T</span></td>
+<td><span class="math inline">\mathbb{R}^{m}</span></td>
+<td><a href="../lectures/week07.html#sec-qkv">Queries, keys, and values</a></td>
+</tr>
+<tr class="even">
+<td><span class="math inline">\bm{W}_Q</span>, <span class="math inline">\bm{W}_K</span></td>
+<td>query and key projections, shared across positions</td>
+<td><span class="math inline">d_k \times m</span></td>
+<td><a href="../lectures/week07.html#sec-qkv">Queries, keys, and values</a></td>
+</tr>
+<tr class="odd">
+<td><span class="math inline">\bm{W}_V</span></td>
+<td>value projection, shared across positions</td>
+<td><span class="math inline">d_v \times m</span></td>
+<td><a href="../lectures/week07.html#sec-qkv">Queries, keys, and values</a></td>
+</tr>
+<tr class="even">
+<td><span class="math inline">\bm{q}_t</span>, <span class="math inline">\bm{k}_t</span></td>
+<td>query and key at position <span class="math inline">t</span></td>
+<td><span class="math inline">\mathbb{R}^{d_k}</span></td>
+<td><a href="../lectures/week07.html#sec-qkv">Queries, keys, and values</a></td>
+</tr>
+<tr class="odd">
+<td><span class="math inline">\bm{v}_t</span></td>
+<td>value at position <span class="math inline">t</span></td>
+<td><span class="math inline">\mathbb{R}^{d_v}</span></td>
+<td><a href="../lectures/week07.html#sec-qkv">Queries, keys, and values</a></td>
+</tr>
+<tr class="even">
+<td><span class="math inline">\bm{q}_i^\top \bm{k}_j / \sqrt{d_k}</span></td>
+<td>one scaled score</td>
+<td>scalar</td>
+<td><a href="../lectures/week07.html#sec-scaled-dot">The comparison</a></td>
+</tr>
+<tr class="odd">
+<td><span class="math inline">\bm{X}</span></td>
+<td>inputs stacked as rows</td>
+<td><span class="math inline">T \times m</span></td>
+<td><a href="../lectures/week07.html#sec-matrix">Matrix form</a></td>
+</tr>
+<tr class="even">
+<td><span class="math inline">\bm{Q} = \bm{X}\bm{W}_Q^\top</span>, <span class="math inline">\bm{K} = \bm{X}\bm{W}_K^\top</span></td>
+<td>queries and keys stacked as rows</td>
+<td><span class="math inline">T \times d_k</span></td>
+<td><a href="../lectures/week07.html#sec-matrix">Matrix form</a></td>
+</tr>
+<tr class="odd">
+<td><span class="math inline">\bm{V} = \bm{X}\bm{W}_V^\top</span></td>
+<td>values stacked as rows</td>
+<td><span class="math inline">T \times d_v</span></td>
+<td><a href="../lectures/week07.html#sec-matrix">Matrix form</a></td>
+</tr>
+<tr class="even">
+<td><span class="math inline">\bm{S} = \bm{Q}\bm{K}^\top / \sqrt{d_k}</span></td>
+<td>score matrix, entry <span class="math inline">(i, j)</span> for query <span class="math inline">i</span> and key <span class="math inline">j</span></td>
+<td><span class="math inline">T \times T</span></td>
+<td><a href="../lectures/week07.html#sec-matrix">Matrix form</a></td>
+</tr>
+<tr class="odd">
+<td><span class="math inline">\bm{A}</span></td>
+<td>attention matrix, softmax of each row of <span class="math inline">\bm{S}</span></td>
+<td><span class="math inline">T \times T</span>, each row sums to 1</td>
+<td><a href="../lectures/week07.html#sec-matrix">Matrix form</a></td>
+</tr>
+<tr class="even">
+<td><span class="math inline">\bm{A}\bm{V}</span></td>
+<td>layer output, one row per position</td>
+<td><span class="math inline">T \times d_v</span></td>
+<td><a href="../lectures/week07.html#sec-matrix">Matrix form</a></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="position-encoding" class="level3">
+<h3 class="anchored" data-anchor-id="position-encoding">Position encoding</h3>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th>Variable</th>
+<th>What it is</th>
+<th>Shape</th>
+<th>Where</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><span class="math inline">\bm{p}_t</span></td>
+<td>absolute position embedding, added to <span class="math inline">\bm{x}_t</span></td>
+<td><span class="math inline">\mathbb{R}^{m}</span></td>
+<td><a href="../lectures/week07.html#sec-absolute-position">Absolute position embeddings</a></td>
+</tr>
+<tr class="even">
+<td><span class="math inline">\bm{p}_{i-j}</span></td>
+<td>relative encoding (i), added to the key</td>
+<td><span class="math inline">\mathbb{R}^{d_k}</span>, one per offset</td>
+<td><a href="../lectures/week07.html#sec-relative-position">Relative position encodings</a></td>
+</tr>
+<tr class="odd">
+<td><span class="math inline">p_{i-j}</span></td>
+<td>relative bias (ii), added to the score</td>
+<td>scalar, one per offset</td>
+<td><a href="../lectures/week07.html#sec-relative-position">Relative position encodings</a></td>
+</tr>
+<tr class="even">
+<td><span class="math inline">\bm{R}(\phi)</span></td>
+<td>two-dimensional rotation by <span class="math inline">\phi</span></td>
+<td><span class="math inline">2 \times 2</span></td>
+<td><a href="../lectures/week07.html#sec-rotation">Rotation matrices</a></td>
+</tr>
+<tr class="odd">
+<td><span class="math inline">\bm{R}_i</span></td>
+<td>RoPE rotation at position <span class="math inline">i</span>, turning each of the <span class="math inline">d_k/2</span> pairs of entries</td>
+<td><span class="math inline">d_k \times d_k</span> <em>(ours)</em></td>
+<td><a href="../lectures/week07.html#sec-rope">Rotary position encoding</a></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="multi-head-attention-and-stacked-rnns" class="level3">
+<h3 class="anchored" data-anchor-id="multi-head-attention-and-stacked-rnns">Multi-head attention and stacked RNNs</h3>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th>Variable</th>
+<th>What it is</th>
+<th>Shape</th>
+<th>Where</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><span class="math inline">\bm{W}_Q^{(i)}, \bm{W}_K^{(i)}, \bm{W}_V^{(i)}</span></td>
+<td>head <span class="math inline">i</span>’s own projections, <span class="math inline">i = 1, \dots, H</span></td>
+<td>as for one head: <span class="math inline">d_k \times m</span>, <span class="math inline">d_k \times m</span>, <span class="math inline">d_v \times m</span></td>
+<td><a href="../lectures/week07.html#sec-multihead">Multi-headed self-attention</a></td>
+</tr>
+<tr class="even">
+<td><span class="math inline">\bm{h}^{(i)}</span></td>
+<td>head <span class="math inline">i</span>’s output (not an RNN state)</td>
+<td><span class="math inline">\mathbb{R}^{d_v}</span> per position, so <span class="math inline">T \times d_v</span> over the sequence</td>
+<td><a href="../lectures/week07.html#sec-multihead">Multi-headed self-attention</a></td>
+</tr>
+<tr class="odd">
+<td>stacked heads</td>
+<td>the <span class="math inline">H</span> head outputs at one position, one above the next</td>
+<td><span class="math inline">\mathbb{R}^{H d_v}</span></td>
+<td><a href="../lectures/week07.html#sec-multihead">Multi-headed self-attention</a></td>
+</tr>
+<tr class="even">
+<td><span class="math inline">\bm{W}_O</span></td>
+<td>output matrix</td>
+<td><span class="math inline">d_v \times H d_v</span></td>
+<td><a href="../lectures/week07.html#sec-multihead">Multi-headed self-attention</a></td>
+</tr>
+<tr class="odd">
+<td>layer output</td>
+<td><span class="math inline">\bm{W}_O</span> times the stacked heads</td>
+<td><span class="math inline">\mathbb{R}^{d_v}</span> per position</td>
+<td><a href="../lectures/week07.html#sec-multihead">Multi-headed self-attention</a></td>
+</tr>
+<tr class="even">
+<td><span class="math inline">\bm{h}_t^{(\ell)}</span></td>
+<td>stacked-RNN state at step <span class="math inline">t</span>, layer <span class="math inline">\ell</span></td>
+<td>a <span class="math inline">T \times L</span> grid of hidden-state vectors</td>
+<td><a href="../lectures/week06.html#sec-deep-rnn">Week 6, Deep RNNs</a></td>
+</tr>
+</tbody>
+</table>
+</section>
+</section>
 <section id="sec-w7p-equations" class="level2">
 <h2 class="anchored" data-anchor-id="sec-w7p-equations">Equations to know for the quiz</h2>
 <p>Every problem in this chapter, and every official quiz question in Part 1, can be solved with the equations below. They are collected from the <a href="../lectures/week07.html">Week 7</a> chapter (and Week 6 for stacked RNNs), and each table says where the equation is explained. This is our own summary of the lecture, not a list published by the course. Results marked <em>(ours)</em> are short consequences worked out in this chapter, not lines from the lecture.</p>
-<section id="attention-in-general" class="level3">
-<h3 class="anchored" data-anchor-id="attention-in-general">Attention in general</h3>
+<section id="attention-in-general-1" class="level3">
+<h3 class="anchored" data-anchor-id="attention-in-general-1">Attention in general</h3>
 <table class="caption-top table">
 <thead>
 <tr class="header">
@@ -338,8 +641,8 @@ window.Quarto = {
 </tbody>
 </table>
 </section>
-<section id="sequence-to-sequence-with-attention" class="level3">
-<h3 class="anchored" data-anchor-id="sequence-to-sequence-with-attention">Sequence-to-sequence with attention</h3>
+<section id="sequence-to-sequence-with-attention-1" class="level3">
+<h3 class="anchored" data-anchor-id="sequence-to-sequence-with-attention-1">Sequence-to-sequence with attention</h3>
 <table class="caption-top table">
 <thead>
 <tr class="header">
@@ -372,8 +675,8 @@ window.Quarto = {
 </tbody>
 </table>
 </section>
-<section id="self-attention" class="level3">
-<h3 class="anchored" data-anchor-id="self-attention">Self-attention</h3>
+<section id="self-attention-1" class="level3">
+<h3 class="anchored" data-anchor-id="self-attention-1">Self-attention</h3>
 <table class="caption-top table">
 <thead>
 <tr class="header">
@@ -421,8 +724,8 @@ window.Quarto = {
 </tbody>
 </table>
 </section>
-<section id="position-encoding" class="level3">
-<h3 class="anchored" data-anchor-id="position-encoding">Position encoding</h3>
+<section id="position-encoding-1" class="level3">
+<h3 class="anchored" data-anchor-id="position-encoding-1">Position encoding</h3>
 <table class="caption-top table">
 <thead>
 <tr class="header">

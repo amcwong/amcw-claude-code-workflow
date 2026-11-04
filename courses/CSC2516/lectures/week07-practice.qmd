@@ -9,12 +9,77 @@ title: "Week 7 practice: Attention"
 </div>
 ```
 
-**Overview.** These problems drill [Week 7](week07.qmd). Try each stem before opening the worked solution. Every solution starts from the equation it rests on, says where that equation comes from, and only then substitutes numbers. An equation sheet comes first, then two parts:
+**Overview.** These problems drill [Week 7](week07.qmd). Try each stem before opening the worked solution. Every solution starts from the equation it rests on, says where that equation comes from, and only then substitutes numbers. A table of variable shapes and an equation sheet come first, then two parts:
 
 1. **Official Week 8 quiz practice.** Four questions provided by the course, which test Week 7 material (and deep RNNs from Week 6), reproduced with their answers.
 2. **More practice.** Four problems on the parts of Week 7 the official questions do not touch: the five ingredients, self-attention in matrix form, what reordering does, and rotary position encoding.
 
 In Part 2 the numbers and setups are invented for practice. Notation matches the week chapter: inputs $\bm{x}_t \in \mathbb{R}^m$, queries and keys of length $d_k$, values of length $d_v$, projections $\bm{W}_Q, \bm{W}_K, \bm{W}_V$, and for sequence-to-sequence models encoder states $\bm{h}_i$ and decoder states $\bm{s}_{t'}$.
+
+## Key variables and their dimensions {#sec-w7p-dimensions}
+
+Most counting questions this week come down to knowing the shape of every object. The tables below list the shapes used in the [Week 7](week07.qmd) chapter. A vector in $\mathbb{R}^n$ has $n$ entries; a matrix of shape $a \times b$ takes a $b$-vector in and gives an $a$-vector out. Where the lecture leaves a size unnamed (an RNN's hidden size, for example), the table describes it in words. Shapes marked *(ours)* follow from the equations but are not stated in the lecture.
+
+### Attention in general
+
+| Variable | What it is | Shape | Where |
+|---|---|---|---|
+| $\bm{q}$ | the query | $\mathbb{R}^{d_q}$, often with $d_q = d_k$ | [The abstract picture](week07.qmd#sec-abstract) |
+| $\bm{k}_i$, $i = 1, \dots, N$ | the $N$ keys | $\mathbb{R}^{d_k}$ each | [The abstract picture](week07.qmd#sec-abstract) |
+| $\bm{v}_i$ | the value stored with key $i$ | $\mathbb{R}^{d_v}$ each | [The abstract picture](week07.qmd#sec-abstract) |
+| $a_i$, $\bm{a}$ | one score per key, and all of them | scalar; $\mathbb{R}^{N}$ | [The abstract picture](week07.qmd#sec-abstract) |
+| $f(\{\bm{v}_i\}, \bm{a})$ | the reduction's output | $\mathbb{R}^{d_v}$ | [The abstract picture](week07.qmd#sec-abstract) |
+| $\bm{Y}$ | one-hot training labels, row $i$ for point $i$ | $N \times (\text{number of classes})$ | [1-NN as attention](week07.qmd#sec-one-nn-attention) |
+
+### Sequence-to-sequence with attention
+
+| Variable | What it is | Shape | Where |
+|---|---|---|---|
+| $\bm{h}_1, \dots, \bm{h}_T$ | encoder states, used as both keys and values | $T$ vectors of the encoder's hidden size | [The five ingredients](week07.qmd#sec-seq2seq-ingredients) |
+| $\bm{s}_{t'}$ | decoder state at output step $t'$; the query is $\bm{s}_{t'-1}$ | one vector of the decoder's hidden size per step | [The five ingredients](week07.qmd#sec-seq2seq-ingredients) |
+| $\bm{W}_q$, $\bm{W}_k$ | maps of the decoder and encoder states into a shared space, so they can be added | (MLP width) $\times$ (decoder hidden size); (MLP width) $\times$ (encoder hidden size) *(ours)* | [The five ingredients](week07.qmd#sec-seq2seq-ingredients) |
+| $\bm{w}$ | weight vector that collapses the $\tanh$ output to a score | a vector of the MLP width *(ours)* | [The five ingredients](week07.qmd#sec-seq2seq-ingredients) |
+| $\bm{a}$ at step $t'$ | one score per encoder state | $\mathbb{R}^{T}$ | [The five ingredients](week07.qmd#sec-seq2seq-ingredients) |
+| $\bm{c}_{t'}$ | context at step $t'$, a weighted average of encoder states | same size as one $\bm{h}_i$ | [The five ingredients](week07.qmd#sec-seq2seq-ingredients) |
+| attention matrix | one row of weights per output step | $T_\text{out} \times T_\text{in}$ *(ours)* | [Quiz question 3](#quiz-3) |
+
+### Self-attention
+
+| Variable | What it is | Shape | Where |
+|---|---|---|---|
+| $\bm{x}_t$ | input at position $t$, $t = 1, \dots, T$ | $\mathbb{R}^{m}$ | [Queries, keys, and values](week07.qmd#sec-qkv) |
+| $\bm{W}_Q$, $\bm{W}_K$ | query and key projections, shared across positions | $d_k \times m$ | [Queries, keys, and values](week07.qmd#sec-qkv) |
+| $\bm{W}_V$ | value projection, shared across positions | $d_v \times m$ | [Queries, keys, and values](week07.qmd#sec-qkv) |
+| $\bm{q}_t$, $\bm{k}_t$ | query and key at position $t$ | $\mathbb{R}^{d_k}$ | [Queries, keys, and values](week07.qmd#sec-qkv) |
+| $\bm{v}_t$ | value at position $t$ | $\mathbb{R}^{d_v}$ | [Queries, keys, and values](week07.qmd#sec-qkv) |
+| $\bm{q}_i^\top \bm{k}_j / \sqrt{d_k}$ | one scaled score | scalar | [The comparison](week07.qmd#sec-scaled-dot) |
+| $\bm{X}$ | inputs stacked as rows | $T \times m$ | [Matrix form](week07.qmd#sec-matrix) |
+| $\bm{Q} = \bm{X}\bm{W}_Q^\top$, $\bm{K} = \bm{X}\bm{W}_K^\top$ | queries and keys stacked as rows | $T \times d_k$ | [Matrix form](week07.qmd#sec-matrix) |
+| $\bm{V} = \bm{X}\bm{W}_V^\top$ | values stacked as rows | $T \times d_v$ | [Matrix form](week07.qmd#sec-matrix) |
+| $\bm{S} = \bm{Q}\bm{K}^\top / \sqrt{d_k}$ | score matrix, entry $(i, j)$ for query $i$ and key $j$ | $T \times T$ | [Matrix form](week07.qmd#sec-matrix) |
+| $\bm{A}$ | attention matrix, softmax of each row of $\bm{S}$ | $T \times T$, each row sums to 1 | [Matrix form](week07.qmd#sec-matrix) |
+| $\bm{A}\bm{V}$ | layer output, one row per position | $T \times d_v$ | [Matrix form](week07.qmd#sec-matrix) |
+
+### Position encoding
+
+| Variable | What it is | Shape | Where |
+|---|---|---|---|
+| $\bm{p}_t$ | absolute position embedding, added to $\bm{x}_t$ | $\mathbb{R}^{m}$ | [Absolute position embeddings](week07.qmd#sec-absolute-position) |
+| $\bm{p}_{i-j}$ | relative encoding (i), added to the key | $\mathbb{R}^{d_k}$, one per offset | [Relative position encodings](week07.qmd#sec-relative-position) |
+| $p_{i-j}$ | relative bias (ii), added to the score | scalar, one per offset | [Relative position encodings](week07.qmd#sec-relative-position) |
+| $\bm{R}(\phi)$ | two-dimensional rotation by $\phi$ | $2 \times 2$ | [Rotation matrices](week07.qmd#sec-rotation) |
+| $\bm{R}_i$ | RoPE rotation at position $i$, turning each of the $d_k/2$ pairs of entries | $d_k \times d_k$ *(ours)* | [Rotary position encoding](week07.qmd#sec-rope) |
+
+### Multi-head attention and stacked RNNs
+
+| Variable | What it is | Shape | Where |
+|---|---|---|---|
+| $\bm{W}_Q^{(i)}, \bm{W}_K^{(i)}, \bm{W}_V^{(i)}$ | head $i$'s own projections, $i = 1, \dots, H$ | as for one head: $d_k \times m$, $d_k \times m$, $d_v \times m$ | [Multi-headed self-attention](week07.qmd#sec-multihead) |
+| $\bm{h}^{(i)}$ | head $i$'s output (not an RNN state) | $\mathbb{R}^{d_v}$ per position, so $T \times d_v$ over the sequence | [Multi-headed self-attention](week07.qmd#sec-multihead) |
+| stacked heads | the $H$ head outputs at one position, one above the next | $\mathbb{R}^{H d_v}$ | [Multi-headed self-attention](week07.qmd#sec-multihead) |
+| $\bm{W}_O$ | output matrix | $d_v \times H d_v$ | [Multi-headed self-attention](week07.qmd#sec-multihead) |
+| layer output | $\bm{W}_O$ times the stacked heads | $\mathbb{R}^{d_v}$ per position | [Multi-headed self-attention](week07.qmd#sec-multihead) |
+| $\bm{h}_t^{(\ell)}$ | stacked-RNN state at step $t$, layer $\ell$ | a $T \times L$ grid of hidden-state vectors | [Week 6, Deep RNNs](week06.qmd#sec-deep-rnn) |
 
 ## Equations to know for the quiz {#sec-w7p-equations}
 
