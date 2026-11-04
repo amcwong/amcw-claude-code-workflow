@@ -1,0 +1,1285 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.10.18">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+
+<title>Week 7 practice: Attention – Neural Networks and Deep Learning</title>
+<style>
+/* Default styles provided by pandoc.
+** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
+*/
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: 1.5em;}
+div.column{flex: auto;}
+@media screen {
+div.columns{gap: min(4vw, 1.5em);}
+div.column{overflow-x: auto;}
+}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+</style>
+
+
+<script src="../site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="../site_libs/quarto-nav/headroom.min.js"></script>
+<script src="../site_libs/clipboard/clipboard.min.js"></script>
+<script src="../site_libs/quarto-search/autocomplete.umd.js"></script>
+<script src="../site_libs/quarto-search/fuse.min.js"></script>
+<script src="../site_libs/quarto-search/quarto-search.js"></script>
+<meta name="quarto:offset" content="../">
+<link href="../glossary.html" rel="next">
+<link href="../lectures/week07.html" rel="prev">
+<script src="../site_libs/quarto-html/quarto.js" type="module"></script>
+<script src="../site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
+<script src="../site_libs/quarto-html/popper.min.js"></script>
+<script src="../site_libs/quarto-html/tippy.umd.min.js"></script>
+<script src="../site_libs/quarto-html/anchor.min.js"></script>
+<link href="../site_libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="../site_libs/quarto-html/quarto-syntax-highlighting-bb62276ab45c84d9efd712f51ff97b5a.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<script src="../site_libs/bootstrap/bootstrap.min.js"></script>
+<link href="../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="../site_libs/bootstrap/bootstrap-ce0958bf53307a1b0bb60f85d87db72f.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
+<script id="quarto-search-options" type="application/json">{
+  "location": "sidebar",
+  "copy-button": false,
+  "collapse-after": 3,
+  "panel-placement": "start",
+  "type": "textbox",
+  "limit": 50,
+  "keyboard-shortcut": [
+    "f",
+    "/",
+    "s"
+  ],
+  "show-item-context": false,
+  "language": {
+    "search-no-results-text": "No results",
+    "search-matching-documents-text": "matching documents",
+    "search-copy-link-title": "Copy link to search",
+    "search-hide-matches-text": "Hide additional matches",
+    "search-more-match-text": "more match in this document",
+    "search-more-matches-text": "more matches in this document",
+    "search-clear-button-title": "Clear",
+    "search-text-placeholder": "",
+    "search-detached-cancel-button-title": "Cancel",
+    "search-submit-button-title": "Submit",
+    "search-label": "Search"
+  }
+}</script>
+<style>html{ scroll-behavior: smooth; }</style>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+<link href="https://fonts.googleapis.com/css2?family=Source+Code+Pro:wght@400;600&amp;family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&amp;display=swap" rel="stylesheet">
+
+  <script>window.backupDefine = window.define; window.define = undefined;</script><script src="https://cdn.jsdelivr.net/npm/katex@latest/dist/katex.min.js"></script>
+  <script>document.addEventListener("DOMContentLoaded", function () {
+ var mathElements = document.getElementsByClassName("math");
+ var macros = [];
+ for (var i = 0; i < mathElements.length; i++) {
+  var texText = mathElements[i].firstChild;
+  if (mathElements[i].tagName == "SPAN") {
+   katex.render(texText.data, mathElements[i], {
+    displayMode: mathElements[i].classList.contains('display'),
+    throwOnError: false,
+    macros: macros,
+    fleqn: false
+   });
+}}});
+  </script>
+  <script>window.define = window.backupDefine; window.backupDefine = undefined;</script><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@latest/dist/katex.min.css">
+
+<script type="text/javascript">
+const typesetMath = (el) => {
+  if (window.MathJax) {
+    // MathJax Typeset
+    window.MathJax.typeset([el]);
+  } else if (window.katex) {
+    // KaTeX Render
+    var mathElements = el.getElementsByClassName("math");
+    var macros = [];
+    for (var i = 0; i < mathElements.length; i++) {
+      var texText = mathElements[i].firstChild;
+      if (mathElements[i].tagName == "SPAN" && texText && texText.data) {
+        window.katex.render(texText.data, mathElements[i], {
+          displayMode: mathElements[i].classList.contains('display'),
+          throwOnError: false,
+          macros: macros,
+          fleqn: false
+        });
+      }
+    }
+  }
+}
+window.Quarto = {
+  typesetMath
+};
+</script>
+
+<link rel="stylesheet" href="../styles/custom.css">
+</head>
+
+<body class="nav-sidebar floating quarto-light">
+
+<div id="quarto-search-results"></div>
+  <header id="quarto-header" class="headroom fixed-top">
+  <nav class="quarto-secondary-nav">
+    <div class="container-fluid d-flex">
+      <button type="button" class="quarto-btn-toggle btn" data-bs-toggle="collapse" role="button" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+        <i class="bi bi-layout-text-sidebar-reverse"></i>
+      </button>
+        <nav class="quarto-page-breadcrumbs" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../lectures/week07-practice.html"><span class="chapter-title">Week 7 practice: Attention</span></a></li></ol></nav>
+        <a class="flex-grow-1" role="navigation" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">      
+        </a>
+      <button type="button" class="btn quarto-search-button" aria-label="Search" onclick="window.quartoOpenSearch();">
+        <i class="bi bi-search"></i>
+      </button>
+    </div>
+  </nav>
+</header>
+<!-- content -->
+<div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-article">
+<!-- sidebar -->
+  <nav id="quarto-sidebar" class="sidebar collapse collapse-horizontal quarto-sidebar-collapse-item sidebar-navigation floating overflow-auto">
+    <div class="pt-lg-2 mt-2 text-left sidebar-header">
+    <div class="sidebar-title mb-0 py-0">
+      <a href="../">Neural Networks and Deep Learning</a> 
+        <div class="sidebar-tools-main">
+    <a href="https://amcwong.github.io/amcw-claude-code-workflow/" title="All course notes" class="quarto-navigation-tool px-1" aria-label="All course notes"><i class="bi bi-house-door"></i></a>
+</div>
+    </div>
+      </div>
+        <div class="mt-2 flex-shrink-0 align-items-center">
+        <div class="sidebar-search">
+        <div id="quarto-search" class="" title="Search"></div>
+        </div>
+        </div>
+    <div class="sidebar-menu-container"> 
+    <ul class="list-unstyled mt-1">
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../index.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">CSC413/2516 Neural Networks and Deep Learning</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../lectures/week01.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Week 1: Introduction, Linear &amp; Logistic Regression</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../lectures/week02.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Week 2: Multi-Layer Perceptrons &amp; Backpropagation</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../lectures/week03.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Week 3: Initialization, Autodiff, Overfitting &amp; Regularization</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../lectures/week03-practice.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Week 3 practice: Variance, Autodiff, and Regularization</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../lectures/week04.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Week 4: Gradient Descent and Adaptive Methods</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../lectures/week04-practice.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Week 4 practice: Gradient Descent, SGD, Momentum, and Adam</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../lectures/week05.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Week 5: Convolutional Networks, Normalization, and Residual Connections</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../lectures/week05-practice.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Week 5 practice: Convolutions, Batch Normalization, and Residual Connections</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../lectures/week06.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Week 6: Sequences, Recurrent Neural Networks, and Sequence-to-Sequence Learning</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../lectures/week06-practice.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Week 6 practice: Recurrent Networks and Sequence-to-Sequence Learning</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../lectures/week07.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Week 7: Attention</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../lectures/week07-practice.html" class="sidebar-item-text sidebar-link active"><span class="chapter-title">Week 7 practice: Attention</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../glossary.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Glossary</span></a>
+  </div>
+</li>
+    </ul>
+    </div>
+</nav>
+<div id="quarto-sidebar-glass" class="quarto-sidebar-collapse-item" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item"></div>
+<!-- margin-sidebar -->
+    <div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
+        <nav id="TOC" role="doc-toc" class="toc-active">
+    <h2 id="toc-title">On this page</h2>
+   
+  <ul>
+  <li><a href="#sec-w7p-equations" id="toc-sec-w7p-equations" class="nav-link active" data-scroll-target="#sec-w7p-equations">Equations to know for the quiz</a>
+  <ul class="collapse">
+  <li><a href="#attention-in-general" id="toc-attention-in-general" class="nav-link" data-scroll-target="#attention-in-general">Attention in general</a></li>
+  <li><a href="#sequence-to-sequence-with-attention" id="toc-sequence-to-sequence-with-attention" class="nav-link" data-scroll-target="#sequence-to-sequence-with-attention">Sequence-to-sequence with attention</a></li>
+  <li><a href="#self-attention" id="toc-self-attention" class="nav-link" data-scroll-target="#self-attention">Self-attention</a></li>
+  <li><a href="#position-encoding" id="toc-position-encoding" class="nav-link" data-scroll-target="#position-encoding">Position encoding</a></li>
+  <li><a href="#multi-head-attention-and-path-length" id="toc-multi-head-attention-and-path-length" class="nav-link" data-scroll-target="#multi-head-attention-and-path-length">Multi-head attention and path length</a></li>
+  </ul></li>
+  <li><a href="#sec-w7p-official-quiz" id="toc-sec-w7p-official-quiz" class="nav-link" data-scroll-target="#sec-w7p-official-quiz">Part 1: Official Week 8 quiz practice</a>
+  <ul class="collapse">
+  <li><a href="#quiz-1" id="toc-quiz-1" class="nav-link" data-scroll-target="#quiz-1">Quiz question 1: Counting multi-head parameters</a></li>
+  <li><a href="#quiz-2" id="toc-quiz-2" class="nav-link" data-scroll-target="#quiz-2">Quiz question 2: The right divisor when entries are not unit variance</a></li>
+  <li><a href="#quiz-3" id="toc-quiz-3" class="nav-link" data-scroll-target="#quiz-3">Quiz question 3: The size of a seq2seq attention matrix</a></li>
+  <li><a href="#quiz-4" id="toc-quiz-4" class="nav-link" data-scroll-target="#quiz-4">Quiz question 4: Path length through a stacked RNN</a></li>
+  </ul></li>
+  <li><a href="#sec-w7p-more" id="toc-sec-w7p-more" class="nav-link" data-scroll-target="#sec-w7p-more">Part 2: More practice</a>
+  <ul class="collapse">
+  <li><a href="#prb-1" id="toc-prb-1" class="nav-link" data-scroll-target="#prb-1">Problem 1: Finding the five ingredients (intro)</a></li>
+  <li><a href="#prb-2" id="toc-prb-2" class="nav-link" data-scroll-target="#prb-2">Problem 2: Self-attention as two matrix products</a></li>
+  <li><a href="#prb-3" id="toc-prb-3" class="nav-link" data-scroll-target="#prb-3">Problem 3: What reordering does, and does not, change</a></li>
+  <li><a href="#prb-4" id="toc-prb-4" class="nav-link" data-scroll-target="#prb-4">Problem 4: RoPE scores depend only on the offset (stretch)</a></li>
+  </ul></li>
+  </ul>
+</nav>
+    </div>
+<!-- main -->
+<main class="content" id="quarto-document-content">
+
+<header id="title-block-header" class="quarto-title-block default">
+<div class="quarto-title">
+<h1 class="title"><span class="chapter-title">Week 7 practice: Attention</span></h1>
+</div>
+
+
+
+<div class="quarto-title-meta">
+
+    
+  
+    
+  </div>
+  
+
+
+</header>
+
+
+<style>#title-block-header { display: none; }</style>
+<div class="lecture-header">
+  <h1>Week 7 practice: Attention</h1>
+</div>
+<p><strong>Overview.</strong> These problems drill <a href="../lectures/week07.html">Week 7</a>. Try each stem before opening the worked solution. Every solution starts from the equation it rests on, says where that equation comes from, and only then substitutes numbers. An equation sheet comes first, then two parts:</p>
+<ol type="1">
+<li><strong>Official Week 8 quiz practice.</strong> Four questions provided by the course, which test Week 7 material (and deep RNNs from Week 6), reproduced with their answers.</li>
+<li><strong>More practice.</strong> Four problems on the parts of Week 7 the official questions do not touch: the five ingredients, self-attention in matrix form, what reordering does, and rotary position encoding.</li>
+</ol>
+<p>In Part 2 the numbers and setups are invented for practice. Notation matches the week chapter: inputs <span class="math inline">\bm{x}_t \in \mathbb{R}^m</span>, queries and keys of length <span class="math inline">d_k</span>, values of length <span class="math inline">d_v</span>, projections <span class="math inline">\bm{W}_Q, \bm{W}_K, \bm{W}_V</span>, and for sequence-to-sequence models encoder states <span class="math inline">\bm{h}_i</span> and decoder states <span class="math inline">\bm{s}_{t'}</span>.</p>
+<section id="sec-w7p-equations" class="level2">
+<h2 class="anchored" data-anchor-id="sec-w7p-equations">Equations to know for the quiz</h2>
+<p>Every problem in this chapter, and every official quiz question in Part 1, can be solved with the equations below. They are collected from the <a href="../lectures/week07.html">Week 7</a> chapter (and Week 6 for stacked RNNs), and each table says where the equation is explained. This is our own summary of the lecture, not a list published by the course. Results marked <em>(ours)</em> are short consequences worked out in this chapter, not lines from the lecture.</p>
+<section id="attention-in-general" class="level3">
+<h3 class="anchored" data-anchor-id="attention-in-general">Attention in general</h3>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th>Equation</th>
+<th>What it says</th>
+<th>Where</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><span class="math inline">a_i = \alpha(\bm{q}, \bm{k}_i)</span></td>
+<td>the comparison function gives one score per key</td>
+<td><a href="../lectures/week07.html#sec-abstract">The abstract picture</a></td>
+</tr>
+<tr class="even">
+<td><span class="math inline">f(\{\bm{v}_1, \dots, \bm{v}_N\}, \bm{a}) \in \mathbb{R}^{d_v}</span></td>
+<td>the reduction combines the values, weighted by the scores, into one value-sized output</td>
+<td><a href="../lectures/week07.html#sec-abstract">The abstract picture</a></td>
+</tr>
+<tr class="odd">
+<td><span class="math inline">\alpha(\bm{q}, \bm{k}_i) = -\lVert \bm{q} - \bm{k}_i \rVert</span></td>
+<td>the one-nearest-neighbour comparison: closest key, largest score</td>
+<td><a href="../lectures/week07.html#sec-one-nn-attention">1-NN as attention</a></td>
+</tr>
+<tr class="even">
+<td><span class="math inline">\operatorname{softmax}(\bm{a})^\top \bm{Y}</span></td>
+<td>the soft reduction: a <a href="https://en.wikipedia.org/wiki/Softmax_function">softmax</a>-weighted average of the rows of <span class="math inline">\bm{Y}</span> (one-hot labels give class probabilities)</td>
+<td><a href="../lectures/week07.html#sec-soft-one-nn">Making it soft</a></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="sequence-to-sequence-with-attention" class="level3">
+<h3 class="anchored" data-anchor-id="sequence-to-sequence-with-attention">Sequence-to-sequence with attention</h3>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th>Equation</th>
+<th>What it says</th>
+<th>Where</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><span class="math inline">a_i = \bm{w}^\top \tanh(\bm{W}_q \bm{s}_{t'-1} + \bm{W}_k \bm{h}_i)</span></td>
+<td>additive attention: the previous decoder state is the query, the encoder states are the keys</td>
+<td><a href="../lectures/week07.html#sec-seq2seq-ingredients">The five ingredients</a></td>
+</tr>
+<tr class="even">
+<td><span class="math inline">\bm{c}_{t'} = \sum_{i=1}^{T} \operatorname{softmax}(\bm{a})_i\, \bm{h}_i</span></td>
+<td>a fresh context at every output step, from the encoder states as values</td>
+<td><a href="../lectures/week07.html#sec-seq2seq-ingredients">The five ingredients</a></td>
+</tr>
+<tr class="odd">
+<td><span class="math inline">\bm{s}_{t'} = g(\bm{y}_{t'-1}, \bm{s}_{t'-1}, \bm{c}_{t'})</span></td>
+<td>the decoder update takes the per-step context as an extra input</td>
+<td><a href="../lectures/week07.html#sec-seq2seq-decoder">Feeding the context</a></td>
+</tr>
+<tr class="even">
+<td><span class="math inline">T_\text{out} \times T_\text{in}</span></td>
+<td>attention-matrix size: one row of weights per output step, one column per input position <em>(ours)</em></td>
+<td><a href="#quiz-3">Quiz question 3</a></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="self-attention" class="level3">
+<h3 class="anchored" data-anchor-id="self-attention">Self-attention</h3>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th>Equation</th>
+<th>What it says</th>
+<th>Where</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><span class="math inline">\bm{q}_t = \bm{W}_Q \bm{x}_t</span>, <span class="math inline">\bm{k}_t = \bm{W}_K \bm{x}_t</span>, <span class="math inline">\bm{v}_t = \bm{W}_V \bm{x}_t</span></td>
+<td>three projections of each input, the same matrices at every position</td>
+<td><a href="../lectures/week07.html#sec-qkv">Queries, keys, and values</a></td>
+</tr>
+<tr class="even">
+<td><span class="math inline">\bm{W}_Q, \bm{W}_K \in \mathbb{R}^{d_k \times m}</span>, <span class="math inline">\bm{W}_V \in \mathbb{R}^{d_v \times m}</span></td>
+<td>projection shapes: rows are outputs, columns are inputs</td>
+<td><a href="../lectures/week07.html#sec-qkv">Queries, keys, and values</a></td>
+</tr>
+<tr class="odd">
+<td><span class="math inline">\alpha(\bm{q}, \bm{k}_i) = \bm{q}^\top \bm{k}_i / \sqrt{d_k}</span></td>
+<td>the scaled <a href="https://en.wikipedia.org/wiki/Dot_product">dot product</a></td>
+<td><a href="../lectures/week07.html#sec-scaled-dot">The comparison</a></td>
+</tr>
+<tr class="even">
+<td><span class="math inline">\operatorname{Var}(\bm{q}^\top\bm{k}) = d_k</span> for unit-variance entries</td>
+<td>the <a href="https://en.wikipedia.org/wiki/Variance">variance</a> of the raw score; why the divisor is <span class="math inline">\sqrt{d_k}</span></td>
+<td><a href="../lectures/week07.html#sec-sqrt-dk">Why divide by the square root</a></td>
+</tr>
+<tr class="odd">
+<td><span class="math inline">\operatorname{Var}(XY) = \sigma_X^2 \sigma_Y^2</span></td>
+<td>for independent, mean-zero <span class="math inline">X</span> and <span class="math inline">Y</span> <em>(ours)</em></td>
+<td><a href="#quiz-2">Quiz question 2</a></td>
+</tr>
+<tr class="even">
+<td><span class="math inline">\operatorname{Var}(Z/a) = \operatorname{Var}(Z)/a^2</span></td>
+<td>dividing by <span class="math inline">a</span> divides the variance by <span class="math inline">a^2</span> <em>(ours)</em></td>
+<td><a href="#quiz-2">Quiz question 2</a></td>
+</tr>
+<tr class="odd">
+<td><span class="math inline">\operatorname{softmax}(\bm{Q}\bm{K}^\top / \sqrt{d_k})\,\bm{V}</span></td>
+<td>the whole layer in matrix form, softmax applied to each row</td>
+<td><a href="../lectures/week07.html#sec-matrix">Matrix form</a></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="position-encoding" class="level3">
+<h3 class="anchored" data-anchor-id="position-encoding">Position encoding</h3>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th>Equation</th>
+<th>What it says</th>
+<th>Where</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><span class="math inline">\bm{x}_t + \bm{p}_t</span></td>
+<td>absolute position embedding, learned per position</td>
+<td><a href="../lectures/week07.html#sec-absolute-position">Absolute position embeddings</a></td>
+</tr>
+<tr class="even">
+<td><span class="math inline">\bm{q}_i^\top \bm{k}_j / \sqrt{d_k} + p_{i-j}</span></td>
+<td>relative bias: a learned scalar per offset</td>
+<td><a href="../lectures/week07.html#sec-relative-position">Relative position encodings</a></td>
+</tr>
+<tr class="odd">
+<td><span class="math inline">\bm{R}(\phi)^\top \bm{R}(\psi) = \bm{R}(\psi - \phi)</span></td>
+<td>for <a href="https://en.wikipedia.org/wiki/Rotation_matrix">rotation matrices</a>: rotating both vectors is rotating one by the difference</td>
+<td><a href="../lectures/week07.html#sec-rotation">Rotation matrices</a></td>
+</tr>
+<tr class="even">
+<td><span class="math inline">(\bm{R}_i \bm{q}_i)^\top (\bm{R}_j \bm{k}_j) / \sqrt{d_k}</span>, <span class="math inline">\bm{R}_i = \bm{R}(i\theta)</span></td>
+<td>RoPE; the score depends on positions only through <span class="math inline">j - i</span></td>
+<td><a href="../lectures/week07.html#sec-rope">Rotary position encoding</a></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="multi-head-attention-and-path-length" class="level3">
+<h3 class="anchored" data-anchor-id="multi-head-attention-and-path-length">Multi-head attention and path length</h3>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th>Equation</th>
+<th>What it says</th>
+<th>Where</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><span class="math inline">\bm{W}_O \in \mathbb{R}^{d_v \times H d_v}</span></td>
+<td>the output matrix maps the <span class="math inline">H</span> stacked head outputs back to length <span class="math inline">d_v</span></td>
+<td><a href="../lectures/week07.html#sec-multihead">Multi-headed self-attention</a></td>
+</tr>
+<tr class="even">
+<td><span class="math inline">H(2 d_k m + d_v m) + H d_v^2</span></td>
+<td>parameters of a bias-free multi-head layer <em>(ours)</em></td>
+<td><a href="#quiz-1">Quiz question 1</a></td>
+</tr>
+<tr class="odd">
+<td><span class="math inline">1</span> vs.&nbsp;<span class="math inline">\approx (T-1)/(k-1)</span> vs.&nbsp;<span class="math inline">\approx T</span></td>
+<td>path length of self-attention, a 1D convolution with kernel length <span class="math inline">k</span>, and an RNN</td>
+<td><a href="../lectures/week07.html#sec-path-length">Path length</a></td>
+</tr>
+<tr class="even">
+<td><span class="math inline">\bm{h}_t^{(\ell)} = f^{(\ell)}(\bm{h}_t^{(\ell-1)}, \bm{h}_{t-1}^{(\ell)})</span></td>
+<td>a stacked RNN: each layer reads the layer below at the same step</td>
+<td><a href="../lectures/week06.html#sec-deep-rnn">Week 6, Deep RNNs</a></td>
+</tr>
+<tr class="odd">
+<td><span class="math inline">T + L - 1</span></td>
+<td>path length from <span class="math inline">\bm{x}_1</span> to the top of an <span class="math inline">L</span>-layer stacked RNN at step <span class="math inline">T</span> <em>(ours)</em></td>
+<td><a href="#quiz-4">Quiz question 4</a></td>
+</tr>
+</tbody>
+</table>
+</section>
+</section>
+<section id="sec-w7p-official-quiz" class="level2">
+<h2 class="anchored" data-anchor-id="sec-w7p-official-quiz">Part 1: Official Week 8 quiz practice</h2>
+<p>The four questions below were provided by the course as Week 8 quiz practice. The first three test Week 7 material; the fourth tests deep RNNs from Week 6 together with Week 7’s path length. They are reproduced with the course’s own numbers, with worked answers.</p>
+<section id="quiz-1" class="level3">
+<h3 class="anchored" data-anchor-id="quiz-1">Quiz question 1: Counting multi-head parameters</h3>
+<p>A multi-headed self-attention layer without biases has <span class="math inline">H = 4</span> heads, input size <span class="math inline">m = 10</span>, <span class="math inline">d_k = 3</span>, and <span class="math inline">d_v = 5</span>, with output matrix <span class="math inline">\bm{W}_O \in \mathbb{R}^{d_v \times H d_v}</span>. How many parameters does the layer have?</p>
+<div class="practice-answer callout callout-style-default callout-tip callout-titled" title="Worked solution">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-1-contents" aria-controls="callout-1" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Worked solution
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-1" class="callout-1-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>This uses <a href="../lectures/week07.html#sec-qkv">Week 7, Queries, keys, and values from one sequence</a> for one head and <a href="../lectures/week07.html#sec-multihead">Multi-Headed Self-Attention</a> for the output matrix.</p>
+<p><strong>The base equations.</strong> One self-attention head projects each input three ways:</p>
+<p><span class="math display">\bm{q}_t = \bm{W}_Q \bm{x}_t, \qquad \bm{k}_t = \bm{W}_K \bm{x}_t, \qquad \bm{v}_t = \bm{W}_V \bm{x}_t.</span></p>
+<p>A matrix that takes an <span class="math inline">m</span>-vector in and gives an <span class="math inline">n</span>-vector out has shape <span class="math inline">n \times m</span>, so <span class="math inline">n m</span> entries. The query and key must have the same length <span class="math inline">d_k</span> for their dot product to exist, so <span class="math inline">\bm{W}_Q, \bm{W}_K \in \mathbb{R}^{d_k \times m}</span>, while <span class="math inline">\bm{W}_V \in \mathbb{R}^{d_v \times m}</span>.</p>
+<p><strong>What has no parameters.</strong> The scaled dot product and the softmax-weighted average are fixed formulas. The only learned quantities in a head are its three projection matrices, and “without biases” means there are no bias vectors to add.</p>
+<p><strong>Why the sequence length is missing.</strong> The same three matrices are used at every position <span class="math inline">t</span>, the parameter sharing of Week 5 and Week 6. So the count does not depend on <span class="math inline">T</span>, and the question does not give it.</p>
+<p><strong>One head.</strong></p>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th>Matrix</th>
+<th>Shape</th>
+<th>Entries</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><span class="math inline">\bm{W}_Q^{(i)}</span></td>
+<td><span class="math inline">d_k \times m = 3 \times 10</span></td>
+<td><span class="math inline">30</span></td>
+</tr>
+<tr class="even">
+<td><span class="math inline">\bm{W}_K^{(i)}</span></td>
+<td><span class="math inline">d_k \times m = 3 \times 10</span></td>
+<td><span class="math inline">30</span></td>
+</tr>
+<tr class="odd">
+<td><span class="math inline">\bm{W}_V^{(i)}</span></td>
+<td><span class="math inline">d_v \times m = 5 \times 10</span></td>
+<td><span class="math inline">50</span></td>
+</tr>
+<tr class="even">
+<td><strong>One head</strong></td>
+<td></td>
+<td><strong><span class="math inline">110</span></strong></td>
+</tr>
+</tbody>
+</table>
+<p><strong>All heads.</strong> Each head has its own three matrices, so <span class="math inline">H \times 110 = 4 \times 110 = 440</span>.</p>
+<p><strong>The output matrix.</strong> At each position the four head outputs, each of length <span class="math inline">d_v = 5</span>, are stacked into one vector of length <span class="math inline">H d_v = 20</span>. The output matrix maps that back to length <span class="math inline">5</span>, so <span class="math inline">\bm{W}_O \in \mathbb{R}^{5 \times 20}</span> has <span class="math inline">100</span> entries.</p>
+<p><strong>Total.</strong></p>
+<p><span class="math display">H\,(2 d_k m + d_v m) + d_v \cdot H d_v = 4\,(60 + 50) + 5 \cdot 20 = 440 + 100 = 540.</span></p>
+<p><strong>Common slips.</strong> Forgetting <span class="math inline">\bm{W}_O</span> gives <span class="math inline">440</span>. Giving <span class="math inline">\bm{W}_V</span> the shape <span class="math inline">d_k \times m</span> gives <span class="math inline">460</span>. Sharing one set of projections across the heads gives <span class="math inline">210</span>. Multiplying by a sequence length has no basis, since the weights are shared across positions.</p>
+<p><strong>Answer:</strong> <span class="math inline">540</span>.</p>
+</div>
+</div>
+</div>
+</section>
+<section id="quiz-2" class="level3">
+<h3 class="anchored" data-anchor-id="quiz-2">Quiz question 2: The right divisor when entries are not unit variance</h3>
+<p>All entries of <span class="math inline">\bm{q} \in \mathbb{R}^9</span> and <span class="math inline">\bm{k} \in \mathbb{R}^9</span> are mutually independent with mean <span class="math inline">0</span>. The entries of <span class="math inline">\bm{q}</span> have standard deviation <span class="math inline">3</span> and the entries of <span class="math inline">\bm{k}</span> have standard deviation <span class="math inline">2</span>. What value of <span class="math inline">a</span> makes <span class="math inline">\bm{q}^\top \bm{k} / a</span> have variance <span class="math inline">1</span>?</p>
+<div class="practice-answer callout callout-style-default callout-tip callout-titled" title="Worked solution">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-2-contents" aria-controls="callout-2" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Worked solution
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-2" class="callout-2-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>This uses <a href="../lectures/week07.html#sec-sqrt-dk">Week 7, Prerequisite: why divide by the square root of the key length</a>.</p>
+<p><strong>Why the question exists.</strong> Large attention scores saturate the softmax, which then passes almost no gradient back to the queries and keys. The lecture divides by <span class="math inline">\sqrt{d_k}</span> to keep the score’s variance at <span class="math inline">1</span>, but that divisor assumes every entry has variance <span class="math inline">1</span>. This question changes the entry spreads and asks for the divisor that still gives variance <span class="math inline">1</span>.</p>
+<p><strong>Three facts about variance.</strong></p>
+<ol type="1">
+<li>For independent <span class="math inline">X</span> and <span class="math inline">Y</span> with mean <span class="math inline">0</span>, <span class="math inline">\operatorname{Var}(XY) = \mathbb{E}[X^2 Y^2] - (\mathbb{E}[XY])^2</span>. Independence splits the first term into <span class="math inline">\mathbb{E}[X^2]\,\mathbb{E}[Y^2] = \sigma_X^2 \sigma_Y^2</span>, and mean zero makes <span class="math inline">\mathbb{E}[XY] = \mathbb{E}[X]\,\mathbb{E}[Y] = 0</span>. So <span class="math inline">\operatorname{Var}(XY) = \sigma_X^2 \sigma_Y^2</span>.</li>
+<li>The variance of a sum of independent terms is the sum of their variances. The products <span class="math inline">q_1 k_1, q_2 k_2, \dots</span> use disjoint entries, so they are independent of each other.</li>
+<li>Dividing by <span class="math inline">a</span> divides the variance by <span class="math inline">a^2</span>: <span class="math inline">\operatorname{Var}(Z/a) = \operatorname{Var}(Z)/a^2</span>.</li>
+</ol>
+<p>The stem gives standard deviations, so the variances are <span class="math inline">3^2 = 9</span> and <span class="math inline">2^2 = 4</span>.</p>
+<p><strong>One term.</strong> Each product <span class="math inline">q_l k_l</span> has variance <span class="math inline">9 \cdot 4 = 36</span>.</p>
+<p><strong>The dot product.</strong> <span class="math inline">\bm{q}^\top \bm{k} = \sum_{l=1}^{9} q_l k_l</span> is a sum of <span class="math inline">9</span> independent terms, each with variance <span class="math inline">36</span>:</p>
+<p><span class="math display">\operatorname{Var}(\bm{q}^\top \bm{k}) = 9 \cdot 36 = 324.</span></p>
+<p><strong>Choose <span class="math inline">a</span>.</strong></p>
+<p><span class="math display">\operatorname{Var}\!\left(\frac{\bm{q}^\top \bm{k}}{a}\right) = \frac{324}{a^2} = 1 \quad\Longrightarrow\quad a^2 = 324 \quad\Longrightarrow\quad a = 18.</span></p>
+<p>The value <span class="math inline">a = -18</span> also solves <span class="math inline">a^2 = 324</span>, but a scaling divisor is taken positive.</p>
+<p><strong>Check against the lecture’s rule.</strong> In general <span class="math inline">a = \sigma_q \sigma_k \sqrt{d_k}</span>, here <span class="math inline">3 \cdot 2 \cdot \sqrt{9} = 18</span>. With <span class="math inline">\sigma_q = \sigma_k = 1</span> this is the lecture’s <span class="math inline">\sqrt{d_k}</span>.</p>
+<p><strong>Common slips.</strong> Using <span class="math inline">\sqrt{d_k} = 3</span> ignores the entry spreads. Multiplying the standard deviations without squaring them gives variance <span class="math inline">9 \cdot 6 = 54</span>. Forgetting that <span class="math inline">a</span> is squared inside the variance gives <span class="math inline">324</span>.</p>
+<p><strong>Answer:</strong> <span class="math inline">a = 18</span>.</p>
+</div>
+</div>
+</div>
+</section>
+<section id="quiz-3" class="level3">
+<h3 class="anchored" data-anchor-id="quiz-3">Quiz question 3: The size of a seq2seq attention matrix</h3>
+<p>Consider an encoder-decoder sequence-to-sequence RNN with attention. If the input sequence length is <span class="math inline">5</span> and the output sequence length is <span class="math inline">7</span> (including any beginning of sequence and end of sequence tokens), how many attention values will the attention matrix have?</p>
+<div class="practice-answer callout callout-style-default callout-tip callout-titled" title="Worked solution">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-3-contents" aria-controls="callout-3" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Worked solution
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-3" class="callout-3-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>This uses <a href="../lectures/week07.html#sec-seq2seq-ingredients">Week 7, The five ingredients</a> and <a href="../lectures/week07.html#sec-attention-weights">What the attention weights learn</a>.</p>
+<p><strong>The base equation.</strong> At every output step <span class="math inline">t'</span>, the decoder builds its own context</p>
+<p><span class="math display">\bm{c}_{t'} = \sum_{i=1}^{T} \operatorname{softmax}(\bm{a})_i\, \bm{h}_i, \qquad a_i = \alpha(\bm{s}_{t'-1}, \bm{h}_i).</span></p>
+<p>The query is the previous decoder state, and the keys are all <span class="math inline">T</span> encoder states. So <strong>each output step produces one attention weight per input position</strong>, and those <span class="math inline">T</span> weights sum to <span class="math inline">1</span>.</p>
+<p><strong>The attention matrix.</strong> Collect the weights with one row per output step and one column per input position. This is the matrix plotted in the translation figure of the week chapter, where rows are French output words and columns are English input words. Its shape is (output steps) <span class="math inline">\times</span> (input positions).</p>
+<p><strong>Count.</strong> The input has <span class="math inline">5</span> positions, so each row has <span class="math inline">5</span> weights. The output length is <span class="math inline">7</span>, so there are <span class="math inline">7</span> rows:</p>
+<p><span class="math display">7 \times 5 = 35.</span></p>
+<p><strong>About the special tokens.</strong> The note “(including any beginning of sequence and end of sequence tokens)” tells us not to add or remove tokens ourselves: the stated <span class="math inline">7</span> is already the number of decoder steps.</p>
+<p><strong>Not square.</strong> In self-attention the queries and keys come from one sequence, so the matrix is <span class="math inline">T \times T</span>. Here they come from two different sequences, so the matrix is <span class="math inline">7 \times 5</span>. Answering <span class="math inline">25</span> or <span class="math inline">49</span> treats it as self-attention, and answering <span class="math inline">12</span> adds the lengths instead of multiplying.</p>
+<p><strong>Answer:</strong> <span class="math inline">35</span>.</p>
+</div>
+</div>
+</div>
+</section>
+<section id="quiz-4" class="level3">
+<h3 class="anchored" data-anchor-id="quiz-4">Quiz question 4: Path length through a stacked RNN</h3>
+<p>A stacked RNN with <span class="math inline">3</span> layers reads an input sequence of length <span class="math inline">6</span>. Count each RNN cell update as one operation (so a single-layer RNN on <span class="math inline">6</span> inputs has path length <span class="math inline">6</span>). What is the smallest number of operations on a path from <span class="math inline">\bm{x}_1</span> to the top-layer hidden state at the last time step?</p>
+<div class="practice-answer callout callout-style-default callout-tip callout-titled" title="Worked solution">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-4-contents" aria-controls="callout-4" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Worked solution
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-4" class="callout-4-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>This uses <a href="../lectures/week06.html#sec-deep-rnn">Week 6, Deep RNNs</a> for the recurrence and <a href="../lectures/week07.html#sec-path-length">Week 7, Path length</a> for what is being counted.</p>
+<p><strong>The base equations.</strong> Layer <span class="math inline">1</span> reads the input, and each higher layer reads the layer below <em>at the same step</em> together with its own previous state:</p>
+<p><span class="math display">\bm{h}_t^{(1)} = f^{(1)}\big(\bm{x}_t, \bm{h}_{t-1}^{(1)}\big),</span></p>
+<p><span class="math display">\bm{h}_t^{(\ell)} = f^{(\ell)}\big(\bm{h}_t^{(\ell-1)}, \bm{h}_{t-1}^{(\ell)}\big) \ \text{ for } \ell = 2, 3.</span></p>
+<p><strong>A grid of cells.</strong> Lay the cells out with time <span class="math inline">t = 1, \dots, 6</span> across and layer <span class="math inline">\ell = 1, 2, 3</span> up. Cell <span class="math inline">(t, \ell)</span> has two incoming arrows: one from the left, <span class="math inline">(t-1, \ell)</span>, and one from below, <span class="math inline">(t, \ell-1)</span>. So one cell update moves information <strong>one step right or one step up</strong>, never both at once.</p>
+<p><strong>Count the path.</strong> Information from <span class="math inline">\bm{x}_1</span> enters at cell <span class="math inline">(1, 1)</span> and must reach <span class="math inline">(6, 3)</span>.</p>
+<ul>
+<li>Computing <span class="math inline">\bm{h}_1^{(1)}</span> from <span class="math inline">\bm{x}_1</span> is the first operation.</li>
+<li>Moving from time <span class="math inline">1</span> to time <span class="math inline">6</span> takes <span class="math inline">5</span> more updates.</li>
+<li>Moving from layer <span class="math inline">1</span> to layer <span class="math inline">3</span> takes <span class="math inline">2</span> more updates.</li>
+</ul>
+<p><span class="math display">1 + 5 + 2 = 8.</span></p>
+<p><strong>Why “smallest” is still 8.</strong> Every right-or-up route between those corners has exactly <span class="math inline">5</span> right moves and <span class="math inline">2</span> up moves, in some order. Going up first and then along the top layer, going along layer <span class="math inline">1</span> and then up, or zig-zagging all give <span class="math inline">8</span>. No route is shorter, because no single update moves both forward in time and up a layer.</p>
+<p><strong>Check with the stem’s convention.</strong> With one layer the count is <span class="math inline">1 + 5 + 0 = 6</span>, matching “a single-layer RNN on 6 inputs has path length 6.” In general, <span class="math inline">L</span> layers and length <span class="math inline">T</span> give <span class="math inline">T + L - 1</span>. Stacking adds to the path length but leaves it linear in <span class="math inline">T</span>, where self-attention has path length <span class="math inline">1</span>.</p>
+<p><strong>Common slips.</strong> <span class="math inline">3 \times 6 = 18</span> counts every cell in the grid, not the cells on one path. <span class="math inline">6</span> forgets the climb to the top layer. <span class="math inline">9</span> counts the corner cell twice.</p>
+<p><strong>Answer:</strong> <span class="math inline">8</span>.</p>
+</div>
+</div>
+</div>
+</section>
+</section>
+<section id="sec-w7p-more" class="level2">
+<h2 class="anchored" data-anchor-id="sec-w7p-more">Part 2: More practice</h2>
+<p>The official questions count parameters, variances, matrix entries, and path lengths. These four problems practise the rest of the week: naming the ingredients of an attention mechanism, running self-attention in matrix form, predicting what reordering does, and checking that RoPE depends only on the offset.</p>
+<section id="prb-1" class="level3">
+<h3 class="anchored" data-anchor-id="prb-1">Problem 1: Finding the five ingredients (intro)</h3>
+<p>Week 6 used a vocabulary <span class="math inline">V</span> with an embedding vector for each word.</p>
+<ol type="a">
+<li><p>A procedure takes a vector <span class="math inline">\bm{u}</span> and returns the vocabulary word whose embedding is closest to <span class="math inline">\bm{u}</span> in <a href="https://en.wikipedia.org/wiki/Euclidean_distance">Euclidean distance</a>. Write it as an attention mechanism: name the query, keys, values, comparison function, and reduction function.</p></li>
+<li><p>The output layer of Week 6’s language model computes scores <span class="math inline">\bm{o}_t = \bm{W}_o \bm{h}_t + \bm{b}_o</span> and then the softmax <span class="math inline">\operatorname{softmax}(\bm{o}_t)</span>, a probability for every vocabulary word. Show that this, too, is an attention mechanism, and name its five ingredients.</p></li>
+</ol>
+<div class="practice-answer callout callout-style-default callout-tip callout-titled" title="Worked solution">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-5-contents" aria-controls="callout-5" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Worked solution
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-5" class="callout-5-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>This uses <a href="../lectures/week07.html#sec-abstract">Week 7, The abstract picture</a>, <a href="../lectures/week07.html#sec-one-nn-attention">The one-nearest-neighbour classifier as attention</a>, and <a href="../lectures/week07.html#sec-soft-one-nn">Making it soft</a>.</p>
+<p><strong>The template.</strong> Every attention mechanism compares a query with each key to get one score <span class="math inline">a_i = \alpha(\bm{q}, \bm{k}_i)</span> per key, then reduces the values, weighted by those scores, to one output. To fill in the template, ask three questions: what are we asking about (the query), what do we compare it against (the keys), and what do we want back (the values).</p>
+<p><strong>(a) Nearest embedding.</strong> This is the one-nearest-neighbour classifier of the week chapter with the vocabulary as its training set.</p>
+<ul>
+<li><strong>Query:</strong> the vector <span class="math inline">\bm{u}</span>.</li>
+<li><strong>Keys:</strong> the <span class="math inline">|V|</span> word embeddings, since those are what <span class="math inline">\bm{u}</span> is compared against.</li>
+<li><strong>Values:</strong> the words themselves. To make the reduction a formula, write word <span class="math inline">i</span> as a one-hot vector and stack them as the rows of <span class="math inline">\bm{Y}</span>. With one row per word, <span class="math inline">\bm{Y}</span> is the <span class="math inline">|V| \times |V|</span> identity matrix.</li>
+<li><strong>Comparison:</strong> the negative Euclidean distance, <span class="math inline">a_i = -\lVert \bm{u} - \bm{e}_i \rVert</span>, where <span class="math inline">\bm{e}_i</span> is word <span class="math inline">i</span>’s embedding. The minus sign makes the closest word score highest.</li>
+<li><strong>Reduction:</strong> the argmax, written as a one-hot vector, so <span class="math inline">\operatorname{argmax}(\bm{a})^\top \bm{Y}</span> picks out the closest word.</li>
+</ul>
+<p><strong>(b) The language-model output layer.</strong> Write row <span class="math inline">i</span> of <span class="math inline">\bm{W}_o</span> as <span class="math inline">\bm{w}_i^\top</span> and entry <span class="math inline">i</span> of <span class="math inline">\bm{b}_o</span> as <span class="math inline">b_i</span>. Then score <span class="math inline">i</span> is</p>
+<p><span class="math display">o_{t,i} = \bm{w}_i^\top \bm{h}_t + b_i.</span></p>
+<p>That is one score per vocabulary word, computed from <span class="math inline">\bm{h}_t</span> and one learned vector per word: exactly the shape of a comparison function.</p>
+<ul>
+<li><strong>Query:</strong> the hidden state <span class="math inline">\bm{h}_t</span>.</li>
+<li><strong>Keys:</strong> the rows <span class="math inline">\bm{w}_i</span> of <span class="math inline">\bm{W}_o</span>, one per word.</li>
+<li><strong>Values:</strong> one-hot vectors for the words, the rows of <span class="math inline">\bm{Y} = \bm{I}</span>.</li>
+<li><strong>Comparison:</strong> a dot product plus a per-key bias, <span class="math inline">\alpha(\bm{h}_t, \bm{w}_i) = \bm{w}_i^\top \bm{h}_t + b_i</span>.</li>
+<li><strong>Reduction:</strong> the softmax-weighted average, <span class="math inline">\operatorname{softmax}(\bm{o}_t)^\top \bm{Y}</span>.</li>
+</ul>
+<p>Because <span class="math inline">\bm{Y}</span> is the identity, <span class="math inline">\operatorname{softmax}(\bm{o}_t)^\top \bm{Y} = \operatorname{softmax}(\bm{o}_t)</span>: the weighted average of one-hot vectors is the vector of weights itself. So the output layer is the soft version of a nearest-key lookup. Its comparison is a dot product rather than a negative distance, and its keys are learned rather than fixed.</p>
+<p><strong>Answer:</strong> (a) query <span class="math inline">\bm{u}</span>, keys the word embeddings, values the one-hot words, comparison <span class="math inline">-\lVert \bm{u} - \bm{e}_i \rVert</span>, reduction argmax. (b) query <span class="math inline">\bm{h}_t</span>, keys the rows of <span class="math inline">\bm{W}_o</span>, values the one-hot words, comparison <span class="math inline">\bm{w}_i^\top \bm{h}_t + b_i</span>, reduction softmax-weighted average, which returns <span class="math inline">\operatorname{softmax}(\bm{o}_t)</span>.</p>
+</div>
+</div>
+</div>
+</section>
+<section id="prb-2" class="level3">
+<h3 class="anchored" data-anchor-id="prb-2">Problem 2: Self-attention as two matrix products</h3>
+<p>A self-attention layer has produced, for a sequence of <span class="math inline">T = 3</span> positions, queries and keys of length <span class="math inline">d_k = 4</span> and values of length <span class="math inline">d_v = 2</span>. Row <span class="math inline">t</span> of each matrix belongs to position <span class="math inline">t</span>:</p>
+<p><span class="math display">
+\bm{Q} = \begin{bmatrix} 1 &amp; 0 &amp; 0 &amp; 0 \\ 0 &amp; 0 &amp; 0 &amp; 0 \\ 0 &amp; 1 &amp; 0 &amp; 1 \end{bmatrix}, \qquad
+\bm{K} = \begin{bmatrix} 2 &amp; 0 &amp; 0 &amp; 0 \\ 0 &amp; 2 &amp; 0 &amp; 0 \\ 0 &amp; 0 &amp; 2 &amp; 2 \end{bmatrix}, \qquad
+\bm{V} = \begin{bmatrix} 2 &amp; 0 \\ 0 &amp; 2 \\ 1 &amp; 1 \end{bmatrix}.
+</span></p>
+<p>Compute the score matrix <span class="math inline">\bm{S} = \bm{Q}\bm{K}^\top / \sqrt{d_k}</span>, the attention matrix <span class="math inline">\bm{A}</span>, and the output <span class="math inline">\bm{A}\bm{V}</span>. Give the output to three decimal places. Why does position 2 get a plain average of the three values?</p>
+<div class="practice-answer callout callout-style-default callout-tip callout-titled" title="Worked solution">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-6-contents" aria-controls="callout-6" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Worked solution
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-6" class="callout-6-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>This uses <a href="../lectures/week07.html#sec-matrix">Week 7, Self-attention as matrix operations</a>.</p>
+<p><strong>The base equation.</strong></p>
+<p><span class="math display">\text{output} = \operatorname{softmax}\!\left(\frac{\bm{Q}\bm{K}^\top}{\sqrt{d_k}}\right)\bm{V}, \qquad \text{softmax applied to each row.}</span></p>
+<p>Entry <span class="math inline">(i, j)</span> of <span class="math inline">\bm{Q}\bm{K}^\top</span> is the dot product of query <span class="math inline">i</span> (row <span class="math inline">i</span> of <span class="math inline">\bm{Q}</span>) with key <span class="math inline">j</span> (row <span class="math inline">j</span> of <span class="math inline">\bm{K}</span>). So row <span class="math inline">i</span> of <span class="math inline">\bm{S}</span> holds query <span class="math inline">i</span>’s scores against every key, and row <span class="math inline">i</span> of the output is query <span class="math inline">i</span>’s weighted average of the values.</p>
+<p><strong>Step 1: dot products.</strong> Row by row:</p>
+<ul>
+<li>Query 1 is <span class="math inline">[1, 0, 0, 0]</span>. It picks out the first entry of each key: <span class="math inline">2, 0, 0</span>.</li>
+<li>Query 2 is all zeros, so every dot product is <span class="math inline">0</span>.</li>
+<li>Query 3 is <span class="math inline">[0, 1, 0, 1]</span>. It adds the second and fourth entries of each key: <span class="math inline">0</span>, <span class="math inline">2</span>, <span class="math inline">0 + 2 = 2</span>.</li>
+</ul>
+<p><strong>Step 2: scale.</strong> <span class="math inline">\sqrt{d_k} = \sqrt{4} = 2</span>, so</p>
+<p><span class="math display">\bm{S} = \begin{bmatrix} 1 &amp; 0 &amp; 0 \\ 0 &amp; 0 &amp; 0 \\ 0 &amp; 1 &amp; 1 \end{bmatrix}.</span></p>
+<p><strong>Step 3: softmax each row.</strong> With <span class="math inline">e \approx 2.718</span>:</p>
+<ul>
+<li>Row 1: <span class="math inline">(e, 1, 1) / (e + 2)</span>. Since <span class="math inline">e + 2 \approx 4.718</span>, the weights are <span class="math inline">(0.576, 0.212, 0.212)</span>.</li>
+<li>Row 2: <span class="math inline">(1, 1, 1)/3 = (0.333, 0.333, 0.333)</span>.</li>
+<li>Row 3: <span class="math inline">(1, e, e) / (1 + 2e)</span>. Since <span class="math inline">1 + 2e \approx 6.437</span>, the weights are <span class="math inline">(0.155, 0.422, 0.422)</span>.</li>
+</ul>
+<p><span class="math display">\bm{A} \approx \begin{bmatrix} 0.576 &amp; 0.212 &amp; 0.212 \\ 0.333 &amp; 0.333 &amp; 0.333 \\ 0.155 &amp; 0.422 &amp; 0.422 \end{bmatrix}.</span></p>
+<p>Each row sums to <span class="math inline">1</span>, as every row of an attention matrix must. <span class="math inline">\bm{A}</span> is <span class="math inline">T \times T = 3 \times 3</span> because queries and keys come from the same sequence.</p>
+<p><strong>Step 4: weighted average of values.</strong> Row <span class="math inline">i</span> of <span class="math inline">\bm{A}\bm{V}</span> is <span class="math inline">A_{i1}\bm{v}_1 + A_{i2}\bm{v}_2 + A_{i3}\bm{v}_3</span>. Keeping the exact fractions avoids rounding drift:</p>
+<ul>
+<li>Row 1: <span class="math inline">\big(e\,[2, 0] + [0, 2] + [1, 1]\big)/(e + 2) = [2e + 1,\ 3]/(e + 2) \approx [1.364, 0.636]</span>.</li>
+<li>Row 2: <span class="math inline">\big([2, 0] + [0, 2] + [1, 1]\big)/3 = [1, 1]</span>.</li>
+<li>Row 3: <span class="math inline">\big([2, 0] + e\,[0, 2] + e\,[1, 1]\big)/(1 + 2e) = [2 + e,\ 3e]/(1 + 2e) \approx [0.733, 1.267]</span>.</li>
+</ul>
+<p><span class="math display">\bm{A}\bm{V} \approx \begin{bmatrix} 1.364 &amp; 0.636 \\ 1.000 &amp; 1.000 \\ 0.733 &amp; 1.267 \end{bmatrix}.</span></p>
+<p><strong>Why position 2 is a plain average.</strong> Its query is the zero vector, so it scores <span class="math inline">0</span> against every key. A softmax of equal scores gives equal weights, so the output is the unweighted mean of the values. A query that matches nothing in particular attends to everything equally.</p>
+<p><strong>Reading the other rows.</strong> Query 1 matches key 1 best, so its output leans toward <span class="math inline">\bm{v}_1 = [2, 0]</span>. Query 3 ties between keys 2 and 3, so its output sits between <span class="math inline">\bm{v}_2 = [0, 2]</span> and <span class="math inline">\bm{v}_3 = [1, 1]</span>, pulled slightly toward <span class="math inline">\bm{v}_1</span> by the small remaining weight.</p>
+<p><strong>Answer:</strong> <span class="math inline">\bm{S}</span> has rows <span class="math inline">(1, 0, 0)</span>, <span class="math inline">(0, 0, 0)</span>, <span class="math inline">(0, 1, 1)</span>. <span class="math inline">\bm{A}</span> has rows <span class="math inline">(0.576, 0.212, 0.212)</span>, <span class="math inline">(0.333, 0.333, 0.333)</span>, <span class="math inline">(0.155, 0.422, 0.422)</span>. The output rows are <span class="math inline">[1.364, 0.636]</span>, <span class="math inline">[1, 1]</span>, <span class="math inline">[0.733, 1.267]</span>. Position 2 gets a plain average because its zero query gives every key the same score.</p>
+</div>
+</div>
+</div>
+</section>
+<section id="prb-3" class="level3">
+<h3 class="anchored" data-anchor-id="prb-3">Problem 3: What reordering does, and does not, change</h3>
+<ol type="a">
+<li><p>A self-attention layer with no position encoding maps the inputs <span class="math inline">\bm{x}_1, \dots, \bm{x}_5</span> to outputs <span class="math inline">\bm{o}_1, \dots, \bm{o}_5</span>. We swap <span class="math inline">\bm{x}_1</span> and <span class="math inline">\bm{x}_3</span> and run the layer again. What are the five new outputs, in order?</p></li>
+<li><p>In a sequence-to-sequence model with attention, the encoder RNN has produced states <span class="math inline">\bm{h}_1, \dots, \bm{h}_5</span>. Before the decoder’s attention step, we shuffle these five states (keeping everything else fixed). Does the context <span class="math inline">\bm{c}_{t'}</span> change?</p></li>
+<li><p>In the same model, we instead swap the first and third <em>input words</em> before the encoder runs. Can <span class="math inline">\bm{c}_{t'}</span> change now? What does this say about whether this model needs a position encoding?</p></li>
+<li><p>Back in part (a), suppose learned absolute position embeddings are added, so the layer reads <span class="math inline">\bm{x}_t + \bm{p}_t</span>. After the swap, is the output at position 2 still <span class="math inline">\bm{o}_2</span>?</p></li>
+</ol>
+<div class="practice-answer callout callout-style-default callout-tip callout-titled" title="Worked solution">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-7-contents" aria-controls="callout-7" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Worked solution
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-7" class="callout-7-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>This uses <a href="../lectures/week07.html#sec-sets">Week 7, Attention operates on sets</a>, <a href="../lectures/week07.html#sec-position">Position Encoding</a>, and <a href="../lectures/week07.html#sec-absolute-position">Absolute position embeddings</a>.</p>
+<p><strong>The two properties.</strong> Attention is <strong>permutation invariant</strong> in its (key, value) pairs: the comparison treats each key on its own, and a weighted sum does not depend on the order of its terms, so shuffling the pairs leaves the output unchanged. Self-attention is <strong>permutation equivariant</strong> as a map from sequences to sequences: reorder the inputs and the outputs come out reordered the same way, with nothing else changed.</p>
+<p><strong>(a)</strong> Position <span class="math inline">t</span>’s output depends on its own query <span class="math inline">\bm{W}_Q\bm{x}_t</span> and on the <em>set</em> of (key, value) pairs from all five inputs. The swap does not change that set; it only relabels which position holds which input. So each input gets the same output wherever it sits, and the outputs swap with the inputs:</p>
+<p><span class="math display">(\bm{o}_3, \bm{o}_2, \bm{o}_1, \bm{o}_4, \bm{o}_5).</span></p>
+<p><strong>(b)</strong> No.&nbsp;The context is <span class="math inline">\bm{c}_{t'} = \sum_i \operatorname{softmax}(\bm{a})_i\, \bm{h}_i</span>, and each score <span class="math inline">a_i</span> depends only on the query <span class="math inline">\bm{s}_{t'-1}</span> and the one key <span class="math inline">\bm{h}_i</span>. Shuffling the states moves each score along with its own state, so the weighted sum has the same terms in a different order. This is invariance in the (key, value) pairs.</p>
+<p><strong>(c)</strong> Yes. The keys and values are not the words themselves but the encoder’s RNN states. Each <span class="math inline">\bm{h}_t</span> is computed from <span class="math inline">\bm{h}_{t-1}</span> and <span class="math inline">\bm{x}_t</span>, so it depends on the words before it <em>in order</em>. Swapping two words changes the states themselves, not just their order, so the set the decoder attends over is different and <span class="math inline">\bm{c}_{t'}</span> can change.</p>
+<p>So the attention step in this model is orderless, but the encoder RNN has already written order into the states. That is why the sequence-to-sequence model of the week chapter needs no position encoding, while self-attention applied directly to the inputs does.</p>
+<p><strong>(d)</strong> Not in general. After the swap, position 1 holds <span class="math inline">\bm{x}_3 + \bm{p}_1</span> and position 3 holds <span class="math inline">\bm{x}_1 + \bm{p}_3</span>. Position 2 still reads <span class="math inline">\bm{x}_2 + \bm{p}_2</span>, so its query is unchanged, but two of the keys and values it attends over are new vectors. The set of (key, value) pairs has changed, not merely been reordered, so the output at position 2 can differ from <span class="math inline">\bm{o}_2</span>. That is the job of a position encoding: the same word set in a different order now gives different outputs.</p>
+<p><strong>Answer:</strong> (a) <span class="math inline">(\bm{o}_3, \bm{o}_2, \bm{o}_1, \bm{o}_4, \bm{o}_5)</span>. (b) No, by invariance in the (key, value) pairs. (c) Yes, because the encoder RNN’s states depend on word order, so this model needs no separate position encoding. (d) Not in general, because two of the keys and values position 2 attends over are now different vectors.</p>
+</div>
+</div>
+</div>
+</section>
+<section id="prb-4" class="level3">
+<h3 class="anchored" data-anchor-id="prb-4">Problem 4: RoPE scores depend only on the offset (stretch)</h3>
+<p>Take <span class="math inline">d_k = 2</span>, RoPE angle <span class="math inline">\theta = 30°</span>, and the same query and key vectors before rotation at every position: <span class="math inline">\bm{q} = [2, 0]</span> and <span class="math inline">\bm{k} = [1, 1]</span>.</p>
+<ol type="a">
+<li><p>By rotating each vector separately, compute the RoPE score <span class="math inline">(\bm{R}_i \bm{q})^\top (\bm{R}_j \bm{k}) / \sqrt{d_k}</span> for a query at position <span class="math inline">i = 2</span> and a key at position <span class="math inline">j = 5</span>.</p></li>
+<li><p>Repeat for <span class="math inline">i = 10</span> and <span class="math inline">j = 13</span>.</p></li>
+<li><p>Use <span class="math inline">\bm{R}(\phi)^\top \bm{R}(\psi) = \bm{R}(\psi - \phi)</span> to explain the result with a single rotation. What score does a query and key at the <em>same</em> position get?</p></li>
+</ol>
+<div class="practice-answer callout callout-style-default callout-tip callout-titled" title="Worked solution">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-8-contents" aria-controls="callout-8" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Worked solution
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-8" class="callout-8-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>This uses <a href="../lectures/week07.html#sec-rotation">Week 7, Prerequisite: rotation matrices in two dimensions</a> and <a href="../lectures/week07.html#sec-rope">Rotary position encoding</a>.</p>
+<p><strong>The base equations.</strong> The rotation matrix by angle <span class="math inline">\phi</span> is</p>
+<p><span class="math display">\bm{R}(\phi) = \begin{bmatrix} \cos\phi &amp; -\sin\phi \\ \sin\phi &amp; \cos\phi \end{bmatrix},</span></p>
+<p>so it sends a vector <span class="math inline">[x, y]</span> to</p>
+<p><span class="math display">\bm{R}(\phi)\begin{bmatrix} x \\ y \end{bmatrix} = \begin{bmatrix} x\cos\phi - y\sin\phi \\ x\sin\phi + y\cos\phi \end{bmatrix}.</span></p>
+<p>RoPE rotates the query at position <span class="math inline">i</span> by <span class="math inline">i\theta</span> and the key at position <span class="math inline">j</span> by <span class="math inline">j\theta</span>, then takes the scaled dot product. The values we need are <span class="math inline">\cos 60° = \tfrac12</span>, <span class="math inline">\sin 60° = \tfrac{\sqrt3}{2}</span>, <span class="math inline">\cos 150° = -\tfrac{\sqrt3}{2}</span>, <span class="math inline">\sin 150° = \tfrac12</span>, <span class="math inline">\cos 300° = \tfrac12</span>, <span class="math inline">\sin 300° = -\tfrac{\sqrt3}{2}</span>, and <span class="math inline">\cos 30° = \tfrac{\sqrt3}{2}</span>, <span class="math inline">\sin 30° = \tfrac12</span>.</p>
+<p><strong>(a) Positions 2 and 5.</strong> The query turns by <span class="math inline">2 \times 30° = 60°</span> and the key by <span class="math inline">5 \times 30° = 150°</span>:</p>
+<p><span class="math display">\bm{R}(60°)\,\bm{q} = [2\cos 60°,\ 2\sin 60°] = [1,\ \sqrt3],</span></p>
+<p><span class="math display">\bm{R}(150°)\,\bm{k} = \Big[-\tfrac{\sqrt3}{2} - \tfrac12,\ \tfrac12 - \tfrac{\sqrt3}{2}\Big].</span></p>
+<p>Their dot product is</p>
+<p><span class="math display">
+\begin{aligned}
+&amp;1 \cdot \Big(-\tfrac{\sqrt3}{2} - \tfrac12\Big) + \sqrt3 \cdot \Big(\tfrac12 - \tfrac{\sqrt3}{2}\Big) \\
+&amp;= -\tfrac{\sqrt3}{2} - \tfrac12 + \tfrac{\sqrt3}{2} - \tfrac32 = -2.
+\end{aligned}
+</span></p>
+<p>Dividing by <span class="math inline">\sqrt{d_k} = \sqrt2</span> gives the score <span class="math inline">-2/\sqrt2 = -\sqrt2 \approx -1.414</span>.</p>
+<p><strong>(b) Positions 10 and 13.</strong> The query turns by <span class="math inline">300°</span> and the key by <span class="math inline">390°</span>, which is the same as <span class="math inline">30°</span>:</p>
+<p><span class="math display">\bm{R}(300°)\,\bm{q} = [1,\ -\sqrt3], \qquad \bm{R}(30°)\,\bm{k} = \Big[\tfrac{\sqrt3}{2} - \tfrac12,\ \tfrac12 + \tfrac{\sqrt3}{2}\Big].</span></p>
+<p><span class="math display">
+\begin{aligned}
+&amp;1 \cdot \Big(\tfrac{\sqrt3}{2} - \tfrac12\Big) - \sqrt3 \cdot \Big(\tfrac12 + \tfrac{\sqrt3}{2}\Big) \\
+&amp;= \tfrac{\sqrt3}{2} - \tfrac12 - \tfrac{\sqrt3}{2} - \tfrac32 = -2.
+\end{aligned}
+</span></p>
+<p>The score is again <span class="math inline">-\sqrt2</span>. Every rotated vector is different from part (a), but the score is the same.</p>
+<p><strong>(c) One rotation explains both.</strong> By the identity,</p>
+<p><span class="math display">(\bm{R}_i \bm{q})^\top (\bm{R}_j \bm{k}) = \bm{q}^\top \bm{R}(i\theta)^\top \bm{R}(j\theta)\, \bm{k} = \bm{q}^\top \bm{R}\big((j - i)\theta\big)\, \bm{k}.</span></p>
+<p>In both parts <span class="math inline">j - i = 3</span>, so both scores equal <span class="math inline">\bm{q}^\top \bm{R}(90°)\,\bm{k}</span>. Rotating <span class="math inline">\bm{k} = [1, 1]</span> by <span class="math inline">90°</span> gives <span class="math inline">[-1, 1]</span>, and <span class="math inline">[2, 0]^\top[-1, 1] = -2</span>, which matches. The absolute positions cancel, leaving only the offset: RoPE is a relative encoding even though each vector is rotated by its own position.</p>
+<p>At the same position, <span class="math inline">j - i = 0</span> and <span class="math inline">\bm{R}(0)</span> is the identity, so the score is the unrotated <span class="math inline">\bm{q}^\top \bm{k} / \sqrt2 = 2/\sqrt2 = \sqrt2 \approx 1.414</span>. Here an offset of <span class="math inline">3</span> turns a positive score into a negative one, so this query attends less to a key three positions ahead than to a key at its own position.</p>
+<p><strong>Answer:</strong> (a) <span class="math inline">-\sqrt2 \approx -1.414</span>. (b) <span class="math inline">-\sqrt2 \approx -1.414</span>, the same. (c) Both equal <span class="math inline">\bm{q}^\top \bm{R}(3\theta)\,\bm{k} / \sqrt2</span>, which depends only on the offset <span class="math inline">3</span>. At the same position the score is <span class="math inline">\sqrt2 \approx 1.414</span>.</p>
+</div>
+</div>
+</div>
+
+
+</section>
+</section>
+
+</main> <!-- /main -->
+<script id="quarto-html-after-body" type="application/javascript">
+  window.document.addEventListener("DOMContentLoaded", function (event) {
+    const icon = "";
+    const anchorJS = new window.AnchorJS();
+    anchorJS.options = {
+      placement: 'right',
+      icon: icon
+    };
+    anchorJS.add('.anchored');
+    const isCodeAnnotation = (el) => {
+      for (const clz of el.classList) {
+        if (clz.startsWith('code-annotation-')) {                     
+          return true;
+        }
+      }
+      return false;
+    }
+    const onCopySuccess = function(e) {
+      // button target
+      const button = e.trigger;
+      // don't keep focus
+      button.blur();
+      // flash "checked"
+      button.classList.add('code-copy-button-checked');
+      var currentTitle = button.getAttribute("title");
+      button.setAttribute("title", "Copied!");
+      let tooltip;
+      if (window.bootstrap) {
+        button.setAttribute("data-bs-toggle", "tooltip");
+        button.setAttribute("data-bs-placement", "left");
+        button.setAttribute("data-bs-title", "Copied!");
+        tooltip = new bootstrap.Tooltip(button, 
+          { trigger: "manual", 
+            customClass: "code-copy-button-tooltip",
+            offset: [0, -8]});
+        tooltip.show();    
+      }
+      setTimeout(function() {
+        if (tooltip) {
+          tooltip.hide();
+          button.removeAttribute("data-bs-title");
+          button.removeAttribute("data-bs-toggle");
+          button.removeAttribute("data-bs-placement");
+        }
+        button.setAttribute("title", currentTitle);
+        button.classList.remove('code-copy-button-checked');
+      }, 1000);
+      // clear code selection
+      e.clearSelection();
+    }
+    const getTextToCopy = function(trigger) {
+      const outerScaffold = trigger.parentElement.cloneNode(true);
+      const codeEl = outerScaffold.querySelector('code');
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+    }
+    const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
+      text: getTextToCopy
+    });
+    clipboard.on('success', onCopySuccess);
+    if (window.document.getElementById('quarto-embedded-source-code-modal')) {
+      const clipboardModal = new window.ClipboardJS('.code-copy-button[data-in-quarto-modal]', {
+        text: getTextToCopy,
+        container: window.document.getElementById('quarto-embedded-source-code-modal')
+      });
+      clipboardModal.on('success', onCopySuccess);
+    }
+      var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+      var mailtoRegex = new RegExp(/^mailto:/);
+        var filterRegex = new RegExp('/' + window.location.host + '/');
+      var isInternal = (href) => {
+          return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+      }
+      // Inspect non-navigation links and adorn them if external
+     var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+      for (var i=0; i<links.length; i++) {
+        const link = links[i];
+        if (!isInternal(link.href)) {
+          // undo the damage that might have been done by quarto-nav.js in the case of
+          // links that we want to consider external
+          if (link.dataset.originalHref !== undefined) {
+            link.href = link.dataset.originalHref;
+          }
+            // target, if specified
+            link.setAttribute("target", "_blank");
+            if (link.getAttribute("rel") === null) {
+              link.setAttribute("rel", "noopener");
+            }
+        }
+      }
+    function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+      const config = {
+        allowHTML: true,
+        maxWidth: 500,
+        delay: 100,
+        arrow: false,
+        appendTo: function(el) {
+            return el.parentElement;
+        },
+        interactive: true,
+        interactiveBorder: 10,
+        theme: 'quarto',
+        placement: 'bottom-start',
+      };
+      if (contentFn) {
+        config.content = contentFn;
+      }
+      if (onTriggerFn) {
+        config.onTrigger = onTriggerFn;
+      }
+      if (onUntriggerFn) {
+        config.onUntrigger = onUntriggerFn;
+      }
+      window.tippy(el, config); 
+    }
+    const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+    for (var i=0; i<noterefs.length; i++) {
+      const ref = noterefs[i];
+      tippyHover(ref, function() {
+        // use id or data attribute instead here
+        let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+        try { href = new URL(href).hash; } catch {}
+        const id = href.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note) {
+          return note.innerHTML;
+        } else {
+          return "";
+        }
+      });
+    }
+    const xrefs = window.document.querySelectorAll('a.quarto-xref');
+    const processXRef = (id, note) => {
+      // Strip column container classes
+      const stripColumnClz = (el) => {
+        el.classList.remove("page-full", "page-columns");
+        if (el.children) {
+          for (const child of el.children) {
+            stripColumnClz(child);
+          }
+        }
+      }
+      stripColumnClz(note)
+      if (id === null || id.startsWith('sec-')) {
+        // Special case sections, only their first couple elements
+        const container = document.createElement("div");
+        if (note.children && note.children.length > 2) {
+          container.appendChild(note.children[0].cloneNode(true));
+          for (let i = 1; i < note.children.length; i++) {
+            const child = note.children[i];
+            if (child.tagName === "P" && child.innerText === "") {
+              continue;
+            } else {
+              container.appendChild(child.cloneNode(true));
+              break;
+            }
+          }
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(container);
+          }
+          return container.innerHTML
+        } else {
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(note);
+          }
+          return note.innerHTML;
+        }
+      } else {
+        // Remove any anchor links if they are present
+        const anchorLink = note.querySelector('a.anchorjs-link');
+        if (anchorLink) {
+          anchorLink.remove();
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        if (note.classList.contains("callout")) {
+          return note.outerHTML;
+        } else {
+          return note.innerHTML;
+        }
+      }
+    }
+    for (var i=0; i<xrefs.length; i++) {
+      const xref = xrefs[i];
+      tippyHover(xref, undefined, function(instance) {
+        instance.disable();
+        let url = xref.getAttribute('href');
+        let hash = undefined; 
+        if (url.startsWith('#')) {
+          hash = url;
+        } else {
+          try { hash = new URL(url).hash; } catch {}
+        }
+        if (hash) {
+          const id = hash.replace(/^#\/?/, "");
+          const note = window.document.getElementById(id);
+          if (note !== null) {
+            try {
+              const html = processXRef(id, note.cloneNode(true));
+              instance.setContent(html);
+            } finally {
+              instance.enable();
+              instance.show();
+            }
+          } else {
+            // See if we can fetch this
+            fetch(url.split('#')[0])
+            .then(res => res.text())
+            .then(html => {
+              const parser = new DOMParser();
+              const htmlDoc = parser.parseFromString(html, "text/html");
+              const note = htmlDoc.getElementById(id);
+              if (note !== null) {
+                const html = processXRef(id, note);
+                instance.setContent(html);
+              } 
+            }).finally(() => {
+              instance.enable();
+              instance.show();
+            });
+          }
+        } else {
+          // See if we can fetch a full url (with no hash to target)
+          // This is a special case and we should probably do some content thinning / targeting
+          fetch(url)
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.querySelector('main.content');
+            if (note !== null) {
+              // This should only happen for chapter cross references
+              // (since there is no id in the URL)
+              // remove the first header
+              if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+                note.children[0].remove();
+              }
+              const html = processXRef(null, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      }, function(instance) {
+      });
+    }
+        let selectedAnnoteEl;
+        const selectorForAnnotation = ( cell, annotation) => {
+          let cellAttr = 'data-code-cell="' + cell + '"';
+          let lineAttr = 'data-code-annotation="' +  annotation + '"';
+          const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+          return selector;
+        }
+        const selectCodeLines = (annoteEl) => {
+          const doc = window.document;
+          const targetCell = annoteEl.getAttribute("data-target-cell");
+          const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+          const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+          const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+          const lineIds = lines.map((line) => {
+            return targetCell + "-" + line;
+          })
+          let top = null;
+          let height = null;
+          let parent = null;
+          if (lineIds.length > 0) {
+              //compute the position of the single el (top and bottom and make a div)
+              const el = window.document.getElementById(lineIds[0]);
+              top = el.offsetTop;
+              height = el.offsetHeight;
+              parent = el.parentElement.parentElement;
+            if (lineIds.length > 1) {
+              const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+              const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+              height = bottom - top;
+            }
+            if (top !== null && height !== null && parent !== null) {
+              // cook up a div (if necessary) and position it 
+              let div = window.document.getElementById("code-annotation-line-highlight");
+              if (div === null) {
+                div = window.document.createElement("div");
+                div.setAttribute("id", "code-annotation-line-highlight");
+                div.style.position = 'absolute';
+                parent.appendChild(div);
+              }
+              div.style.top = top - 2 + "px";
+              div.style.height = height + 4 + "px";
+              div.style.left = 0;
+              let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+              if (gutterDiv === null) {
+                gutterDiv = window.document.createElement("div");
+                gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+                gutterDiv.style.position = 'absolute';
+                const codeCell = window.document.getElementById(targetCell);
+                const gutter = codeCell.querySelector('.code-annotation-gutter');
+                gutter.appendChild(gutterDiv);
+              }
+              gutterDiv.style.top = top - 2 + "px";
+              gutterDiv.style.height = height + 4 + "px";
+            }
+            selectedAnnoteEl = annoteEl;
+          }
+        };
+        const unselectCodeLines = () => {
+          const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+          elementsIds.forEach((elId) => {
+            const div = window.document.getElementById(elId);
+            if (div) {
+              div.remove();
+            }
+          });
+          selectedAnnoteEl = undefined;
+        };
+          // Handle positioning of the toggle
+      window.addEventListener(
+        "resize",
+        throttle(() => {
+          elRect = undefined;
+          if (selectedAnnoteEl) {
+            selectCodeLines(selectedAnnoteEl);
+          }
+        }, 10)
+      );
+      function throttle(fn, ms) {
+      let throttle = false;
+      let timer;
+        return (...args) => {
+          if(!throttle) { // first call gets through
+              fn.apply(this, args);
+              throttle = true;
+          } else { // all the others get throttled
+              if(timer) clearTimeout(timer); // cancel #2
+              timer = setTimeout(() => {
+                fn.apply(this, args);
+                timer = throttle = false;
+              }, ms);
+          }
+        };
+      }
+        // Attach click handler to the DT
+        const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+        for (const annoteDlNode of annoteDls) {
+          annoteDlNode.addEventListener('click', (event) => {
+            const clickedEl = event.target;
+            if (clickedEl !== selectedAnnoteEl) {
+              unselectCodeLines();
+              const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+              if (activeEl) {
+                activeEl.classList.remove('code-annotation-active');
+              }
+              selectCodeLines(clickedEl);
+              clickedEl.classList.add('code-annotation-active');
+            } else {
+              // Unselect the line
+              unselectCodeLines();
+              clickedEl.classList.remove('code-annotation-active');
+            }
+          });
+        }
+    const findCites = (el) => {
+      const parentEl = el.parentElement;
+      if (parentEl) {
+        const cites = parentEl.dataset.cites;
+        if (cites) {
+          return {
+            el,
+            cites: cites.split(' ')
+          };
+        } else {
+          return findCites(el.parentElement)
+        }
+      } else {
+        return undefined;
+      }
+    };
+    var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+    for (var i=0; i<bibliorefs.length; i++) {
+      const ref = bibliorefs[i];
+      const citeInfo = findCites(ref);
+      if (citeInfo) {
+        tippyHover(citeInfo.el, function() {
+          var popup = window.document.createElement('div');
+          citeInfo.cites.forEach(function(cite) {
+            var citeDiv = window.document.createElement('div');
+            citeDiv.classList.add('hanging-indent');
+            citeDiv.classList.add('csl-entry');
+            var biblioDiv = window.document.getElementById('ref-' + cite);
+            if (biblioDiv) {
+              citeDiv.innerHTML = biblioDiv.innerHTML;
+            }
+            popup.appendChild(citeDiv);
+          });
+          return popup.innerHTML;
+        });
+      }
+    }
+  });
+  </script>
+<nav class="page-navigation">
+  <div class="nav-page nav-page-previous">
+      <a href="../lectures/week07.html" class="pagination-link" aria-label="Week 7: Attention">
+        <i class="bi bi-arrow-left-short"></i> <span class="nav-page-text"><span class="chapter-title">Week 7: Attention</span></span>
+      </a>          
+  </div>
+  <div class="nav-page nav-page-next">
+      <a href="../glossary.html" class="pagination-link" aria-label="Glossary">
+        <span class="nav-page-text"><span class="chapter-title">Glossary</span></span> <i class="bi bi-arrow-right-short"></i>
+      </a>
+  </div>
+</nav>
+</div> <!-- /content -->
+
+
+
+
+<script src="../site_libs/quarto-html/zenscroll-min.js"></script>
+</body></html>

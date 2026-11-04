@@ -1,0 +1,399 @@
+---
+title: "Week 7 practice: Attention"
+---
+
+```{=html}
+<style>#title-block-header { display: none; }</style>
+<div class="lecture-header">
+  <h1>Week 7 practice: Attention</h1>
+</div>
+```
+
+**Overview.** These problems drill [Week 7](week07.qmd). Try each stem before opening the worked solution. Every solution starts from the equation it rests on, says where that equation comes from, and only then substitutes numbers. An equation sheet comes first, then two parts:
+
+1. **Official Week 8 quiz practice.** Four questions provided by the course, which test Week 7 material (and deep RNNs from Week 6), reproduced with their answers.
+2. **More practice.** Four problems on the parts of Week 7 the official questions do not touch: the five ingredients, self-attention in matrix form, what reordering does, and rotary position encoding.
+
+In Part 2 the numbers and setups are invented for practice. Notation matches the week chapter: inputs $\bm{x}_t \in \mathbb{R}^m$, queries and keys of length $d_k$, values of length $d_v$, projections $\bm{W}_Q, \bm{W}_K, \bm{W}_V$, and for sequence-to-sequence models encoder states $\bm{h}_i$ and decoder states $\bm{s}_{t'}$.
+
+## Equations to know for the quiz {#sec-w7p-equations}
+
+Every problem in this chapter, and every official quiz question in Part 1, can be solved with the equations below. They are collected from the [Week 7](week07.qmd) chapter (and Week 6 for stacked RNNs), and each table says where the equation is explained. This is our own summary of the lecture, not a list published by the course. Results marked *(ours)* are short consequences worked out in this chapter, not lines from the lecture.
+
+### Attention in general
+
+| Equation | What it says | Where |
+|---|---|---|
+| $a_i = \alpha(\bm{q}, \bm{k}_i)$ | the comparison function gives one score per key | [The abstract picture](week07.qmd#sec-abstract) |
+| $f(\{\bm{v}_1, \dots, \bm{v}_N\}, \bm{a}) \in \mathbb{R}^{d_v}$ | the reduction combines the values, weighted by the scores, into one value-sized output | [The abstract picture](week07.qmd#sec-abstract) |
+| $\alpha(\bm{q}, \bm{k}_i) = -\lVert \bm{q} - \bm{k}_i \rVert$ | the one-nearest-neighbour comparison: closest key, largest score | [1-NN as attention](week07.qmd#sec-one-nn-attention) |
+| $\operatorname{softmax}(\bm{a})^\top \bm{Y}$ | the soft reduction: a [softmax](https://en.wikipedia.org/wiki/Softmax_function)-weighted average of the rows of $\bm{Y}$ (one-hot labels give class probabilities) | [Making it soft](week07.qmd#sec-soft-one-nn) |
+
+### Sequence-to-sequence with attention
+
+| Equation | What it says | Where |
+|---|---|---|
+| $a_i = \bm{w}^\top \tanh(\bm{W}_q \bm{s}_{t'-1} + \bm{W}_k \bm{h}_i)$ | additive attention: the previous decoder state is the query, the encoder states are the keys | [The five ingredients](week07.qmd#sec-seq2seq-ingredients) |
+| $\bm{c}_{t'} = \sum_{i=1}^{T} \operatorname{softmax}(\bm{a})_i\, \bm{h}_i$ | a fresh context at every output step, from the encoder states as values | [The five ingredients](week07.qmd#sec-seq2seq-ingredients) |
+| $\bm{s}_{t'} = g(\bm{y}_{t'-1}, \bm{s}_{t'-1}, \bm{c}_{t'})$ | the decoder update takes the per-step context as an extra input | [Feeding the context](week07.qmd#sec-seq2seq-decoder) |
+| $T_\text{out} \times T_\text{in}$ | attention-matrix size: one row of weights per output step, one column per input position *(ours)* | [Quiz question 3](#quiz-3) |
+
+### Self-attention
+
+| Equation | What it says | Where |
+|---|---|---|
+| $\bm{q}_t = \bm{W}_Q \bm{x}_t$, $\bm{k}_t = \bm{W}_K \bm{x}_t$, $\bm{v}_t = \bm{W}_V \bm{x}_t$ | three projections of each input, the same matrices at every position | [Queries, keys, and values](week07.qmd#sec-qkv) |
+| $\bm{W}_Q, \bm{W}_K \in \mathbb{R}^{d_k \times m}$, $\bm{W}_V \in \mathbb{R}^{d_v \times m}$ | projection shapes: rows are outputs, columns are inputs | [Queries, keys, and values](week07.qmd#sec-qkv) |
+| $\alpha(\bm{q}, \bm{k}_i) = \bm{q}^\top \bm{k}_i / \sqrt{d_k}$ | the scaled [dot product](https://en.wikipedia.org/wiki/Dot_product) | [The comparison](week07.qmd#sec-scaled-dot) |
+| $\operatorname{Var}(\bm{q}^\top\bm{k}) = d_k$ for unit-variance entries | the [variance](https://en.wikipedia.org/wiki/Variance) of the raw score; why the divisor is $\sqrt{d_k}$ | [Why divide by the square root](week07.qmd#sec-sqrt-dk) |
+| $\operatorname{Var}(XY) = \sigma_X^2 \sigma_Y^2$ | for independent, mean-zero $X$ and $Y$ *(ours)* | [Quiz question 2](#quiz-2) |
+| $\operatorname{Var}(Z/a) = \operatorname{Var}(Z)/a^2$ | dividing by $a$ divides the variance by $a^2$ *(ours)* | [Quiz question 2](#quiz-2) |
+| $\operatorname{softmax}(\bm{Q}\bm{K}^\top / \sqrt{d_k})\,\bm{V}$ | the whole layer in matrix form, softmax applied to each row | [Matrix form](week07.qmd#sec-matrix) |
+
+### Position encoding
+
+| Equation | What it says | Where |
+|---|---|---|
+| $\bm{x}_t + \bm{p}_t$ | absolute position embedding, learned per position | [Absolute position embeddings](week07.qmd#sec-absolute-position) |
+| $\bm{q}_i^\top \bm{k}_j / \sqrt{d_k} + p_{i-j}$ | relative bias: a learned scalar per offset | [Relative position encodings](week07.qmd#sec-relative-position) |
+| $\bm{R}(\phi)^\top \bm{R}(\psi) = \bm{R}(\psi - \phi)$ | for [rotation matrices](https://en.wikipedia.org/wiki/Rotation_matrix): rotating both vectors is rotating one by the difference | [Rotation matrices](week07.qmd#sec-rotation) |
+| $(\bm{R}_i \bm{q}_i)^\top (\bm{R}_j \bm{k}_j) / \sqrt{d_k}$, $\bm{R}_i = \bm{R}(i\theta)$ | RoPE; the score depends on positions only through $j - i$ | [Rotary position encoding](week07.qmd#sec-rope) |
+
+### Multi-head attention and path length
+
+| Equation | What it says | Where |
+|---|---|---|
+| $\bm{W}_O \in \mathbb{R}^{d_v \times H d_v}$ | the output matrix maps the $H$ stacked head outputs back to length $d_v$ | [Multi-headed self-attention](week07.qmd#sec-multihead) |
+| $H(2 d_k m + d_v m) + H d_v^2$ | parameters of a bias-free multi-head layer *(ours)* | [Quiz question 1](#quiz-1) |
+| $1$ vs. $\approx (T-1)/(k-1)$ vs. $\approx T$ | path length of self-attention, a 1D convolution with kernel length $k$, and an RNN | [Path length](week07.qmd#sec-path-length) |
+| $\bm{h}_t^{(\ell)} = f^{(\ell)}(\bm{h}_t^{(\ell-1)}, \bm{h}_{t-1}^{(\ell)})$ | a stacked RNN: each layer reads the layer below at the same step | [Week 6, Deep RNNs](week06.qmd#sec-deep-rnn) |
+| $T + L - 1$ | path length from $\bm{x}_1$ to the top of an $L$-layer stacked RNN at step $T$ *(ours)* | [Quiz question 4](#quiz-4) |
+
+## Part 1: Official Week 8 quiz practice {#sec-w7p-official-quiz}
+
+The four questions below were provided by the course as Week 8 quiz practice. The first three test Week 7 material; the fourth tests deep RNNs from Week 6 together with Week 7's path length. They are reproduced with the course's own numbers, with worked answers.
+
+### Quiz question 1: Counting multi-head parameters {#quiz-1}
+
+A multi-headed self-attention layer without biases has $H = 4$ heads, input size $m = 10$, $d_k = 3$, and $d_v = 5$, with output matrix $\bm{W}_O \in \mathbb{R}^{d_v \times H d_v}$. How many parameters does the layer have?
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+This uses [Week 7, Queries, keys, and values from one sequence](week07.qmd#sec-qkv) for one head and [Multi-Headed Self-Attention](week07.qmd#sec-multihead) for the output matrix.
+
+**The base equations.** One self-attention head projects each input three ways:
+
+$$\bm{q}_t = \bm{W}_Q \bm{x}_t, \qquad \bm{k}_t = \bm{W}_K \bm{x}_t, \qquad \bm{v}_t = \bm{W}_V \bm{x}_t.$$
+
+A matrix that takes an $m$-vector in and gives an $n$-vector out has shape $n \times m$, so $n m$ entries. The query and key must have the same length $d_k$ for their dot product to exist, so $\bm{W}_Q, \bm{W}_K \in \mathbb{R}^{d_k \times m}$, while $\bm{W}_V \in \mathbb{R}^{d_v \times m}$.
+
+**What has no parameters.** The scaled dot product and the softmax-weighted average are fixed formulas. The only learned quantities in a head are its three projection matrices, and "without biases" means there are no bias vectors to add.
+
+**Why the sequence length is missing.** The same three matrices are used at every position $t$, the parameter sharing of Week 5 and Week 6. So the count does not depend on $T$, and the question does not give it.
+
+**One head.**
+
+| Matrix | Shape | Entries |
+|---|---|---|
+| $\bm{W}_Q^{(i)}$ | $d_k \times m = 3 \times 10$ | $30$ |
+| $\bm{W}_K^{(i)}$ | $d_k \times m = 3 \times 10$ | $30$ |
+| $\bm{W}_V^{(i)}$ | $d_v \times m = 5 \times 10$ | $50$ |
+| **One head** | | **$110$** |
+
+**All heads.** Each head has its own three matrices, so $H \times 110 = 4 \times 110 = 440$.
+
+**The output matrix.** At each position the four head outputs, each of length $d_v = 5$, are stacked into one vector of length $H d_v = 20$. The output matrix maps that back to length $5$, so $\bm{W}_O \in \mathbb{R}^{5 \times 20}$ has $100$ entries.
+
+**Total.**
+
+$$H\,(2 d_k m + d_v m) + d_v \cdot H d_v = 4\,(60 + 50) + 5 \cdot 20 = 440 + 100 = 540.$$
+
+**Common slips.** Forgetting $\bm{W}_O$ gives $440$. Giving $\bm{W}_V$ the shape $d_k \times m$ gives $460$. Sharing one set of projections across the heads gives $210$. Multiplying by a sequence length has no basis, since the weights are shared across positions.
+
+**Answer:** $540$.
+:::
+
+### Quiz question 2: The right divisor when entries are not unit variance {#quiz-2}
+
+All entries of $\bm{q} \in \mathbb{R}^9$ and $\bm{k} \in \mathbb{R}^9$ are mutually independent with mean $0$. The entries of $\bm{q}$ have standard deviation $3$ and the entries of $\bm{k}$ have standard deviation $2$. What value of $a$ makes $\bm{q}^\top \bm{k} / a$ have variance $1$?
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+This uses [Week 7, Prerequisite: why divide by the square root of the key length](week07.qmd#sec-sqrt-dk).
+
+**Why the question exists.** Large attention scores saturate the softmax, which then passes almost no gradient back to the queries and keys. The lecture divides by $\sqrt{d_k}$ to keep the score's variance at $1$, but that divisor assumes every entry has variance $1$. This question changes the entry spreads and asks for the divisor that still gives variance $1$.
+
+**Three facts about variance.**
+
+1. For independent $X$ and $Y$ with mean $0$, $\operatorname{Var}(XY) = \mathbb{E}[X^2 Y^2] - (\mathbb{E}[XY])^2$. Independence splits the first term into $\mathbb{E}[X^2]\,\mathbb{E}[Y^2] = \sigma_X^2 \sigma_Y^2$, and mean zero makes $\mathbb{E}[XY] = \mathbb{E}[X]\,\mathbb{E}[Y] = 0$. So $\operatorname{Var}(XY) = \sigma_X^2 \sigma_Y^2$.
+2. The variance of a sum of independent terms is the sum of their variances. The products $q_1 k_1, q_2 k_2, \dots$ use disjoint entries, so they are independent of each other.
+3. Dividing by $a$ divides the variance by $a^2$: $\operatorname{Var}(Z/a) = \operatorname{Var}(Z)/a^2$.
+
+The stem gives standard deviations, so the variances are $3^2 = 9$ and $2^2 = 4$.
+
+**One term.** Each product $q_l k_l$ has variance $9 \cdot 4 = 36$.
+
+**The dot product.** $\bm{q}^\top \bm{k} = \sum_{l=1}^{9} q_l k_l$ is a sum of $9$ independent terms, each with variance $36$:
+
+$$\operatorname{Var}(\bm{q}^\top \bm{k}) = 9 \cdot 36 = 324.$$
+
+**Choose $a$.**
+
+$$\operatorname{Var}\!\left(\frac{\bm{q}^\top \bm{k}}{a}\right) = \frac{324}{a^2} = 1 \quad\Longrightarrow\quad a^2 = 324 \quad\Longrightarrow\quad a = 18.$$
+
+The value $a = -18$ also solves $a^2 = 324$, but a scaling divisor is taken positive.
+
+**Check against the lecture's rule.** In general $a = \sigma_q \sigma_k \sqrt{d_k}$, here $3 \cdot 2 \cdot \sqrt{9} = 18$. With $\sigma_q = \sigma_k = 1$ this is the lecture's $\sqrt{d_k}$.
+
+**Common slips.** Using $\sqrt{d_k} = 3$ ignores the entry spreads. Multiplying the standard deviations without squaring them gives variance $9 \cdot 6 = 54$. Forgetting that $a$ is squared inside the variance gives $324$.
+
+**Answer:** $a = 18$.
+:::
+
+### Quiz question 3: The size of a seq2seq attention matrix {#quiz-3}
+
+Consider an encoder-decoder sequence-to-sequence RNN with attention. If the input sequence length is $5$ and the output sequence length is $7$ (including any beginning of sequence and end of sequence tokens), how many attention values will the attention matrix have?
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+This uses [Week 7, The five ingredients](week07.qmd#sec-seq2seq-ingredients) and [What the attention weights learn](week07.qmd#sec-attention-weights).
+
+**The base equation.** At every output step $t'$, the decoder builds its own context
+
+$$\bm{c}_{t'} = \sum_{i=1}^{T} \operatorname{softmax}(\bm{a})_i\, \bm{h}_i, \qquad a_i = \alpha(\bm{s}_{t'-1}, \bm{h}_i).$$
+
+The query is the previous decoder state, and the keys are all $T$ encoder states. So **each output step produces one attention weight per input position**, and those $T$ weights sum to $1$.
+
+**The attention matrix.** Collect the weights with one row per output step and one column per input position. This is the matrix plotted in the translation figure of the week chapter, where rows are French output words and columns are English input words. Its shape is (output steps) $\times$ (input positions).
+
+**Count.** The input has $5$ positions, so each row has $5$ weights. The output length is $7$, so there are $7$ rows:
+
+$$7 \times 5 = 35.$$
+
+**About the special tokens.** The note "(including any beginning of sequence and end of sequence tokens)" tells us not to add or remove tokens ourselves: the stated $7$ is already the number of decoder steps.
+
+**Not square.** In self-attention the queries and keys come from one sequence, so the matrix is $T \times T$. Here they come from two different sequences, so the matrix is $7 \times 5$. Answering $25$ or $49$ treats it as self-attention, and answering $12$ adds the lengths instead of multiplying.
+
+**Answer:** $35$.
+:::
+
+### Quiz question 4: Path length through a stacked RNN {#quiz-4}
+
+A stacked RNN with $3$ layers reads an input sequence of length $6$. Count each RNN cell update as one operation (so a single-layer RNN on $6$ inputs has path length $6$). What is the smallest number of operations on a path from $\bm{x}_1$ to the top-layer hidden state at the last time step?
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+This uses [Week 6, Deep RNNs](week06.qmd#sec-deep-rnn) for the recurrence and [Week 7, Path length](week07.qmd#sec-path-length) for what is being counted.
+
+**The base equations.** Layer $1$ reads the input, and each higher layer reads the layer below *at the same step* together with its own previous state:
+
+$$\bm{h}_t^{(1)} = f^{(1)}\big(\bm{x}_t, \bm{h}_{t-1}^{(1)}\big),$$
+
+$$\bm{h}_t^{(\ell)} = f^{(\ell)}\big(\bm{h}_t^{(\ell-1)}, \bm{h}_{t-1}^{(\ell)}\big) \ \text{ for } \ell = 2, 3.$$
+
+**A grid of cells.** Lay the cells out with time $t = 1, \dots, 6$ across and layer $\ell = 1, 2, 3$ up. Cell $(t, \ell)$ has two incoming arrows: one from the left, $(t-1, \ell)$, and one from below, $(t, \ell-1)$. So one cell update moves information **one step right or one step up**, never both at once.
+
+**Count the path.** Information from $\bm{x}_1$ enters at cell $(1, 1)$ and must reach $(6, 3)$.
+
+- Computing $\bm{h}_1^{(1)}$ from $\bm{x}_1$ is the first operation.
+- Moving from time $1$ to time $6$ takes $5$ more updates.
+- Moving from layer $1$ to layer $3$ takes $2$ more updates.
+
+$$1 + 5 + 2 = 8.$$
+
+**Why "smallest" is still 8.** Every right-or-up route between those corners has exactly $5$ right moves and $2$ up moves, in some order. Going up first and then along the top layer, going along layer $1$ and then up, or zig-zagging all give $8$. No route is shorter, because no single update moves both forward in time and up a layer.
+
+**Check with the stem's convention.** With one layer the count is $1 + 5 + 0 = 6$, matching "a single-layer RNN on 6 inputs has path length 6." In general, $L$ layers and length $T$ give $T + L - 1$. Stacking adds to the path length but leaves it linear in $T$, where self-attention has path length $1$.
+
+**Common slips.** $3 \times 6 = 18$ counts every cell in the grid, not the cells on one path. $6$ forgets the climb to the top layer. $9$ counts the corner cell twice.
+
+**Answer:** $8$.
+:::
+
+## Part 2: More practice {#sec-w7p-more}
+
+The official questions count parameters, variances, matrix entries, and path lengths. These four problems practise the rest of the week: naming the ingredients of an attention mechanism, running self-attention in matrix form, predicting what reordering does, and checking that RoPE depends only on the offset.
+
+### Problem 1: Finding the five ingredients (intro) {#prb-1}
+
+Week 6 used a vocabulary $V$ with an embedding vector for each word.
+
+(a) A procedure takes a vector $\bm{u}$ and returns the vocabulary word whose embedding is closest to $\bm{u}$ in [Euclidean distance](https://en.wikipedia.org/wiki/Euclidean_distance). Write it as an attention mechanism: name the query, keys, values, comparison function, and reduction function.
+
+(b) The output layer of Week 6's language model computes scores $\bm{o}_t = \bm{W}_o \bm{h}_t + \bm{b}_o$ and then the softmax $\operatorname{softmax}(\bm{o}_t)$, a probability for every vocabulary word. Show that this, too, is an attention mechanism, and name its five ingredients.
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+This uses [Week 7, The abstract picture](week07.qmd#sec-abstract), [The one-nearest-neighbour classifier as attention](week07.qmd#sec-one-nn-attention), and [Making it soft](week07.qmd#sec-soft-one-nn).
+
+**The template.** Every attention mechanism compares a query with each key to get one score $a_i = \alpha(\bm{q}, \bm{k}_i)$ per key, then reduces the values, weighted by those scores, to one output. To fill in the template, ask three questions: what are we asking about (the query), what do we compare it against (the keys), and what do we want back (the values).
+
+**(a) Nearest embedding.** This is the one-nearest-neighbour classifier of the week chapter with the vocabulary as its training set.
+
+- **Query:** the vector $\bm{u}$.
+- **Keys:** the $|V|$ word embeddings, since those are what $\bm{u}$ is compared against.
+- **Values:** the words themselves. To make the reduction a formula, write word $i$ as a one-hot vector and stack them as the rows of $\bm{Y}$. With one row per word, $\bm{Y}$ is the $|V| \times |V|$ identity matrix.
+- **Comparison:** the negative Euclidean distance, $a_i = -\lVert \bm{u} - \bm{e}_i \rVert$, where $\bm{e}_i$ is word $i$'s embedding. The minus sign makes the closest word score highest.
+- **Reduction:** the argmax, written as a one-hot vector, so $\operatorname{argmax}(\bm{a})^\top \bm{Y}$ picks out the closest word.
+
+**(b) The language-model output layer.** Write row $i$ of $\bm{W}_o$ as $\bm{w}_i^\top$ and entry $i$ of $\bm{b}_o$ as $b_i$. Then score $i$ is
+
+$$o_{t,i} = \bm{w}_i^\top \bm{h}_t + b_i.$$
+
+That is one score per vocabulary word, computed from $\bm{h}_t$ and one learned vector per word: exactly the shape of a comparison function.
+
+- **Query:** the hidden state $\bm{h}_t$.
+- **Keys:** the rows $\bm{w}_i$ of $\bm{W}_o$, one per word.
+- **Values:** one-hot vectors for the words, the rows of $\bm{Y} = \bm{I}$.
+- **Comparison:** a dot product plus a per-key bias, $\alpha(\bm{h}_t, \bm{w}_i) = \bm{w}_i^\top \bm{h}_t + b_i$.
+- **Reduction:** the softmax-weighted average, $\operatorname{softmax}(\bm{o}_t)^\top \bm{Y}$.
+
+Because $\bm{Y}$ is the identity, $\operatorname{softmax}(\bm{o}_t)^\top \bm{Y} = \operatorname{softmax}(\bm{o}_t)$: the weighted average of one-hot vectors is the vector of weights itself. So the output layer is the soft version of a nearest-key lookup. Its comparison is a dot product rather than a negative distance, and its keys are learned rather than fixed.
+
+**Answer:** (a) query $\bm{u}$, keys the word embeddings, values the one-hot words, comparison $-\lVert \bm{u} - \bm{e}_i \rVert$, reduction argmax. (b) query $\bm{h}_t$, keys the rows of $\bm{W}_o$, values the one-hot words, comparison $\bm{w}_i^\top \bm{h}_t + b_i$, reduction softmax-weighted average, which returns $\operatorname{softmax}(\bm{o}_t)$.
+:::
+
+### Problem 2: Self-attention as two matrix products {#prb-2}
+
+A self-attention layer has produced, for a sequence of $T = 3$ positions, queries and keys of length $d_k = 4$ and values of length $d_v = 2$. Row $t$ of each matrix belongs to position $t$:
+
+$$
+\bm{Q} = \begin{bmatrix} 1 & 0 & 0 & 0 \\ 0 & 0 & 0 & 0 \\ 0 & 1 & 0 & 1 \end{bmatrix}, \qquad
+\bm{K} = \begin{bmatrix} 2 & 0 & 0 & 0 \\ 0 & 2 & 0 & 0 \\ 0 & 0 & 2 & 2 \end{bmatrix}, \qquad
+\bm{V} = \begin{bmatrix} 2 & 0 \\ 0 & 2 \\ 1 & 1 \end{bmatrix}.
+$$
+
+Compute the score matrix $\bm{S} = \bm{Q}\bm{K}^\top / \sqrt{d_k}$, the attention matrix $\bm{A}$, and the output $\bm{A}\bm{V}$. Give the output to three decimal places. Why does position 2 get a plain average of the three values?
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+This uses [Week 7, Self-attention as matrix operations](week07.qmd#sec-matrix).
+
+**The base equation.**
+
+$$\text{output} = \operatorname{softmax}\!\left(\frac{\bm{Q}\bm{K}^\top}{\sqrt{d_k}}\right)\bm{V}, \qquad \text{softmax applied to each row.}$$
+
+Entry $(i, j)$ of $\bm{Q}\bm{K}^\top$ is the dot product of query $i$ (row $i$ of $\bm{Q}$) with key $j$ (row $j$ of $\bm{K}$). So row $i$ of $\bm{S}$ holds query $i$'s scores against every key, and row $i$ of the output is query $i$'s weighted average of the values.
+
+**Step 1: dot products.** Row by row:
+
+- Query 1 is $[1, 0, 0, 0]$. It picks out the first entry of each key: $2, 0, 0$.
+- Query 2 is all zeros, so every dot product is $0$.
+- Query 3 is $[0, 1, 0, 1]$. It adds the second and fourth entries of each key: $0$, $2$, $0 + 2 = 2$.
+
+**Step 2: scale.** $\sqrt{d_k} = \sqrt{4} = 2$, so
+
+$$\bm{S} = \begin{bmatrix} 1 & 0 & 0 \\ 0 & 0 & 0 \\ 0 & 1 & 1 \end{bmatrix}.$$
+
+**Step 3: softmax each row.** With $e \approx 2.718$:
+
+- Row 1: $(e, 1, 1) / (e + 2)$. Since $e + 2 \approx 4.718$, the weights are $(0.576, 0.212, 0.212)$.
+- Row 2: $(1, 1, 1)/3 = (0.333, 0.333, 0.333)$.
+- Row 3: $(1, e, e) / (1 + 2e)$. Since $1 + 2e \approx 6.437$, the weights are $(0.155, 0.422, 0.422)$.
+
+$$\bm{A} \approx \begin{bmatrix} 0.576 & 0.212 & 0.212 \\ 0.333 & 0.333 & 0.333 \\ 0.155 & 0.422 & 0.422 \end{bmatrix}.$$
+
+Each row sums to $1$, as every row of an attention matrix must. $\bm{A}$ is $T \times T = 3 \times 3$ because queries and keys come from the same sequence.
+
+**Step 4: weighted average of values.** Row $i$ of $\bm{A}\bm{V}$ is $A_{i1}\bm{v}_1 + A_{i2}\bm{v}_2 + A_{i3}\bm{v}_3$. Keeping the exact fractions avoids rounding drift:
+
+- Row 1: $\big(e\,[2, 0] + [0, 2] + [1, 1]\big)/(e + 2) = [2e + 1,\ 3]/(e + 2) \approx [1.364, 0.636]$.
+- Row 2: $\big([2, 0] + [0, 2] + [1, 1]\big)/3 = [1, 1]$.
+- Row 3: $\big([2, 0] + e\,[0, 2] + e\,[1, 1]\big)/(1 + 2e) = [2 + e,\ 3e]/(1 + 2e) \approx [0.733, 1.267]$.
+
+$$\bm{A}\bm{V} \approx \begin{bmatrix} 1.364 & 0.636 \\ 1.000 & 1.000 \\ 0.733 & 1.267 \end{bmatrix}.$$
+
+**Why position 2 is a plain average.** Its query is the zero vector, so it scores $0$ against every key. A softmax of equal scores gives equal weights, so the output is the unweighted mean of the values. A query that matches nothing in particular attends to everything equally.
+
+**Reading the other rows.** Query 1 matches key 1 best, so its output leans toward $\bm{v}_1 = [2, 0]$. Query 3 ties between keys 2 and 3, so its output sits between $\bm{v}_2 = [0, 2]$ and $\bm{v}_3 = [1, 1]$, pulled slightly toward $\bm{v}_1$ by the small remaining weight.
+
+**Answer:** $\bm{S}$ has rows $(1, 0, 0)$, $(0, 0, 0)$, $(0, 1, 1)$. $\bm{A}$ has rows $(0.576, 0.212, 0.212)$, $(0.333, 0.333, 0.333)$, $(0.155, 0.422, 0.422)$. The output rows are $[1.364, 0.636]$, $[1, 1]$, $[0.733, 1.267]$. Position 2 gets a plain average because its zero query gives every key the same score.
+:::
+
+### Problem 3: What reordering does, and does not, change {#prb-3}
+
+(a) A self-attention layer with no position encoding maps the inputs $\bm{x}_1, \dots, \bm{x}_5$ to outputs $\bm{o}_1, \dots, \bm{o}_5$. We swap $\bm{x}_1$ and $\bm{x}_3$ and run the layer again. What are the five new outputs, in order?
+
+(b) In a sequence-to-sequence model with attention, the encoder RNN has produced states $\bm{h}_1, \dots, \bm{h}_5$. Before the decoder's attention step, we shuffle these five states (keeping everything else fixed). Does the context $\bm{c}_{t'}$ change?
+
+(c) In the same model, we instead swap the first and third *input words* before the encoder runs. Can $\bm{c}_{t'}$ change now? What does this say about whether this model needs a position encoding?
+
+(d) Back in part (a), suppose learned absolute position embeddings are added, so the layer reads $\bm{x}_t + \bm{p}_t$. After the swap, is the output at position 2 still $\bm{o}_2$?
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+This uses [Week 7, Attention operates on sets](week07.qmd#sec-sets), [Position Encoding](week07.qmd#sec-position), and [Absolute position embeddings](week07.qmd#sec-absolute-position).
+
+**The two properties.** Attention is **permutation invariant** in its (key, value) pairs: the comparison treats each key on its own, and a weighted sum does not depend on the order of its terms, so shuffling the pairs leaves the output unchanged. Self-attention is **permutation equivariant** as a map from sequences to sequences: reorder the inputs and the outputs come out reordered the same way, with nothing else changed.
+
+**(a)** Position $t$'s output depends on its own query $\bm{W}_Q\bm{x}_t$ and on the *set* of (key, value) pairs from all five inputs. The swap does not change that set; it only relabels which position holds which input. So each input gets the same output wherever it sits, and the outputs swap with the inputs:
+
+$$(\bm{o}_3, \bm{o}_2, \bm{o}_1, \bm{o}_4, \bm{o}_5).$$
+
+**(b)** No. The context is $\bm{c}_{t'} = \sum_i \operatorname{softmax}(\bm{a})_i\, \bm{h}_i$, and each score $a_i$ depends only on the query $\bm{s}_{t'-1}$ and the one key $\bm{h}_i$. Shuffling the states moves each score along with its own state, so the weighted sum has the same terms in a different order. This is invariance in the (key, value) pairs.
+
+**(c)** Yes. The keys and values are not the words themselves but the encoder's RNN states. Each $\bm{h}_t$ is computed from $\bm{h}_{t-1}$ and $\bm{x}_t$, so it depends on the words before it *in order*. Swapping two words changes the states themselves, not just their order, so the set the decoder attends over is different and $\bm{c}_{t'}$ can change.
+
+So the attention step in this model is orderless, but the encoder RNN has already written order into the states. That is why the sequence-to-sequence model of the week chapter needs no position encoding, while self-attention applied directly to the inputs does.
+
+**(d)** Not in general. After the swap, position 1 holds $\bm{x}_3 + \bm{p}_1$ and position 3 holds $\bm{x}_1 + \bm{p}_3$. Position 2 still reads $\bm{x}_2 + \bm{p}_2$, so its query is unchanged, but two of the keys and values it attends over are new vectors. The set of (key, value) pairs has changed, not merely been reordered, so the output at position 2 can differ from $\bm{o}_2$. That is the job of a position encoding: the same word set in a different order now gives different outputs.
+
+**Answer:** (a) $(\bm{o}_3, \bm{o}_2, \bm{o}_1, \bm{o}_4, \bm{o}_5)$. (b) No, by invariance in the (key, value) pairs. (c) Yes, because the encoder RNN's states depend on word order, so this model needs no separate position encoding. (d) Not in general, because two of the keys and values position 2 attends over are now different vectors.
+:::
+
+### Problem 4: RoPE scores depend only on the offset (stretch) {#prb-4}
+
+Take $d_k = 2$, RoPE angle $\theta = 30°$, and the same query and key vectors before rotation at every position: $\bm{q} = [2, 0]$ and $\bm{k} = [1, 1]$.
+
+(a) By rotating each vector separately, compute the RoPE score $(\bm{R}_i \bm{q})^\top (\bm{R}_j \bm{k}) / \sqrt{d_k}$ for a query at position $i = 2$ and a key at position $j = 5$.
+
+(b) Repeat for $i = 10$ and $j = 13$.
+
+(c) Use $\bm{R}(\phi)^\top \bm{R}(\psi) = \bm{R}(\psi - \phi)$ to explain the result with a single rotation. What score does a query and key at the *same* position get?
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+This uses [Week 7, Prerequisite: rotation matrices in two dimensions](week07.qmd#sec-rotation) and [Rotary position encoding](week07.qmd#sec-rope).
+
+**The base equations.** The rotation matrix by angle $\phi$ is
+
+$$\bm{R}(\phi) = \begin{bmatrix} \cos\phi & -\sin\phi \\ \sin\phi & \cos\phi \end{bmatrix},$$
+
+so it sends a vector $[x, y]$ to
+
+$$\bm{R}(\phi)\begin{bmatrix} x \\ y \end{bmatrix} = \begin{bmatrix} x\cos\phi - y\sin\phi \\ x\sin\phi + y\cos\phi \end{bmatrix}.$$
+
+RoPE rotates the query at position $i$ by $i\theta$ and the key at position $j$ by $j\theta$, then takes the scaled dot product. The values we need are $\cos 60° = \tfrac12$, $\sin 60° = \tfrac{\sqrt3}{2}$, $\cos 150° = -\tfrac{\sqrt3}{2}$, $\sin 150° = \tfrac12$, $\cos 300° = \tfrac12$, $\sin 300° = -\tfrac{\sqrt3}{2}$, and $\cos 30° = \tfrac{\sqrt3}{2}$, $\sin 30° = \tfrac12$.
+
+**(a) Positions 2 and 5.** The query turns by $2 \times 30° = 60°$ and the key by $5 \times 30° = 150°$:
+
+$$\bm{R}(60°)\,\bm{q} = [2\cos 60°,\ 2\sin 60°] = [1,\ \sqrt3],$$
+
+$$\bm{R}(150°)\,\bm{k} = \Big[-\tfrac{\sqrt3}{2} - \tfrac12,\ \tfrac12 - \tfrac{\sqrt3}{2}\Big].$$
+
+Their dot product is
+
+$$
+\begin{aligned}
+&1 \cdot \Big(-\tfrac{\sqrt3}{2} - \tfrac12\Big) + \sqrt3 \cdot \Big(\tfrac12 - \tfrac{\sqrt3}{2}\Big) \\
+&= -\tfrac{\sqrt3}{2} - \tfrac12 + \tfrac{\sqrt3}{2} - \tfrac32 = -2.
+\end{aligned}
+$$
+
+Dividing by $\sqrt{d_k} = \sqrt2$ gives the score $-2/\sqrt2 = -\sqrt2 \approx -1.414$.
+
+**(b) Positions 10 and 13.** The query turns by $300°$ and the key by $390°$, which is the same as $30°$:
+
+$$\bm{R}(300°)\,\bm{q} = [1,\ -\sqrt3], \qquad \bm{R}(30°)\,\bm{k} = \Big[\tfrac{\sqrt3}{2} - \tfrac12,\ \tfrac12 + \tfrac{\sqrt3}{2}\Big].$$
+
+$$
+\begin{aligned}
+&1 \cdot \Big(\tfrac{\sqrt3}{2} - \tfrac12\Big) - \sqrt3 \cdot \Big(\tfrac12 + \tfrac{\sqrt3}{2}\Big) \\
+&= \tfrac{\sqrt3}{2} - \tfrac12 - \tfrac{\sqrt3}{2} - \tfrac32 = -2.
+\end{aligned}
+$$
+
+The score is again $-\sqrt2$. Every rotated vector is different from part (a), but the score is the same.
+
+**(c) One rotation explains both.** By the identity,
+
+$$(\bm{R}_i \bm{q})^\top (\bm{R}_j \bm{k}) = \bm{q}^\top \bm{R}(i\theta)^\top \bm{R}(j\theta)\, \bm{k} = \bm{q}^\top \bm{R}\big((j - i)\theta\big)\, \bm{k}.$$
+
+In both parts $j - i = 3$, so both scores equal $\bm{q}^\top \bm{R}(90°)\,\bm{k}$. Rotating $\bm{k} = [1, 1]$ by $90°$ gives $[-1, 1]$, and $[2, 0]^\top[-1, 1] = -2$, which matches. The absolute positions cancel, leaving only the offset: RoPE is a relative encoding even though each vector is rotated by its own position.
+
+At the same position, $j - i = 0$ and $\bm{R}(0)$ is the identity, so the score is the unrotated $\bm{q}^\top \bm{k} / \sqrt2 = 2/\sqrt2 = \sqrt2 \approx 1.414$. Here an offset of $3$ turns a positive score into a negative one, so this query attends less to a key three positions ahead than to a key at its own position.
+
+**Answer:** (a) $-\sqrt2 \approx -1.414$. (b) $-\sqrt2 \approx -1.414$, the same. (c) Both equal $\bm{q}^\top \bm{R}(3\theta)\,\bm{k} / \sqrt2$, which depends only on the offset $3$. At the same position the score is $\sqrt2 \approx 1.414$.
+:::
