@@ -1,0 +1,823 @@
+---
+title: "Week 7 practice: Variational Inference II and VAEs"
+---
+
+```{=html}
+<style>#title-block-header { display: none; }</style>
+<div class="lecture-header">
+  <h1>Week 7 practice: Variational Inference II and VAEs</h1>
+</div>
+```
+
+**Overview.** These problems drill [Week 7](week07.qmd) section by section. The chapter opens with an aid sheet: every equation the problems below need, in the week chapter's notation, so we can work them without flipping back. After that, each heading matches a section (or a group of sections) of the week chapter, in the same order, and its problems test only that material and what came before it. Try each stem before opening the worked solution. Every distribution, data set, network configuration and code variant here is invented for practice; none is a homework item, and none reuses the week's worked examples (the $\mathcal N(\mu,1)$ example with $f(z)=z^2$, the KL example with $\mu=1$, $\sigma=0.5$, or the notebook's own configuration and printed losses). Logarithms are natural, so losses and KL values are in nats.
+
+Several ELBO problems share one discrete model, which we call **Model T**: a latent variable $z\in\{1,2,3\}$, one fixed observation $x$, a prior $p(z)$, and a likelihood $p(x\mid z)$ with
+
+$$
+\begin{array}{c|ccc}
+ & z=1 & z=2 & z=3\\\hline
+p(z) & 0.4 & 0.4 & 0.2\\
+p(x\mid z) & 0.25 & 0.15 & 0.20\\
+p(x,z) & 0.10 & 0.06 & 0.04
+\end{array}
+$$
+
+## Aid sheet: the equations these problems use {#sec-w7p-aid}
+
+The lists below are grouped in the order of the week chapter. Each block gives the equation, then one line per symbol. They are the equations we would otherwise have to rederive while working a problem; the reasoning behind each one is in the week section it points to.
+
+### General math
+
+**Gaussian density (one dimension)**
+
+$$\mathcal N(x;\mu,\sigma^2) = \frac{1}{\sqrt{2\pi\sigma^2}}\exp\left(-\frac{(x-\mu)^2}{2\sigma^2}\right)$$
+
+- **Moments:** if $z\sim\mathcal N(\mu,\sigma^2)$ then $\mathbb E[z]=\mu$, $\mathbb E[(z-\mu)^2]=\sigma^2$, and $\mathbb E[z^2]=\mu^2+\sigma^2$.
+- **Standard normal noise:** $\epsilon\sim\mathcal N(0,1)$ has $\mathbb E[\epsilon]=0$ and $\mathbb E[\epsilon^2]=1$.
+- **Shift and scale:** $\mu+\sigma\epsilon\sim\mathcal N(\mu,\sigma^2)$.
+- **Tail values** for $Z\sim\mathcal N(0,1)$: $P(|Z|\le1)\approx0.683$, $P(|Z|\le1.5)\approx0.866$, $P(|Z|\le2)\approx0.954$.
+
+**Calculus and logs**
+
+- **Chain rule:** $\frac{d}{d\phi}f(T(\phi))=f'(T(\phi))\,T'(\phi)$.
+- **Sigmoid:** $\sigma(a)=\frac{1}{1+e^{-a}}\in(0,1)$, so a sigmoid output is a valid probability.
+- **Log rules:** $\log(ab)=\log a+\log b$, $\log\frac ab=\log a-\log b$, $\log e^a=a$.
+- **Values for working by hand:** $\ln2\approx0.693$, $\ln3\approx1.099$, $\ln5\approx1.609$, $\ln10\approx2.303$, $e^{-1}\approx0.368$, $e^{-1/2}\approx0.607$, $e^{-2}\approx0.135$, $e^{1/4}\approx1.284$, $e\approx2.718$, $\frac{1}{\sqrt{2\pi}}\approx0.399$.
+
+### The ELBO (@sec-w7-elbo, @sec-w7-two-forms)
+
+**[Evidence lower bound](https://en.wikipedia.org/wiki/Evidence_lower_bound)**
+
+$$\mathcal L(\phi)=\mathbb E_{z\sim q_\phi}\big[\log p(x,z)-\log q_\phi(z)\big]$$
+
+**The identity behind the bound**
+
+$$\mathcal L(\phi)+\mathrm{KL}\big(q_\phi(z)\,\|\,p(z\mid x)\big)=\log p(x)$$
+
+**First form: expected log-joint plus entropy**
+
+$$\mathcal L(\phi)=\mathbb E_{q_\phi}\big[\log p(x,z)\big]+H(q_\phi), \qquad H(q)=-\mathbb E_q[\log q(z)]$$
+
+**Second form: expected log-likelihood minus KL to the prior**
+
+$$\mathcal L(\phi)=\mathbb E_{q_\phi}\big[\log p(x\mid z)\big]-\mathrm{KL}\big(q_\phi(z)\,\|\,p(z)\big)$$
+
+- **Symbols:** $x$ is the observed data, $z$ the latent variable, $q_\phi$ the variational distribution with parameters $\phi$, and $p(z\mid x)=p(x,z)/p(x)$ the posterior.
+- **[KL divergence](https://en.wikipedia.org/wiki/Kullback%E2%80%93Leibler_divergence):** $\mathrm{KL}(q\,\|\,p)=\sum_z q(z)\log\frac{q(z)}{p(z)}$ (an integral for continuous $z$). It is $\ge0$, and $0$ only when $q=p$.
+- **Why it is a lower bound:** KL $\ge0$, so $\mathcal L\le\log p(x)$. The sum is fixed by the model, so raising $\mathcal L$ lowers the KL gap by exactly the same amount.
+- **[Jensen's inequality](https://en.wikipedia.org/wiki/Jensen%27s_inequality) route:** $\log\mathbb E_q\!\left[\frac{p(x,z)}{q(z)}\right]\ge\mathbb E_q\!\left[\log\frac{p(x,z)}{q(z)}\right]$, and the left side is $\log p(x)$. Equality holds exactly when the ratio $p(x,z)/q(z)$ is constant in $z$, that is, when $q$ is the posterior.
+
+### Gradients and the reparameterization trick (@sec-w7-grad, @sec-w7-reparam)
+
+**Gradient ascent on the ELBO**
+
+$$\phi_{t+1}=\phi_t+s_t\,\nabla_\phi\mathcal L(\phi_t)$$
+
+**The naive swap fails when the sampling distribution depends on $\phi$**
+
+$$\nabla_\phi\,\mathbb E_{z\sim q_\phi}\big[f(z)\big]\ \ne\ \mathbb E_{z\sim q_\phi}\big[\nabla_\phi f(z)\big]$$
+
+**[Reparameterization](https://en.wikipedia.org/wiki/Reparameterization_trick)**
+
+$$\epsilon\sim p_0(\epsilon),\qquad z=T(\epsilon,\phi)\ \sim\ q_\phi(z)$$
+
+$$\nabla_\phi\,\mathbb E_{z\sim q_\phi}\big[f(z)\big]=\mathbb E_{\epsilon\sim p_0}\big[\nabla_\phi f(T(\epsilon,\phi))\big]$$
+
+- **When the swap is allowed:** when the distribution we average over does not depend on $\phi$. Reparameterization creates that situation by moving all the randomness into $\epsilon$.
+- **Gaussian:** $z=\mu+\sigma\epsilon$, $\epsilon\sim\mathcal N(0,1)$, so $\frac{\partial z}{\partial\mu}=1$ and $\frac{\partial z}{\partial\sigma}=\epsilon$.
+- **Location-scale families** (shift and stretch a fixed distribution) all work the same way, for example a uniform: $z=a+(b-a)u$ with $u\sim\mathrm{Uniform}(0,1)$.
+- **Inverse CDF:** if $F$ is a continuous distribution function and $u\sim\mathrm{Uniform}(0,1)$, then $z=F^{-1}(u)$ has distribution $F$. It is a valid $T$ when $F^{-1}$ is differentiable in the parameters.
+- **No differentiable $T$** exists for a discrete $q_\phi$ (Problem 6).
+
+### Stochastic variational inference (@sec-w7-svi)
+
+**SVI gradient estimate from $m$ noise samples**
+
+$$\nabla_\phi\mathcal L(\phi)\approx\frac1m\sum_{i=1}^m\nabla_\phi\Big[\log p\big(x,T(\phi,\epsilon_i)\big)-\log q_\phi\big(T(\phi,\epsilon_i)\big)\Big]$$
+
+- Each term is the exact gradient for one fixed draw $\epsilon_i$. The average is unbiased, and its standard deviation shrinks like $1/\sqrt m$.
+- **MCMC vs SVI:** MCMC is exact in the limit, handles multimodal posteriors, but is slow. SVI is fast and scales to large data, but is only as good as its family, and the reverse KL is mode-seeking.
+
+### Autoencoders (@sec-w7-pca, @sec-w7-ae2, @sec-w7-ae-issues)
+
+**Two-layer autoencoder and its reconstruction error**
+
+$$y_k(x,w)=\sum_{j=1}^M w^{(2)}_{kj}\,\sigma\Big(\sum_{i=1}^D w^{(1)}_{ji}x_i\Big),\qquad E(w)=\frac12\sum_{n=1}^N\big\|y(x_n,w)-x_n\big\|^2$$
+
+- **Symbols:** $D$ inputs and outputs, $M<D$ bottleneck units, first-layer weights $w^{(1)}$ ($M\times D$), second-layer weights $w^{(2)}$ ($D\times M$), activation $\sigma$ (not a standard deviation here).
+- **[PCA](https://en.wikipedia.org/wiki/Principal_component_analysis):** for centred data, the first $M$ principal components are the top $M$ eigenvectors of the covariance $\frac1N\sum_n x_nx_n^\top$. Projecting onto them leaves a total squared error of $N$ times the sum of the discarded eigenvalues, the smallest possible for any $M$-dimensional subspace.
+- **Linear autoencoder:** with identity activations its $M$ hidden units span the PCA subspace, so it can do no better than PCA.
+- **Pixel-wise error:** $\sum_d(\tilde x_d-x_d)^2$ compares pixels in the same position only.
+
+### Variational autoencoders (@sec-w7-vae, @sec-w7-tut)
+
+**The VAE loss for one image (negative ELBO, one sample)**
+
+$$\ell=\mathrm{BCE}(\mathbf p,x)+\beta\cdot\mathrm{KL}\big(q_\phi(z\mid x)\,\|\,\mathcal N(0,I)\big),\qquad\mathbf p=f(z^*,\theta)$$
+
+**Reparameterized sample**
+
+$$z^*=\mu+\sigma\odot\epsilon^*,\qquad\sigma=\exp\big(\tfrac12\log\sigma^2\big),\qquad\epsilon^*\sim\mathcal N(0,I)$$
+
+**Binary cross-entropy**
+
+$$\mathrm{BCE}(\mathbf p,x)=-\sum_{d=1}^D\big[x_d\log p_d+(1-x_d)\log(1-p_d)\big]$$
+
+**Closed-form KL to the standard normal prior**
+
+$$\mathrm{KL}=\frac12\sum_{m=1}^M\Big(\sigma_m^2+\mu_m^2-1-\log\sigma_m^2\Big)$$
+
+- **Symbols:** the encoder outputs $\mu=g_\mu(x,\phi)$ and $\log\sigma^2=g_{\log\sigma^2}(x,\phi)$, one entry per latent dimension $m=1,\dots,M$. The decoder outputs pixel probabilities $\mathbf p\in(0,1)^D$. $\odot$ is elementwise multiplication. $\beta=1$ gives exactly the negative ELBO.
+- **One dimension of the KL:** $\frac12(\sigma^2+\mu^2-1-\log\sigma^2)$, zero only at $\mu=0$, $\sigma^2=1$.
+- **[Mixture of Gaussians](https://en.wikipedia.org/wiki/Mixture_model):** $p(x)=\sum_k\lambda_k\,\mathcal N(x;\mu_k,\sigma_k^2)$, and by Bayes' rule $p(z=k\mid x)=\dfrac{\lambda_k\,\mathcal N(x;\mu_k,\sigma_k^2)}{p(x)}$.
+- **Amortized vs per-point parameters:** with $N$ data points and $M$ latent dimensions, private $\phi_i=(\mu_i,\log\sigma_i^2)$ cost $2MN$ numbers. An amortized encoder has a fixed count that does not grow with $N$.
+
+### The notebook (@sec-w7-code)
+
+- **Convolution output size:** $\lfloor(n+2\cdot\text{padding}-\text{kernel})/\text{stride}\rfloor+1$. With kernel 4, stride 2, padding 1 this halves $n$.
+- **Transposed convolution output size:** $(n-1)\cdot\text{stride}-2\cdot\text{padding}+\text{kernel}$. With the same settings this doubles $n$.
+- **Parameter counts:** a (transposed) convolution with $C_\text{in}$ input channels, $C_\text{out}$ output channels and a $4\times4$ kernel has $16\,C_\text{in}C_\text{out}+C_\text{out}$ parameters. A linear layer from $a$ to $b$ features has $ab+b$.
+- **The notebook's loss:** BCE with `reduction='sum'` (over pixels and images) plus `variational_beta` times the KL summed over latent dimensions and images.
+
+## The ELBO and its two forms {#sec-w7p-elbo}
+
+### Problem 1: Which of the three quantities can we compute? {#prb-1}
+
+We have a latent variable model in which we can evaluate the prior $p(z)$ and the likelihood $p(x\mid z)$ for any $z$, so we can evaluate the joint $p(x,z)$. We have chosen a variational family $q_\phi(z)$ that we can sample from and whose density we can evaluate.
+
+1. For each of $\log p(x)$, $\mathrm{KL}(q_\phi(z)\,\|\,p(z\mid x))$ and $\mathcal L(\phi)$, say whether we can compute it (exactly, or by averaging over samples from $q_\phi$), and why.
+2. A colleague says: "We cannot measure how close $q_\phi$ is to the posterior, so we cannot improve it." Use the identity on the aid sheet to explain what is wrong with this argument.
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+This uses [Week 7, The ELBO](week07.qmd#sec-w7-elbo) and [Why "evidence lower bound"?](week07.qmd#sec-w7-why-lb).
+
+**Part 1.**
+
+- $\log p(x)=\log\int p(x,z)\,dz$ needs the integral over every $z$. For the models this week (a neural-network decoder), that integral has no closed form, so we **cannot** compute it.
+- The KL divergence to the posterior needs $p(z\mid x)=p(x,z)/p(x)$, whose denominator is the same intractable $p(x)$. So we **cannot** compute it either.
+- $\mathcal L(\phi)=\mathbb E_{q_\phi}[\log p(x,z)-\log q_\phi(z)]$ needs only the joint and $q_\phi$, both of which we can evaluate. The expectation may not have a closed form, but we can estimate it by drawing $z$ from $q_\phi$ and averaging. So we **can** compute it, at least approximately.
+
+**Part 2.** The identity says $\mathcal L(\phi)+\mathrm{KL}(q_\phi\,\|\,p(z\mid x))=\log p(x)$, and the right side does not depend on $\phi$. Any change of $\phi$ that raises $\mathcal L$ by some amount lowers the KL by exactly that amount. We never see the KL itself, but we do not need to: improving the quantity we can compute is the same as improving the one we cannot.
+
+**Answer:** only $\mathcal L(\phi)$ is computable; raising it lowers the KL gap one-for-one, so maximizing the ELBO improves $q_\phi$ without ever measuring the gap.
+:::
+
+### Problem 2: Comparing two approximations by their ELBO {#prb-2}
+
+Use Model T. Two candidate approximations are proposed:
+
+$$q_A=(0.6,\ 0.3,\ 0.1), \qquad q_B=\left(\tfrac13,\ \tfrac13,\ \tfrac13\right).$$
+
+1. Compute $\mathcal L$ for each, using only the joint $p(x,z)$. Which approximation does the ELBO prefer?
+2. Now compute $p(x)$, the posterior $p(z\mid x)$, and the KL gap of each candidate. Confirm that $\mathcal L+\mathrm{KL}=\log p(x)$ for both, and that the ELBO's preference matches the smaller gap.
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+This uses [Week 7, The ELBO](week07.qmd#sec-w7-elbo).
+
+**Part 1.** For a discrete $z$ the expectation is a sum, $\mathcal L=\sum_z q(z)\big[\log p(x,z)-\log q(z)\big]$. The logs of the joint are $\log0.10\approx-2.303$, $\log0.06\approx-2.813$, $\log0.04\approx-3.219$.
+
+- **$q_A$:** the three terms are $0.6(-2.303+0.511)$, $0.3(-2.813+1.204)$ and $0.1(-3.219+2.303)$, that is $-1.075$, $-0.483$, $-0.092$. So $\mathcal L(q_A)\approx-1.650$.
+- **$q_B$:** $\log\tfrac13\approx-1.099$, so the terms are $\tfrac13(-2.303+1.099)$, $\tfrac13(-2.813+1.099)$, $\tfrac13(-3.219+1.099)$, that is $-0.401$, $-0.572$, $-0.707$. So $\mathcal L(q_B)\approx-1.680$.
+
+$q_A$ has the larger ELBO, so the ELBO prefers $q_A$. We reached this without knowing $p(x)$.
+
+**Part 2.** Summing the joint, $p(x)=0.10+0.06+0.04=0.20$, so $\log p(x)=\log0.2\approx-1.609$. The posterior is the joint divided by $p(x)$: $p(z\mid x)=(0.5,\ 0.3,\ 0.2)$.
+
+- **$q_A$:** $\mathrm{KL}=0.6\log\frac{0.6}{0.5}+0.3\log\frac{0.3}{0.3}+0.1\log\frac{0.1}{0.2}=0.109+0-0.069\approx0.040$.
+- **$q_B$:** $\mathrm{KL}=\tfrac13\big(\log\tfrac{1/3}{0.5}+\log\tfrac{1/3}{0.3}+\log\tfrac{1/3}{0.2}\big)=\tfrac13(-0.405+0.105+0.511)\approx0.070$.
+
+Check: $-1.650+0.040=-1.610$ and $-1.680+0.070=-1.610$, both equal to $\log p(x)\approx-1.609$ up to rounding.
+
+**Answer:** $\mathcal L(q_A)\approx-1.650>\mathcal L(q_B)\approx-1.680$, so the ELBO prefers $q_A$, and indeed $q_A$ has the smaller gap (0.040 against 0.070 nats).
+:::
+
+### Problem 3: The same ELBO, split two ways {#prb-3}
+
+Use Model T and $q_A=(0.6,\ 0.3,\ 0.1)$ from Problem 2.
+
+1. Compute the first form: the expected log-joint $\mathbb E_{q_A}[\log p(x,z)]$ and the entropy $H(q_A)$.
+2. Compute the second form: the expected log-likelihood $\mathbb E_{q_A}[\log p(x\mid z)]$ and $\mathrm{KL}(q_A\,\|\,p(z))$ to the prior.
+3. Check that both give the value of $\mathcal L(q_A)$ from Problem 2, and say in one sentence what each term of the second form rewards.
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+This uses [Week 7, Two formulations of the ELBO](week07.qmd#sec-w7-two-forms).
+
+**Part 1.** The expected log-joint is $0.6(-2.303)+0.3(-2.813)+0.1(-3.219)=-1.382-0.844-0.322\approx-2.547$. The entropy is $-\big[0.6(-0.511)+0.3(-1.204)+0.1(-2.303)\big]=0.307+0.361+0.230\approx0.898$. Their sum is $-2.547+0.898=-1.649$.
+
+**Part 2.** The likelihoods are $(0.25,\ 0.15,\ 0.20)$, with logs $-1.386$, $-1.897$, $-1.609$. The expected log-likelihood is $0.6(-1.386)+0.3(-1.897)+0.1(-1.609)=-0.832-0.569-0.161\approx-1.562$. The KL to the prior $(0.4,\ 0.4,\ 0.2)$ is
+$$0.6\log\tfrac{0.6}{0.4}+0.3\log\tfrac{0.3}{0.4}+0.1\log\tfrac{0.1}{0.2}=0.243-0.086-0.069\approx0.088.$$
+The second form gives $-1.562-0.088=-1.650$.
+
+**Part 3.** Both agree with $\mathcal L(q_A)\approx-1.650$ from Problem 2 (the last digit differs only by rounding). The split works because $\log p(x,z)=\log p(x\mid z)+\log p(z)$: the prior's part of the log-joint and the entropy combine into minus the KL to the prior. In the second form, the expected log-likelihood rewards putting $q$'s mass on values of $z$ that explain $x$ well (here $z=1$, with the largest likelihood 0.25), and the KL term penalizes moving $q$ away from the prior.
+
+**Answer:** first form $-2.547+0.898$, second form $-1.562-0.088$, both $\approx-1.650$.
+:::
+
+## Gradients of an expectation and the reparameterization trick {#sec-w7p-grad}
+
+### Problem 4: The naive swap, with a parameter in the spread {#prb-4}
+
+Let $z\sim\mathcal N(\mu,\sigma^2)$ with parameters $\phi=(\mu,\sigma)$, and take $f(z)=(z-c)^2$ for a fixed constant $c$.
+
+1. Compute $\mathbb E[f(z)]$ as a function of $\mu$, $\sigma$ and $c$, and from it the true gradients $\partial/\partial\mu$ and $\partial/\partial\sigma$.
+2. Compute what the naive swap $\mathbb E[\nabla_\phi f(z)]$ gives for each.
+3. Evaluate both at $\mu=1$, $\sigma=2$, $c=3$, and explain in words why the true $\sigma$-gradient is positive.
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+This uses [Week 7, Maximizing the ELBO: gradients of an expectation](week07.qmd#sec-w7-grad).
+
+**Part 1.** Expand around the mean: $z-c=(z-\mu)+(\mu-c)$, so
+$$\mathbb E[(z-c)^2]=\mathbb E[(z-\mu)^2]+2(\mu-c)\,\mathbb E[z-\mu]+(\mu-c)^2=\sigma^2+(\mu-c)^2,$$
+since $\mathbb E[z-\mu]=0$. Differentiating, $\frac{\partial}{\partial\mu}=2(\mu-c)$ and $\frac{\partial}{\partial\sigma}=2\sigma$.
+
+**Part 2.** $f(z)=(z-c)^2$ contains neither $\mu$ nor $\sigma$, so $\nabla_\phi f(z)=0$ for every $z$ and the naive swap gives $0$ for both. All the dependence on $\phi$ is in *which* $z$ values are likely, which the swap ignores.
+
+**Part 3.** At $\mu=1$, $\sigma=2$, $c=3$: the true gradients are $2(1-3)=-4$ and $2\cdot2=4$; the naive swap gives $0$ and $0$. The $\sigma$-gradient is positive because a wider distribution puts more mass far from $c$ on both sides, and $f$ grows with the distance from $c$, so the average of $f$ grows with $\sigma$.
+
+**Answer:** true gradients $(2(\mu-c),\ 2\sigma)=(-4,\ 4)$; naive swap $(0,\ 0)$.
+:::
+
+### Problem 5: Recovering both gradients by reparameterizing {#prb-5}
+
+Continue Problem 4. Write $z=\mu+\sigma\epsilon$ with $\epsilon\sim\mathcal N(0,1)$.
+
+1. Write $f$ as a function of $\epsilon$, $\mu$ and $\sigma$, and differentiate it with respect to $\mu$ and with respect to $\sigma$ for a fixed $\epsilon$.
+2. Take the expectation over $\epsilon$ of each derivative and check that you recover the true gradients from Problem 4.
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+This uses [Week 7, The reparameterization trick](week07.qmd#sec-w7-reparam).
+
+**Part 1.** $f(\mu+\sigma\epsilon)=(\mu+\sigma\epsilon-c)^2$. By the chain rule, with $\partial z/\partial\mu=1$ and $\partial z/\partial\sigma=\epsilon$,
+$$\frac{\partial f}{\partial\mu}=2(\mu+\sigma\epsilon-c),\qquad\frac{\partial f}{\partial\sigma}=2(\mu+\sigma\epsilon-c)\,\epsilon.$$
+Now $\mu$ and $\sigma$ appear inside the function, so the derivative sees them.
+
+**Part 2.** The distribution of $\epsilon$ does not depend on $\phi$, so the gradient may move inside the expectation. Using $\mathbb E[\epsilon]=0$ and $\mathbb E[\epsilon^2]=1$:
+$$\mathbb E\big[2(\mu+\sigma\epsilon-c)\big]=2(\mu-c),\qquad\mathbb E\big[2(\mu-c)\epsilon+2\sigma\epsilon^2\big]=0+2\sigma=2\sigma.$$
+Both match Problem 4. The $\sigma$-gradient is new compared with the week's example: it arrives through the factor $\epsilon$ in $\partial z/\partial\sigma$, and only the $\epsilon^2$ part survives the average.
+
+**Answer:** $\mathbb E_\epsilon[\partial f/\partial\mu]=2(\mu-c)$ and $\mathbb E_\epsilon[\partial f/\partial\sigma]=2\sigma$, the true gradients.
+:::
+
+### Problem 6: Which distributions can be reparameterized? {#prb-6}
+
+For each family, either give a differentiable $T(u,\phi)$ with $u\sim\mathrm{Uniform}(0,1)$ that produces it, or explain why no such $T$ exists.
+
+1. $z\sim\mathrm{Uniform}(a,b)$, with parameters $\phi=(a,b)$.
+2. $z\sim\mathrm{Exponential}(\lambda)$, with density $\lambda e^{-\lambda z}$ for $z\ge0$, so $P(z>t)=e^{-\lambda t}$. (Hint: use the inverse CDF on the aid sheet.)
+3. $z\sim\mathrm{Bernoulli}(\theta)$.
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+This uses [Week 7, The reparameterization trick](week07.qmd#sec-w7-reparam), which says the trick works "in some situations" and needs a differentiable $T$.
+
+**Part 1.** Shift and stretch the unit interval: $z=a+(b-a)u$. When $u$ is uniform on $[0,1]$, $z$ is uniform on $[a,b]$. The derivatives $\partial z/\partial a=1-u$ and $\partial z/\partial b=u$ exist everywhere. This is a location-scale family, like the Gaussian.
+
+**Part 2.** This is [inverse transform sampling](https://en.wikipedia.org/wiki/Inverse_transform_sampling). The CDF of the [exponential distribution](https://en.wikipedia.org/wiki/Exponential_distribution) is $F(t)=1-e^{-\lambda t}$. One convenient choice is $z=-\frac{\ln u}{\lambda}$, which uses $1-u$ in place of $u$ (both are uniform). Check: $P(z>t)=P(-\ln u>\lambda t)=P(u<e^{-\lambda t})=e^{-\lambda t}$, which is right. The derivative $\partial z/\partial\lambda=\frac{\ln u}{\lambda^2}$ exists for every $u\in(0,1)$.
+
+**Part 3.** Any way of producing a Bernoulli from $u$ has the form $z=\mathbb 1[u<\theta]$ (or something equivalent): $z$ is 1 when $u$ falls below $\theta$, else 0. As a function of $\theta$ this is a step. Its derivative is 0 everywhere except at the jump, where it does not exist. So $\nabla_\theta f(T(u,\theta))$ is 0 almost surely, and its average is 0, even though $\mathbb E[f(z)]=\theta f(1)+(1-\theta)f(0)$ clearly changes with $\theta$. We are back to the failure of Problem 4. In general, a discrete $z$ can only jump between values, so no differentiable $T$ exists.
+
+**Answer:** uniform: $z=a+(b-a)u$; exponential: $z=-\ln(u)/\lambda$; Bernoulli: no differentiable $T$, because $z$ must jump between 0 and 1.
+:::
+
+### Problem 7: When may the gradient move inside? {#prb-7}
+
+For each gradient, say whether $\nabla_\phi\mathbb E[\cdot]=\mathbb E[\nabla_\phi\,\cdot\,]$ holds as written, and check by computing both sides.
+
+1. $\nabla_\phi\,\mathbb E_{z\sim\mathcal N(0,1)}\big[(\phi z+1)^2\big]$.
+2. $\nabla_\phi\,\mathbb E_{z\sim\mathcal N(\phi,1)}\big[z\big]$.
+3. The gradient of an average loss over a fixed training set $x_1,\dots,x_N$, $\nabla_\phi\frac1N\sum_{n=1}^N\ell(x_n,\phi)$, estimated from a random mini-batch.
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+This uses the "easy case" and "our case" of [Week 7, gradients of an expectation](week07.qmd#sec-w7-grad).
+
+**Part 1. Allowed.** The distribution $\mathcal N(0,1)$ does not involve $\phi$. True side: $\mathbb E[(\phi z+1)^2]=\phi^2\mathbb E[z^2]+2\phi\,\mathbb E[z]+1=\phi^2+1$, with gradient $2\phi$. Swapped side: $\mathbb E[2(\phi z+1)z]=2\phi\,\mathbb E[z^2]+2\,\mathbb E[z]=2\phi$. They agree.
+
+**Part 2. Not allowed.** The mean of the sampling distribution is $\phi$. True side: $\mathbb E[z]=\phi$, gradient $1$. Swapped side: $z$ does not contain $\phi$, so $\nabla_\phi z=0$ and the average is $0$. They disagree. Reparameterizing as $z=\phi+\epsilon$ fixes it: $\nabla_\phi(\phi+\epsilon)=1$.
+
+**Part 3. Allowed.** Picking a data point uniformly at random from a **fixed** training set is a distribution that does not depend on $\phi$. So the average loss is $\mathbb E_n[\ell(x_n,\phi)]$ with $n$ uniform, the gradient moves inside, and the mini-batch average of $\nabla_\phi\ell(x_n,\phi)$ is an unbiased estimate. This is why ordinary [stochastic gradient descent](https://en.wikipedia.org/wiki/Stochastic_gradient_descent) over data needs no trick; the trick is only needed for the noise in $z$.
+
+**Answer:** 1 allowed ($2\phi$ both sides); 2 not allowed (true 1, swapped 0); 3 allowed (the data distribution is fixed).
+:::
+
+## Stochastic variational inference {#sec-w7p-svi}
+
+### Problem 8: One SVI step by hand {#prb-8}
+
+Continue Problems 4 and 5 with $\mu=1$, $\sigma=2$, $c=3$, and suppose we want to **minimize** $\mathbb E[(z-c)^2]$ (pull the distribution onto $c$). Draw $m=4$ noise values,
+
+$$\epsilon_1=0.5,\quad\epsilon_2=-1.0,\quad\epsilon_3=1.5,\quad\epsilon_4=-0.25.$$
+
+1. Compute the four per-sample gradients in $\mu$ and in $\sigma$ from Problem 5, and their averages. Compare with the true gradients $(-4,\ 4)$.
+2. Take one gradient-descent step with step size $s=0.1$. What are the new $\mu$ and $\sigma$? Do they move in sensible directions?
+3. If we used $m=16$ draws instead, by roughly what factor would the spread of the estimate change?
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+This uses [Week 7, Stochastic variational inference](week07.qmd#sec-w7-svi).
+
+**Part 1.** With $\mu=1$, $\sigma=2$, $c=3$, the inner quantity is $\mu+\sigma\epsilon-c=2\epsilon-2$.
+
+| $\epsilon_i$ | $2(2\epsilon_i-2)$ ($\mu$-gradient) | $2(2\epsilon_i-2)\,\epsilon_i$ ($\sigma$-gradient) |
+|---|---|---|
+| $0.5$ | $-2$ | $-1$ |
+| $-1.0$ | $-8$ | $8$ |
+| $1.5$ | $2$ | $3$ |
+| $-0.25$ | $-5$ | $1.25$ |
+| **average** | $-3.25$ | $2.8125$ |
+
+The estimates $(-3.25,\ 2.81)$ have the right signs and are near the true $(-4,\ 4)$, but not equal to them: four draws are a noisy estimate. Individual terms even disagree in sign (the first $\sigma$-term is negative).
+
+**Part 2.** We are minimizing, so we step against the gradient: $\mu\leftarrow1-0.1(-3.25)=1.325$ and $\sigma\leftarrow2-0.1(2.8125)\approx1.719$. The mean moves toward $c=3$ and the spread shrinks, both of which lower $\mathbb E[(z-c)^2]=\sigma^2+(\mu-c)^2$. (For the ELBO we would *maximize*, and the step would use a plus sign.)
+
+**Part 3.** The average of $m$ independent draws has standard deviation proportional to $1/\sqrt m$. Going from 4 to 16 draws multiplies $m$ by 4, so the spread roughly halves.
+
+**Answer:** averages $(-3.25,\ 2.8125)$; after one step $\mu=1.325$, $\sigma\approx1.719$; 16 draws roughly halve the spread.
+:::
+
+### Problem 9: MCMC or SVI? {#prb-9}
+
+For each situation, say whether MCMC (Week 5) or SVI is the better fit, and give the reason from the lecture's comparison table.
+
+1. A model with three continuous parameters whose posterior is known to have two well-separated peaks. The computation can run overnight.
+2. A latent variable model of a million images, with one latent vector per image and a neural-network likelihood.
+3. We have an approximate posterior from another method and want a reference answer that becomes exact if we wait long enough, to check it against.
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+This uses [Week 7, MCMC vs SVI](week07.qmd#sec-w7-mcmc-svi) and, for the mode-seeking point, Week 6's projections ([Week 6](week06.qmd#sec-projections)).
+
+**Part 1. MCMC.** The posterior is multimodal and the model is small, so cost is not the constraint. SVI with a single Gaussian $q$ uses the reverse KL, which is mode-seeking: it would lock onto one peak and miss the other entirely. MCMC has no approximating family, so with enough time it visits both peaks.
+
+**Part 2. SVI.** This is the scale MCMC handles badly (high computational cost, convergence issues) and SVI is built for: fast convergence, scaling to large data and models, mini-batches, and amortization (the VAE). The price is that the answer is only as good as the family $q_\phi$.
+
+**Part 3. MCMC.** "Exact if we wait long enough" is MCMC's defining advantage: run long enough, its samples come from the exact posterior. SVI can never do better than the best member of its family, so it cannot serve as a reference for another approximation.
+
+**Answer:** 1 MCMC (multimodal, small), 2 SVI (large scale), 3 MCMC (asymptotically exact).
+:::
+
+## Autoencoders {#sec-w7p-ae}
+
+### Problem 10: PCA on four points {#prb-10}
+
+Four 2-dimensional data points are
+
+$$x_1=(3,3),\quad x_2=(-3,-3),\quad x_3=(1,-1),\quad x_4=(-1,1).$$
+
+1. Check that the data are centred, and compute the covariance $\frac14\sum_nx_nx_n^\top$.
+2. Its eigenvectors are $(1,1)/\sqrt2$ and $(1,-1)/\sqrt2$. Find the eigenvalues and the first principal component.
+3. Compress to $M=1$: compute each point's code (its coordinate along the first component) and its reconstruction. What is the total squared reconstruction error, and how does it relate to the eigenvalues?
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+This uses [Week 7, A prerequisite: principal component analysis](week07.qmd#sec-w7-pca).
+
+**Part 1.** Each coordinate sums to $3-3+1-1=0$, so the mean is $(0,0)$. The covariance entries are
+$$\tfrac14\textstyle\sum x_{n1}^2=\tfrac14(9+9+1+1)=5,\qquad\tfrac14\sum x_{n1}x_{n2}=\tfrac14(9+9-1-1)=4,$$
+and $\tfrac14\sum x_{n2}^2=5$, so the covariance is $\begin{pmatrix}5&4\\4&5\end{pmatrix}$.
+
+**Part 2.** Multiply: $\begin{pmatrix}5&4\\4&5\end{pmatrix}\begin{pmatrix}1\\1\end{pmatrix}=9\begin{pmatrix}1\\1\end{pmatrix}$ and $\begin{pmatrix}5&4\\4&5\end{pmatrix}\begin{pmatrix}1\\-1\end{pmatrix}=1\begin{pmatrix}1\\-1\end{pmatrix}$. The eigenvalues are 9 and 1. The first principal component is the direction of largest variance, $u=(1,1)/\sqrt2$.
+
+**Part 3.** The code of $x_n$ is $u^\top x_n$, and the reconstruction is that code times $u$:
+
+| point | code $u^\top x_n$ | reconstruction | squared error |
+|---|---|---|---|
+| $(3,3)$ | $6/\sqrt2\approx4.24$ | $(3,3)$ | 0 |
+| $(-3,-3)$ | $-4.24$ | $(-3,-3)$ | 0 |
+| $(1,-1)$ | 0 | $(0,0)$ | 2 |
+| $(-1,1)$ | 0 | $(0,0)$ | 2 |
+
+The total squared error is 4. This is $N$ times the discarded eigenvalue, $4\times1$: the variance along the direction we threw away. The kept direction carries $9/(9+1)=90\%$ of the variance. The two points on the line $x_1=x_2$ are reconstructed exactly, and the two off it lose their only nonzero coordinate.
+
+**Answer:** first component $(1,1)/\sqrt2$ with eigenvalue 9; codes $\pm4.24,\ 0,\ 0$; total error $4=N\times1$.
+:::
+
+### Problem 11: Counting weights, and where reconstructions can lie {#prb-11}
+
+Take the 2-layer autoencoder of the week chapter, $y_k=\sum_jw^{(2)}_{kj}\,\sigma\big(\sum_iw^{(1)}_{ji}x_i\big)$ (no biases), with $D=10$ inputs and outputs and an $M=3$ bottleneck.
+
+1. How many weights does it have?
+2. With identity activations, show that every reconstruction $y(x)$ lies in a fixed linear subspace of $\mathbb R^{10}$ of dimension at most 3. Why does this mean a linear autoencoder cannot beat PCA with three components on centred data?
+3. **(Stretch.)** Now make the hidden activation $\sigma$ nonlinear but keep the output linear, exactly as in the formula. Does the argument of Part 2 still apply? What does this say about why deep autoencoders add nonlinear layers *after* the bottleneck?
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+This uses [Week 7, A 2-layer autoencoder](week07.qmd#sec-w7-ae2) and [Deep autoencoders](week07.qmd#sec-w7-deep-ae).
+
+**Part 1.** $w^{(1)}$ is $M\times D=3\times10$ (30 weights) and $w^{(2)}$ is $D\times M=10\times3$ (30 weights), so there are 60 weights.
+
+**Part 2.** With identity activations, $y=w^{(2)}w^{(1)}x$. Write $h=w^{(1)}x\in\mathbb R^3$; then $y=w^{(2)}h$ is a combination of the three columns of $w^{(2)}$. So every reconstruction lies in the column space of $w^{(2)}$, a linear subspace of dimension at most 3, the same subspace for every input. The best any method can do with reconstructions confined to a 3-dimensional subspace is project each point onto the best such subspace, and for centred data PCA finds the one with the smallest total squared error. So a linear autoencoder's error is at least PCA's, which is the lecture's statement that its hidden units span the PCA subspace at best.
+
+**Part 3.** The argument still applies. A nonlinear $\sigma$ changes what $h=\sigma(w^{(1)}x)$ is, but the output is still $y=w^{(2)}h$, a combination of the same three columns. Reconstructions remain in a 3-dimensional flat subspace, so this network can be no better than PCA either. To reconstruct onto a *curved* surface, the decoder itself has to be nonlinear: nonlinear layers between the bottleneck and the output, as in the deep autoencoder of the lecture, whose decoder $F_2$ maps the 2-dimensional code onto a curved surface.
+
+**Answer:** 60 weights; reconstructions lie in the column space of $w^{(2)}$ (dimension $\le3$), so no better than PCA, and this stays true with a nonlinear hidden layer and a linear output.
+:::
+
+## Issues with deterministic autoencoders {#sec-w7p-ae-issues}
+
+### Problem 12: A shifted stroke versus a blank image {#prb-12}
+
+A 1-dimensional "image" has 6 pixels and a single stroke at pixel 3:
+
+$$x=(0,0,1,0,0,0).$$
+
+Compare three candidate reconstructions using the squared error $\sum_d(\tilde x_d-x_d)^2$:
+
+$$\tilde x^{\text{shift}}=(0,0,0,1,0,0),\qquad\tilde x^{\text{blank}}=(0,0,0,0,0,0),\qquad\tilde x^{\text{blur}}=(0,0,0.5,0.5,0,0).$$
+
+1. Compute the three errors and rank the reconstructions.
+2. Which would a person call the best reconstruction? Connect the ranking to the lecture's second issue.
+3. Compute the error of $\tilde x^{\text{blur}}$ against the shifted image $\tilde x^{\text{shift}}$ as well. What does this suggest about the kind of output a pixel-wise loss rewards when the model is unsure where a stroke goes?
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+This uses [Week 7, Issues with deterministic autoencoders](week07.qmd#sec-w7-ae-issues), Issue 2.
+
+**Part 1.**
+
+- **Shift:** pixel 3 is $0$ instead of $1$ and pixel 4 is $1$ instead of $0$, so the error is $1+1=2$.
+- **Blank:** only pixel 3 is wrong, so the error is $1$.
+- **Blur:** pixels 3 and 4 are each off by $0.5$, so the error is $0.25+0.25=0.5$.
+
+Ranking by error: blur (0.5), then blank (1), then shift (2).
+
+**Part 2.** A person would call the shifted stroke the best: it has the right shape, just one pixel over. The pixel-wise error ranks it **worst**, below an image with no stroke at all. This is the lecture's 7 that comes back shifted: the ink no longer lines up position by position, so the two images count as far apart.
+
+**Part 3.** Against $\tilde x^{\text{shift}}$, the blur is also off by $0.5$ in pixels 3 and 4, so its error is again $0.5$. The blurred image is equally close to "the stroke at 3" and "the stroke at 4", closer to either than the two are to each other. When a model is unsure which of two positions is right, a pixel-wise loss is minimized by hedging between them, which is one reason the notebook's reconstructions look blurry.
+
+**Answer:** errors shift 2, blank 1, blur 0.5; the pixel-wise loss ranks the best-looking reconstruction last and rewards blurry averages.
+:::
+
+## Variational autoencoders {#sec-w7p-vae}
+
+### Problem 13: One image through the pipeline {#prb-13}
+
+A VAE with a 2-dimensional latent space receives one image. The encoder outputs
+
+$$\mu=(0.4,\ -1.0),\qquad\log\sigma^2=(-2,\ 0.5),$$
+
+and the noise draw is $\epsilon^*=(1.5,\ -0.5)$.
+
+1. Compute $\sigma$ and the code $z^*$.
+2. For one training step on this image, list which of $\mu$, $\log\sigma^2$, $\sigma$, $\epsilon^*$, $z^*$ and $\mathbf p$ are random and which are deterministic functions of the image and the weights.
+3. Which of these does the KL term need, and which does the reconstruction term need?
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+This uses [Week 7, The VAE pipeline](week07.qmd#sec-w7-vae-pipeline) and [Tutorial question 8](week07.qmd#sec-w7-tq8).
+
+**Part 1.** Halve the log-variance and exponentiate: $\sigma_1=e^{-1}\approx0.368$ and $\sigma_2=e^{0.25}\approx1.284$. Then elementwise,
+$$z^*_1=0.4+0.368\times1.5\approx0.952,\qquad z^*_2=-1.0+1.284\times(-0.5)\approx-1.642.$$
+So $z^*\approx(0.952,\ -1.642)$. The first dimension is confident (small $\sigma_1$), so the code stays near its mean; the second has $\sigma_2>1$ and moves further.
+
+**Part 2.** Only $\epsilon^*$ is random, drawn from $\mathcal N(0,I)$ independently of everything else. $\mu$, $\log\sigma^2$ and $\sigma$ are deterministic functions of the image and the encoder weights $\phi$. $z^*$ is random only through $\epsilon^*$: for a fixed $\epsilon^*$ it is a deterministic, differentiable function of $\mu$ and $\sigma$, which is the whole point of the trick. $\mathbf p=f(z^*,\theta)$ is then deterministic given $z^*$.
+
+**Part 3.** The KL term needs only $\mu$ and $\log\sigma^2$ (its closed form has no $z$ in it). The reconstruction term needs $\mathbf p$, hence $z^*$, hence $\epsilon^*$, together with the original image $x$.
+
+**Answer:** $\sigma\approx(0.368,\ 1.284)$, $z^*\approx(0.952,\ -1.642)$; only $\epsilon^*$ is random; KL uses $\mu,\log\sigma^2$, reconstruction uses $\mathbf p$ and $x$.
+:::
+
+### Problem 14: Why predict the log-variance? {#prb-14}
+
+Suppose we change the encoder so that its second output layer, a plain linear layer, returns $\sigma$ directly instead of $\log\sigma^2$, and we compute $\sigma^2$ by squaring it.
+
+1. What range of values can a linear layer output, and which of those values are a problem for the KL term $\frac12(\sigma^2+\mu^2-1-\log\sigma^2)$?
+2. Explain how the log-variance parameterization avoids the problem without any constraint on the network.
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+This uses [Week 7, VAE specifics](week07.qmd#sec-w7-vae-specifics) and [The encoder and decoder](week07.qmd#sec-w7-code-arch).
+
+**Part 1.** A linear layer can output any real number, including $0$ and negative numbers. At $\sigma=0$ we get $\log\sigma^2=\log0=-\infty$, so the KL is infinite, and near $0$ the term $-\log\sigma^2$ and its gradient blow up. A negative $\sigma$ is squared to the same variance as $|\sigma|$, so it is not wrong as a distribution, but the network has to pass through $\sigma=0$ to move between the two signs, and the loss is infinite there. A standard deviation is also meant to be positive, and nothing in a linear layer enforces that.
+
+**Part 2.** With the log-variance, the network outputs $v=\log\sigma^2$, which may be any real number. Then $\sigma^2=e^v$ is automatically positive and never zero, $\log\sigma^2=v$ is finite, and $\sigma=e^{v/2}$ is smooth in $v$. No output value is invalid, so no constraint or special activation is needed. This is why `fc_logvar` has no activation.
+
+**Answer:** a linear layer can output $\sigma\le0$, which makes $\log\sigma^2$ infinite or undefined; outputting $\log\sigma^2$ makes every real output valid.
+:::
+
+### Problem 15: Generating from the prior, VAE versus autoencoder {#prb-15}
+
+We train two models on the same digit images with a 2-dimensional code: a deterministic autoencoder, and a VAE with prior $\mathcal N(0,I)$. After training we draw 100 codes $z\sim\mathcal N(0,I)$ and decode each with each model's decoder.
+
+1. Which model do you expect to give mostly recognizable digits, and why? Name the term of the loss responsible.
+2. Give two separate reasons why the autoencoder's decoded samples may be poor.
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+This uses [Week 7, Issues with deterministic autoencoders](week07.qmd#sec-w7-ae-issues), [After the VAE is trained](week07.qmd#sec-w7-vae-after) and [MNIST: autoencoder vs VAE codes](week07.qmd#sec-w7-ae-vs-vae).
+
+**Part 1.** The VAE. Its loss includes $\mathrm{KL}(q_\phi(z\mid x)\,\|\,p(z))$, which pulls every image's cloud of codes toward the prior $\mathcal N(0,I)$. During training the decoder therefore sees codes spread over the region where the prior puts its mass, and codes drawn from the prior land where the decoder knows what to do.
+
+**Part 2.**
+
+- **Nothing ties its codes to $\mathcal N(0,I)$.** The autoencoder's codes can sit anywhere: far from the origin, or spread on a scale where most prior draws fall outside the populated region.
+- **Gaps between clusters.** Even within the region the codes occupy, each image has a single point code and nothing forces similar images to get similar codes, so the codes can form separate islands. A prior draw that lands between islands is a code the decoder was never trained on, and it decodes to something unrealistic.
+
+**Answer:** the VAE, because the KL-to-prior term places its codes where the prior samples; the autoencoder's codes are unanchored and can have gaps.
+:::
+
+## Denoising and amortized inference {#sec-w7p-amortized}
+
+### Problem 16: Parameter counts with and without amortization {#prb-16}
+
+We fit a Gaussian approximate posterior with a diagonal covariance to each of $N=50{,}000$ images, in an $M=8$ dimensional latent space.
+
+1. Without amortization, each image has its own $\phi_i=(\mu_i,\log\sigma_i^2)$. How many variational parameters are there in total? How many if the data set doubles?
+2. With amortization we use an encoder network with 120,000 parameters. How many parameters does it have after the data set doubles?
+3. A new image arrives after training. What does each approach have to do to get its approximate posterior? What does the amortized approach give up in exchange?
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+This uses [Week 7, Amortized inference](week07.qmd#sec-w7-amortized).
+
+**Part 1.** Each image needs a mean and a log-variance for each of the 8 dimensions, $2\times8=16$ numbers. In total that is $50{,}000\times16=800{,}000$ parameters. Doubling the data doubles it to $1{,}600{,}000$: the count grows linearly with $N$.
+
+**Part 2.** Still 120,000. The encoder's size is fixed by its architecture, not by the number of images it is applied to.
+
+**Part 3.** Without amortization, a new image has no $\phi_i$ yet, so we must run a fresh optimization of its 16 parameters, many gradient steps on its own ELBO. With amortization, one forward pass through the encoder gives $\mu$ and $\log\sigma^2$ immediately. The price is expressiveness: one shared set of weights has to produce every image's posterior, so it cannot fit each one as freely as a private $\phi_i$ could.
+
+**Answer:** 800,000 (then 1,600,000) private parameters against a fixed 120,000; amortization turns inference for a new image into one forward pass at the cost of a less flexible fit.
+:::
+
+### Problem 17: Denoising autoencoder or loopy BP? {#prb-17}
+
+For each task, say whether a denoising autoencoder or loopy belief propagation on an MRF (Week 4) fits better, and what each method needs that the other does not.
+
+1. Restoring one old scanned photograph. We know the scanner flips a small fraction of pixels at random, and we have no other images.
+2. Cleaning images from a camera whose noise is hard to describe mathematically. We have 10,000 pairs of the same scene taken by this camera and by a clean reference camera.
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+This uses [Week 7, Application: image denoising](week07.qmd#sec-w7-denoise) and Week 4's denoising MRF ([Week 4](week04.qmd#sec-denoise)).
+
+**Part 1. Loopy BP.** It works directly on a single noisy image, with no training set, which is all we have. What it needs is a probabilistic model written down by hand: a prior over clean images (neighbouring pixels tend to agree) and a noise model (each pixel flips with a small probability). Here the noise model is known, so we can write it.
+
+**Part 2. Denoising autoencoder.** It needs noisy-clean pairs to train on, which we have, and no hand-written noise model, which we could not write. The network learns to map a noisy image to its clean version, with the bottleneck forcing it to keep the image's structure and drop the noise.
+
+**Answer:** 1 loopy BP (one image, known noise model); 2 denoising autoencoder (training pairs, unknown noise model). The two trade a hand-built model for a data set.
+:::
+
+## Tutorial: the VAE as a latent variable model {#sec-w7p-tut}
+
+### Problem 18: A two-component mixture and its posterior {#prb-18}
+
+A 1-dimensional mixture has a latent $z\in\{1,2\}$ with
+
+$$p(z=1)=0.25,\quad p(z=2)=0.75,\qquad p(x\mid z=1)=\mathcal N(x;0,1),\quad p(x\mid z=2)=\mathcal N(x;2,1).$$
+
+1. Compute $p(x)$ and the posterior $p(z=1\mid x)$ at $x=1$.
+2. Repeat at $x=2$.
+3. Explain the answer to Part 1 without computing any densities.
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+This uses [Week 7, Tutorial question 1](week07.qmd#sec-w7-tq1).
+
+**Part 1.** At $x=1$ both components are one unit from their mean, so both densities equal $\frac{1}{\sqrt{2\pi}}e^{-1/2}\approx0.399\times0.607\approx0.242$. Then
+$$p(x=1)=0.25(0.242)+0.75(0.242)=0.242,\qquad p(z=1\mid x=1)=\frac{0.25(0.242)}{0.242}=0.25.$$
+
+**Part 2.** At $x=2$: $\mathcal N(2;0,1)=\frac{1}{\sqrt{2\pi}}e^{-2}\approx0.399\times0.135\approx0.054$ and $\mathcal N(2;2,1)=\frac{1}{\sqrt{2\pi}}\approx0.399$. The weighted terms are $0.25(0.054)\approx0.0135$ and $0.75(0.399)\approx0.299$, so
+$$p(x=2)\approx0.0135+0.299=0.313,\qquad p(z=1\mid x=2)\approx\frac{0.0135}{0.313}\approx0.043.$$
+The constant $\frac{1}{\sqrt{2\pi}}$ cancels in the posterior, so it can also be found from the odds: $\frac{0.25\,e^{-2}}{0.75}\approx0.045$, and $0.045/1.045\approx0.043$.
+
+**Part 3.** $x=1$ is exactly halfway between the two means, and the components have the same variance, so the observation favours neither. The likelihoods are equal and cancel in Bayes' rule, leaving the posterior equal to the prior, $(0.25,\ 0.75)$.
+
+**Answer:** at $x=1$: $p(x)\approx0.242$, $p(z=1\mid x)=0.25$; at $x=2$: $p(x)\approx0.313$, $p(z=1\mid x)\approx0.043$.
+:::
+
+### Problem 19: Why the mixture's evidence is easy and the VAE's is not {#prb-19}
+
+In Problem 18 we computed $p(x)$ and the posterior exactly. The tutorial says the VAE's evidence $p(x)=\int p(x\mid z,\theta)\,p(z)\,dz$ is intractable.
+
+1. What made Problem 18 tractable?
+2. For $p(z)=\mathcal N(0,I)$ and $p(x\mid z,\theta)=\mathcal N(x;f(z,\theta),\sigma^2I)$ with $f$ a neural network, why can we not do the same? Why does approximating the integral on a grid not rescue us when $M$ is large?
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+This uses [Week 7, Tutorial question 2](week07.qmd#sec-w7-tq2) and Week 6's argument about grids ([Week 6](week06.qmd#sec-hard-post)).
+
+**Part 1.** The latent variable took finitely many values, so "integrate over $z$" was a sum of $K=2$ terms, each a product of a weight and a Gaussian density we can evaluate. A sum of $K$ terms is cheap for any reasonable $K$, and the posterior is the same terms divided by their sum.
+
+**Part 2.** Now $z$ is continuous, so $p(x)$ is a genuine integral over $\mathbb R^M$. The neural network $f$ sits inside the exponent of the Gaussian, $\exp\big(-\|x-f(z,\theta)\|^2/2\sigma^2\big)$, and for a general nonlinear $f$ there is no closed form for the integral. (If $f$ were linear, everything would stay Gaussian and the integral would have a closed form; the nonlinearity that lets the model represent complicated data is exactly what removes it.) A grid with $k$ points per dimension needs $k^M$ evaluations of the network: $10^{20}$ for $k=10$ and a 20-dimensional latent space, far beyond any computer, which is Week 6's curse of dimensionality.
+
+**Answer:** a discrete $z$ turns the integral into a short sum; a continuous $z$ with a nonlinear decoder has no closed form, and grids grow exponentially in $M$.
+:::
+
+### Problem 20: Jensen's inequality becomes an equality (stretch) {#prb-20}
+
+Use Model T. For any distribution $q$ over $z\in\{1,2,3\}$ with all entries positive, define the ratio $w(z)=p(x,z)/q(z)$.
+
+1. Show that $\mathbb E_q[w(z)]=p(x)$ for **every** such $q$.
+2. Take $q_B=(\tfrac13,\tfrac13,\tfrac13)$. Compute the three values of $w$, then $\log\mathbb E_{q_B}[w]$ and $\mathbb E_{q_B}[\log w]$. Which is larger, and which number from Problem 2 is the smaller one?
+3. Take $q$ equal to the posterior $(0.5,\ 0.3,\ 0.2)$. Compute $w$ again and show the two sides of Jensen's inequality are equal.
+4. Explain why equality forces $q$ to be the posterior.
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+This uses [Week 7, Tutorial question 4](week07.qmd#sec-w7-tq4) and [Tutorial question 5](week07.qmd#sec-w7-tq5).
+
+**Part 1.** $\mathbb E_q[w]=\sum_zq(z)\frac{p(x,z)}{q(z)}=\sum_zp(x,z)=p(x)=0.2$. The $q$ cancels, so the average of $w$ is the evidence whatever $q$ is.
+
+**Part 2.** $w=\big(\frac{0.10}{1/3},\frac{0.06}{1/3},\frac{0.04}{1/3}\big)=(0.30,\ 0.18,\ 0.12)$. Then $\log\mathbb E_{q_B}[w]=\log0.2\approx-1.609$, while
+$$\mathbb E_{q_B}[\log w]=\tfrac13\big(\log0.30+\log0.18+\log0.12\big)\approx\tfrac13(-1.204-1.715-2.120)\approx-1.680.$$
+The log of the average is larger, as Jensen's inequality for the concave $\log$ says. The smaller number is exactly $\mathcal L(q_B)$ from Problem 2: $\mathbb E_q[\log w]$ is the ELBO by definition.
+
+**Part 3.** With $q=(0.5,\ 0.3,\ 0.2)$, $w=\big(\frac{0.10}{0.5},\frac{0.06}{0.3},\frac{0.04}{0.2}\big)=(0.2,\ 0.2,\ 0.2)$. The ratio is constant, so $\mathbb E_q[\log w]=\log0.2=\log\mathbb E_q[w]$. The bound is tight.
+
+**Part 4.** For a strictly concave function like $\log$, the chord lies strictly below the curve between any two distinct points, so Jensen's inequality is an equality only when $w$ takes a single value wherever $q>0$. A constant ratio $p(x,z)/q(z)=k$ means $q(z)=p(x,z)/k$, so $q$ is proportional to the joint. Normalizing gives $k=p(x)$ and $q(z)=p(x,z)/p(x)=p(z\mid x)$.
+
+**Answer:** $\mathbb E_q[w]=p(x)$ always; for $q_B$, $-1.609>-1.680=\mathcal L(q_B)$; for the posterior $w\equiv0.2$ and the two sides are equal; equality needs a constant ratio, which forces $q$ to be the posterior.
+:::
+
+### Problem 21: The closed-form KL in three dimensions {#prb-21}
+
+For one image, an encoder with $M=3$ latent dimensions outputs
+
+| dimension $m$ | $\mu_m$ | $\sigma_m^2$ |
+|---|---|---|
+| 1 | $0.5$ | $e^{-1}\approx0.368$ |
+| 2 | $0$ | $1$ |
+| 3 | $-1$ | $e\approx2.718$ |
+
+1. Compute each dimension's contribution to $\mathrm{KL}(q\,\|\,\mathcal N(0,I))$ and the total.
+2. Dimension 3 has a variance **larger** than the prior's. Is it penalized? Which part of the formula does that?
+3. Suppose dimension 2 looks like this for **every** image. What does that say about how much the code's second coordinate tells the decoder about the image?
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+This uses [Week 7, The second term: a closed-form KL](week07.qmd#sec-w7-tut-kl). The values of $\sigma^2$ are chosen so that $\log\sigma^2$ is $-1$, $0$ and $1$.
+
+**Part 1.** Each dimension contributes $\frac12(\sigma_m^2+\mu_m^2-1-\log\sigma_m^2)$.
+
+- **Dimension 1:** $\frac12(0.368+0.25-1+1)=\frac12(0.618)\approx0.309$.
+- **Dimension 2:** $\frac12(1+0-1-0)=0$.
+- **Dimension 3:** $\frac12(2.718+1-1-1)=\frac12(1.718)\approx0.859$.
+
+The total is $0.309+0+0.859\approx1.168$ nats.
+
+**Part 2.** Yes. The variance part $\frac12(\sigma^2-1-\log\sigma^2)$ is $\frac12(2.718-1-1)\approx0.359$ for dimension 3, and the mean part $\frac12\mu^2$ adds $0.5$. The function $\sigma^2-1-\log\sigma^2$ is zero only at $\sigma^2=1$ and positive on both sides, so the KL pushes the variance toward 1 from above as well as from below, not just "more uncertainty".
+
+**Part 3.** If the encoder outputs $\mu_2=0$ and $\sigma_2^2=1$ for every image, then the second coordinate of $z$ is a standard normal draw whatever the image is. It carries no information about $x$, so the decoder cannot use it: that dimension is unused. It costs nothing in the KL, which is why the loss allows it.
+
+**Answer:** contributions $0.309$, $0$, $0.859$, total $\approx1.168$ nats; a variance above 1 is penalized by the $\sigma^2-1-\log\sigma^2$ term; a dimension that always matches the prior carries no information.
+:::
+
+### Problem 22: Binary cross-entropy on four pixels {#prb-22}
+
+A 4-pixel binary image is $x=(1,\ 0,\ 1,\ 1)$, and the decoder outputs $\mathbf p=(0.9,\ 0.2,\ 0.6,\ 0.99)$.
+
+1. Compute each pixel's BCE term and the total.
+2. Which pixel contributes most, and why?
+3. What would happen to the BCE if the decoder output exactly $p_2=1$ for the second pixel? Why does a sigmoid output make this impossible in exact arithmetic?
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+This uses [Week 7, The first term: reconstruction as binary cross-entropy](week07.qmd#sec-w7-tut-bce).
+
+**Part 1.** An "on" pixel ($x_d=1$) contributes $-\log p_d$ and an "off" pixel contributes $-\log(1-p_d)$.
+
+| pixel | $x_d$ | $p_d$ | term |
+|---|---|---|---|
+| 1 | 1 | 0.9 | $-\log0.9\approx0.105$ |
+| 2 | 0 | 0.2 | $-\log0.8\approx0.223$ |
+| 3 | 1 | 0.6 | $-\log0.6\approx0.511$ |
+| 4 | 1 | 0.99 | $-\log0.99\approx0.010$ |
+
+The total is $0.105+0.223+0.511+0.010\approx0.849$ nats.
+
+**Part 2.** Pixel 3. It is on, but the decoder gives it only probability 0.6 of being on, the least confident correct prediction of the four. Pixel 4, predicted on with probability 0.99, costs almost nothing.
+
+**Part 3.** Pixel 2 is off, so its term would be $-\log(1-1)=-\log0=\infty$: being certain and wrong is infinitely costly. The sigmoid $1/(1+e^{-a})$ is strictly between 0 and 1 for every finite $a$, so in exact arithmetic $p_d$ never reaches 1. (In floating point it can round to 1 for very large $a$, which is why PyTorch's `binary_cross_entropy` clamps each log at $-100$ rather than returning infinity.)
+
+**Answer:** terms $0.105$, $0.223$, $0.511$, $0.010$, total $\approx0.849$; pixel 3 dominates; $p_2=1$ would make the loss infinite.
+:::
+
+### Problem 23: Turning the β knob {#prb-23}
+
+The training loss is $\ell=\mathrm{BCE}+\beta\cdot\mathrm{KL}$. Predict what happens to (a) the reconstructions of training images and (b) images decoded from prior samples $z\sim\mathcal N(0,I)$ in each case:
+
+1. $\beta$ close to 0.
+2. $\beta$ very large.
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+This uses [Week 7, Tutorial question 8](week07.qmd#sec-w7-tq8) and [Sampling from the prior](week07.qmd#sec-w7-code-sample).
+
+**Part 1. $\beta\to0$.** The loss is almost pure BCE, so the model behaves like a plain autoencoder. Nothing stops the encoder from shrinking $\sigma$ toward 0 (sharper codes reconstruct better) or from placing codes far from the origin.
+
+- (a) Reconstructions are as sharp as the bottleneck allows.
+- (b) Prior samples are poor: the codes are no longer anchored to $\mathcal N(0,I)$ and can have gaps (Problem 15), so many prior draws land where the decoder was never trained.
+
+**Part 2. $\beta$ large.** The KL dominates, and the cheapest way to make it small is $q_\phi(z\mid x)\approx\mathcal N(0,I)$ for every image.
+
+- (a) Reconstructions degrade toward a blurry average image, because codes that look like the prior for every input carry little information about which input it was.
+- (b) Prior samples land where the decoder has been trained, so they decode to valid-looking (if bland) images more often.
+
+The week chapter states the moderate version: increasing $\beta$ above 1 packs codes closer to the prior, improving prior samples at the cost of lower-quality reconstructions. $\beta=1$ is the value at which the loss is exactly the negative ELBO.
+
+**Answer:** small $\beta$: sharp reconstructions, poor prior samples; large $\beta$: blurry reconstructions, prior samples that more often decode to valid images.
+:::
+
+### Problem 24: Which term needs a sample? {#prb-24}
+
+1. Explain why the KL term of the VAE loss can be computed exactly from the encoder's outputs, while the reconstruction term needs a random sample.
+2. How many noise samples does the notebook's training loop draw per image per gradient step, and what does it use instead of a sample in evaluation mode?
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+This uses [Week 7, Tutorial question 7](week07.qmd#sec-w7-tut-terms) and [The full model and the reparameterization](week07.qmd#sec-w7-code-vae).
+
+**Part 1.** Both distributions in the KL are Gaussians, $q=\mathcal N(\mu,\mathrm{diag}(\sigma^2))$ and $p=\mathcal N(0,I)$, and the expectation of the log-ratio of two Gaussians has the closed form on the aid sheet. It is a formula in $\mu$ and $\log\sigma^2$ alone, with no $z$ left in it, so no sampling is needed. The reconstruction term is $\mathbb E_{z\sim q}[\log p(x\mid z,\theta)]$, and $\log p(x\mid z,\theta)$ depends on $z$ through the decoder network $f(z,\theta)$. There is no closed form for the expectation of a neural network's output under a Gaussian, so it is estimated by Monte Carlo, and the reparameterization trick is what lets gradients reach the encoder through that sample.
+
+**Part 2.** One. Each forward pass calls `latent_sample` once, which draws one $\epsilon$ per image in the batch, so each image gets a single fresh noise sample per step: a one-sample Monte Carlo estimate. In evaluation mode (`vae.eval()`), `latent_sample` returns $\mu$ instead of a sample, so the test loss decodes the mean code.
+
+**Answer:** the KL is a closed-form function of $\mu$ and $\log\sigma^2$; the reconstruction term passes $z$ through a network and needs Monte Carlo. The notebook uses one sample per image per step, and $z=\mu$ in evaluation mode.
+:::
+
+## Code walk-through: the VAE notebook {#sec-w7p-code}
+
+### Problem 25: Shapes and parameters for a smaller network {#prb-25}
+
+Rerun the notebook's `Encoder` and `Decoder` classes (@sec-w7-code-arch) with `capacity = 32` and `latent_dims = 16`, everything else unchanged.
+
+1. Give each layer's output shape for one $1\times28\times28$ image, through the encoder and back through the decoder.
+2. Give each layer's parameter count, and the encoder, decoder and overall totals.
+3. Which single layer has the most parameters, and why did it overtake `conv2`, the largest layer in the notebook's own configuration?
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+This uses [Week 7, The encoder and decoder](week07.qmd#sec-w7-code-arch) and the counting rules on the aid sheet. Write $c=32$, so $2c=64$, and the flattened size is $2c\cdot7\cdot7=64\cdot49=3{,}136$.
+
+**Parts 1 and 2.** The spatial sizes are the same as in the notebook ($28\to14\to7$ and back), because they depend only on the kernel, stride and padding.
+
+| Layer | Output shape | Parameters |
+|---|---|---|
+| `conv1` + ReLU | $32\times14\times14$ (6,272) | $1\cdot32\cdot16+32=544$ |
+| `conv2` + ReLU | $64\times7\times7$ (3,136) | $32\cdot64\cdot16+64=32{,}832$ |
+| flatten | 3,136 | 0 |
+| `fc_mu` | 16 | $3136\cdot16+16=50{,}192$ |
+| `fc_logvar` | 16 | $3136\cdot16+16=50{,}192$ |
+| **encoder total** | | $\mathbf{133{,}760}$ |
+| decoder `fc` | 3,136, reshaped to $64\times7\times7$ | $16\cdot3136+3136=53{,}312$ |
+| decoder `conv2` + ReLU | $32\times14\times14$ | $64\cdot32\cdot16+32=32{,}800$ |
+| decoder `conv1` + sigmoid | $1\times28\times28$ | $32\cdot1\cdot16+1=513$ |
+| **decoder total** | | $\mathbf{86{,}625}$ |
+
+The overall total is $133{,}760+86{,}625=220{,}385$.
+
+**Part 3.** The decoder's `fc` layer, with 53,312 parameters; the encoder's two linear layers are close behind at 50,192 each. Halving the capacity divides each convolution's $C_\text{in}C_\text{out}$ product by 4, while the linear layers' size is (flattened features) $\times$ (latent dimensions): the flattened features halved, but the latent dimension grew 8-fold, from 2 to 16. So the layers that touch the code now dominate.
+
+**Answer:** encoder 133,760, decoder 86,625, total 220,385 parameters; the linear layers to and from the 16-dimensional code are now the largest.
+:::
+
+### Problem 26: A bug in `latent_sample` {#prb-26}
+
+A student's version of `latent_sample` reads
+
+```python
+def latent_sample(self, mu, logvar):
+    if self.training:
+        std = logvar.exp()
+        eps = torch.empty_like(std).normal_()
+        return eps.mul(std).add_(mu)
+    else:
+        return mu
+```
+
+1. Compared with the notebook, what is different, and what quantity does `std` now hold? What distribution does the returned code actually have?
+2. The training loop still runs without error. Explain why, and why the loss being minimized is no longer the negative ELBO of the distribution being sampled.
+3. Does the bug change how the test loss is computed?
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+This uses [Week 7, The full model and the reparameterization](week07.qmd#sec-w7-code-vae) and [The loss](week07.qmd#sec-w7-code-loss).
+
+**Part 1.** The notebook has `logvar.mul(0.5).exp_()`, which is $\exp(\tfrac12\log\sigma^2)=\sigma$. The student's line drops the $\tfrac12$, so `std` holds $\exp(\log\sigma^2)=\sigma^2$, the variance. The code is $z=\mu+\sigma^2\epsilon$, so $z\sim\mathcal N(\mu,(\sigma^2)^2)=\mathcal N(\mu,\sigma^4)$. For example, an encoder output $\log\sigma^2=-2$ is meant to give standard deviation $e^{-1}\approx0.368$, but the sample uses $e^{-2}\approx0.135$.
+
+**Part 2.** Every operation is still valid and differentiable: the shapes match, and gradients still flow through $\mu$ and `logvar`. Nothing checks that the sampler and the KL formula describe the same distribution. But `vae_loss` still computes the KL as if the variance were $e^{\text{logvar}}=\sigma^2$, while the reconstruction term is evaluated at codes drawn with variance $\sigma^4$. The two terms now refer to different Gaussians, so their sum is not the negative ELBO of either one. Training still minimizes *something*, but not the objective the derivation justifies.
+
+**Part 3.** No. In evaluation mode `latent_sample` returns $\mu$ and never reaches the buggy line, so the test-loss computation is unchanged. The test number still differs, though, because the weights being evaluated were trained with the wrong sampler.
+
+**Answer:** `std` holds $\sigma^2$, so $z\sim\mathcal N(\mu,\sigma^4)$; the code runs, but the KL and the samples describe different distributions; evaluation mode is untouched because it uses $z=\mu$.
+:::
+
+### Problem 27: Averaging the BCE instead of summing (stretch) {#prb-27}
+
+A student changes one argument in `vae_loss`, leaving the KL line untouched:
+
+```python
+recon_loss = F.binary_cross_entropy(recon_x.view(-1, 784), x.view(-1, 784), reduction='mean')
+```
+
+With a batch of $B=64$ images, `reduction='mean'` averages over all $784B$ pixel entries in the batch, while `kldivergence` is still summed over latent dimensions and images.
+
+1. Write the new loss as a constant times the notebook's loss with a different $\beta$. What is the effective $\beta$?
+2. Using Problem 23, predict what the trained model's reconstructions will look like.
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+This uses [Week 7, The loss](week07.qmd#sec-w7-code-loss), including the notebook's remark about averaging over pixels.
+
+**Part 1.** Let $S_\text{BCE}$ be the BCE summed over pixels and images (the notebook's `recon_loss`) and $S_\text{KL}$ the summed KL. The mean divides the sum by the number of entries, $784B=784\times64=50{,}176$. So, with $\beta=1$,
+$$\ell_\text{new}=\frac{S_\text{BCE}}{50{,}176}+S_\text{KL}=\frac{1}{50{,}176}\Big(S_\text{BCE}+50{,}176\cdot S_\text{KL}\Big).$$
+A positive constant in front does not change where the minimum is (it only rescales the gradients, which changes the effective step size). So the student is effectively training the notebook's model with $\beta=50{,}176$. The notebook's own comment covers averaging over pixels only, a factor of 784; averaging over the batch as well multiplies the KL's relative weight by $B$ on top of that.
+
+**Part 2.** This is the "very large $\beta$" case of Problem 23. The KL dominates, so the encoder is driven to output nearly $\mathcal N(0,I)$ for every image, and the code carries almost no information about the input. The decoder then produces nearly the same blurry average digit for every input.
+
+**Answer:** effective $\beta=784\times64=50{,}176$; reconstructions collapse toward one average image.
+:::
+
+### Problem 28: Reading the reported numbers (stretch) {#prb-28}
+
+1. A test set of 250 images is evaluated by the notebook's test loop (@sec-w7-code-test) with `batch_size = 100`, so the batches hold 100, 100 and 50 images. The summed losses of the three batches are 15,000, 15,400 and 7,800. What does the loop print? What do we get if we divide that by the batch size, and what is the true average loss per image?
+2. A model with a 2-dimensional latent space is visualized by decoding a grid of codes over $[-2,2]^2$ instead of the notebook's $[-1.5,1.5]^2$. What fraction of the prior's mass does the new square hold?
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+This uses [Week 7, Evaluating on the test set](week07.qmd#sec-w7-code-test) and [The 2-dimensional latent space](week07.qmd#sec-w7-code-grid).
+
+**Part 1.** The loop adds each batch's summed loss and divides by the number of batches, 3:
+$$\frac{15{,}000+15{,}400+7{,}800}{3}=\frac{38{,}200}{3}\approx12{,}733.$$
+That is the average loss **per batch**. Dividing by the batch size 100 gives about 127.3, which pretends every batch held 100 images. The true average per image divides the total by the number of images: $38{,}200/250=152.8$. The short last batch has a small summed loss only because it holds half as many images, and it drags the per-batch average down. Here the shortcut is off by more than 25 nats, much more than in the notebook, because one batch in three is short.
+
+**Part 2.** Under the prior $\mathcal N(0,I)$ the two coordinates are independent standard normals, and each lies in $[-2,2]$ with probability about $0.954$. So the square holds about $0.954^2\approx0.911$ of the prior's mass, against $0.866^2\approx0.75$ for the notebook's square. The wider grid shows more of where prior samples land, including more of the sparse outer region.
+
+**Answer:** the loop prints $\approx12{,}733$; dividing by 100 gives $\approx127.3$, but the true per-image loss is $152.8$; the $[-2,2]^2$ square holds about 91% of the prior's mass.
+:::

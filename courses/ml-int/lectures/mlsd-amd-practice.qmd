@@ -69,6 +69,16 @@ The business goal is: "Give users more GPU performance through automatic tuning,
 ::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
 "More performance without less stability" is a business goal, not something we can train on. The book's recipe has three steps: define a measurable ML objective, specify each model's inputs and outputs, and choose the ML category.
 
+**The ML categories.** The book's tree of categories starts with three kinds of learning:
+
+- **Supervised learning** learns from examples paired with correct answers (labels).
+- **Unsupervised learning** finds structure in data with no labels, for example clustering.
+- **[Reinforcement learning](https://en.wikipedia.org/wiki/Reinforcement_learning)** learns by trial and error, acting in an environment and receiving rewards.
+
+Supervised learning then splits into **classification** (predict a discrete class: **binary** for two classes, **multiclass** for more) and **regression** (predict a number, so we must state its output range).
+
+Here, validation runs give labelled examples: a configuration was tried, and we measured its speed-up and whether it crashed. So supervised learning fits. Reinforcement learning would explore configurations on real machines, and every "trial" that goes wrong is a crashed system. Unsupervised learning could group similar workloads, but it cannot predict a gain or a risk on its own.
+
 One workable framing uses two supervised models and a decision rule.
 
 | Model | Input | Output | ML category |
@@ -96,7 +106,9 @@ Alternative framings worth naming: a single regression of "stable gain" that is 
 A telemetry record contains: GPU core clock (MHz), board power (W), hotspot temperature (°C), number of driver timeouts in the last hour, GPU model (one of 300 SKUs), a stability grade from validation ("fail", "marginal", "pass"), and workload type (one of 6). Classify each field by the book's data types and choose an encoding for each.
 
 ::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
-The book splits structured data into **numerical** (continuous or discrete) and **categorical** (nominal, with no order, or ordinal, with an order). The type decides the encoding.
+The book first separates **structured** data, which follows a fixed schema of rows and columns, from **unstructured** data such as text, images, and audio. Every field here is structured, which already hints at the model family that suits it (tree models, Problem 33).
+
+Structured data is then split into **numerical** (continuous: any value in a range; discrete: only distinct values such as counts) and **categorical** (nominal, with no order, or ordinal, with an order). The type decides the encoding.
 
 | Field | Type | Encoding |
 | --- | --- | --- |
@@ -110,9 +122,9 @@ The book splits structured data into **numerical** (continuous or discrete) and 
 
 The reasoning behind the categorical choices:
 
-- **Integer encoding** suits the stability grade because its values have a real order, and the integers preserve that order.
-- **One-hot encoding** suits workload type: there is no order between "ray-tracing heavy" and "memory-bound", and 6 values make only 6 binary columns.
-- **An embedding** suits the GPU model. One-hot with 300 values would be long and sparse. An embedding learns a short dense vector per SKU, and SKUs that behave alike (same architecture, similar memory) end up with similar vectors. That helps the model generalize to a SKU with little data, which is part of the project's "generalize across hardware generations" goal.
+- **Integer encoding** gives each category a number. It suits the stability grade because its values have a real order, and the integers preserve that order: "marginal" sits between "fail" and "pass".
+- **One-hot encoding** creates one binary column per category, with a 1 in the column of the value present. It suits workload type. Integer-encoding workload type would be a mistake: if memory-bound = 1 and ray-tracing heavy = 5, the model would treat ray tracing as "five times" memory-bound and as closer to category 4 than to category 1, an order and distance that do not exist. One-hot avoids this, and 6 values make only 6 columns.
+- **An embedding** maps each category to a short learned vector of real numbers, trained along with the model. It suits the GPU model. One-hot with 300 values would give 300 columns, almost all zero, and nothing would tell the model that two SKUs are related. With an embedding, SKUs that behave alike (same architecture, similar memory) end up with similar vectors. That helps the model generalize to a SKU with little data, which is part of the project's "generalize across hardware generations" goal.
 
 **Answer.** Clock, power, and temperature are continuous numerical. Timeouts are discrete numerical. GPU model and workload type are nominal categorical. Stability grade is ordinal categorical. Encode the GPU model with an embedding, workload type with one-hot, the stability grade with integers, and scale the numerical fields.
 :::
@@ -169,7 +181,13 @@ The book gives two strategies for [missing data](https://en.wikipedia.org/wiki/M
 
 The cost of deletion is less training data.
 
-**Imputation.** Fill the gap with a default value, or with the mean, median, or mode. A missing component label could be filled with the most common component, or better, predicted from the files the ticket mentions. The cost is noise: an imputed value can look like real information.
+**Imputation.** Fill the gap with a default value, or with a summary of the observed values. Which summary depends on the field:
+
+- the **mean** for a numerical field with a roughly symmetric distribution,
+- the **median** for a skewed numerical field (for example, ticket length in words, where a few very long tickets would drag the mean up),
+- the **mode**, the most common value, for a categorical field, where a mean has no meaning.
+
+A missing component label is categorical, so it could be filled with the mode (the most common component), or better, predicted from the files the ticket mentions. The cost is noise: an imputed value can look like real information.
 
 **What is unusual here.** For this project, *the fact that a field is missing is itself evidence*. A bug report with no steps to reproduce is exactly what the pre-check should catch, because an agent may not be able to act on it. Two consequences follow:
 
@@ -190,16 +208,28 @@ We want a model that labels each failed agent run with the stage that caused it:
 ::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
 The book names two ways to get labels.
 
-- **Hand labeling.** Experts read a failed run and assign the stage. The labels are accurate, but they are slow and expensive to produce and need domain knowledge. Different experts may also disagree.
-- **Natural labeling.** Labels are inferred automatically from what happened. Here, natural signals tell us *whether* a run failed (the build broke, tests failed, the reviewer rejected it). They rarely tell us *which stage* caused it, because a red test does not say whether the plan or the context was wrong.
+- **Hand labeling.** Experts read a failed run and assign the stage. The labels are accurate, but the book lists five drawbacks, and all apply here. It is **expensive** and **slow** (an expert may need twenty minutes per trace). It **needs domain knowledge** (only engineers who know the codebase can tell a planning error from a context error). It **introduces bias** (each expert has a favourite explanation, and different experts disagree). And it is a **privacy risk** (annotators must read proprietary code and tickets).
+- **Natural labeling.** Labels are inferred automatically from what happened, with no annotator. Here, natural signals tell us *whether* a run failed (the build broke, tests failed, the reviewer rejected it). They rarely tell us *which stage* caused it, because a red test does not say whether the plan or the context was wrong.
 
 So the two work together. Natural labels mark which runs failed, cheaply and at scale. Hand labels assign the failure stage to a sample of those runs. The project's own success criterion, attribution that agrees with experts, also needs an expert-labelled evaluation set.
 
-**Sampling.** The book lists strategies such as stratified, reservoir, and importance sampling. **Stratified sampling** fits: sample failed runs evenly across repositories and feature types, so a large repository does not crowd out the others. Then oversample the rare failure stages, so each one has enough labelled examples to evaluate.
+**Sampling.** We cannot afford expert labels on every failed run, so we must choose which runs the experts see. A **sampling strategy** is the rule for that choice. The book names five. Each one, applied to our 18 months of logs:
 
-**Splitting.** Split **by time**: train on older runs and evaluate on newer ones. A random split would place runs from the same feature, or from the same week's agent version, on both sides. That leaks information and makes the model look better than it will be on next month's runs. The project brief itself specifies a time split for its gold set.
+| Strategy | How it works | Applied here | Verdict |
+| --- | --- | --- | --- |
+| [Convenience sampling](https://en.wikipedia.org/wiki/Convenience_sampling) | take whatever data is easiest to get | label the last month's runs, or only the team that already exports clean traces | cheap, but **unrepresentative**: one team's or one month's failures are not everyone's |
+| [Snowball sampling](https://en.wikipedia.org/wiki/Snowball_sampling) | start from a few examples and add the examples linked to them | start from a known dropped-requirement failure, then add its re-runs and linked tickets | good for finding rare *connected* cases, but the sample clusters around its seeds |
+| [Stratified sampling](https://en.wikipedia.org/wiki/Stratified_sampling) | split the population into groups (**strata**) and sample from each group separately | strata = repository × feature type; sample a fixed number of failed runs from each | **chosen**: every repository and feature type is guaranteed to appear |
+| [Reservoir sampling](https://en.wikipedia.org/wiki/Reservoir_sampling) | keep a fixed-size uniform random sample from a stream of unknown length: the $n$-th item enters the reservoir with probability $k/n$, replacing a random member | keep a uniform sample of 500 failed runs as new runs stream in | useful for ongoing collection after launch, but a *uniform* sample copies the skew: rare stages stay rare |
+| [Importance sampling](https://en.wikipedia.org/wiki/Importance_sampling) | sample from a different distribution than the real one, then weight each example by (real probability) / (sampling probability) | oversample rare stages, then down-weight them when computing overall metrics | the **correction** that makes oversampling honest |
 
-**Answer.** Use natural signals to find failed runs, and expert hand labels on a stratified sample to assign the failure stage, oversampling rare stages. Split by time, not at random.
+Why stratified wins: we already know the groups that matter (repositories and feature types), and the danger is that a big, busy repository crowds the others out. Stratifying guarantees coverage of each group. Inside each stratum we then **oversample** the rare failure stages so each has enough labelled examples to evaluate. Oversampling distorts the stage frequencies, so when we report an overall accuracy we use importance weights to undo the distortion. For example, if "dropped requirement" makes up 5% of real failures but 20% of the labelled sample, each such example gets weight $0.05 / 0.20 = 0.25$.
+
+**Splitting.** The dataset is divided three ways. The [training set](https://en.wikipedia.org/wiki/Training,_validation,_and_test_data_sets) fits the model's parameters. The **validation set** is used to choose hyperparameters and thresholds. The **test set** is touched once, at the end, to estimate real-world performance.
+
+How the runs are assigned matters as much as the proportions. Split **by time**: train on older runs and evaluate on newer ones. A random split would place runs from the same feature, or from the same week's agent version, on both sides. That leaks information and makes the model look better than it will be on next month's runs. The project brief itself specifies a time split for its gold set.
+
+**Answer.** Use natural signals to find failed runs, and expert hand labels to assign the failure stage. Choose runs for labelling by stratified sampling over repository and feature type, rather than convenience, snowball, or uniform reservoir sampling, because it guarantees every group is covered. Oversample rare stages within each stratum and correct overall metrics with importance weights. Split into train, validation, and test by time, not at random.
 :::
 
 ### Problem 7: Instability is rare {#prb-7}
@@ -218,15 +248,33 @@ The counts are 2,000 unstable runs (the minority class) and 98,000 stable runs (
 - *Undersampling* keeps all 2,000 unstable runs and 2,000 of the stable ones: **4,000 examples**. We discard 96,000 stable runs, 98% of that class, along with whatever they could have taught us.
 - *Oversampling* keeps all 98,000 stable runs and repeats each unstable run $98{,}000 / 2{,}000 = 49$ times. The model may then memorize those 2,000 runs, because it sees each one 49 times.
 
-**(c)** Altering the loss is the book's other approach: weight each example by its class.
+**(c)** Altering the loss function is the book's other approach. Resampling changes *which examples* the model sees. Altering the loss keeps every example but changes *how much each mistake costs*.
+
+A **class weight** $w_c$ is a number attached to every example of class $c$. It multiplies that example's term in the loss. The stability model is a binary classifier, so its usual loss is binary cross-entropy: for an example with label $y_i$ (1 = unstable) and predicted probability $\hat p_i$, the loss is $-[y_i \ln \hat p_i + (1-y_i)\ln(1-\hat p_i)]$. **Weighted cross-entropy** multiplies each example's term by the weight of its true class:
+
+$$L = -\frac{1}{N}\sum_{i=1}^{N} w_{y_i}\big[\,y_i \ln \hat p_i + (1-y_i)\ln(1-\hat p_i)\,\big]$$
+
+The formula $w_c = N/(K\,n_c)$ makes a class's weight inversely proportional to its size $n_c$:
 
 $$w_{\text{stable}} = \frac{100{,}000}{2 \times 98{,}000} \approx 0.51, \qquad w_{\text{unstable}} = \frac{100{,}000}{2 \times 2{,}000} = 25.$$
 
-A mistake on an unstable run now costs 49 times as much as a mistake on a stable one, which offsets the 49-to-1 imbalance without throwing data away. The book also names class-balanced loss and focal loss. Focal loss down-weights examples the model already gets right, so training concentrates on the hard ones.
+Two ways to see what this does:
+
+- **Per mistake.** Suppose the model gives an unstable run $\hat p = 0.1$ (a miss). Its unweighted loss is $-\ln 0.1 = 2.30$, and weighted it is $25 \times 2.30 = 57.6$. A false alarm on a stable run at $\hat p = 0.9$ also has unweighted loss $-\ln 0.1 = 2.30$, but weighted it is only $0.51 \times 2.30 = 1.17$. The same-sized mistake now costs 49 times more on the minority class.
+- **Per class.** Total weight is $98{,}000 \times 0.51 \approx 50{,}000$ for stable runs and $2{,}000 \times 25 = 50{,}000$ for unstable runs. Each class now contributes equally to the loss, so the model can no longer get a low loss by ignoring the minority class.
+
+The gradient is scaled by the same weight, so in expectation weighting an unstable run by 49 relative to a stable one has the same effect as seeing it 49 times (oversampling). The difference is that nothing is copied or discarded. It does not remove the memorization risk: the model still learns the minority class from only 2,000 distinct runs.
+
+**A side effect to remember.** A weighted model's probabilities are pushed toward the minority class, so an output of 0.5 no longer means "a 50% chance of instability". Either recalibrate afterwards (Problem 38) or choose the decision threshold on validation data (Problem 26), rather than reading the raw output as a probability.
+
+The book names two refined losses for the same purpose:
+
+- **Class-balanced loss** sets weights from the *effective number* of samples in each class rather than the raw count. The idea is that extra examples of a large class are increasingly redundant, so the very large class is not down-weighted as harshly as $1/n_c$ would.
+- **Focal loss** weights each example by how *wrong* the model currently is, not by its class. With $p_t$ the probability assigned to the true class, it multiplies the cross-entropy term by $(1 - p_t)^{\gamma}$, typically with $\gamma = 2$. An easy example with $p_t = 0.9$ is scaled by $0.1^2 = 0.01$, while a hard one with $p_t = 0.1$ keeps $0.9^2 = 0.81$ of its loss. On imbalanced data most easy examples belong to the majority class, so training shifts toward the rare, hard cases.
 
 For this project, a missed instability crashes a user's system, so the threshold should also be chosen with that cost in mind (Problem 26).
 
-**Answer.** (a) 98% accuracy, while catching no instabilities. (b) Undersampling leaves 4,000 examples. Oversampling repeats each unstable run 49 times. (c) $w_{\text{stable}} \approx 0.51$ and $w_{\text{unstable}} = 25$.
+**Answer.** (a) 98% accuracy, while catching no instabilities. (b) Undersampling leaves 4,000 examples. Oversampling repeats each unstable run 49 times. (c) $w_{\text{stable}} \approx 0.51$ and $w_{\text{unstable}} = 25$. Each weight multiplies that class's terms in a weighted cross-entropy loss, so a mistake on an unstable run costs 49 times as much and the two classes contribute equally to the total loss.
 :::
 
 ### Problem 8: Choosing models, starting from baselines {#prb-8}
@@ -241,7 +289,12 @@ The book's model-selection process has four steps.
 1. **Establish a simple baseline.** For attribution, a baseline could be "always predict the most common stage", or a few rules ("the build failed, so blame the tool stage"). For the repair loop, the project's baselines are free-text plans and blind retry at an equal retry budget. Any proposed system must beat these, and keeping the budget equal makes the comparison fair.
 2. **Try simple models.** [Logistic regression](https://en.wikipedia.org/wiki/Logistic_regression), or gradient-boosted trees, on hand-built trace features: which step failed first, number of tool errors, whether requirements were linked to code changes, test outcomes. These train fast and are easy to interpret.
 3. **Move to complex models if needed.** A neural network that reads the trace text, or a fine-tuned LLM classifier, can pick up patterns that hand-built features miss.
-4. **Consider an ensemble** if accuracy still falls short: bagging, boosting, or stacking.
+4. **Consider an ensemble** if accuracy still falls short. An ensemble combines several models' predictions. The book names three kinds:
+    - **Bagging** trains many copies of one model type in parallel, each on a different random resample of the training data, and averages or votes their predictions. It reduces *variance*, meaning sensitivity to the particular training sample. A random forest is bagged decision trees.
+    - **Boosting** trains weak models *in sequence*, each one focusing on the examples the previous ones got wrong. It reduces *bias* (systematic underfitting) as well as variance. Gradient-boosted trees are the standard example.
+    - **Stacking** trains different model types (say, a logistic regression and a tree model), then trains a small "meta-model" that takes their predictions as inputs and learns how to combine them.
+
+    Problem 33 compares bagging and boosting in more depth.
 
 The book's checklist for comparing candidates applies directly: how much data each needs (expert labels are scarce), training speed, the hyperparameters to tune, compute cost, latency, and **interpretability**. Interpretability matters a lot here, because a diagnosis is only useful if the feedback generator can explain it.
 
@@ -261,8 +314,13 @@ Propose offline metrics for the performance model and the stability model from P
 ::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
 **Offline metrics** score predictions against held-out data during development. They depend on the task type.
 
-- *Performance model (regression):* MAE or RMSE of the predicted gain. MAE is in the same unit (percent) and is easy to explain.
-- *Stability model (classification):* recall on unstable runs, precision, and PR-AUC (Problem 26 shows why PR-AUC rather than accuracy).
+- *Performance model (regression):* the book's regression metrics are MSE, MAE, and RMSE. With prediction errors $e_i = y_i - \hat y_i$:
+    - **MAE** (mean absolute error) $= \frac{1}{n}\sum |e_i|$: the average size of a miss, in the target's own unit (percentage points of gain).
+    - **MSE** (mean squared error) $= \frac{1}{n}\sum e_i^2$: squares each error, so large misses count disproportionately. Its unit is squared percent, which is hard to read.
+    - **RMSE** $= \sqrt{\text{MSE}}$: back in percent, but still dominated by the largest misses.
+
+    For errors of $(1, 1, 1, 9)$ points, MAE $= 3$ while RMSE $= \sqrt{84/4} \approx 4.6$. Report MAE because it is easy to explain ("off by 3 points on average"). Watch RMSE as well, because one wildly over-predicted gain could tempt the system into a bad configuration.
+- *Stability model (classification):* **recall** (of the truly unstable runs, the fraction the model flags), **precision** (of the runs it flags, the fraction truly unstable), and PR-AUC, which summarizes the precision–recall trade-off over all thresholds. Problem 26 works these through and shows why PR-AUC beats accuracy here.
 - *How to split:* hold out **whole GPU architectures and workloads**, not random runs. The project explicitly asks how models generalize across hardware generations, and a random split would hide that weakness.
 
 **Online metrics** measure impact after deployment and tie back to the business goal. Choosing them involves product judgement.
@@ -293,17 +351,18 @@ The tuning model could run in the cloud, or locally inside the graphics driver s
 | Simplicity | easier to deploy and update | harder: ships with driver releases |
 | Cost | server cost per request | none |
 | Network latency | present | none |
+| Inference latency | usually lower: powerful servers | usually higher: the user's CPU is weaker and shared with the game |
 | Hardware constraints | few | must fit a small CPU and memory budget and not slow the game |
 | Privacy | telemetry leaves the machine | telemetry stays local |
 | Internet dependency | needs a connection | works offline |
 
-A tuner reacting to live telemetry on a gaming PC suits **on-device** inference: no round trip, it works offline, and users' telemetry stays private. Training stays in the cloud, on aggregated, consented telemetry.
+A tuner reacting to live telemetry on a gaming PC suits **on-device** inference: no round trip, it works offline, and users' telemetry stays private. The price is the two rows where on-device loses: slower inference and tight hardware limits. Compression addresses both. Training stays in the cloud, on aggregated, consented telemetry.
 
 **Compression.** On-device means small and fast, and the book lists three techniques:
 
-- [knowledge distillation](https://en.wikipedia.org/wiki/Knowledge_distillation): train a small student model to imitate a large teacher,
-- [pruning](https://en.wikipedia.org/wiki/Pruning_(artificial_neural_network)): set the least useful weights to zero,
-- quantization: store parameters in fewer bits.
+- [knowledge distillation](https://en.wikipedia.org/wiki/Knowledge_distillation): train a small "student" model to reproduce the outputs of a large, accurate "teacher" model. The student learns from the teacher's full probability outputs, which carry more information than hard labels.
+- [pruning](https://en.wikipedia.org/wiki/Pruning_(artificial_neural_network)): find the least useful weights (for example, those closest to zero) and set them to zero. The resulting sparse model can be stored and run more cheaply.
+- quantization: store each parameter in fewer bits. Going from 32-bit floats to 8-bit integers makes the model 4 times smaller and usually faster. It can be applied after training (post-training quantization) or simulated during training (quantization-aware training), which usually loses less accuracy.
 
 A small gradient-boosted tree model may need none of these. A neural network probably would.
 
@@ -339,7 +398,11 @@ Shadow mode suits a gate like this because a wrong hold has a real cost: it bloc
 
 Measure agent fix quality on passed tickets, wasted agent runs, reviewer time, and how often held tickets were overturned.
 
-A **canary release**, enabling the pre-check for one team first, is a gentler alternative when randomizing tickets is awkward.
+**The other three methods the book names**, and why they come later or not at all:
+
+- **Canary release.** Enable the new model for a small slice of traffic first (one team, or 1% of tickets), watch for problems, then widen step by step. It limits the damage if the model misbehaves, but the slice is usually chosen for convenience rather than at random, so it is a safety step, not a clean comparison. It is a gentle alternative here when randomizing tickets is awkward.
+- **Interleaving.** Built for *ranking* systems: merge the results of two rankers into one list shown to the same user, then see which ranker's items get used. Each user acts as their own control, so it needs far less traffic than an A/B test. It does not fit a pass-or-hold gate, which makes one decision per ticket and has nothing to interleave. It would fit the context ranker (Problem 12).
+- **Bandits.** A [multi-armed bandit](https://en.wikipedia.org/wiki/Multi-armed_bandit) shifts traffic toward whichever variant is performing better *while* the test runs, so fewer tickets go through the worse variant. It needs a reward that arrives quickly, and ticket outcomes take days to become known (Problem 38). So a fixed A/B split is the better fit here.
 
 **Monitoring after launch.** The book splits this in two.
 
@@ -470,7 +533,10 @@ Memory for the raw index:
 
 $$10^7 \times 768 \times 4 \text{ bytes} \approx 30.7 \text{ GB}.$$
 
-The book notes that vector quantization and product quantization shrink this. For example, at 96 bytes per vector the index takes about 0.96 GB.
+The book notes that [vector quantization](https://en.wikipedia.org/wiki/Vector_quantization) and product quantization shrink this.
+
+- **Vector quantization** clusters all vectors (for example with k-means) and stores each vector as the ID of its nearest cluster centre. That is tiny, but every vector in a cluster becomes identical.
+- **Product quantization** splits each 768-dimensional vector into, say, 96 sub-vectors of 8 dimensions. It runs vector quantization separately on each slice with 256 centres, so each slice is stored as a 1-byte centre ID. Each vector then takes $96 \times 1 = 96$ bytes instead of $768 \times 4 = 3{,}072$, a 32-fold saving, and the index takes about 0.96 GB. Distances are computed approximately from the centres, which trades a little accuracy for the memory saving.
 
 **(b) Approximate [nearest neighbour search](https://en.wikipedia.org/wiki/Nearest_neighbor_search)** gives up the guarantee of the exact top results in exchange for sublinear search time. It needs preprocessing and extra memory. The book's three families:
 
@@ -746,9 +812,17 @@ $$\cos = \frac{0.164}{1.606 \times 1.171} \approx 0.087.$$
 
 TF-IDF judges the two far less similar, because their main overlap was the uninformative word "login".
 
-**(d)** Both methods count *exact words*. "fix crash on login" and "resolve fault during sign-in" share no words, so both give similarity 0. The book lists the limitations of these statistical methods: they ignore word order, miss meaning, and produce sparse vectors. ML-based encoders fix this: an embedding layer, [word2vec](https://en.wikipedia.org/wiki/Word2vec), or a transformer such as [BERT](https://en.wikipedia.org/wiki/BERT_(language_model)). These place "crash" near "fault" and "login" near "sign-in". Transformers also give context-dependent embeddings.
+**(d)** Both methods count *exact words*. "fix crash on login" and "resolve fault during sign-in" share no words, so both give similarity 0. The book lists the limitations of these statistical methods: they ignore word order (so "revert the fix" and "fix the revert" look identical), miss meaning, and produce sparse vectors. TF-IDF has one more cost: adding a new ticket changes the document frequencies, so the weights must be recomputed.
 
-**Answer.** (a) $(1,1,1,1,0,0,0)$. (b) fix 1.099, crash 0.405, on 1.099, login 0. (c) Cosine 0.577 with bag of words and about 0.087 with TF-IDF. (d) Both rely on exact word overlap and miss synonyms. Learned embeddings capture meaning.
+ML-based encoders fix this by learning dense vectors in which similar meanings land close together. The book names three, from simplest to most powerful:
+
+- **Embedding (lookup) layer.** A trainable table with one vector per token ID, learned along with the rest of the model for its task. It is simple and works well for IDs and short tags.
+- **[Word2vec](https://en.wikipedia.org/wiki/Word2vec).** A shallow network trained on the idea that words appearing in similar contexts mean similar things. Its **CBOW** (continuous bag of words) variant predicts a centre word from the words around it. Its **skip-gram** variant predicts the surrounding words from the centre word. After training on many tickets, "crash" and "fault" appear near the same words ("on startup", "stack trace"), so their vectors end up close. Each word gets exactly *one* vector, whatever its context.
+- **Transformer-based models** such as [BERT](https://en.wikipedia.org/wiki/BERT_(language_model)). These read the whole sentence and give a word a *different* vector depending on its context, so "fault" in "segmentation fault" and in "not my fault" are told apart. They are the most accurate, and the slowest and largest.
+
+For full ticket text, where context matters, the book's choice of a transformer applies. For short tags, a lighter method is enough (Problem 46).
+
+**Answer.** (a) $(1,1,1,1,0,0,0)$. (b) fix 1.099, crash 0.405, on 1.099, login 0. (c) Cosine 0.577 with bag of words and about 0.087 with TF-IDF. (d) Both rely on exact word overlap and miss synonyms. Learned embeddings capture meaning: an embedding layer or word2vec gives one vector per word, and a transformer gives context-dependent vectors.
 :::
 
 ### Problem 23: Evaluating search when there is one right answer {#prb-23}
@@ -966,6 +1040,12 @@ A feedback matrix records which tuning configurations proved stable and benefici
 The learned 2-D embeddings are $u_1 = (1, 0.5)$, $u_2 = (0, 1)$, $u_3 = (1, 0)$ for the workloads, and $v_1 = (1, 0)$, $v_2 = (0, 1)$, $v_3 = (0.8, 0.4)$ for the configurations. (a) Compute all nine predicted scores $u_i \cdot v_j$. (b) Compute the squared-error loss over observed pairs only, over all pairs (unobserved treated as 0), and as a weighted combination with weight $0.1$ on the unobserved part. (c) Which untried configuration would you recommend for w3?
 
 ::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+**What goes in the matrix.** A **feedback matrix** records what we know about each (row, column) pair. The book weighs three sources of feedback for filling it:
+
+- **Explicit feedback** directly states an opinion. For videos that is a like or share. Here it is a validation engineer marking a configuration "pass" for a workload. It is accurate but **sparse**: few pairs ever get a formal validation.
+- **Implicit feedback** is inferred from behaviour. For videos that is clicks or watch time. Here it could be "users ran this configuration on this workload for a month without reverting it or crashing". It is plentiful but **noisy**: a user may simply never have noticed the setting.
+- **A combination** of the two. The book chooses this, because its relevance definition already mixes explicit and implicit signals (Problem 28). Here a 1 could mean "validated as stable, or used for 30 days with no instability event".
+
 [Matrix factorization](https://en.wikipedia.org/wiki/Matrix_factorization_(recommender_systems)) learns one embedding per row (workload) and one per column (configuration), so that their dot products approximate the feedback matrix.
 
 **(a) Predicted scores** $u_i \cdot v_j$:
@@ -1052,7 +1132,7 @@ The total is $0.52$ s, about **46 times faster**. Candidate generation favours s
 - configurations that worked for the same workload class on similar GPUs (collaborative),
 - a small exploration set to discover better regions.
 
-The last one connects to the book's exploration–exploitation talking point. A [multi-armed bandit](https://en.wikipedia.org/wiki/Multi-armed_bandit) framing balances trying new configurations against using known good ones.
+The last one connects to the book's exploration–exploitation talking point. A multi-armed bandit framing (Problem 11) balances trying new configurations against using known good ones.
 
 **Answer.** (a) 24 s. (b) 0.12 s + 0.4 s = 0.52 s. (c) Re-ranking enforces hard voltage, power, and thermal limits outside the model and removes near-duplicates. Several generators (near last-stable, collaborative, exploration) cover each other's blind spots.
 :::
@@ -1127,7 +1207,7 @@ Apply four ideas from the book's event features to the stability classifier: (a)
 
 **(d) Batch vs streaming features.**
 
-- *Batch (static):* SKU specifications, rated power limits, architecture, the unit's long-run stability history. Compute these periodically and store them in a **feature store**.
+- *Batch (static):* SKU specifications, rated power limits, architecture, the unit's long-run stability history. Compute these periodically and store them in a **feature store**: a shared database of precomputed feature values, keyed by entity (here, by SKU or unit ID). Training and serving both read from it, so they use identical feature definitions and serving does not recompute anything.
 - *Streaming (dynamic):* current temperature, current utilization, the active workload class. Compute these at request time from live telemetry.
 
 **Avoiding expensive real-time computation.** The book's tip: rather than computing a costly derived feature live (its example is the distance from the user to the event), pass the raw inputs and let the model learn the relationship. Here, instead of computing a thermal-headroom estimate from a physical model at request time, feed the current temperature and the SKU's limit as two features.
@@ -1270,7 +1350,16 @@ Look at the distribution of time-to-acceptance and pick $t$ that covers most acc
 
 The risk the book names is **[catastrophic forgetting](https://en.wikipedia.org/wiki/Catastrophic_interference)**: fine-tuning only on recent data erases what the model knew about older patterns. Common mitigations are to mix a replay sample of older runs into each update and to keep a fixed evaluation set that covers old cases.
 
-**(c) Calibration.** A model is [calibrated](https://en.wikipedia.org/wiki/Calibration_(statistics)) when its predicted 0.3 really means 30% of such runs succeed. If the retry budget depends on the predicted probability (for example, "give up below 0.2"), a model that ranks runs correctly but is overconfident will stop retrying runs that would have succeeded. The book flags calibration for ad click prediction because predicted probabilities feed into money decisions. Here they feed into compute and reviewer decisions. Check calibration on held-out data, and recalibrate after training, for example with Platt scaling or isotonic regression.
+**(c) Calibration.** A model is [calibrated](https://en.wikipedia.org/wiki/Calibration_(statistics)) when its predicted 0.3 really means 30% of such runs succeed. If the retry budget depends on the predicted probability (for example, "give up below 0.2"), a model that ranks runs correctly but is overconfident will stop retrying runs that would have succeeded. The book flags calibration for ad click prediction because predicted probabilities feed into money decisions. Here they feed into compute and reviewer decisions.
+
+*Checking it.* Group held-out runs into bins by predicted probability (0 to 0.1, 0.1 to 0.2, and so on). In each bin, compare the average prediction with the fraction that actually succeeded. A calibrated model gives matching numbers. Plotted, this is a **reliability diagram**, which should lie on the diagonal.
+
+*Fixing it* after training, using a held-out set the model was not trained on:
+
+- **[Platt scaling](https://en.wikipedia.org/wiki/Platt_scaling)** fits a one-feature logistic regression that maps the model's raw score $s$ to $\sigma(a s + b)$, learning just two numbers, $a$ and $b$. It needs little data, but it can only correct an S-shaped distortion.
+- **[Isotonic regression](https://en.wikipedia.org/wiki/Isotonic_regression)** fits any non-decreasing step function from score to probability. It can fix any distortion that keeps the ranking, but it needs more held-out data or it overfits.
+
+Neither changes the *order* of predictions, so ranking metrics are unaffected. Only the probabilities become trustworthy. Recalibration also matters if the model was trained with class weights (Problem 7), which deliberately distort its probabilities.
 
 **Answer.** (a) Label a run positive if it is accepted within $t$ days, choosing $t$ from the time-to-acceptance distribution (fresher labels versus more accurate ones). (b) Train continually because the agent and codebase drift, and guard against catastrophic forgetting with replay and a fixed evaluation set. (c) Calibrate, because probability thresholds decide the retry budget.
 :::
@@ -1287,9 +1376,9 @@ The stability model now also takes sparse, high-cardinality identifiers: game ID
 | Logistic regression | Fast baseline. Linear, and cannot capture interactions. |
 | Feature crossing + LR | Captures chosen pairs, but crosses are manual, need domain knowledge, miss complex interactions, and add sparsity (Problem 36). |
 | GBDT | Interpretable, but **cannot learn embedding layers** for sparse IDs, and is poor at continual learning: each update means retraining from scratch. |
-| GBDT + LR | GBDT extracts new features for LR. Better features, but still weak on pairwise interactions and slow to update. |
-| Plain neural network | In principle it learns everything. In practice the sparse feature space leaves most weights with too little data, and pairwise interactions are hard to learn implicitly. |
-| **DCN** | A deep network plus a **cross network** that learns feature crosses automatically. Fixes manual crossing, but the cross network models only certain interaction forms. |
+| GBDT + LR | Train a GBDT first, but use it to make features rather than predictions. It can *select* features (keep only those the trees found important) or *extract* them (each tree's leaf that an example lands in becomes a new binary feature, encoding a learned combination of conditions). LR then trains on the original plus new features. Better features, but still weak on pairwise interactions and slow to update. |
+| Plain neural network | The book considers two shapes: a single network on all features, or a **two-tower** network (a user-side and an item-side encoder, here a game/driver encoder and a SKU/configuration encoder) with the dot product of the two embeddings as the score. In principle either learns everything. In practice the sparse feature space leaves most weights with too little data, and pairwise interactions are hard to learn implicitly. |
+| **DCN** | A deep network plus a parallel **cross network**. Each cross layer multiplies the original input by the previous layer's output, so stacking layers builds feature crosses of increasing order with no manual choice of pairs. Fixes manual crossing, but the cross network models only this particular form of interaction. |
 | **Factorization machine** | One embedding per feature, and every pair interacts through a dot product. Efficient and well suited to sparse data, but limited to pairwise interactions. |
 | **DeepFM** | FM for the pairwise interactions plus a deep network for higher-order ones. Captures both. |
 
@@ -1448,7 +1537,15 @@ For one workload, two candidate configurations have these predictions:
 Score each with $S = 1.0 \cdot \text{gain} + 0.5 \cdot \Delta\text{efficiency} - 200 \cdot P(\text{instability})$, with the percentages as plain numbers. Which wins? Repeat with an instability weight of $-20$. What does this show, and how does it compare with Problem 2's hard constraint?
 
 ::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
-The book's news feed scores a post as a **weighted sum of predicted reactions**: a share counts more than a like, a like more than a click, and hide or block get **negative** weights. The weights are business choices, and the model only supplies the probabilities.
+**Why a weighted score at all.** The book considers three ways to turn "engagement" into an ML objective for the news feed:
+
+1. **Maximize one implicit reaction**, such as clicks or dwell time. There is plenty of data, because every user produces these signals, but they are weak evidence: a click can be curiosity followed by disappointment.
+2. **Maximize one explicit reaction**, such as likes or shares. These state a real opinion, but few users ever give them, so the data is sparse.
+3. **Maximize a weighted score over several reactions**, implicit and explicit, each with a weight reflecting its business value.
+
+The book chooses option 3 because it uses every signal and lets the business say how much each one matters. It scores a post as a **weighted sum of predicted reactions**: a share counts more than a like, a like more than a click, and hide or block get **negative** weights. The weights are business choices, and the model only supplies the probabilities.
+
+The same three options exist here. Optimizing only the implicit, plentiful signal (performance gain, measured on every run) ignores risk. Optimizing only the explicit, rare one (no crash) ignores the point of tuning. The weighted score below is option 3.
 
 **Weight $-200$ on instability:**
 
@@ -1498,7 +1595,17 @@ Both apply here, and the second applies strongly: instability events are rare, w
 | Power draw | regression | Huber, or MSE |
 | Instability | binary classification | binary cross-entropy, possibly class-weighted (Problem 7) |
 
-The total loss is a weighted sum of the three task losses. Because performance and power data is plentiful, the shared layers learn good representations from it, and the rare instability head benefits. That is the book's "training data for one task helps the others".
+**Why Huber for the regression heads.** The book lists MSE, MAE, and Huber loss as regression losses. With error $e = y - \hat y$:
+
+- **MSE** ($e^2$) gives smooth gradients that shrink as the error shrinks, but squaring lets one wild benchmark run dominate. An error of 10 points contributes 100 times as much as an error of 1.
+- **MAE** ($|e|$) is robust to such outliers, but its gradient has the same size however small the error, which makes fine convergence jumpy.
+- **Huber loss** is quadratic for small errors and linear for large ones, with a crossover at $\delta$:
+
+$$L_\delta(e) = \begin{cases} \tfrac12 e^2 & |e| \le \delta \\ \delta\,\big(|e| - \tfrac12\delta\big) & |e| > \delta \end{cases}$$
+
+With $\delta = 1$, an error of 0.5 costs $0.125$, the same as half-MSE. An error of 10 costs $9.5$ instead of half-MSE's $50$. Benchmark runs occasionally produce wild numbers (a background update, a thermal event), so Huber keeps MSE's smooth behaviour near the answer without letting those runs dominate.
+
+The total loss is a weighted sum of the three task losses, $L = \lambda_{\text{perf}} L_{\text{perf}} + \lambda_{\text{power}} L_{\text{power}} + \lambda_{\text{stab}} L_{\text{stab}}$. The weights $\lambda$ are hyperparameters that stop the task with the largest loss values from dominating training. Because performance and power data is plentiful, the shared layers learn good representations from it, and the rare instability head benefits. That is the book's "training data for one task helps the others".
 
 **Adapting the passive-user fix.** In the news feed, most users rarely like or share, so every reaction head predicts near zero for them, and the model learns little about them. The book adds **dense implicit tasks**: dwell time (a regression head) and skip (a classification head). These carry signal on every impression, even for silent users.
 

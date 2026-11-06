@@ -1,0 +1,2021 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.10.18">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+
+<title>Week 7 practice: Variational Inference II and VAEs – CSC412/2506: Probabilistic Machine Learning notes</title>
+<style>
+/* Default styles provided by pandoc.
+** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
+*/
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: 1.5em;}
+div.column{flex: auto;}
+@media screen {
+div.columns{gap: min(4vw, 1.5em);}
+div.column{overflow-x: auto;}
+}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+/* CSS for syntax highlighting */
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+</style>
+
+
+<script src="../site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="../site_libs/quarto-nav/headroom.min.js"></script>
+<script src="../site_libs/clipboard/clipboard.min.js"></script>
+<script src="../site_libs/quarto-search/autocomplete.umd.js"></script>
+<script src="../site_libs/quarto-search/fuse.min.js"></script>
+<script src="../site_libs/quarto-search/quarto-search.js"></script>
+<meta name="quarto:offset" content="../">
+<link href="../lectures/midterm-practice.html" rel="next">
+<link href="../lectures/week07.html" rel="prev">
+<script src="../site_libs/quarto-html/quarto.js" type="module"></script>
+<script src="../site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
+<script src="../site_libs/quarto-html/popper.min.js"></script>
+<script src="../site_libs/quarto-html/tippy.umd.min.js"></script>
+<script src="../site_libs/quarto-html/anchor.min.js"></script>
+<link href="../site_libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="../site_libs/quarto-html/quarto-syntax-highlighting-bb62276ab45c84d9efd712f51ff97b5a.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<script src="../site_libs/bootstrap/bootstrap.min.js"></script>
+<link href="../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="../site_libs/bootstrap/bootstrap-ce0958bf53307a1b0bb60f85d87db72f.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
+<script id="quarto-search-options" type="application/json">{
+  "location": "sidebar",
+  "copy-button": false,
+  "collapse-after": 3,
+  "panel-placement": "start",
+  "type": "textbox",
+  "limit": 50,
+  "keyboard-shortcut": [
+    "f",
+    "/",
+    "s"
+  ],
+  "show-item-context": false,
+  "language": {
+    "search-no-results-text": "No results",
+    "search-matching-documents-text": "matching documents",
+    "search-copy-link-title": "Copy link to search",
+    "search-hide-matches-text": "Hide additional matches",
+    "search-more-match-text": "more match in this document",
+    "search-more-matches-text": "more matches in this document",
+    "search-clear-button-title": "Clear",
+    "search-text-placeholder": "",
+    "search-detached-cancel-button-title": "Cancel",
+    "search-submit-button-title": "Submit",
+    "search-label": "Search"
+  }
+}</script>
+<style>html{ scroll-behavior: smooth; }</style>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+<link href="https://fonts.googleapis.com/css2?family=Source+Code+Pro:wght@400;600&amp;family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&amp;display=swap" rel="stylesheet">
+
+  <script>window.backupDefine = window.define; window.define = undefined;</script><script src="https://cdn.jsdelivr.net/npm/katex@latest/dist/katex.min.js"></script>
+  <script>document.addEventListener("DOMContentLoaded", function () {
+ var mathElements = document.getElementsByClassName("math");
+ var macros = [];
+ for (var i = 0; i < mathElements.length; i++) {
+  var texText = mathElements[i].firstChild;
+  if (mathElements[i].tagName == "SPAN") {
+   katex.render(texText.data, mathElements[i], {
+    displayMode: mathElements[i].classList.contains('display'),
+    throwOnError: false,
+    macros: macros,
+    fleqn: false
+   });
+}}});
+  </script>
+  <script>window.define = window.backupDefine; window.backupDefine = undefined;</script><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@latest/dist/katex.min.css">
+
+<script type="text/javascript">
+const typesetMath = (el) => {
+  if (window.MathJax) {
+    // MathJax Typeset
+    window.MathJax.typeset([el]);
+  } else if (window.katex) {
+    // KaTeX Render
+    var mathElements = el.getElementsByClassName("math");
+    var macros = [];
+    for (var i = 0; i < mathElements.length; i++) {
+      var texText = mathElements[i].firstChild;
+      if (mathElements[i].tagName == "SPAN" && texText && texText.data) {
+        window.katex.render(texText.data, mathElements[i], {
+          displayMode: mathElements[i].classList.contains('display'),
+          throwOnError: false,
+          macros: macros,
+          fleqn: false
+        });
+      }
+    }
+  }
+}
+window.Quarto = {
+  typesetMath
+};
+</script>
+
+<link rel="stylesheet" href="../styles/custom.css">
+</head>
+
+<body class="nav-sidebar floating quarto-light">
+
+<div id="quarto-search-results"></div>
+  <header id="quarto-header" class="headroom fixed-top">
+  <nav class="quarto-secondary-nav">
+    <div class="container-fluid d-flex">
+      <button type="button" class="quarto-btn-toggle btn" data-bs-toggle="collapse" role="button" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+        <i class="bi bi-layout-text-sidebar-reverse"></i>
+      </button>
+        <nav class="quarto-page-breadcrumbs" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../lectures/week07-practice.html"><span class="chapter-title">Week 7 practice: Variational Inference II and VAEs</span></a></li></ol></nav>
+        <a class="flex-grow-1" role="navigation" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">      
+        </a>
+      <button type="button" class="btn quarto-search-button" aria-label="Search" onclick="window.quartoOpenSearch();">
+        <i class="bi bi-search"></i>
+      </button>
+    </div>
+  </nav>
+</header>
+<!-- content -->
+<div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-article">
+<!-- sidebar -->
+  <nav id="quarto-sidebar" class="sidebar collapse collapse-horizontal quarto-sidebar-collapse-item sidebar-navigation floating overflow-auto">
+    <div class="pt-lg-2 mt-2 text-left sidebar-header">
+    <div class="sidebar-title mb-0 py-0">
+      <a href="../">CSC412/2506: Probabilistic Machine Learning notes</a> 
+        <div class="sidebar-tools-main">
+    <a href="https://amcwong.github.io/amcw-claude-code-workflow/" title="All course notes" class="quarto-navigation-tool px-1" aria-label="All course notes"><i class="bi bi-house-door"></i></a>
+</div>
+    </div>
+      </div>
+        <div class="mt-2 flex-shrink-0 align-items-center">
+        <div class="sidebar-search">
+        <div id="quarto-search" class="" title="Search"></div>
+        </div>
+        </div>
+    <div class="sidebar-menu-container"> 
+    <ul class="list-unstyled mt-1">
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../index.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">CSC412/2506 Probabilistic Machine Learning</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../lectures/week01.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Week 1: Introduction and Probabilistic Models</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../lectures/week01-practice.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Week 1 practice: Introduction and probabilistic models</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../lectures/week02.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Week 2: Decision Theory and Graphical Models</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../lectures/week02-practice.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Week 2 practice: Decision theory and graphical models</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../lectures/week03.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Week 3: Markov Random Fields and Exact Inference</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../lectures/week03-practice.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Week 3 practice: Markov random fields and exact inference</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../lectures/week04.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Week 4: Message Passing and Monte Carlo</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../lectures/week04-practice.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Week 4 practice: Message passing and Monte Carlo</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../lectures/week05.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Week 5: Sampling with MCMC</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../lectures/week05-practice.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Week 5 practice: Sampling with MCMC</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../lectures/week06.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Week 6: HMMs and Variational Inference I</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../lectures/week06-practice.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Week 6 practice: HMMs and Variational Inference I</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../lectures/week07.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Week 7: Variational Inference II and VAEs</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../lectures/week07-practice.html" class="sidebar-item-text sidebar-link active"><span class="chapter-title">Week 7 practice: Variational Inference II and VAEs</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../lectures/midterm-practice.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Midterm practice: Weeks 1–6</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../glossary.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Glossary</span></a>
+  </div>
+</li>
+    </ul>
+    </div>
+</nav>
+<div id="quarto-sidebar-glass" class="quarto-sidebar-collapse-item" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item"></div>
+<!-- margin-sidebar -->
+    <div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
+        <nav id="TOC" role="doc-toc" class="toc-active">
+    <h2 id="toc-title">On this page</h2>
+   
+  <ul>
+  <li><a href="#sec-w7p-aid" id="toc-sec-w7p-aid" class="nav-link active" data-scroll-target="#sec-w7p-aid">Aid sheet: the equations these problems use</a>
+  <ul class="collapse">
+  <li><a href="#general-math" id="toc-general-math" class="nav-link" data-scroll-target="#general-math">General math</a></li>
+  <li><a href="#the-elbo-sec-w7-elbo-sec-w7-two-forms" id="toc-the-elbo-sec-w7-elbo-sec-w7-two-forms" class="nav-link" data-scroll-target="#the-elbo-sec-w7-elbo-sec-w7-two-forms">The ELBO (<span>The ELBO: evidence lower bound</span>, <span>Two formulations of the ELBO</span>)</a></li>
+  <li><a href="#gradients-and-the-reparameterization-trick-sec-w7-grad-sec-w7-reparam" id="toc-gradients-and-the-reparameterization-trick-sec-w7-grad-sec-w7-reparam" class="nav-link" data-scroll-target="#gradients-and-the-reparameterization-trick-sec-w7-grad-sec-w7-reparam">Gradients and the reparameterization trick (<span>Maximizing the ELBO: gradients of an expectation</span>, <span>The reparameterization trick</span>)</a></li>
+  <li><a href="#stochastic-variational-inference-sec-w7-svi" id="toc-stochastic-variational-inference-sec-w7-svi" class="nav-link" data-scroll-target="#stochastic-variational-inference-sec-w7-svi">Stochastic variational inference (<span>Stochastic variational inference</span>)</a></li>
+  <li><a href="#autoencoders-sec-w7-pca-sec-w7-ae2-sec-w7-ae-issues" id="toc-autoencoders-sec-w7-pca-sec-w7-ae2-sec-w7-ae-issues" class="nav-link" data-scroll-target="#autoencoders-sec-w7-pca-sec-w7-ae2-sec-w7-ae-issues">Autoencoders (<span>A prerequisite: principal component analysis</span>, <span>A 2-layer autoencoder</span>, <span>Issues with deterministic autoencoders</span>)</a></li>
+  <li><a href="#variational-autoencoders-sec-w7-vae-sec-w7-tut" id="toc-variational-autoencoders-sec-w7-vae-sec-w7-tut" class="nav-link" data-scroll-target="#variational-autoencoders-sec-w7-vae-sec-w7-tut">Variational autoencoders (<span>Variational autoencoders</span>, <span>Tutorial: the VAE as a latent variable model</span>)</a></li>
+  <li><a href="#the-notebook-sec-w7-code" id="toc-the-notebook-sec-w7-code" class="nav-link" data-scroll-target="#the-notebook-sec-w7-code">The notebook (<span>Code walk-through: the VAE notebook</span>)</a></li>
+  </ul></li>
+  <li><a href="#sec-w7p-elbo" id="toc-sec-w7p-elbo" class="nav-link" data-scroll-target="#sec-w7p-elbo">The ELBO and its two forms</a>
+  <ul class="collapse">
+  <li><a href="#prb-1" id="toc-prb-1" class="nav-link" data-scroll-target="#prb-1">Problem 1: Which of the three quantities can we compute?</a></li>
+  <li><a href="#prb-2" id="toc-prb-2" class="nav-link" data-scroll-target="#prb-2">Problem 2: Comparing two approximations by their ELBO</a></li>
+  <li><a href="#prb-3" id="toc-prb-3" class="nav-link" data-scroll-target="#prb-3">Problem 3: The same ELBO, split two ways</a></li>
+  </ul></li>
+  <li><a href="#sec-w7p-grad" id="toc-sec-w7p-grad" class="nav-link" data-scroll-target="#sec-w7p-grad">Gradients of an expectation and the reparameterization trick</a>
+  <ul class="collapse">
+  <li><a href="#prb-4" id="toc-prb-4" class="nav-link" data-scroll-target="#prb-4">Problem 4: The naive swap, with a parameter in the spread</a></li>
+  <li><a href="#prb-5" id="toc-prb-5" class="nav-link" data-scroll-target="#prb-5">Problem 5: Recovering both gradients by reparameterizing</a></li>
+  <li><a href="#prb-6" id="toc-prb-6" class="nav-link" data-scroll-target="#prb-6">Problem 6: Which distributions can be reparameterized?</a></li>
+  <li><a href="#prb-7" id="toc-prb-7" class="nav-link" data-scroll-target="#prb-7">Problem 7: When may the gradient move inside?</a></li>
+  </ul></li>
+  <li><a href="#sec-w7p-svi" id="toc-sec-w7p-svi" class="nav-link" data-scroll-target="#sec-w7p-svi">Stochastic variational inference</a>
+  <ul class="collapse">
+  <li><a href="#prb-8" id="toc-prb-8" class="nav-link" data-scroll-target="#prb-8">Problem 8: One SVI step by hand</a></li>
+  <li><a href="#prb-9" id="toc-prb-9" class="nav-link" data-scroll-target="#prb-9">Problem 9: MCMC or SVI?</a></li>
+  </ul></li>
+  <li><a href="#sec-w7p-ae" id="toc-sec-w7p-ae" class="nav-link" data-scroll-target="#sec-w7p-ae">Autoencoders</a>
+  <ul class="collapse">
+  <li><a href="#prb-10" id="toc-prb-10" class="nav-link" data-scroll-target="#prb-10">Problem 10: PCA on four points</a></li>
+  <li><a href="#prb-11" id="toc-prb-11" class="nav-link" data-scroll-target="#prb-11">Problem 11: Counting weights, and where reconstructions can lie</a></li>
+  </ul></li>
+  <li><a href="#sec-w7p-ae-issues" id="toc-sec-w7p-ae-issues" class="nav-link" data-scroll-target="#sec-w7p-ae-issues">Issues with deterministic autoencoders</a>
+  <ul class="collapse">
+  <li><a href="#prb-12" id="toc-prb-12" class="nav-link" data-scroll-target="#prb-12">Problem 12: A shifted stroke versus a blank image</a></li>
+  </ul></li>
+  <li><a href="#sec-w7p-vae" id="toc-sec-w7p-vae" class="nav-link" data-scroll-target="#sec-w7p-vae">Variational autoencoders</a>
+  <ul class="collapse">
+  <li><a href="#prb-13" id="toc-prb-13" class="nav-link" data-scroll-target="#prb-13">Problem 13: One image through the pipeline</a></li>
+  <li><a href="#prb-14" id="toc-prb-14" class="nav-link" data-scroll-target="#prb-14">Problem 14: Why predict the log-variance?</a></li>
+  <li><a href="#prb-15" id="toc-prb-15" class="nav-link" data-scroll-target="#prb-15">Problem 15: Generating from the prior, VAE versus autoencoder</a></li>
+  </ul></li>
+  <li><a href="#sec-w7p-amortized" id="toc-sec-w7p-amortized" class="nav-link" data-scroll-target="#sec-w7p-amortized">Denoising and amortized inference</a>
+  <ul class="collapse">
+  <li><a href="#prb-16" id="toc-prb-16" class="nav-link" data-scroll-target="#prb-16">Problem 16: Parameter counts with and without amortization</a></li>
+  <li><a href="#prb-17" id="toc-prb-17" class="nav-link" data-scroll-target="#prb-17">Problem 17: Denoising autoencoder or loopy BP?</a></li>
+  </ul></li>
+  <li><a href="#sec-w7p-tut" id="toc-sec-w7p-tut" class="nav-link" data-scroll-target="#sec-w7p-tut">Tutorial: the VAE as a latent variable model</a>
+  <ul class="collapse">
+  <li><a href="#prb-18" id="toc-prb-18" class="nav-link" data-scroll-target="#prb-18">Problem 18: A two-component mixture and its posterior</a></li>
+  <li><a href="#prb-19" id="toc-prb-19" class="nav-link" data-scroll-target="#prb-19">Problem 19: Why the mixture’s evidence is easy and the VAE’s is not</a></li>
+  <li><a href="#prb-20" id="toc-prb-20" class="nav-link" data-scroll-target="#prb-20">Problem 20: Jensen’s inequality becomes an equality (stretch)</a></li>
+  <li><a href="#prb-21" id="toc-prb-21" class="nav-link" data-scroll-target="#prb-21">Problem 21: The closed-form KL in three dimensions</a></li>
+  <li><a href="#prb-22" id="toc-prb-22" class="nav-link" data-scroll-target="#prb-22">Problem 22: Binary cross-entropy on four pixels</a></li>
+  <li><a href="#prb-23" id="toc-prb-23" class="nav-link" data-scroll-target="#prb-23">Problem 23: Turning the β knob</a></li>
+  <li><a href="#prb-24" id="toc-prb-24" class="nav-link" data-scroll-target="#prb-24">Problem 24: Which term needs a sample?</a></li>
+  </ul></li>
+  <li><a href="#sec-w7p-code" id="toc-sec-w7p-code" class="nav-link" data-scroll-target="#sec-w7p-code">Code walk-through: the VAE notebook</a>
+  <ul class="collapse">
+  <li><a href="#prb-25" id="toc-prb-25" class="nav-link" data-scroll-target="#prb-25">Problem 25: Shapes and parameters for a smaller network</a></li>
+  <li><a href="#prb-26" id="toc-prb-26" class="nav-link" data-scroll-target="#prb-26">Problem 26: A bug in <code>latent_sample</code></a></li>
+  <li><a href="#prb-27" id="toc-prb-27" class="nav-link" data-scroll-target="#prb-27">Problem 27: Averaging the BCE instead of summing (stretch)</a></li>
+  <li><a href="#prb-28" id="toc-prb-28" class="nav-link" data-scroll-target="#prb-28">Problem 28: Reading the reported numbers (stretch)</a></li>
+  </ul></li>
+  </ul>
+</nav>
+    </div>
+<!-- main -->
+<main class="content" id="quarto-document-content">
+
+<header id="title-block-header" class="quarto-title-block default">
+<div class="quarto-title">
+<h1 class="title"><span class="chapter-title">Week 7 practice: Variational Inference II and VAEs</span></h1>
+</div>
+
+
+
+<div class="quarto-title-meta">
+
+    
+  
+    
+  </div>
+  
+
+
+</header>
+
+
+<style>#title-block-header { display: none; }</style>
+<div class="lecture-header">
+  <h1>Week 7 practice: Variational Inference II and VAEs</h1>
+</div>
+<p><strong>Overview.</strong> These problems drill <a href="../lectures/week07.html">Week 7</a> section by section. The chapter opens with an aid sheet: every equation the problems below need, in the week chapter’s notation, so we can work them without flipping back. After that, each heading matches a section (or a group of sections) of the week chapter, in the same order, and its problems test only that material and what came before it. Try each stem before opening the worked solution. Every distribution, data set, network configuration and code variant here is invented for practice; none is a homework item, and none reuses the week’s worked examples (the <span class="math inline">\mathcal N(\mu,1)</span> example with <span class="math inline">f(z)=z^2</span>, the KL example with <span class="math inline">\mu=1</span>, <span class="math inline">\sigma=0.5</span>, or the notebook’s own configuration and printed losses). Logarithms are natural, so losses and KL values are in nats.</p>
+<p>Several ELBO problems share one discrete model, which we call <strong>Model T</strong>: a latent variable <span class="math inline">z\in\{1,2,3\}</span>, one fixed observation <span class="math inline">x</span>, a prior <span class="math inline">p(z)</span>, and a likelihood <span class="math inline">p(x\mid z)</span> with</p>
+<p><span class="math display">
+\begin{array}{c|ccc}
+&amp; z=1 &amp; z=2 &amp; z=3\\\hline
+p(z) &amp; 0.4 &amp; 0.4 &amp; 0.2\\
+p(x\mid z) &amp; 0.25 &amp; 0.15 &amp; 0.20\\
+p(x,z) &amp; 0.10 &amp; 0.06 &amp; 0.04
+\end{array}
+</span></p>
+<section id="sec-w7p-aid" class="level2">
+<h2 class="anchored" data-anchor-id="sec-w7p-aid">Aid sheet: the equations these problems use</h2>
+<p>The lists below are grouped in the order of the week chapter. Each block gives the equation, then one line per symbol. They are the equations we would otherwise have to rederive while working a problem; the reasoning behind each one is in the week section it points to.</p>
+<section id="general-math" class="level3">
+<h3 class="anchored" data-anchor-id="general-math">General math</h3>
+<p><strong>Gaussian density (one dimension)</strong></p>
+<p><span class="math display">\mathcal N(x;\mu,\sigma^2) = \frac{1}{\sqrt{2\pi\sigma^2}}\exp\left(-\frac{(x-\mu)^2}{2\sigma^2}\right)</span></p>
+<ul>
+<li><strong>Moments:</strong> if <span class="math inline">z\sim\mathcal N(\mu,\sigma^2)</span> then <span class="math inline">\mathbb E[z]=\mu</span>, <span class="math inline">\mathbb E[(z-\mu)^2]=\sigma^2</span>, and <span class="math inline">\mathbb E[z^2]=\mu^2+\sigma^2</span>.</li>
+<li><strong>Standard normal noise:</strong> <span class="math inline">\epsilon\sim\mathcal N(0,1)</span> has <span class="math inline">\mathbb E[\epsilon]=0</span> and <span class="math inline">\mathbb E[\epsilon^2]=1</span>.</li>
+<li><strong>Shift and scale:</strong> <span class="math inline">\mu+\sigma\epsilon\sim\mathcal N(\mu,\sigma^2)</span>.</li>
+<li><strong>Tail values</strong> for <span class="math inline">Z\sim\mathcal N(0,1)</span>: <span class="math inline">P(|Z|\le1)\approx0.683</span>, <span class="math inline">P(|Z|\le1.5)\approx0.866</span>, <span class="math inline">P(|Z|\le2)\approx0.954</span>.</li>
+</ul>
+<p><strong>Calculus and logs</strong></p>
+<ul>
+<li><strong>Chain rule:</strong> <span class="math inline">\frac{d}{d\phi}f(T(\phi))=f'(T(\phi))\,T'(\phi)</span>.</li>
+<li><strong>Sigmoid:</strong> <span class="math inline">\sigma(a)=\frac{1}{1+e^{-a}}\in(0,1)</span>, so a sigmoid output is a valid probability.</li>
+<li><strong>Log rules:</strong> <span class="math inline">\log(ab)=\log a+\log b</span>, <span class="math inline">\log\frac ab=\log a-\log b</span>, <span class="math inline">\log e^a=a</span>.</li>
+<li><strong>Values for working by hand:</strong> <span class="math inline">\ln2\approx0.693</span>, <span class="math inline">\ln3\approx1.099</span>, <span class="math inline">\ln5\approx1.609</span>, <span class="math inline">\ln10\approx2.303</span>, <span class="math inline">e^{-1}\approx0.368</span>, <span class="math inline">e^{-1/2}\approx0.607</span>, <span class="math inline">e^{-2}\approx0.135</span>, <span class="math inline">e^{1/4}\approx1.284</span>, <span class="math inline">e\approx2.718</span>, <span class="math inline">\frac{1}{\sqrt{2\pi}}\approx0.399</span>.</li>
+</ul>
+</section>
+<section id="the-elbo-sec-w7-elbo-sec-w7-two-forms" class="level3">
+<h3 class="anchored" data-anchor-id="the-elbo-sec-w7-elbo-sec-w7-two-forms">The ELBO (<a href="week07.html#sec-w7-elbo" class="quarto-xref"><span>The ELBO: evidence lower bound</span></a>, <a href="week07.html#sec-w7-two-forms" class="quarto-xref"><span>Two formulations of the ELBO</span></a>)</h3>
+<p><strong><a href="https://en.wikipedia.org/wiki/Evidence_lower_bound">Evidence lower bound</a></strong></p>
+<p><span class="math display">\mathcal L(\phi)=\mathbb E_{z\sim q_\phi}\big[\log p(x,z)-\log q_\phi(z)\big]</span></p>
+<p><strong>The identity behind the bound</strong></p>
+<p><span class="math display">\mathcal L(\phi)+\mathrm{KL}\big(q_\phi(z)\,\|\,p(z\mid x)\big)=\log p(x)</span></p>
+<p><strong>First form: expected log-joint plus entropy</strong></p>
+<p><span class="math display">\mathcal L(\phi)=\mathbb E_{q_\phi}\big[\log p(x,z)\big]+H(q_\phi), \qquad H(q)=-\mathbb E_q[\log q(z)]</span></p>
+<p><strong>Second form: expected log-likelihood minus KL to the prior</strong></p>
+<p><span class="math display">\mathcal L(\phi)=\mathbb E_{q_\phi}\big[\log p(x\mid z)\big]-\mathrm{KL}\big(q_\phi(z)\,\|\,p(z)\big)</span></p>
+<ul>
+<li><strong>Symbols:</strong> <span class="math inline">x</span> is the observed data, <span class="math inline">z</span> the latent variable, <span class="math inline">q_\phi</span> the variational distribution with parameters <span class="math inline">\phi</span>, and <span class="math inline">p(z\mid x)=p(x,z)/p(x)</span> the posterior.</li>
+<li><strong><a href="https://en.wikipedia.org/wiki/Kullback%E2%80%93Leibler_divergence">KL divergence</a>:</strong> <span class="math inline">\mathrm{KL}(q\,\|\,p)=\sum_z q(z)\log\frac{q(z)}{p(z)}</span> (an integral for continuous <span class="math inline">z</span>). It is <span class="math inline">\ge0</span>, and <span class="math inline">0</span> only when <span class="math inline">q=p</span>.</li>
+<li><strong>Why it is a lower bound:</strong> KL <span class="math inline">\ge0</span>, so <span class="math inline">\mathcal L\le\log p(x)</span>. The sum is fixed by the model, so raising <span class="math inline">\mathcal L</span> lowers the KL gap by exactly the same amount.</li>
+<li><strong><a href="https://en.wikipedia.org/wiki/Jensen%27s_inequality">Jensen’s inequality</a> route:</strong> <span class="math inline">\log\mathbb E_q\!\left[\frac{p(x,z)}{q(z)}\right]\ge\mathbb E_q\!\left[\log\frac{p(x,z)}{q(z)}\right]</span>, and the left side is <span class="math inline">\log p(x)</span>. Equality holds exactly when the ratio <span class="math inline">p(x,z)/q(z)</span> is constant in <span class="math inline">z</span>, that is, when <span class="math inline">q</span> is the posterior.</li>
+</ul>
+</section>
+<section id="gradients-and-the-reparameterization-trick-sec-w7-grad-sec-w7-reparam" class="level3">
+<h3 class="anchored" data-anchor-id="gradients-and-the-reparameterization-trick-sec-w7-grad-sec-w7-reparam">Gradients and the reparameterization trick (<a href="week07.html#sec-w7-grad" class="quarto-xref"><span>Maximizing the ELBO: gradients of an expectation</span></a>, <a href="week07.html#sec-w7-reparam" class="quarto-xref"><span>The reparameterization trick</span></a>)</h3>
+<p><strong>Gradient ascent on the ELBO</strong></p>
+<p><span class="math display">\phi_{t+1}=\phi_t+s_t\,\nabla_\phi\mathcal L(\phi_t)</span></p>
+<p><strong>The naive swap fails when the sampling distribution depends on <span class="math inline">\phi</span></strong></p>
+<p><span class="math display">\nabla_\phi\,\mathbb E_{z\sim q_\phi}\big[f(z)\big]\ \ne\ \mathbb E_{z\sim q_\phi}\big[\nabla_\phi f(z)\big]</span></p>
+<p><strong><a href="https://en.wikipedia.org/wiki/Reparameterization_trick">Reparameterization</a></strong></p>
+<p><span class="math display">\epsilon\sim p_0(\epsilon),\qquad z=T(\epsilon,\phi)\ \sim\ q_\phi(z)</span></p>
+<p><span class="math display">\nabla_\phi\,\mathbb E_{z\sim q_\phi}\big[f(z)\big]=\mathbb E_{\epsilon\sim p_0}\big[\nabla_\phi f(T(\epsilon,\phi))\big]</span></p>
+<ul>
+<li><strong>When the swap is allowed:</strong> when the distribution we average over does not depend on <span class="math inline">\phi</span>. Reparameterization creates that situation by moving all the randomness into <span class="math inline">\epsilon</span>.</li>
+<li><strong>Gaussian:</strong> <span class="math inline">z=\mu+\sigma\epsilon</span>, <span class="math inline">\epsilon\sim\mathcal N(0,1)</span>, so <span class="math inline">\frac{\partial z}{\partial\mu}=1</span> and <span class="math inline">\frac{\partial z}{\partial\sigma}=\epsilon</span>.</li>
+<li><strong>Location-scale families</strong> (shift and stretch a fixed distribution) all work the same way, for example a uniform: <span class="math inline">z=a+(b-a)u</span> with <span class="math inline">u\sim\mathrm{Uniform}(0,1)</span>.</li>
+<li><strong>Inverse CDF:</strong> if <span class="math inline">F</span> is a continuous distribution function and <span class="math inline">u\sim\mathrm{Uniform}(0,1)</span>, then <span class="math inline">z=F^{-1}(u)</span> has distribution <span class="math inline">F</span>. It is a valid <span class="math inline">T</span> when <span class="math inline">F^{-1}</span> is differentiable in the parameters.</li>
+<li><strong>No differentiable <span class="math inline">T</span></strong> exists for a discrete <span class="math inline">q_\phi</span> (Problem 6).</li>
+</ul>
+</section>
+<section id="stochastic-variational-inference-sec-w7-svi" class="level3">
+<h3 class="anchored" data-anchor-id="stochastic-variational-inference-sec-w7-svi">Stochastic variational inference (<a href="week07.html#sec-w7-svi" class="quarto-xref"><span>Stochastic variational inference</span></a>)</h3>
+<p><strong>SVI gradient estimate from <span class="math inline">m</span> noise samples</strong></p>
+<p><span class="math display">\nabla_\phi\mathcal L(\phi)\approx\frac1m\sum_{i=1}^m\nabla_\phi\Big[\log p\big(x,T(\phi,\epsilon_i)\big)-\log q_\phi\big(T(\phi,\epsilon_i)\big)\Big]</span></p>
+<ul>
+<li>Each term is the exact gradient for one fixed draw <span class="math inline">\epsilon_i</span>. The average is unbiased, and its standard deviation shrinks like <span class="math inline">1/\sqrt m</span>.</li>
+<li><strong>MCMC vs SVI:</strong> MCMC is exact in the limit, handles multimodal posteriors, but is slow. SVI is fast and scales to large data, but is only as good as its family, and the reverse KL is mode-seeking.</li>
+</ul>
+</section>
+<section id="autoencoders-sec-w7-pca-sec-w7-ae2-sec-w7-ae-issues" class="level3">
+<h3 class="anchored" data-anchor-id="autoencoders-sec-w7-pca-sec-w7-ae2-sec-w7-ae-issues">Autoencoders (<a href="week07.html#sec-w7-pca" class="quarto-xref"><span>A prerequisite: principal component analysis</span></a>, <a href="week07.html#sec-w7-ae2" class="quarto-xref"><span>A 2-layer autoencoder</span></a>, <a href="week07.html#sec-w7-ae-issues" class="quarto-xref"><span>Issues with deterministic autoencoders</span></a>)</h3>
+<p><strong>Two-layer autoencoder and its reconstruction error</strong></p>
+<p><span class="math display">y_k(x,w)=\sum_{j=1}^M w^{(2)}_{kj}\,\sigma\Big(\sum_{i=1}^D w^{(1)}_{ji}x_i\Big),\qquad E(w)=\frac12\sum_{n=1}^N\big\|y(x_n,w)-x_n\big\|^2</span></p>
+<ul>
+<li><strong>Symbols:</strong> <span class="math inline">D</span> inputs and outputs, <span class="math inline">M&lt;D</span> bottleneck units, first-layer weights <span class="math inline">w^{(1)}</span> (<span class="math inline">M\times D</span>), second-layer weights <span class="math inline">w^{(2)}</span> (<span class="math inline">D\times M</span>), activation <span class="math inline">\sigma</span> (not a standard deviation here).</li>
+<li><strong><a href="https://en.wikipedia.org/wiki/Principal_component_analysis">PCA</a>:</strong> for centred data, the first <span class="math inline">M</span> principal components are the top <span class="math inline">M</span> eigenvectors of the covariance <span class="math inline">\frac1N\sum_n x_nx_n^\top</span>. Projecting onto them leaves a total squared error of <span class="math inline">N</span> times the sum of the discarded eigenvalues, the smallest possible for any <span class="math inline">M</span>-dimensional subspace.</li>
+<li><strong>Linear autoencoder:</strong> with identity activations its <span class="math inline">M</span> hidden units span the PCA subspace, so it can do no better than PCA.</li>
+<li><strong>Pixel-wise error:</strong> <span class="math inline">\sum_d(\tilde x_d-x_d)^2</span> compares pixels in the same position only.</li>
+</ul>
+</section>
+<section id="variational-autoencoders-sec-w7-vae-sec-w7-tut" class="level3">
+<h3 class="anchored" data-anchor-id="variational-autoencoders-sec-w7-vae-sec-w7-tut">Variational autoencoders (<a href="week07.html#sec-w7-vae" class="quarto-xref"><span>Variational autoencoders</span></a>, <a href="week07.html#sec-w7-tut" class="quarto-xref"><span>Tutorial: the VAE as a latent variable model</span></a>)</h3>
+<p><strong>The VAE loss for one image (negative ELBO, one sample)</strong></p>
+<p><span class="math display">\ell=\mathrm{BCE}(\mathbf p,x)+\beta\cdot\mathrm{KL}\big(q_\phi(z\mid x)\,\|\,\mathcal N(0,I)\big),\qquad\mathbf p=f(z^*,\theta)</span></p>
+<p><strong>Reparameterized sample</strong></p>
+<p><span class="math display">z^*=\mu+\sigma\odot\epsilon^*,\qquad\sigma=\exp\big(\tfrac12\log\sigma^2\big),\qquad\epsilon^*\sim\mathcal N(0,I)</span></p>
+<p><strong>Binary cross-entropy</strong></p>
+<p><span class="math display">\mathrm{BCE}(\mathbf p,x)=-\sum_{d=1}^D\big[x_d\log p_d+(1-x_d)\log(1-p_d)\big]</span></p>
+<p><strong>Closed-form KL to the standard normal prior</strong></p>
+<p><span class="math display">\mathrm{KL}=\frac12\sum_{m=1}^M\Big(\sigma_m^2+\mu_m^2-1-\log\sigma_m^2\Big)</span></p>
+<ul>
+<li><strong>Symbols:</strong> the encoder outputs <span class="math inline">\mu=g_\mu(x,\phi)</span> and <span class="math inline">\log\sigma^2=g_{\log\sigma^2}(x,\phi)</span>, one entry per latent dimension <span class="math inline">m=1,\dots,M</span>. The decoder outputs pixel probabilities <span class="math inline">\mathbf p\in(0,1)^D</span>. <span class="math inline">\odot</span> is elementwise multiplication. <span class="math inline">\beta=1</span> gives exactly the negative ELBO.</li>
+<li><strong>One dimension of the KL:</strong> <span class="math inline">\frac12(\sigma^2+\mu^2-1-\log\sigma^2)</span>, zero only at <span class="math inline">\mu=0</span>, <span class="math inline">\sigma^2=1</span>.</li>
+<li><strong><a href="https://en.wikipedia.org/wiki/Mixture_model">Mixture of Gaussians</a>:</strong> <span class="math inline">p(x)=\sum_k\lambda_k\,\mathcal N(x;\mu_k,\sigma_k^2)</span>, and by Bayes’ rule <span class="math inline">p(z=k\mid x)=\dfrac{\lambda_k\,\mathcal N(x;\mu_k,\sigma_k^2)}{p(x)}</span>.</li>
+<li><strong>Amortized vs per-point parameters:</strong> with <span class="math inline">N</span> data points and <span class="math inline">M</span> latent dimensions, private <span class="math inline">\phi_i=(\mu_i,\log\sigma_i^2)</span> cost <span class="math inline">2MN</span> numbers. An amortized encoder has a fixed count that does not grow with <span class="math inline">N</span>.</li>
+</ul>
+</section>
+<section id="the-notebook-sec-w7-code" class="level3">
+<h3 class="anchored" data-anchor-id="the-notebook-sec-w7-code">The notebook (<a href="week07.html#sec-w7-code" class="quarto-xref"><span>Code walk-through: the VAE notebook</span></a>)</h3>
+<ul>
+<li><strong>Convolution output size:</strong> <span class="math inline">\lfloor(n+2\cdot\text{padding}-\text{kernel})/\text{stride}\rfloor+1</span>. With kernel 4, stride 2, padding 1 this halves <span class="math inline">n</span>.</li>
+<li><strong>Transposed convolution output size:</strong> <span class="math inline">(n-1)\cdot\text{stride}-2\cdot\text{padding}+\text{kernel}</span>. With the same settings this doubles <span class="math inline">n</span>.</li>
+<li><strong>Parameter counts:</strong> a (transposed) convolution with <span class="math inline">C_\text{in}</span> input channels, <span class="math inline">C_\text{out}</span> output channels and a <span class="math inline">4\times4</span> kernel has <span class="math inline">16\,C_\text{in}C_\text{out}+C_\text{out}</span> parameters. A linear layer from <span class="math inline">a</span> to <span class="math inline">b</span> features has <span class="math inline">ab+b</span>.</li>
+<li><strong>The notebook’s loss:</strong> BCE with <code>reduction='sum'</code> (over pixels and images) plus <code>variational_beta</code> times the KL summed over latent dimensions and images.</li>
+</ul>
+</section>
+</section>
+<section id="sec-w7p-elbo" class="level2">
+<h2 class="anchored" data-anchor-id="sec-w7p-elbo">The ELBO and its two forms</h2>
+<section id="prb-1" class="level3">
+<h3 class="anchored" data-anchor-id="prb-1">Problem 1: Which of the three quantities can we compute?</h3>
+<p>We have a latent variable model in which we can evaluate the prior <span class="math inline">p(z)</span> and the likelihood <span class="math inline">p(x\mid z)</span> for any <span class="math inline">z</span>, so we can evaluate the joint <span class="math inline">p(x,z)</span>. We have chosen a variational family <span class="math inline">q_\phi(z)</span> that we can sample from and whose density we can evaluate.</p>
+<ol type="1">
+<li>For each of <span class="math inline">\log p(x)</span>, <span class="math inline">\mathrm{KL}(q_\phi(z)\,\|\,p(z\mid x))</span> and <span class="math inline">\mathcal L(\phi)</span>, say whether we can compute it (exactly, or by averaging over samples from <span class="math inline">q_\phi</span>), and why.</li>
+<li>A colleague says: “We cannot measure how close <span class="math inline">q_\phi</span> is to the posterior, so we cannot improve it.” Use the identity on the aid sheet to explain what is wrong with this argument.</li>
+</ol>
+<div class="practice-answer callout callout-style-default callout-tip callout-titled" title="Worked solution">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-1-contents" aria-controls="callout-1" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Worked solution
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-1" class="callout-1-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>This uses <a href="../lectures/week07.html#sec-w7-elbo">Week 7, The ELBO</a> and <a href="../lectures/week07.html#sec-w7-why-lb">Why “evidence lower bound”?</a>.</p>
+<p><strong>Part 1.</strong></p>
+<ul>
+<li><span class="math inline">\log p(x)=\log\int p(x,z)\,dz</span> needs the integral over every <span class="math inline">z</span>. For the models this week (a neural-network decoder), that integral has no closed form, so we <strong>cannot</strong> compute it.</li>
+<li>The KL divergence to the posterior needs <span class="math inline">p(z\mid x)=p(x,z)/p(x)</span>, whose denominator is the same intractable <span class="math inline">p(x)</span>. So we <strong>cannot</strong> compute it either.</li>
+<li><span class="math inline">\mathcal L(\phi)=\mathbb E_{q_\phi}[\log p(x,z)-\log q_\phi(z)]</span> needs only the joint and <span class="math inline">q_\phi</span>, both of which we can evaluate. The expectation may not have a closed form, but we can estimate it by drawing <span class="math inline">z</span> from <span class="math inline">q_\phi</span> and averaging. So we <strong>can</strong> compute it, at least approximately.</li>
+</ul>
+<p><strong>Part 2.</strong> The identity says <span class="math inline">\mathcal L(\phi)+\mathrm{KL}(q_\phi\,\|\,p(z\mid x))=\log p(x)</span>, and the right side does not depend on <span class="math inline">\phi</span>. Any change of <span class="math inline">\phi</span> that raises <span class="math inline">\mathcal L</span> by some amount lowers the KL by exactly that amount. We never see the KL itself, but we do not need to: improving the quantity we can compute is the same as improving the one we cannot.</p>
+<p><strong>Answer:</strong> only <span class="math inline">\mathcal L(\phi)</span> is computable; raising it lowers the KL gap one-for-one, so maximizing the ELBO improves <span class="math inline">q_\phi</span> without ever measuring the gap.</p>
+</div>
+</div>
+</div>
+</section>
+<section id="prb-2" class="level3">
+<h3 class="anchored" data-anchor-id="prb-2">Problem 2: Comparing two approximations by their ELBO</h3>
+<p>Use Model T. Two candidate approximations are proposed:</p>
+<p><span class="math display">q_A=(0.6,\ 0.3,\ 0.1), \qquad q_B=\left(\tfrac13,\ \tfrac13,\ \tfrac13\right).</span></p>
+<ol type="1">
+<li>Compute <span class="math inline">\mathcal L</span> for each, using only the joint <span class="math inline">p(x,z)</span>. Which approximation does the ELBO prefer?</li>
+<li>Now compute <span class="math inline">p(x)</span>, the posterior <span class="math inline">p(z\mid x)</span>, and the KL gap of each candidate. Confirm that <span class="math inline">\mathcal L+\mathrm{KL}=\log p(x)</span> for both, and that the ELBO’s preference matches the smaller gap.</li>
+</ol>
+<div class="practice-answer callout callout-style-default callout-tip callout-titled" title="Worked solution">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-2-contents" aria-controls="callout-2" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Worked solution
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-2" class="callout-2-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>This uses <a href="../lectures/week07.html#sec-w7-elbo">Week 7, The ELBO</a>.</p>
+<p><strong>Part 1.</strong> For a discrete <span class="math inline">z</span> the expectation is a sum, <span class="math inline">\mathcal L=\sum_z q(z)\big[\log p(x,z)-\log q(z)\big]</span>. The logs of the joint are <span class="math inline">\log0.10\approx-2.303</span>, <span class="math inline">\log0.06\approx-2.813</span>, <span class="math inline">\log0.04\approx-3.219</span>.</p>
+<ul>
+<li><strong><span class="math inline">q_A</span>:</strong> the three terms are <span class="math inline">0.6(-2.303+0.511)</span>, <span class="math inline">0.3(-2.813+1.204)</span> and <span class="math inline">0.1(-3.219+2.303)</span>, that is <span class="math inline">-1.075</span>, <span class="math inline">-0.483</span>, <span class="math inline">-0.092</span>. So <span class="math inline">\mathcal L(q_A)\approx-1.650</span>.</li>
+<li><strong><span class="math inline">q_B</span>:</strong> <span class="math inline">\log\tfrac13\approx-1.099</span>, so the terms are <span class="math inline">\tfrac13(-2.303+1.099)</span>, <span class="math inline">\tfrac13(-2.813+1.099)</span>, <span class="math inline">\tfrac13(-3.219+1.099)</span>, that is <span class="math inline">-0.401</span>, <span class="math inline">-0.572</span>, <span class="math inline">-0.707</span>. So <span class="math inline">\mathcal L(q_B)\approx-1.680</span>.</li>
+</ul>
+<p><span class="math inline">q_A</span> has the larger ELBO, so the ELBO prefers <span class="math inline">q_A</span>. We reached this without knowing <span class="math inline">p(x)</span>.</p>
+<p><strong>Part 2.</strong> Summing the joint, <span class="math inline">p(x)=0.10+0.06+0.04=0.20</span>, so <span class="math inline">\log p(x)=\log0.2\approx-1.609</span>. The posterior is the joint divided by <span class="math inline">p(x)</span>: <span class="math inline">p(z\mid x)=(0.5,\ 0.3,\ 0.2)</span>.</p>
+<ul>
+<li><strong><span class="math inline">q_A</span>:</strong> <span class="math inline">\mathrm{KL}=0.6\log\frac{0.6}{0.5}+0.3\log\frac{0.3}{0.3}+0.1\log\frac{0.1}{0.2}=0.109+0-0.069\approx0.040</span>.</li>
+<li><strong><span class="math inline">q_B</span>:</strong> <span class="math inline">\mathrm{KL}=\tfrac13\big(\log\tfrac{1/3}{0.5}+\log\tfrac{1/3}{0.3}+\log\tfrac{1/3}{0.2}\big)=\tfrac13(-0.405+0.105+0.511)\approx0.070</span>.</li>
+</ul>
+<p>Check: <span class="math inline">-1.650+0.040=-1.610</span> and <span class="math inline">-1.680+0.070=-1.610</span>, both equal to <span class="math inline">\log p(x)\approx-1.609</span> up to rounding.</p>
+<p><strong>Answer:</strong> <span class="math inline">\mathcal L(q_A)\approx-1.650&gt;\mathcal L(q_B)\approx-1.680</span>, so the ELBO prefers <span class="math inline">q_A</span>, and indeed <span class="math inline">q_A</span> has the smaller gap (0.040 against 0.070 nats).</p>
+</div>
+</div>
+</div>
+</section>
+<section id="prb-3" class="level3">
+<h3 class="anchored" data-anchor-id="prb-3">Problem 3: The same ELBO, split two ways</h3>
+<p>Use Model T and <span class="math inline">q_A=(0.6,\ 0.3,\ 0.1)</span> from Problem 2.</p>
+<ol type="1">
+<li>Compute the first form: the expected log-joint <span class="math inline">\mathbb E_{q_A}[\log p(x,z)]</span> and the entropy <span class="math inline">H(q_A)</span>.</li>
+<li>Compute the second form: the expected log-likelihood <span class="math inline">\mathbb E_{q_A}[\log p(x\mid z)]</span> and <span class="math inline">\mathrm{KL}(q_A\,\|\,p(z))</span> to the prior.</li>
+<li>Check that both give the value of <span class="math inline">\mathcal L(q_A)</span> from Problem 2, and say in one sentence what each term of the second form rewards.</li>
+</ol>
+<div class="practice-answer callout callout-style-default callout-tip callout-titled" title="Worked solution">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-3-contents" aria-controls="callout-3" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Worked solution
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-3" class="callout-3-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>This uses <a href="../lectures/week07.html#sec-w7-two-forms">Week 7, Two formulations of the ELBO</a>.</p>
+<p><strong>Part 1.</strong> The expected log-joint is <span class="math inline">0.6(-2.303)+0.3(-2.813)+0.1(-3.219)=-1.382-0.844-0.322\approx-2.547</span>. The entropy is <span class="math inline">-\big[0.6(-0.511)+0.3(-1.204)+0.1(-2.303)\big]=0.307+0.361+0.230\approx0.898</span>. Their sum is <span class="math inline">-2.547+0.898=-1.649</span>.</p>
+<p><strong>Part 2.</strong> The likelihoods are <span class="math inline">(0.25,\ 0.15,\ 0.20)</span>, with logs <span class="math inline">-1.386</span>, <span class="math inline">-1.897</span>, <span class="math inline">-1.609</span>. The expected log-likelihood is <span class="math inline">0.6(-1.386)+0.3(-1.897)+0.1(-1.609)=-0.832-0.569-0.161\approx-1.562</span>. The KL to the prior <span class="math inline">(0.4,\ 0.4,\ 0.2)</span> is <span class="math display">0.6\log\tfrac{0.6}{0.4}+0.3\log\tfrac{0.3}{0.4}+0.1\log\tfrac{0.1}{0.2}=0.243-0.086-0.069\approx0.088.</span> The second form gives <span class="math inline">-1.562-0.088=-1.650</span>.</p>
+<p><strong>Part 3.</strong> Both agree with <span class="math inline">\mathcal L(q_A)\approx-1.650</span> from Problem 2 (the last digit differs only by rounding). The split works because <span class="math inline">\log p(x,z)=\log p(x\mid z)+\log p(z)</span>: the prior’s part of the log-joint and the entropy combine into minus the KL to the prior. In the second form, the expected log-likelihood rewards putting <span class="math inline">q</span>’s mass on values of <span class="math inline">z</span> that explain <span class="math inline">x</span> well (here <span class="math inline">z=1</span>, with the largest likelihood 0.25), and the KL term penalizes moving <span class="math inline">q</span> away from the prior.</p>
+<p><strong>Answer:</strong> first form <span class="math inline">-2.547+0.898</span>, second form <span class="math inline">-1.562-0.088</span>, both <span class="math inline">\approx-1.650</span>.</p>
+</div>
+</div>
+</div>
+</section>
+</section>
+<section id="sec-w7p-grad" class="level2">
+<h2 class="anchored" data-anchor-id="sec-w7p-grad">Gradients of an expectation and the reparameterization trick</h2>
+<section id="prb-4" class="level3">
+<h3 class="anchored" data-anchor-id="prb-4">Problem 4: The naive swap, with a parameter in the spread</h3>
+<p>Let <span class="math inline">z\sim\mathcal N(\mu,\sigma^2)</span> with parameters <span class="math inline">\phi=(\mu,\sigma)</span>, and take <span class="math inline">f(z)=(z-c)^2</span> for a fixed constant <span class="math inline">c</span>.</p>
+<ol type="1">
+<li>Compute <span class="math inline">\mathbb E[f(z)]</span> as a function of <span class="math inline">\mu</span>, <span class="math inline">\sigma</span> and <span class="math inline">c</span>, and from it the true gradients <span class="math inline">\partial/\partial\mu</span> and <span class="math inline">\partial/\partial\sigma</span>.</li>
+<li>Compute what the naive swap <span class="math inline">\mathbb E[\nabla_\phi f(z)]</span> gives for each.</li>
+<li>Evaluate both at <span class="math inline">\mu=1</span>, <span class="math inline">\sigma=2</span>, <span class="math inline">c=3</span>, and explain in words why the true <span class="math inline">\sigma</span>-gradient is positive.</li>
+</ol>
+<div class="practice-answer callout callout-style-default callout-tip callout-titled" title="Worked solution">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-4-contents" aria-controls="callout-4" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Worked solution
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-4" class="callout-4-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>This uses <a href="../lectures/week07.html#sec-w7-grad">Week 7, Maximizing the ELBO: gradients of an expectation</a>.</p>
+<p><strong>Part 1.</strong> Expand around the mean: <span class="math inline">z-c=(z-\mu)+(\mu-c)</span>, so <span class="math display">\mathbb E[(z-c)^2]=\mathbb E[(z-\mu)^2]+2(\mu-c)\,\mathbb E[z-\mu]+(\mu-c)^2=\sigma^2+(\mu-c)^2,</span> since <span class="math inline">\mathbb E[z-\mu]=0</span>. Differentiating, <span class="math inline">\frac{\partial}{\partial\mu}=2(\mu-c)</span> and <span class="math inline">\frac{\partial}{\partial\sigma}=2\sigma</span>.</p>
+<p><strong>Part 2.</strong> <span class="math inline">f(z)=(z-c)^2</span> contains neither <span class="math inline">\mu</span> nor <span class="math inline">\sigma</span>, so <span class="math inline">\nabla_\phi f(z)=0</span> for every <span class="math inline">z</span> and the naive swap gives <span class="math inline">0</span> for both. All the dependence on <span class="math inline">\phi</span> is in <em>which</em> <span class="math inline">z</span> values are likely, which the swap ignores.</p>
+<p><strong>Part 3.</strong> At <span class="math inline">\mu=1</span>, <span class="math inline">\sigma=2</span>, <span class="math inline">c=3</span>: the true gradients are <span class="math inline">2(1-3)=-4</span> and <span class="math inline">2\cdot2=4</span>; the naive swap gives <span class="math inline">0</span> and <span class="math inline">0</span>. The <span class="math inline">\sigma</span>-gradient is positive because a wider distribution puts more mass far from <span class="math inline">c</span> on both sides, and <span class="math inline">f</span> grows with the distance from <span class="math inline">c</span>, so the average of <span class="math inline">f</span> grows with <span class="math inline">\sigma</span>.</p>
+<p><strong>Answer:</strong> true gradients <span class="math inline">(2(\mu-c),\ 2\sigma)=(-4,\ 4)</span>; naive swap <span class="math inline">(0,\ 0)</span>.</p>
+</div>
+</div>
+</div>
+</section>
+<section id="prb-5" class="level3">
+<h3 class="anchored" data-anchor-id="prb-5">Problem 5: Recovering both gradients by reparameterizing</h3>
+<p>Continue Problem 4. Write <span class="math inline">z=\mu+\sigma\epsilon</span> with <span class="math inline">\epsilon\sim\mathcal N(0,1)</span>.</p>
+<ol type="1">
+<li>Write <span class="math inline">f</span> as a function of <span class="math inline">\epsilon</span>, <span class="math inline">\mu</span> and <span class="math inline">\sigma</span>, and differentiate it with respect to <span class="math inline">\mu</span> and with respect to <span class="math inline">\sigma</span> for a fixed <span class="math inline">\epsilon</span>.</li>
+<li>Take the expectation over <span class="math inline">\epsilon</span> of each derivative and check that you recover the true gradients from Problem 4.</li>
+</ol>
+<div class="practice-answer callout callout-style-default callout-tip callout-titled" title="Worked solution">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-5-contents" aria-controls="callout-5" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Worked solution
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-5" class="callout-5-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>This uses <a href="../lectures/week07.html#sec-w7-reparam">Week 7, The reparameterization trick</a>.</p>
+<p><strong>Part 1.</strong> <span class="math inline">f(\mu+\sigma\epsilon)=(\mu+\sigma\epsilon-c)^2</span>. By the chain rule, with <span class="math inline">\partial z/\partial\mu=1</span> and <span class="math inline">\partial z/\partial\sigma=\epsilon</span>, <span class="math display">\frac{\partial f}{\partial\mu}=2(\mu+\sigma\epsilon-c),\qquad\frac{\partial f}{\partial\sigma}=2(\mu+\sigma\epsilon-c)\,\epsilon.</span> Now <span class="math inline">\mu</span> and <span class="math inline">\sigma</span> appear inside the function, so the derivative sees them.</p>
+<p><strong>Part 2.</strong> The distribution of <span class="math inline">\epsilon</span> does not depend on <span class="math inline">\phi</span>, so the gradient may move inside the expectation. Using <span class="math inline">\mathbb E[\epsilon]=0</span> and <span class="math inline">\mathbb E[\epsilon^2]=1</span>: <span class="math display">\mathbb E\big[2(\mu+\sigma\epsilon-c)\big]=2(\mu-c),\qquad\mathbb E\big[2(\mu-c)\epsilon+2\sigma\epsilon^2\big]=0+2\sigma=2\sigma.</span> Both match Problem 4. The <span class="math inline">\sigma</span>-gradient is new compared with the week’s example: it arrives through the factor <span class="math inline">\epsilon</span> in <span class="math inline">\partial z/\partial\sigma</span>, and only the <span class="math inline">\epsilon^2</span> part survives the average.</p>
+<p><strong>Answer:</strong> <span class="math inline">\mathbb E_\epsilon[\partial f/\partial\mu]=2(\mu-c)</span> and <span class="math inline">\mathbb E_\epsilon[\partial f/\partial\sigma]=2\sigma</span>, the true gradients.</p>
+</div>
+</div>
+</div>
+</section>
+<section id="prb-6" class="level3">
+<h3 class="anchored" data-anchor-id="prb-6">Problem 6: Which distributions can be reparameterized?</h3>
+<p>For each family, either give a differentiable <span class="math inline">T(u,\phi)</span> with <span class="math inline">u\sim\mathrm{Uniform}(0,1)</span> that produces it, or explain why no such <span class="math inline">T</span> exists.</p>
+<ol type="1">
+<li><span class="math inline">z\sim\mathrm{Uniform}(a,b)</span>, with parameters <span class="math inline">\phi=(a,b)</span>.</li>
+<li><span class="math inline">z\sim\mathrm{Exponential}(\lambda)</span>, with density <span class="math inline">\lambda e^{-\lambda z}</span> for <span class="math inline">z\ge0</span>, so <span class="math inline">P(z&gt;t)=e^{-\lambda t}</span>. (Hint: use the inverse CDF on the aid sheet.)</li>
+<li><span class="math inline">z\sim\mathrm{Bernoulli}(\theta)</span>.</li>
+</ol>
+<div class="practice-answer callout callout-style-default callout-tip callout-titled" title="Worked solution">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-6-contents" aria-controls="callout-6" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Worked solution
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-6" class="callout-6-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>This uses <a href="../lectures/week07.html#sec-w7-reparam">Week 7, The reparameterization trick</a>, which says the trick works “in some situations” and needs a differentiable <span class="math inline">T</span>.</p>
+<p><strong>Part 1.</strong> Shift and stretch the unit interval: <span class="math inline">z=a+(b-a)u</span>. When <span class="math inline">u</span> is uniform on <span class="math inline">[0,1]</span>, <span class="math inline">z</span> is uniform on <span class="math inline">[a,b]</span>. The derivatives <span class="math inline">\partial z/\partial a=1-u</span> and <span class="math inline">\partial z/\partial b=u</span> exist everywhere. This is a location-scale family, like the Gaussian.</p>
+<p><strong>Part 2.</strong> This is <a href="https://en.wikipedia.org/wiki/Inverse_transform_sampling">inverse transform sampling</a>. The CDF of the <a href="https://en.wikipedia.org/wiki/Exponential_distribution">exponential distribution</a> is <span class="math inline">F(t)=1-e^{-\lambda t}</span>. One convenient choice is <span class="math inline">z=-\frac{\ln u}{\lambda}</span>, which uses <span class="math inline">1-u</span> in place of <span class="math inline">u</span> (both are uniform). Check: <span class="math inline">P(z&gt;t)=P(-\ln u&gt;\lambda t)=P(u&lt;e^{-\lambda t})=e^{-\lambda t}</span>, which is right. The derivative <span class="math inline">\partial z/\partial\lambda=\frac{\ln u}{\lambda^2}</span> exists for every <span class="math inline">u\in(0,1)</span>.</p>
+<p><strong>Part 3.</strong> Any way of producing a Bernoulli from <span class="math inline">u</span> has the form <span class="math inline">z=\mathbb 1[u&lt;\theta]</span> (or something equivalent): <span class="math inline">z</span> is 1 when <span class="math inline">u</span> falls below <span class="math inline">\theta</span>, else 0. As a function of <span class="math inline">\theta</span> this is a step. Its derivative is 0 everywhere except at the jump, where it does not exist. So <span class="math inline">\nabla_\theta f(T(u,\theta))</span> is 0 almost surely, and its average is 0, even though <span class="math inline">\mathbb E[f(z)]=\theta f(1)+(1-\theta)f(0)</span> clearly changes with <span class="math inline">\theta</span>. We are back to the failure of Problem 4. In general, a discrete <span class="math inline">z</span> can only jump between values, so no differentiable <span class="math inline">T</span> exists.</p>
+<p><strong>Answer:</strong> uniform: <span class="math inline">z=a+(b-a)u</span>; exponential: <span class="math inline">z=-\ln(u)/\lambda</span>; Bernoulli: no differentiable <span class="math inline">T</span>, because <span class="math inline">z</span> must jump between 0 and 1.</p>
+</div>
+</div>
+</div>
+</section>
+<section id="prb-7" class="level3">
+<h3 class="anchored" data-anchor-id="prb-7">Problem 7: When may the gradient move inside?</h3>
+<p>For each gradient, say whether <span class="math inline">\nabla_\phi\mathbb E[\cdot]=\mathbb E[\nabla_\phi\,\cdot\,]</span> holds as written, and check by computing both sides.</p>
+<ol type="1">
+<li><span class="math inline">\nabla_\phi\,\mathbb E_{z\sim\mathcal N(0,1)}\big[(\phi z+1)^2\big]</span>.</li>
+<li><span class="math inline">\nabla_\phi\,\mathbb E_{z\sim\mathcal N(\phi,1)}\big[z\big]</span>.</li>
+<li>The gradient of an average loss over a fixed training set <span class="math inline">x_1,\dots,x_N</span>, <span class="math inline">\nabla_\phi\frac1N\sum_{n=1}^N\ell(x_n,\phi)</span>, estimated from a random mini-batch.</li>
+</ol>
+<div class="practice-answer callout callout-style-default callout-tip callout-titled" title="Worked solution">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-7-contents" aria-controls="callout-7" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Worked solution
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-7" class="callout-7-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>This uses the “easy case” and “our case” of <a href="../lectures/week07.html#sec-w7-grad">Week 7, gradients of an expectation</a>.</p>
+<p><strong>Part 1. Allowed.</strong> The distribution <span class="math inline">\mathcal N(0,1)</span> does not involve <span class="math inline">\phi</span>. True side: <span class="math inline">\mathbb E[(\phi z+1)^2]=\phi^2\mathbb E[z^2]+2\phi\,\mathbb E[z]+1=\phi^2+1</span>, with gradient <span class="math inline">2\phi</span>. Swapped side: <span class="math inline">\mathbb E[2(\phi z+1)z]=2\phi\,\mathbb E[z^2]+2\,\mathbb E[z]=2\phi</span>. They agree.</p>
+<p><strong>Part 2. Not allowed.</strong> The mean of the sampling distribution is <span class="math inline">\phi</span>. True side: <span class="math inline">\mathbb E[z]=\phi</span>, gradient <span class="math inline">1</span>. Swapped side: <span class="math inline">z</span> does not contain <span class="math inline">\phi</span>, so <span class="math inline">\nabla_\phi z=0</span> and the average is <span class="math inline">0</span>. They disagree. Reparameterizing as <span class="math inline">z=\phi+\epsilon</span> fixes it: <span class="math inline">\nabla_\phi(\phi+\epsilon)=1</span>.</p>
+<p><strong>Part 3. Allowed.</strong> Picking a data point uniformly at random from a <strong>fixed</strong> training set is a distribution that does not depend on <span class="math inline">\phi</span>. So the average loss is <span class="math inline">\mathbb E_n[\ell(x_n,\phi)]</span> with <span class="math inline">n</span> uniform, the gradient moves inside, and the mini-batch average of <span class="math inline">\nabla_\phi\ell(x_n,\phi)</span> is an unbiased estimate. This is why ordinary <a href="https://en.wikipedia.org/wiki/Stochastic_gradient_descent">stochastic gradient descent</a> over data needs no trick; the trick is only needed for the noise in <span class="math inline">z</span>.</p>
+<p><strong>Answer:</strong> 1 allowed (<span class="math inline">2\phi</span> both sides); 2 not allowed (true 1, swapped 0); 3 allowed (the data distribution is fixed).</p>
+</div>
+</div>
+</div>
+</section>
+</section>
+<section id="sec-w7p-svi" class="level2">
+<h2 class="anchored" data-anchor-id="sec-w7p-svi">Stochastic variational inference</h2>
+<section id="prb-8" class="level3">
+<h3 class="anchored" data-anchor-id="prb-8">Problem 8: One SVI step by hand</h3>
+<p>Continue Problems 4 and 5 with <span class="math inline">\mu=1</span>, <span class="math inline">\sigma=2</span>, <span class="math inline">c=3</span>, and suppose we want to <strong>minimize</strong> <span class="math inline">\mathbb E[(z-c)^2]</span> (pull the distribution onto <span class="math inline">c</span>). Draw <span class="math inline">m=4</span> noise values,</p>
+<p><span class="math display">\epsilon_1=0.5,\quad\epsilon_2=-1.0,\quad\epsilon_3=1.5,\quad\epsilon_4=-0.25.</span></p>
+<ol type="1">
+<li>Compute the four per-sample gradients in <span class="math inline">\mu</span> and in <span class="math inline">\sigma</span> from Problem 5, and their averages. Compare with the true gradients <span class="math inline">(-4,\ 4)</span>.</li>
+<li>Take one gradient-descent step with step size <span class="math inline">s=0.1</span>. What are the new <span class="math inline">\mu</span> and <span class="math inline">\sigma</span>? Do they move in sensible directions?</li>
+<li>If we used <span class="math inline">m=16</span> draws instead, by roughly what factor would the spread of the estimate change?</li>
+</ol>
+<div class="practice-answer callout callout-style-default callout-tip callout-titled" title="Worked solution">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-8-contents" aria-controls="callout-8" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Worked solution
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-8" class="callout-8-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>This uses <a href="../lectures/week07.html#sec-w7-svi">Week 7, Stochastic variational inference</a>.</p>
+<p><strong>Part 1.</strong> With <span class="math inline">\mu=1</span>, <span class="math inline">\sigma=2</span>, <span class="math inline">c=3</span>, the inner quantity is <span class="math inline">\mu+\sigma\epsilon-c=2\epsilon-2</span>.</p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 33%">
+<col style="width: 33%">
+<col style="width: 33%">
+</colgroup>
+<thead>
+<tr class="header">
+<th><span class="math inline">\epsilon_i</span></th>
+<th><span class="math inline">2(2\epsilon_i-2)</span> (<span class="math inline">\mu</span>-gradient)</th>
+<th><span class="math inline">2(2\epsilon_i-2)\,\epsilon_i</span> (<span class="math inline">\sigma</span>-gradient)</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><span class="math inline">0.5</span></td>
+<td><span class="math inline">-2</span></td>
+<td><span class="math inline">-1</span></td>
+</tr>
+<tr class="even">
+<td><span class="math inline">-1.0</span></td>
+<td><span class="math inline">-8</span></td>
+<td><span class="math inline">8</span></td>
+</tr>
+<tr class="odd">
+<td><span class="math inline">1.5</span></td>
+<td><span class="math inline">2</span></td>
+<td><span class="math inline">3</span></td>
+</tr>
+<tr class="even">
+<td><span class="math inline">-0.25</span></td>
+<td><span class="math inline">-5</span></td>
+<td><span class="math inline">1.25</span></td>
+</tr>
+<tr class="odd">
+<td><strong>average</strong></td>
+<td><span class="math inline">-3.25</span></td>
+<td><span class="math inline">2.8125</span></td>
+</tr>
+</tbody>
+</table>
+<p>The estimates <span class="math inline">(-3.25,\ 2.81)</span> have the right signs and are near the true <span class="math inline">(-4,\ 4)</span>, but not equal to them: four draws are a noisy estimate. Individual terms even disagree in sign (the first <span class="math inline">\sigma</span>-term is negative).</p>
+<p><strong>Part 2.</strong> We are minimizing, so we step against the gradient: <span class="math inline">\mu\leftarrow1-0.1(-3.25)=1.325</span> and <span class="math inline">\sigma\leftarrow2-0.1(2.8125)\approx1.719</span>. The mean moves toward <span class="math inline">c=3</span> and the spread shrinks, both of which lower <span class="math inline">\mathbb E[(z-c)^2]=\sigma^2+(\mu-c)^2</span>. (For the ELBO we would <em>maximize</em>, and the step would use a plus sign.)</p>
+<p><strong>Part 3.</strong> The average of <span class="math inline">m</span> independent draws has standard deviation proportional to <span class="math inline">1/\sqrt m</span>. Going from 4 to 16 draws multiplies <span class="math inline">m</span> by 4, so the spread roughly halves.</p>
+<p><strong>Answer:</strong> averages <span class="math inline">(-3.25,\ 2.8125)</span>; after one step <span class="math inline">\mu=1.325</span>, <span class="math inline">\sigma\approx1.719</span>; 16 draws roughly halve the spread.</p>
+</div>
+</div>
+</div>
+</section>
+<section id="prb-9" class="level3">
+<h3 class="anchored" data-anchor-id="prb-9">Problem 9: MCMC or SVI?</h3>
+<p>For each situation, say whether MCMC (Week 5) or SVI is the better fit, and give the reason from the lecture’s comparison table.</p>
+<ol type="1">
+<li>A model with three continuous parameters whose posterior is known to have two well-separated peaks. The computation can run overnight.</li>
+<li>A latent variable model of a million images, with one latent vector per image and a neural-network likelihood.</li>
+<li>We have an approximate posterior from another method and want a reference answer that becomes exact if we wait long enough, to check it against.</li>
+</ol>
+<div class="practice-answer callout callout-style-default callout-tip callout-titled" title="Worked solution">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-9-contents" aria-controls="callout-9" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Worked solution
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-9" class="callout-9-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>This uses <a href="../lectures/week07.html#sec-w7-mcmc-svi">Week 7, MCMC vs SVI</a> and, for the mode-seeking point, Week 6’s projections (<a href="../lectures/week06.html#sec-projections">Week 6</a>).</p>
+<p><strong>Part 1. MCMC.</strong> The posterior is multimodal and the model is small, so cost is not the constraint. SVI with a single Gaussian <span class="math inline">q</span> uses the reverse KL, which is mode-seeking: it would lock onto one peak and miss the other entirely. MCMC has no approximating family, so with enough time it visits both peaks.</p>
+<p><strong>Part 2. SVI.</strong> This is the scale MCMC handles badly (high computational cost, convergence issues) and SVI is built for: fast convergence, scaling to large data and models, mini-batches, and amortization (the VAE). The price is that the answer is only as good as the family <span class="math inline">q_\phi</span>.</p>
+<p><strong>Part 3. MCMC.</strong> “Exact if we wait long enough” is MCMC’s defining advantage: run long enough, its samples come from the exact posterior. SVI can never do better than the best member of its family, so it cannot serve as a reference for another approximation.</p>
+<p><strong>Answer:</strong> 1 MCMC (multimodal, small), 2 SVI (large scale), 3 MCMC (asymptotically exact).</p>
+</div>
+</div>
+</div>
+</section>
+</section>
+<section id="sec-w7p-ae" class="level2">
+<h2 class="anchored" data-anchor-id="sec-w7p-ae">Autoencoders</h2>
+<section id="prb-10" class="level3">
+<h3 class="anchored" data-anchor-id="prb-10">Problem 10: PCA on four points</h3>
+<p>Four 2-dimensional data points are</p>
+<p><span class="math display">x_1=(3,3),\quad x_2=(-3,-3),\quad x_3=(1,-1),\quad x_4=(-1,1).</span></p>
+<ol type="1">
+<li>Check that the data are centred, and compute the covariance <span class="math inline">\frac14\sum_nx_nx_n^\top</span>.</li>
+<li>Its eigenvectors are <span class="math inline">(1,1)/\sqrt2</span> and <span class="math inline">(1,-1)/\sqrt2</span>. Find the eigenvalues and the first principal component.</li>
+<li>Compress to <span class="math inline">M=1</span>: compute each point’s code (its coordinate along the first component) and its reconstruction. What is the total squared reconstruction error, and how does it relate to the eigenvalues?</li>
+</ol>
+<div class="practice-answer callout callout-style-default callout-tip callout-titled" title="Worked solution">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-10-contents" aria-controls="callout-10" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Worked solution
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-10" class="callout-10-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>This uses <a href="../lectures/week07.html#sec-w7-pca">Week 7, A prerequisite: principal component analysis</a>.</p>
+<p><strong>Part 1.</strong> Each coordinate sums to <span class="math inline">3-3+1-1=0</span>, so the mean is <span class="math inline">(0,0)</span>. The covariance entries are <span class="math display">\tfrac14\textstyle\sum x_{n1}^2=\tfrac14(9+9+1+1)=5,\qquad\tfrac14\sum x_{n1}x_{n2}=\tfrac14(9+9-1-1)=4,</span> and <span class="math inline">\tfrac14\sum x_{n2}^2=5</span>, so the covariance is <span class="math inline">\begin{pmatrix}5&amp;4\\4&amp;5\end{pmatrix}</span>.</p>
+<p><strong>Part 2.</strong> Multiply: <span class="math inline">\begin{pmatrix}5&amp;4\\4&amp;5\end{pmatrix}\begin{pmatrix}1\\1\end{pmatrix}=9\begin{pmatrix}1\\1\end{pmatrix}</span> and <span class="math inline">\begin{pmatrix}5&amp;4\\4&amp;5\end{pmatrix}\begin{pmatrix}1\\-1\end{pmatrix}=1\begin{pmatrix}1\\-1\end{pmatrix}</span>. The eigenvalues are 9 and 1. The first principal component is the direction of largest variance, <span class="math inline">u=(1,1)/\sqrt2</span>.</p>
+<p><strong>Part 3.</strong> The code of <span class="math inline">x_n</span> is <span class="math inline">u^\top x_n</span>, and the reconstruction is that code times <span class="math inline">u</span>:</p>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th>point</th>
+<th>code <span class="math inline">u^\top x_n</span></th>
+<th>reconstruction</th>
+<th>squared error</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><span class="math inline">(3,3)</span></td>
+<td><span class="math inline">6/\sqrt2\approx4.24</span></td>
+<td><span class="math inline">(3,3)</span></td>
+<td>0</td>
+</tr>
+<tr class="even">
+<td><span class="math inline">(-3,-3)</span></td>
+<td><span class="math inline">-4.24</span></td>
+<td><span class="math inline">(-3,-3)</span></td>
+<td>0</td>
+</tr>
+<tr class="odd">
+<td><span class="math inline">(1,-1)</span></td>
+<td>0</td>
+<td><span class="math inline">(0,0)</span></td>
+<td>2</td>
+</tr>
+<tr class="even">
+<td><span class="math inline">(-1,1)</span></td>
+<td>0</td>
+<td><span class="math inline">(0,0)</span></td>
+<td>2</td>
+</tr>
+</tbody>
+</table>
+<p>The total squared error is 4. This is <span class="math inline">N</span> times the discarded eigenvalue, <span class="math inline">4\times1</span>: the variance along the direction we threw away. The kept direction carries <span class="math inline">9/(9+1)=90\%</span> of the variance. The two points on the line <span class="math inline">x_1=x_2</span> are reconstructed exactly, and the two off it lose their only nonzero coordinate.</p>
+<p><strong>Answer:</strong> first component <span class="math inline">(1,1)/\sqrt2</span> with eigenvalue 9; codes <span class="math inline">\pm4.24,\ 0,\ 0</span>; total error <span class="math inline">4=N\times1</span>.</p>
+</div>
+</div>
+</div>
+</section>
+<section id="prb-11" class="level3">
+<h3 class="anchored" data-anchor-id="prb-11">Problem 11: Counting weights, and where reconstructions can lie</h3>
+<p>Take the 2-layer autoencoder of the week chapter, <span class="math inline">y_k=\sum_jw^{(2)}_{kj}\,\sigma\big(\sum_iw^{(1)}_{ji}x_i\big)</span> (no biases), with <span class="math inline">D=10</span> inputs and outputs and an <span class="math inline">M=3</span> bottleneck.</p>
+<ol type="1">
+<li>How many weights does it have?</li>
+<li>With identity activations, show that every reconstruction <span class="math inline">y(x)</span> lies in a fixed linear subspace of <span class="math inline">\mathbb R^{10}</span> of dimension at most 3. Why does this mean a linear autoencoder cannot beat PCA with three components on centred data?</li>
+<li><strong>(Stretch.)</strong> Now make the hidden activation <span class="math inline">\sigma</span> nonlinear but keep the output linear, exactly as in the formula. Does the argument of Part 2 still apply? What does this say about why deep autoencoders add nonlinear layers <em>after</em> the bottleneck?</li>
+</ol>
+<div class="practice-answer callout callout-style-default callout-tip callout-titled" title="Worked solution">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-11-contents" aria-controls="callout-11" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Worked solution
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-11" class="callout-11-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>This uses <a href="../lectures/week07.html#sec-w7-ae2">Week 7, A 2-layer autoencoder</a> and <a href="../lectures/week07.html#sec-w7-deep-ae">Deep autoencoders</a>.</p>
+<p><strong>Part 1.</strong> <span class="math inline">w^{(1)}</span> is <span class="math inline">M\times D=3\times10</span> (30 weights) and <span class="math inline">w^{(2)}</span> is <span class="math inline">D\times M=10\times3</span> (30 weights), so there are 60 weights.</p>
+<p><strong>Part 2.</strong> With identity activations, <span class="math inline">y=w^{(2)}w^{(1)}x</span>. Write <span class="math inline">h=w^{(1)}x\in\mathbb R^3</span>; then <span class="math inline">y=w^{(2)}h</span> is a combination of the three columns of <span class="math inline">w^{(2)}</span>. So every reconstruction lies in the column space of <span class="math inline">w^{(2)}</span>, a linear subspace of dimension at most 3, the same subspace for every input. The best any method can do with reconstructions confined to a 3-dimensional subspace is project each point onto the best such subspace, and for centred data PCA finds the one with the smallest total squared error. So a linear autoencoder’s error is at least PCA’s, which is the lecture’s statement that its hidden units span the PCA subspace at best.</p>
+<p><strong>Part 3.</strong> The argument still applies. A nonlinear <span class="math inline">\sigma</span> changes what <span class="math inline">h=\sigma(w^{(1)}x)</span> is, but the output is still <span class="math inline">y=w^{(2)}h</span>, a combination of the same three columns. Reconstructions remain in a 3-dimensional flat subspace, so this network can be no better than PCA either. To reconstruct onto a <em>curved</em> surface, the decoder itself has to be nonlinear: nonlinear layers between the bottleneck and the output, as in the deep autoencoder of the lecture, whose decoder <span class="math inline">F_2</span> maps the 2-dimensional code onto a curved surface.</p>
+<p><strong>Answer:</strong> 60 weights; reconstructions lie in the column space of <span class="math inline">w^{(2)}</span> (dimension <span class="math inline">\le3</span>), so no better than PCA, and this stays true with a nonlinear hidden layer and a linear output.</p>
+</div>
+</div>
+</div>
+</section>
+</section>
+<section id="sec-w7p-ae-issues" class="level2">
+<h2 class="anchored" data-anchor-id="sec-w7p-ae-issues">Issues with deterministic autoencoders</h2>
+<section id="prb-12" class="level3">
+<h3 class="anchored" data-anchor-id="prb-12">Problem 12: A shifted stroke versus a blank image</h3>
+<p>A 1-dimensional “image” has 6 pixels and a single stroke at pixel 3:</p>
+<p><span class="math display">x=(0,0,1,0,0,0).</span></p>
+<p>Compare three candidate reconstructions using the squared error <span class="math inline">\sum_d(\tilde x_d-x_d)^2</span>:</p>
+<p><span class="math display">\tilde x^{\text{shift}}=(0,0,0,1,0,0),\qquad\tilde x^{\text{blank}}=(0,0,0,0,0,0),\qquad\tilde x^{\text{blur}}=(0,0,0.5,0.5,0,0).</span></p>
+<ol type="1">
+<li>Compute the three errors and rank the reconstructions.</li>
+<li>Which would a person call the best reconstruction? Connect the ranking to the lecture’s second issue.</li>
+<li>Compute the error of <span class="math inline">\tilde x^{\text{blur}}</span> against the shifted image <span class="math inline">\tilde x^{\text{shift}}</span> as well. What does this suggest about the kind of output a pixel-wise loss rewards when the model is unsure where a stroke goes?</li>
+</ol>
+<div class="practice-answer callout callout-style-default callout-tip callout-titled" title="Worked solution">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-12-contents" aria-controls="callout-12" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Worked solution
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-12" class="callout-12-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>This uses <a href="../lectures/week07.html#sec-w7-ae-issues">Week 7, Issues with deterministic autoencoders</a>, Issue 2.</p>
+<p><strong>Part 1.</strong></p>
+<ul>
+<li><strong>Shift:</strong> pixel 3 is <span class="math inline">0</span> instead of <span class="math inline">1</span> and pixel 4 is <span class="math inline">1</span> instead of <span class="math inline">0</span>, so the error is <span class="math inline">1+1=2</span>.</li>
+<li><strong>Blank:</strong> only pixel 3 is wrong, so the error is <span class="math inline">1</span>.</li>
+<li><strong>Blur:</strong> pixels 3 and 4 are each off by <span class="math inline">0.5</span>, so the error is <span class="math inline">0.25+0.25=0.5</span>.</li>
+</ul>
+<p>Ranking by error: blur (0.5), then blank (1), then shift (2).</p>
+<p><strong>Part 2.</strong> A person would call the shifted stroke the best: it has the right shape, just one pixel over. The pixel-wise error ranks it <strong>worst</strong>, below an image with no stroke at all. This is the lecture’s 7 that comes back shifted: the ink no longer lines up position by position, so the two images count as far apart.</p>
+<p><strong>Part 3.</strong> Against <span class="math inline">\tilde x^{\text{shift}}</span>, the blur is also off by <span class="math inline">0.5</span> in pixels 3 and 4, so its error is again <span class="math inline">0.5</span>. The blurred image is equally close to “the stroke at 3” and “the stroke at 4”, closer to either than the two are to each other. When a model is unsure which of two positions is right, a pixel-wise loss is minimized by hedging between them, which is one reason the notebook’s reconstructions look blurry.</p>
+<p><strong>Answer:</strong> errors shift 2, blank 1, blur 0.5; the pixel-wise loss ranks the best-looking reconstruction last and rewards blurry averages.</p>
+</div>
+</div>
+</div>
+</section>
+</section>
+<section id="sec-w7p-vae" class="level2">
+<h2 class="anchored" data-anchor-id="sec-w7p-vae">Variational autoencoders</h2>
+<section id="prb-13" class="level3">
+<h3 class="anchored" data-anchor-id="prb-13">Problem 13: One image through the pipeline</h3>
+<p>A VAE with a 2-dimensional latent space receives one image. The encoder outputs</p>
+<p><span class="math display">\mu=(0.4,\ -1.0),\qquad\log\sigma^2=(-2,\ 0.5),</span></p>
+<p>and the noise draw is <span class="math inline">\epsilon^*=(1.5,\ -0.5)</span>.</p>
+<ol type="1">
+<li>Compute <span class="math inline">\sigma</span> and the code <span class="math inline">z^*</span>.</li>
+<li>For one training step on this image, list which of <span class="math inline">\mu</span>, <span class="math inline">\log\sigma^2</span>, <span class="math inline">\sigma</span>, <span class="math inline">\epsilon^*</span>, <span class="math inline">z^*</span> and <span class="math inline">\mathbf p</span> are random and which are deterministic functions of the image and the weights.</li>
+<li>Which of these does the KL term need, and which does the reconstruction term need?</li>
+</ol>
+<div class="practice-answer callout callout-style-default callout-tip callout-titled" title="Worked solution">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-13-contents" aria-controls="callout-13" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Worked solution
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-13" class="callout-13-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>This uses <a href="../lectures/week07.html#sec-w7-vae-pipeline">Week 7, The VAE pipeline</a> and <a href="../lectures/week07.html#sec-w7-tq8">Tutorial question 8</a>.</p>
+<p><strong>Part 1.</strong> Halve the log-variance and exponentiate: <span class="math inline">\sigma_1=e^{-1}\approx0.368</span> and <span class="math inline">\sigma_2=e^{0.25}\approx1.284</span>. Then elementwise, <span class="math display">z^*_1=0.4+0.368\times1.5\approx0.952,\qquad z^*_2=-1.0+1.284\times(-0.5)\approx-1.642.</span> So <span class="math inline">z^*\approx(0.952,\ -1.642)</span>. The first dimension is confident (small <span class="math inline">\sigma_1</span>), so the code stays near its mean; the second has <span class="math inline">\sigma_2&gt;1</span> and moves further.</p>
+<p><strong>Part 2.</strong> Only <span class="math inline">\epsilon^*</span> is random, drawn from <span class="math inline">\mathcal N(0,I)</span> independently of everything else. <span class="math inline">\mu</span>, <span class="math inline">\log\sigma^2</span> and <span class="math inline">\sigma</span> are deterministic functions of the image and the encoder weights <span class="math inline">\phi</span>. <span class="math inline">z^*</span> is random only through <span class="math inline">\epsilon^*</span>: for a fixed <span class="math inline">\epsilon^*</span> it is a deterministic, differentiable function of <span class="math inline">\mu</span> and <span class="math inline">\sigma</span>, which is the whole point of the trick. <span class="math inline">\mathbf p=f(z^*,\theta)</span> is then deterministic given <span class="math inline">z^*</span>.</p>
+<p><strong>Part 3.</strong> The KL term needs only <span class="math inline">\mu</span> and <span class="math inline">\log\sigma^2</span> (its closed form has no <span class="math inline">z</span> in it). The reconstruction term needs <span class="math inline">\mathbf p</span>, hence <span class="math inline">z^*</span>, hence <span class="math inline">\epsilon^*</span>, together with the original image <span class="math inline">x</span>.</p>
+<p><strong>Answer:</strong> <span class="math inline">\sigma\approx(0.368,\ 1.284)</span>, <span class="math inline">z^*\approx(0.952,\ -1.642)</span>; only <span class="math inline">\epsilon^*</span> is random; KL uses <span class="math inline">\mu,\log\sigma^2</span>, reconstruction uses <span class="math inline">\mathbf p</span> and <span class="math inline">x</span>.</p>
+</div>
+</div>
+</div>
+</section>
+<section id="prb-14" class="level3">
+<h3 class="anchored" data-anchor-id="prb-14">Problem 14: Why predict the log-variance?</h3>
+<p>Suppose we change the encoder so that its second output layer, a plain linear layer, returns <span class="math inline">\sigma</span> directly instead of <span class="math inline">\log\sigma^2</span>, and we compute <span class="math inline">\sigma^2</span> by squaring it.</p>
+<ol type="1">
+<li>What range of values can a linear layer output, and which of those values are a problem for the KL term <span class="math inline">\frac12(\sigma^2+\mu^2-1-\log\sigma^2)</span>?</li>
+<li>Explain how the log-variance parameterization avoids the problem without any constraint on the network.</li>
+</ol>
+<div class="practice-answer callout callout-style-default callout-tip callout-titled" title="Worked solution">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-14-contents" aria-controls="callout-14" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Worked solution
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-14" class="callout-14-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>This uses <a href="../lectures/week07.html#sec-w7-vae-specifics">Week 7, VAE specifics</a> and <a href="../lectures/week07.html#sec-w7-code-arch">The encoder and decoder</a>.</p>
+<p><strong>Part 1.</strong> A linear layer can output any real number, including <span class="math inline">0</span> and negative numbers. At <span class="math inline">\sigma=0</span> we get <span class="math inline">\log\sigma^2=\log0=-\infty</span>, so the KL is infinite, and near <span class="math inline">0</span> the term <span class="math inline">-\log\sigma^2</span> and its gradient blow up. A negative <span class="math inline">\sigma</span> is squared to the same variance as <span class="math inline">|\sigma|</span>, so it is not wrong as a distribution, but the network has to pass through <span class="math inline">\sigma=0</span> to move between the two signs, and the loss is infinite there. A standard deviation is also meant to be positive, and nothing in a linear layer enforces that.</p>
+<p><strong>Part 2.</strong> With the log-variance, the network outputs <span class="math inline">v=\log\sigma^2</span>, which may be any real number. Then <span class="math inline">\sigma^2=e^v</span> is automatically positive and never zero, <span class="math inline">\log\sigma^2=v</span> is finite, and <span class="math inline">\sigma=e^{v/2}</span> is smooth in <span class="math inline">v</span>. No output value is invalid, so no constraint or special activation is needed. This is why <code>fc_logvar</code> has no activation.</p>
+<p><strong>Answer:</strong> a linear layer can output <span class="math inline">\sigma\le0</span>, which makes <span class="math inline">\log\sigma^2</span> infinite or undefined; outputting <span class="math inline">\log\sigma^2</span> makes every real output valid.</p>
+</div>
+</div>
+</div>
+</section>
+<section id="prb-15" class="level3">
+<h3 class="anchored" data-anchor-id="prb-15">Problem 15: Generating from the prior, VAE versus autoencoder</h3>
+<p>We train two models on the same digit images with a 2-dimensional code: a deterministic autoencoder, and a VAE with prior <span class="math inline">\mathcal N(0,I)</span>. After training we draw 100 codes <span class="math inline">z\sim\mathcal N(0,I)</span> and decode each with each model’s decoder.</p>
+<ol type="1">
+<li>Which model do you expect to give mostly recognizable digits, and why? Name the term of the loss responsible.</li>
+<li>Give two separate reasons why the autoencoder’s decoded samples may be poor.</li>
+</ol>
+<div class="practice-answer callout callout-style-default callout-tip callout-titled" title="Worked solution">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-15-contents" aria-controls="callout-15" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Worked solution
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-15" class="callout-15-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>This uses <a href="../lectures/week07.html#sec-w7-ae-issues">Week 7, Issues with deterministic autoencoders</a>, <a href="../lectures/week07.html#sec-w7-vae-after">After the VAE is trained</a> and <a href="../lectures/week07.html#sec-w7-ae-vs-vae">MNIST: autoencoder vs VAE codes</a>.</p>
+<p><strong>Part 1.</strong> The VAE. Its loss includes <span class="math inline">\mathrm{KL}(q_\phi(z\mid x)\,\|\,p(z))</span>, which pulls every image’s cloud of codes toward the prior <span class="math inline">\mathcal N(0,I)</span>. During training the decoder therefore sees codes spread over the region where the prior puts its mass, and codes drawn from the prior land where the decoder knows what to do.</p>
+<p><strong>Part 2.</strong></p>
+<ul>
+<li><strong>Nothing ties its codes to <span class="math inline">\mathcal N(0,I)</span>.</strong> The autoencoder’s codes can sit anywhere: far from the origin, or spread on a scale where most prior draws fall outside the populated region.</li>
+<li><strong>Gaps between clusters.</strong> Even within the region the codes occupy, each image has a single point code and nothing forces similar images to get similar codes, so the codes can form separate islands. A prior draw that lands between islands is a code the decoder was never trained on, and it decodes to something unrealistic.</li>
+</ul>
+<p><strong>Answer:</strong> the VAE, because the KL-to-prior term places its codes where the prior samples; the autoencoder’s codes are unanchored and can have gaps.</p>
+</div>
+</div>
+</div>
+</section>
+</section>
+<section id="sec-w7p-amortized" class="level2">
+<h2 class="anchored" data-anchor-id="sec-w7p-amortized">Denoising and amortized inference</h2>
+<section id="prb-16" class="level3">
+<h3 class="anchored" data-anchor-id="prb-16">Problem 16: Parameter counts with and without amortization</h3>
+<p>We fit a Gaussian approximate posterior with a diagonal covariance to each of <span class="math inline">N=50{,}000</span> images, in an <span class="math inline">M=8</span> dimensional latent space.</p>
+<ol type="1">
+<li>Without amortization, each image has its own <span class="math inline">\phi_i=(\mu_i,\log\sigma_i^2)</span>. How many variational parameters are there in total? How many if the data set doubles?</li>
+<li>With amortization we use an encoder network with 120,000 parameters. How many parameters does it have after the data set doubles?</li>
+<li>A new image arrives after training. What does each approach have to do to get its approximate posterior? What does the amortized approach give up in exchange?</li>
+</ol>
+<div class="practice-answer callout callout-style-default callout-tip callout-titled" title="Worked solution">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-16-contents" aria-controls="callout-16" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Worked solution
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-16" class="callout-16-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>This uses <a href="../lectures/week07.html#sec-w7-amortized">Week 7, Amortized inference</a>.</p>
+<p><strong>Part 1.</strong> Each image needs a mean and a log-variance for each of the 8 dimensions, <span class="math inline">2\times8=16</span> numbers. In total that is <span class="math inline">50{,}000\times16=800{,}000</span> parameters. Doubling the data doubles it to <span class="math inline">1{,}600{,}000</span>: the count grows linearly with <span class="math inline">N</span>.</p>
+<p><strong>Part 2.</strong> Still 120,000. The encoder’s size is fixed by its architecture, not by the number of images it is applied to.</p>
+<p><strong>Part 3.</strong> Without amortization, a new image has no <span class="math inline">\phi_i</span> yet, so we must run a fresh optimization of its 16 parameters, many gradient steps on its own ELBO. With amortization, one forward pass through the encoder gives <span class="math inline">\mu</span> and <span class="math inline">\log\sigma^2</span> immediately. The price is expressiveness: one shared set of weights has to produce every image’s posterior, so it cannot fit each one as freely as a private <span class="math inline">\phi_i</span> could.</p>
+<p><strong>Answer:</strong> 800,000 (then 1,600,000) private parameters against a fixed 120,000; amortization turns inference for a new image into one forward pass at the cost of a less flexible fit.</p>
+</div>
+</div>
+</div>
+</section>
+<section id="prb-17" class="level3">
+<h3 class="anchored" data-anchor-id="prb-17">Problem 17: Denoising autoencoder or loopy BP?</h3>
+<p>For each task, say whether a denoising autoencoder or loopy belief propagation on an MRF (Week 4) fits better, and what each method needs that the other does not.</p>
+<ol type="1">
+<li>Restoring one old scanned photograph. We know the scanner flips a small fraction of pixels at random, and we have no other images.</li>
+<li>Cleaning images from a camera whose noise is hard to describe mathematically. We have 10,000 pairs of the same scene taken by this camera and by a clean reference camera.</li>
+</ol>
+<div class="practice-answer callout callout-style-default callout-tip callout-titled" title="Worked solution">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-17-contents" aria-controls="callout-17" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Worked solution
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-17" class="callout-17-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>This uses <a href="../lectures/week07.html#sec-w7-denoise">Week 7, Application: image denoising</a> and Week 4’s denoising MRF (<a href="../lectures/week04.html#sec-denoise">Week 4</a>).</p>
+<p><strong>Part 1. Loopy BP.</strong> It works directly on a single noisy image, with no training set, which is all we have. What it needs is a probabilistic model written down by hand: a prior over clean images (neighbouring pixels tend to agree) and a noise model (each pixel flips with a small probability). Here the noise model is known, so we can write it.</p>
+<p><strong>Part 2. Denoising autoencoder.</strong> It needs noisy-clean pairs to train on, which we have, and no hand-written noise model, which we could not write. The network learns to map a noisy image to its clean version, with the bottleneck forcing it to keep the image’s structure and drop the noise.</p>
+<p><strong>Answer:</strong> 1 loopy BP (one image, known noise model); 2 denoising autoencoder (training pairs, unknown noise model). The two trade a hand-built model for a data set.</p>
+</div>
+</div>
+</div>
+</section>
+</section>
+<section id="sec-w7p-tut" class="level2">
+<h2 class="anchored" data-anchor-id="sec-w7p-tut">Tutorial: the VAE as a latent variable model</h2>
+<section id="prb-18" class="level3">
+<h3 class="anchored" data-anchor-id="prb-18">Problem 18: A two-component mixture and its posterior</h3>
+<p>A 1-dimensional mixture has a latent <span class="math inline">z\in\{1,2\}</span> with</p>
+<p><span class="math display">p(z=1)=0.25,\quad p(z=2)=0.75,\qquad p(x\mid z=1)=\mathcal N(x;0,1),\quad p(x\mid z=2)=\mathcal N(x;2,1).</span></p>
+<ol type="1">
+<li>Compute <span class="math inline">p(x)</span> and the posterior <span class="math inline">p(z=1\mid x)</span> at <span class="math inline">x=1</span>.</li>
+<li>Repeat at <span class="math inline">x=2</span>.</li>
+<li>Explain the answer to Part 1 without computing any densities.</li>
+</ol>
+<div class="practice-answer callout callout-style-default callout-tip callout-titled" title="Worked solution">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-18-contents" aria-controls="callout-18" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Worked solution
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-18" class="callout-18-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>This uses <a href="../lectures/week07.html#sec-w7-tq1">Week 7, Tutorial question 1</a>.</p>
+<p><strong>Part 1.</strong> At <span class="math inline">x=1</span> both components are one unit from their mean, so both densities equal <span class="math inline">\frac{1}{\sqrt{2\pi}}e^{-1/2}\approx0.399\times0.607\approx0.242</span>. Then <span class="math display">p(x=1)=0.25(0.242)+0.75(0.242)=0.242,\qquad p(z=1\mid x=1)=\frac{0.25(0.242)}{0.242}=0.25.</span></p>
+<p><strong>Part 2.</strong> At <span class="math inline">x=2</span>: <span class="math inline">\mathcal N(2;0,1)=\frac{1}{\sqrt{2\pi}}e^{-2}\approx0.399\times0.135\approx0.054</span> and <span class="math inline">\mathcal N(2;2,1)=\frac{1}{\sqrt{2\pi}}\approx0.399</span>. The weighted terms are <span class="math inline">0.25(0.054)\approx0.0135</span> and <span class="math inline">0.75(0.399)\approx0.299</span>, so <span class="math display">p(x=2)\approx0.0135+0.299=0.313,\qquad p(z=1\mid x=2)\approx\frac{0.0135}{0.313}\approx0.043.</span> The constant <span class="math inline">\frac{1}{\sqrt{2\pi}}</span> cancels in the posterior, so it can also be found from the odds: <span class="math inline">\frac{0.25\,e^{-2}}{0.75}\approx0.045</span>, and <span class="math inline">0.045/1.045\approx0.043</span>.</p>
+<p><strong>Part 3.</strong> <span class="math inline">x=1</span> is exactly halfway between the two means, and the components have the same variance, so the observation favours neither. The likelihoods are equal and cancel in Bayes’ rule, leaving the posterior equal to the prior, <span class="math inline">(0.25,\ 0.75)</span>.</p>
+<p><strong>Answer:</strong> at <span class="math inline">x=1</span>: <span class="math inline">p(x)\approx0.242</span>, <span class="math inline">p(z=1\mid x)=0.25</span>; at <span class="math inline">x=2</span>: <span class="math inline">p(x)\approx0.313</span>, <span class="math inline">p(z=1\mid x)\approx0.043</span>.</p>
+</div>
+</div>
+</div>
+</section>
+<section id="prb-19" class="level3">
+<h3 class="anchored" data-anchor-id="prb-19">Problem 19: Why the mixture’s evidence is easy and the VAE’s is not</h3>
+<p>In Problem 18 we computed <span class="math inline">p(x)</span> and the posterior exactly. The tutorial says the VAE’s evidence <span class="math inline">p(x)=\int p(x\mid z,\theta)\,p(z)\,dz</span> is intractable.</p>
+<ol type="1">
+<li>What made Problem 18 tractable?</li>
+<li>For <span class="math inline">p(z)=\mathcal N(0,I)</span> and <span class="math inline">p(x\mid z,\theta)=\mathcal N(x;f(z,\theta),\sigma^2I)</span> with <span class="math inline">f</span> a neural network, why can we not do the same? Why does approximating the integral on a grid not rescue us when <span class="math inline">M</span> is large?</li>
+</ol>
+<div class="practice-answer callout callout-style-default callout-tip callout-titled" title="Worked solution">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-19-contents" aria-controls="callout-19" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Worked solution
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-19" class="callout-19-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>This uses <a href="../lectures/week07.html#sec-w7-tq2">Week 7, Tutorial question 2</a> and Week 6’s argument about grids (<a href="../lectures/week06.html#sec-hard-post">Week 6</a>).</p>
+<p><strong>Part 1.</strong> The latent variable took finitely many values, so “integrate over <span class="math inline">z</span>” was a sum of <span class="math inline">K=2</span> terms, each a product of a weight and a Gaussian density we can evaluate. A sum of <span class="math inline">K</span> terms is cheap for any reasonable <span class="math inline">K</span>, and the posterior is the same terms divided by their sum.</p>
+<p><strong>Part 2.</strong> Now <span class="math inline">z</span> is continuous, so <span class="math inline">p(x)</span> is a genuine integral over <span class="math inline">\mathbb R^M</span>. The neural network <span class="math inline">f</span> sits inside the exponent of the Gaussian, <span class="math inline">\exp\big(-\|x-f(z,\theta)\|^2/2\sigma^2\big)</span>, and for a general nonlinear <span class="math inline">f</span> there is no closed form for the integral. (If <span class="math inline">f</span> were linear, everything would stay Gaussian and the integral would have a closed form; the nonlinearity that lets the model represent complicated data is exactly what removes it.) A grid with <span class="math inline">k</span> points per dimension needs <span class="math inline">k^M</span> evaluations of the network: <span class="math inline">10^{20}</span> for <span class="math inline">k=10</span> and a 20-dimensional latent space, far beyond any computer, which is Week 6’s curse of dimensionality.</p>
+<p><strong>Answer:</strong> a discrete <span class="math inline">z</span> turns the integral into a short sum; a continuous <span class="math inline">z</span> with a nonlinear decoder has no closed form, and grids grow exponentially in <span class="math inline">M</span>.</p>
+</div>
+</div>
+</div>
+</section>
+<section id="prb-20" class="level3">
+<h3 class="anchored" data-anchor-id="prb-20">Problem 20: Jensen’s inequality becomes an equality (stretch)</h3>
+<p>Use Model T. For any distribution <span class="math inline">q</span> over <span class="math inline">z\in\{1,2,3\}</span> with all entries positive, define the ratio <span class="math inline">w(z)=p(x,z)/q(z)</span>.</p>
+<ol type="1">
+<li>Show that <span class="math inline">\mathbb E_q[w(z)]=p(x)</span> for <strong>every</strong> such <span class="math inline">q</span>.</li>
+<li>Take <span class="math inline">q_B=(\tfrac13,\tfrac13,\tfrac13)</span>. Compute the three values of <span class="math inline">w</span>, then <span class="math inline">\log\mathbb E_{q_B}[w]</span> and <span class="math inline">\mathbb E_{q_B}[\log w]</span>. Which is larger, and which number from Problem 2 is the smaller one?</li>
+<li>Take <span class="math inline">q</span> equal to the posterior <span class="math inline">(0.5,\ 0.3,\ 0.2)</span>. Compute <span class="math inline">w</span> again and show the two sides of Jensen’s inequality are equal.</li>
+<li>Explain why equality forces <span class="math inline">q</span> to be the posterior.</li>
+</ol>
+<div class="practice-answer callout callout-style-default callout-tip callout-titled" title="Worked solution">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-20-contents" aria-controls="callout-20" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Worked solution
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-20" class="callout-20-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>This uses <a href="../lectures/week07.html#sec-w7-tq4">Week 7, Tutorial question 4</a> and <a href="../lectures/week07.html#sec-w7-tq5">Tutorial question 5</a>.</p>
+<p><strong>Part 1.</strong> <span class="math inline">\mathbb E_q[w]=\sum_zq(z)\frac{p(x,z)}{q(z)}=\sum_zp(x,z)=p(x)=0.2</span>. The <span class="math inline">q</span> cancels, so the average of <span class="math inline">w</span> is the evidence whatever <span class="math inline">q</span> is.</p>
+<p><strong>Part 2.</strong> <span class="math inline">w=\big(\frac{0.10}{1/3},\frac{0.06}{1/3},\frac{0.04}{1/3}\big)=(0.30,\ 0.18,\ 0.12)</span>. Then <span class="math inline">\log\mathbb E_{q_B}[w]=\log0.2\approx-1.609</span>, while <span class="math display">\mathbb E_{q_B}[\log w]=\tfrac13\big(\log0.30+\log0.18+\log0.12\big)\approx\tfrac13(-1.204-1.715-2.120)\approx-1.680.</span> The log of the average is larger, as Jensen’s inequality for the concave <span class="math inline">\log</span> says. The smaller number is exactly <span class="math inline">\mathcal L(q_B)</span> from Problem 2: <span class="math inline">\mathbb E_q[\log w]</span> is the ELBO by definition.</p>
+<p><strong>Part 3.</strong> With <span class="math inline">q=(0.5,\ 0.3,\ 0.2)</span>, <span class="math inline">w=\big(\frac{0.10}{0.5},\frac{0.06}{0.3},\frac{0.04}{0.2}\big)=(0.2,\ 0.2,\ 0.2)</span>. The ratio is constant, so <span class="math inline">\mathbb E_q[\log w]=\log0.2=\log\mathbb E_q[w]</span>. The bound is tight.</p>
+<p><strong>Part 4.</strong> For a strictly concave function like <span class="math inline">\log</span>, the chord lies strictly below the curve between any two distinct points, so Jensen’s inequality is an equality only when <span class="math inline">w</span> takes a single value wherever <span class="math inline">q&gt;0</span>. A constant ratio <span class="math inline">p(x,z)/q(z)=k</span> means <span class="math inline">q(z)=p(x,z)/k</span>, so <span class="math inline">q</span> is proportional to the joint. Normalizing gives <span class="math inline">k=p(x)</span> and <span class="math inline">q(z)=p(x,z)/p(x)=p(z\mid x)</span>.</p>
+<p><strong>Answer:</strong> <span class="math inline">\mathbb E_q[w]=p(x)</span> always; for <span class="math inline">q_B</span>, <span class="math inline">-1.609&gt;-1.680=\mathcal L(q_B)</span>; for the posterior <span class="math inline">w\equiv0.2</span> and the two sides are equal; equality needs a constant ratio, which forces <span class="math inline">q</span> to be the posterior.</p>
+</div>
+</div>
+</div>
+</section>
+<section id="prb-21" class="level3">
+<h3 class="anchored" data-anchor-id="prb-21">Problem 21: The closed-form KL in three dimensions</h3>
+<p>For one image, an encoder with <span class="math inline">M=3</span> latent dimensions outputs</p>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th>dimension <span class="math inline">m</span></th>
+<th><span class="math inline">\mu_m</span></th>
+<th><span class="math inline">\sigma_m^2</span></th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>1</td>
+<td><span class="math inline">0.5</span></td>
+<td><span class="math inline">e^{-1}\approx0.368</span></td>
+</tr>
+<tr class="even">
+<td>2</td>
+<td><span class="math inline">0</span></td>
+<td><span class="math inline">1</span></td>
+</tr>
+<tr class="odd">
+<td>3</td>
+<td><span class="math inline">-1</span></td>
+<td><span class="math inline">e\approx2.718</span></td>
+</tr>
+</tbody>
+</table>
+<ol type="1">
+<li>Compute each dimension’s contribution to <span class="math inline">\mathrm{KL}(q\,\|\,\mathcal N(0,I))</span> and the total.</li>
+<li>Dimension 3 has a variance <strong>larger</strong> than the prior’s. Is it penalized? Which part of the formula does that?</li>
+<li>Suppose dimension 2 looks like this for <strong>every</strong> image. What does that say about how much the code’s second coordinate tells the decoder about the image?</li>
+</ol>
+<div class="practice-answer callout callout-style-default callout-tip callout-titled" title="Worked solution">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-21-contents" aria-controls="callout-21" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Worked solution
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-21" class="callout-21-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>This uses <a href="../lectures/week07.html#sec-w7-tut-kl">Week 7, The second term: a closed-form KL</a>. The values of <span class="math inline">\sigma^2</span> are chosen so that <span class="math inline">\log\sigma^2</span> is <span class="math inline">-1</span>, <span class="math inline">0</span> and <span class="math inline">1</span>.</p>
+<p><strong>Part 1.</strong> Each dimension contributes <span class="math inline">\frac12(\sigma_m^2+\mu_m^2-1-\log\sigma_m^2)</span>.</p>
+<ul>
+<li><strong>Dimension 1:</strong> <span class="math inline">\frac12(0.368+0.25-1+1)=\frac12(0.618)\approx0.309</span>.</li>
+<li><strong>Dimension 2:</strong> <span class="math inline">\frac12(1+0-1-0)=0</span>.</li>
+<li><strong>Dimension 3:</strong> <span class="math inline">\frac12(2.718+1-1-1)=\frac12(1.718)\approx0.859</span>.</li>
+</ul>
+<p>The total is <span class="math inline">0.309+0+0.859\approx1.168</span> nats.</p>
+<p><strong>Part 2.</strong> Yes. The variance part <span class="math inline">\frac12(\sigma^2-1-\log\sigma^2)</span> is <span class="math inline">\frac12(2.718-1-1)\approx0.359</span> for dimension 3, and the mean part <span class="math inline">\frac12\mu^2</span> adds <span class="math inline">0.5</span>. The function <span class="math inline">\sigma^2-1-\log\sigma^2</span> is zero only at <span class="math inline">\sigma^2=1</span> and positive on both sides, so the KL pushes the variance toward 1 from above as well as from below, not just “more uncertainty”.</p>
+<p><strong>Part 3.</strong> If the encoder outputs <span class="math inline">\mu_2=0</span> and <span class="math inline">\sigma_2^2=1</span> for every image, then the second coordinate of <span class="math inline">z</span> is a standard normal draw whatever the image is. It carries no information about <span class="math inline">x</span>, so the decoder cannot use it: that dimension is unused. It costs nothing in the KL, which is why the loss allows it.</p>
+<p><strong>Answer:</strong> contributions <span class="math inline">0.309</span>, <span class="math inline">0</span>, <span class="math inline">0.859</span>, total <span class="math inline">\approx1.168</span> nats; a variance above 1 is penalized by the <span class="math inline">\sigma^2-1-\log\sigma^2</span> term; a dimension that always matches the prior carries no information.</p>
+</div>
+</div>
+</div>
+</section>
+<section id="prb-22" class="level3">
+<h3 class="anchored" data-anchor-id="prb-22">Problem 22: Binary cross-entropy on four pixels</h3>
+<p>A 4-pixel binary image is <span class="math inline">x=(1,\ 0,\ 1,\ 1)</span>, and the decoder outputs <span class="math inline">\mathbf p=(0.9,\ 0.2,\ 0.6,\ 0.99)</span>.</p>
+<ol type="1">
+<li>Compute each pixel’s BCE term and the total.</li>
+<li>Which pixel contributes most, and why?</li>
+<li>What would happen to the BCE if the decoder output exactly <span class="math inline">p_2=1</span> for the second pixel? Why does a sigmoid output make this impossible in exact arithmetic?</li>
+</ol>
+<div class="practice-answer callout callout-style-default callout-tip callout-titled" title="Worked solution">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-22-contents" aria-controls="callout-22" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Worked solution
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-22" class="callout-22-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>This uses <a href="../lectures/week07.html#sec-w7-tut-bce">Week 7, The first term: reconstruction as binary cross-entropy</a>.</p>
+<p><strong>Part 1.</strong> An “on” pixel (<span class="math inline">x_d=1</span>) contributes <span class="math inline">-\log p_d</span> and an “off” pixel contributes <span class="math inline">-\log(1-p_d)</span>.</p>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th>pixel</th>
+<th><span class="math inline">x_d</span></th>
+<th><span class="math inline">p_d</span></th>
+<th>term</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>1</td>
+<td>1</td>
+<td>0.9</td>
+<td><span class="math inline">-\log0.9\approx0.105</span></td>
+</tr>
+<tr class="even">
+<td>2</td>
+<td>0</td>
+<td>0.2</td>
+<td><span class="math inline">-\log0.8\approx0.223</span></td>
+</tr>
+<tr class="odd">
+<td>3</td>
+<td>1</td>
+<td>0.6</td>
+<td><span class="math inline">-\log0.6\approx0.511</span></td>
+</tr>
+<tr class="even">
+<td>4</td>
+<td>1</td>
+<td>0.99</td>
+<td><span class="math inline">-\log0.99\approx0.010</span></td>
+</tr>
+</tbody>
+</table>
+<p>The total is <span class="math inline">0.105+0.223+0.511+0.010\approx0.849</span> nats.</p>
+<p><strong>Part 2.</strong> Pixel 3. It is on, but the decoder gives it only probability 0.6 of being on, the least confident correct prediction of the four. Pixel 4, predicted on with probability 0.99, costs almost nothing.</p>
+<p><strong>Part 3.</strong> Pixel 2 is off, so its term would be <span class="math inline">-\log(1-1)=-\log0=\infty</span>: being certain and wrong is infinitely costly. The sigmoid <span class="math inline">1/(1+e^{-a})</span> is strictly between 0 and 1 for every finite <span class="math inline">a</span>, so in exact arithmetic <span class="math inline">p_d</span> never reaches 1. (In floating point it can round to 1 for very large <span class="math inline">a</span>, which is why PyTorch’s <code>binary_cross_entropy</code> clamps each log at <span class="math inline">-100</span> rather than returning infinity.)</p>
+<p><strong>Answer:</strong> terms <span class="math inline">0.105</span>, <span class="math inline">0.223</span>, <span class="math inline">0.511</span>, <span class="math inline">0.010</span>, total <span class="math inline">\approx0.849</span>; pixel 3 dominates; <span class="math inline">p_2=1</span> would make the loss infinite.</p>
+</div>
+</div>
+</div>
+</section>
+<section id="prb-23" class="level3">
+<h3 class="anchored" data-anchor-id="prb-23">Problem 23: Turning the β knob</h3>
+<p>The training loss is <span class="math inline">\ell=\mathrm{BCE}+\beta\cdot\mathrm{KL}</span>. Predict what happens to (a) the reconstructions of training images and (b) images decoded from prior samples <span class="math inline">z\sim\mathcal N(0,I)</span> in each case:</p>
+<ol type="1">
+<li><span class="math inline">\beta</span> close to 0.</li>
+<li><span class="math inline">\beta</span> very large.</li>
+</ol>
+<div class="practice-answer callout callout-style-default callout-tip callout-titled" title="Worked solution">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-23-contents" aria-controls="callout-23" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Worked solution
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-23" class="callout-23-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>This uses <a href="../lectures/week07.html#sec-w7-tq8">Week 7, Tutorial question 8</a> and <a href="../lectures/week07.html#sec-w7-code-sample">Sampling from the prior</a>.</p>
+<p><strong>Part 1. <span class="math inline">\beta\to0</span>.</strong> The loss is almost pure BCE, so the model behaves like a plain autoencoder. Nothing stops the encoder from shrinking <span class="math inline">\sigma</span> toward 0 (sharper codes reconstruct better) or from placing codes far from the origin.</p>
+<ul>
+<li><ol type="a">
+<li>Reconstructions are as sharp as the bottleneck allows.</li>
+</ol></li>
+<li><ol start="2" type="a">
+<li>Prior samples are poor: the codes are no longer anchored to <span class="math inline">\mathcal N(0,I)</span> and can have gaps (Problem 15), so many prior draws land where the decoder was never trained.</li>
+</ol></li>
+</ul>
+<p><strong>Part 2. <span class="math inline">\beta</span> large.</strong> The KL dominates, and the cheapest way to make it small is <span class="math inline">q_\phi(z\mid x)\approx\mathcal N(0,I)</span> for every image.</p>
+<ul>
+<li><ol type="a">
+<li>Reconstructions degrade toward a blurry average image, because codes that look like the prior for every input carry little information about which input it was.</li>
+</ol></li>
+<li><ol start="2" type="a">
+<li>Prior samples land where the decoder has been trained, so they decode to valid-looking (if bland) images more often.</li>
+</ol></li>
+</ul>
+<p>The week chapter states the moderate version: increasing <span class="math inline">\beta</span> above 1 packs codes closer to the prior, improving prior samples at the cost of lower-quality reconstructions. <span class="math inline">\beta=1</span> is the value at which the loss is exactly the negative ELBO.</p>
+<p><strong>Answer:</strong> small <span class="math inline">\beta</span>: sharp reconstructions, poor prior samples; large <span class="math inline">\beta</span>: blurry reconstructions, prior samples that more often decode to valid images.</p>
+</div>
+</div>
+</div>
+</section>
+<section id="prb-24" class="level3">
+<h3 class="anchored" data-anchor-id="prb-24">Problem 24: Which term needs a sample?</h3>
+<ol type="1">
+<li>Explain why the KL term of the VAE loss can be computed exactly from the encoder’s outputs, while the reconstruction term needs a random sample.</li>
+<li>How many noise samples does the notebook’s training loop draw per image per gradient step, and what does it use instead of a sample in evaluation mode?</li>
+</ol>
+<div class="practice-answer callout callout-style-default callout-tip callout-titled" title="Worked solution">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-24-contents" aria-controls="callout-24" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Worked solution
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-24" class="callout-24-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>This uses <a href="../lectures/week07.html#sec-w7-tut-terms">Week 7, Tutorial question 7</a> and <a href="../lectures/week07.html#sec-w7-code-vae">The full model and the reparameterization</a>.</p>
+<p><strong>Part 1.</strong> Both distributions in the KL are Gaussians, <span class="math inline">q=\mathcal N(\mu,\mathrm{diag}(\sigma^2))</span> and <span class="math inline">p=\mathcal N(0,I)</span>, and the expectation of the log-ratio of two Gaussians has the closed form on the aid sheet. It is a formula in <span class="math inline">\mu</span> and <span class="math inline">\log\sigma^2</span> alone, with no <span class="math inline">z</span> left in it, so no sampling is needed. The reconstruction term is <span class="math inline">\mathbb E_{z\sim q}[\log p(x\mid z,\theta)]</span>, and <span class="math inline">\log p(x\mid z,\theta)</span> depends on <span class="math inline">z</span> through the decoder network <span class="math inline">f(z,\theta)</span>. There is no closed form for the expectation of a neural network’s output under a Gaussian, so it is estimated by Monte Carlo, and the reparameterization trick is what lets gradients reach the encoder through that sample.</p>
+<p><strong>Part 2.</strong> One. Each forward pass calls <code>latent_sample</code> once, which draws one <span class="math inline">\epsilon</span> per image in the batch, so each image gets a single fresh noise sample per step: a one-sample Monte Carlo estimate. In evaluation mode (<code>vae.eval()</code>), <code>latent_sample</code> returns <span class="math inline">\mu</span> instead of a sample, so the test loss decodes the mean code.</p>
+<p><strong>Answer:</strong> the KL is a closed-form function of <span class="math inline">\mu</span> and <span class="math inline">\log\sigma^2</span>; the reconstruction term passes <span class="math inline">z</span> through a network and needs Monte Carlo. The notebook uses one sample per image per step, and <span class="math inline">z=\mu</span> in evaluation mode.</p>
+</div>
+</div>
+</div>
+</section>
+</section>
+<section id="sec-w7p-code" class="level2">
+<h2 class="anchored" data-anchor-id="sec-w7p-code">Code walk-through: the VAE notebook</h2>
+<section id="prb-25" class="level3">
+<h3 class="anchored" data-anchor-id="prb-25">Problem 25: Shapes and parameters for a smaller network</h3>
+<p>Rerun the notebook’s <code>Encoder</code> and <code>Decoder</code> classes (<a href="week07.html#sec-w7-code-arch" class="quarto-xref"><span>The encoder and decoder</span></a>) with <code>capacity = 32</code> and <code>latent_dims = 16</code>, everything else unchanged.</p>
+<ol type="1">
+<li>Give each layer’s output shape for one <span class="math inline">1\times28\times28</span> image, through the encoder and back through the decoder.</li>
+<li>Give each layer’s parameter count, and the encoder, decoder and overall totals.</li>
+<li>Which single layer has the most parameters, and why did it overtake <code>conv2</code>, the largest layer in the notebook’s own configuration?</li>
+</ol>
+<div class="practice-answer callout callout-style-default callout-tip callout-titled" title="Worked solution">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-25-contents" aria-controls="callout-25" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Worked solution
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-25" class="callout-25-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>This uses <a href="../lectures/week07.html#sec-w7-code-arch">Week 7, The encoder and decoder</a> and the counting rules on the aid sheet. Write <span class="math inline">c=32</span>, so <span class="math inline">2c=64</span>, and the flattened size is <span class="math inline">2c\cdot7\cdot7=64\cdot49=3{,}136</span>.</p>
+<p><strong>Parts 1 and 2.</strong> The spatial sizes are the same as in the notebook (<span class="math inline">28\to14\to7</span> and back), because they depend only on the kernel, stride and padding.</p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 33%">
+<col style="width: 33%">
+<col style="width: 33%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Layer</th>
+<th>Output shape</th>
+<th>Parameters</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>conv1</code> + ReLU</td>
+<td><span class="math inline">32\times14\times14</span> (6,272)</td>
+<td><span class="math inline">1\cdot32\cdot16+32=544</span></td>
+</tr>
+<tr class="even">
+<td><code>conv2</code> + ReLU</td>
+<td><span class="math inline">64\times7\times7</span> (3,136)</td>
+<td><span class="math inline">32\cdot64\cdot16+64=32{,}832</span></td>
+</tr>
+<tr class="odd">
+<td>flatten</td>
+<td>3,136</td>
+<td>0</td>
+</tr>
+<tr class="even">
+<td><code>fc_mu</code></td>
+<td>16</td>
+<td><span class="math inline">3136\cdot16+16=50{,}192</span></td>
+</tr>
+<tr class="odd">
+<td><code>fc_logvar</code></td>
+<td>16</td>
+<td><span class="math inline">3136\cdot16+16=50{,}192</span></td>
+</tr>
+<tr class="even">
+<td><strong>encoder total</strong></td>
+<td></td>
+<td><span class="math inline">\mathbf{133{,}760}</span></td>
+</tr>
+<tr class="odd">
+<td>decoder <code>fc</code></td>
+<td>3,136, reshaped to <span class="math inline">64\times7\times7</span></td>
+<td><span class="math inline">16\cdot3136+3136=53{,}312</span></td>
+</tr>
+<tr class="even">
+<td>decoder <code>conv2</code> + ReLU</td>
+<td><span class="math inline">32\times14\times14</span></td>
+<td><span class="math inline">64\cdot32\cdot16+32=32{,}800</span></td>
+</tr>
+<tr class="odd">
+<td>decoder <code>conv1</code> + sigmoid</td>
+<td><span class="math inline">1\times28\times28</span></td>
+<td><span class="math inline">32\cdot1\cdot16+1=513</span></td>
+</tr>
+<tr class="even">
+<td><strong>decoder total</strong></td>
+<td></td>
+<td><span class="math inline">\mathbf{86{,}625}</span></td>
+</tr>
+</tbody>
+</table>
+<p>The overall total is <span class="math inline">133{,}760+86{,}625=220{,}385</span>.</p>
+<p><strong>Part 3.</strong> The decoder’s <code>fc</code> layer, with 53,312 parameters; the encoder’s two linear layers are close behind at 50,192 each. Halving the capacity divides each convolution’s <span class="math inline">C_\text{in}C_\text{out}</span> product by 4, while the linear layers’ size is (flattened features) <span class="math inline">\times</span> (latent dimensions): the flattened features halved, but the latent dimension grew 8-fold, from 2 to 16. So the layers that touch the code now dominate.</p>
+<p><strong>Answer:</strong> encoder 133,760, decoder 86,625, total 220,385 parameters; the linear layers to and from the 16-dimensional code are now the largest.</p>
+</div>
+</div>
+</div>
+</section>
+<section id="prb-26" class="level3">
+<h3 class="anchored" data-anchor-id="prb-26">Problem 26: A bug in <code>latent_sample</code></h3>
+<p>A student’s version of <code>latent_sample</code> reads</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> latent_sample(<span class="va">self</span>, mu, logvar):</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>    <span class="cf">if</span> <span class="va">self</span>.training:</span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>        std <span class="op">=</span> logvar.exp()</span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>        eps <span class="op">=</span> torch.empty_like(std).normal_()</span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a>        <span class="cf">return</span> eps.mul(std).add_(mu)</span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a>    <span class="cf">else</span>:</span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a>        <span class="cf">return</span> mu</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<ol type="1">
+<li>Compared with the notebook, what is different, and what quantity does <code>std</code> now hold? What distribution does the returned code actually have?</li>
+<li>The training loop still runs without error. Explain why, and why the loss being minimized is no longer the negative ELBO of the distribution being sampled.</li>
+<li>Does the bug change how the test loss is computed?</li>
+</ol>
+<div class="practice-answer callout callout-style-default callout-tip callout-titled" title="Worked solution">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-26-contents" aria-controls="callout-26" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Worked solution
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-26" class="callout-26-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>This uses <a href="../lectures/week07.html#sec-w7-code-vae">Week 7, The full model and the reparameterization</a> and <a href="../lectures/week07.html#sec-w7-code-loss">The loss</a>.</p>
+<p><strong>Part 1.</strong> The notebook has <code>logvar.mul(0.5).exp_()</code>, which is <span class="math inline">\exp(\tfrac12\log\sigma^2)=\sigma</span>. The student’s line drops the <span class="math inline">\tfrac12</span>, so <code>std</code> holds <span class="math inline">\exp(\log\sigma^2)=\sigma^2</span>, the variance. The code is <span class="math inline">z=\mu+\sigma^2\epsilon</span>, so <span class="math inline">z\sim\mathcal N(\mu,(\sigma^2)^2)=\mathcal N(\mu,\sigma^4)</span>. For example, an encoder output <span class="math inline">\log\sigma^2=-2</span> is meant to give standard deviation <span class="math inline">e^{-1}\approx0.368</span>, but the sample uses <span class="math inline">e^{-2}\approx0.135</span>.</p>
+<p><strong>Part 2.</strong> Every operation is still valid and differentiable: the shapes match, and gradients still flow through <span class="math inline">\mu</span> and <code>logvar</code>. Nothing checks that the sampler and the KL formula describe the same distribution. But <code>vae_loss</code> still computes the KL as if the variance were <span class="math inline">e^{\text{logvar}}=\sigma^2</span>, while the reconstruction term is evaluated at codes drawn with variance <span class="math inline">\sigma^4</span>. The two terms now refer to different Gaussians, so their sum is not the negative ELBO of either one. Training still minimizes <em>something</em>, but not the objective the derivation justifies.</p>
+<p><strong>Part 3.</strong> No.&nbsp;In evaluation mode <code>latent_sample</code> returns <span class="math inline">\mu</span> and never reaches the buggy line, so the test-loss computation is unchanged. The test number still differs, though, because the weights being evaluated were trained with the wrong sampler.</p>
+<p><strong>Answer:</strong> <code>std</code> holds <span class="math inline">\sigma^2</span>, so <span class="math inline">z\sim\mathcal N(\mu,\sigma^4)</span>; the code runs, but the KL and the samples describe different distributions; evaluation mode is untouched because it uses <span class="math inline">z=\mu</span>.</p>
+</div>
+</div>
+</div>
+</section>
+<section id="prb-27" class="level3">
+<h3 class="anchored" data-anchor-id="prb-27">Problem 27: Averaging the BCE instead of summing (stretch)</h3>
+<p>A student changes one argument in <code>vae_loss</code>, leaving the KL line untouched:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>recon_loss <span class="op">=</span> F.binary_cross_entropy(recon_x.view(<span class="op">-</span><span class="dv">1</span>, <span class="dv">784</span>), x.view(<span class="op">-</span><span class="dv">1</span>, <span class="dv">784</span>), reduction<span class="op">=</span><span class="st">'mean'</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>With a batch of <span class="math inline">B=64</span> images, <code>reduction='mean'</code> averages over all <span class="math inline">784B</span> pixel entries in the batch, while <code>kldivergence</code> is still summed over latent dimensions and images.</p>
+<ol type="1">
+<li>Write the new loss as a constant times the notebook’s loss with a different <span class="math inline">\beta</span>. What is the effective <span class="math inline">\beta</span>?</li>
+<li>Using Problem 23, predict what the trained model’s reconstructions will look like.</li>
+</ol>
+<div class="practice-answer callout callout-style-default callout-tip callout-titled" title="Worked solution">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-27-contents" aria-controls="callout-27" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Worked solution
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-27" class="callout-27-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>This uses <a href="../lectures/week07.html#sec-w7-code-loss">Week 7, The loss</a>, including the notebook’s remark about averaging over pixels.</p>
+<p><strong>Part 1.</strong> Let <span class="math inline">S_\text{BCE}</span> be the BCE summed over pixels and images (the notebook’s <code>recon_loss</code>) and <span class="math inline">S_\text{KL}</span> the summed KL. The mean divides the sum by the number of entries, <span class="math inline">784B=784\times64=50{,}176</span>. So, with <span class="math inline">\beta=1</span>, <span class="math display">\ell_\text{new}=\frac{S_\text{BCE}}{50{,}176}+S_\text{KL}=\frac{1}{50{,}176}\Big(S_\text{BCE}+50{,}176\cdot S_\text{KL}\Big).</span> A positive constant in front does not change where the minimum is (it only rescales the gradients, which changes the effective step size). So the student is effectively training the notebook’s model with <span class="math inline">\beta=50{,}176</span>. The notebook’s own comment covers averaging over pixels only, a factor of 784; averaging over the batch as well multiplies the KL’s relative weight by <span class="math inline">B</span> on top of that.</p>
+<p><strong>Part 2.</strong> This is the “very large <span class="math inline">\beta</span>” case of Problem 23. The KL dominates, so the encoder is driven to output nearly <span class="math inline">\mathcal N(0,I)</span> for every image, and the code carries almost no information about the input. The decoder then produces nearly the same blurry average digit for every input.</p>
+<p><strong>Answer:</strong> effective <span class="math inline">\beta=784\times64=50{,}176</span>; reconstructions collapse toward one average image.</p>
+</div>
+</div>
+</div>
+</section>
+<section id="prb-28" class="level3">
+<h3 class="anchored" data-anchor-id="prb-28">Problem 28: Reading the reported numbers (stretch)</h3>
+<ol type="1">
+<li>A test set of 250 images is evaluated by the notebook’s test loop (<a href="week07.html#sec-w7-code-test" class="quarto-xref"><span>Evaluating on the test set</span></a>) with <code>batch_size = 100</code>, so the batches hold 100, 100 and 50 images. The summed losses of the three batches are 15,000, 15,400 and 7,800. What does the loop print? What do we get if we divide that by the batch size, and what is the true average loss per image?</li>
+<li>A model with a 2-dimensional latent space is visualized by decoding a grid of codes over <span class="math inline">[-2,2]^2</span> instead of the notebook’s <span class="math inline">[-1.5,1.5]^2</span>. What fraction of the prior’s mass does the new square hold?</li>
+</ol>
+<div class="practice-answer callout callout-style-default callout-tip callout-titled" title="Worked solution">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-28-contents" aria-controls="callout-28" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Worked solution
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-28" class="callout-28-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>This uses <a href="../lectures/week07.html#sec-w7-code-test">Week 7, Evaluating on the test set</a> and <a href="../lectures/week07.html#sec-w7-code-grid">The 2-dimensional latent space</a>.</p>
+<p><strong>Part 1.</strong> The loop adds each batch’s summed loss and divides by the number of batches, 3: <span class="math display">\frac{15{,}000+15{,}400+7{,}800}{3}=\frac{38{,}200}{3}\approx12{,}733.</span> That is the average loss <strong>per batch</strong>. Dividing by the batch size 100 gives about 127.3, which pretends every batch held 100 images. The true average per image divides the total by the number of images: <span class="math inline">38{,}200/250=152.8</span>. The short last batch has a small summed loss only because it holds half as many images, and it drags the per-batch average down. Here the shortcut is off by more than 25 nats, much more than in the notebook, because one batch in three is short.</p>
+<p><strong>Part 2.</strong> Under the prior <span class="math inline">\mathcal N(0,I)</span> the two coordinates are independent standard normals, and each lies in <span class="math inline">[-2,2]</span> with probability about <span class="math inline">0.954</span>. So the square holds about <span class="math inline">0.954^2\approx0.911</span> of the prior’s mass, against <span class="math inline">0.866^2\approx0.75</span> for the notebook’s square. The wider grid shows more of where prior samples land, including more of the sparse outer region.</p>
+<p><strong>Answer:</strong> the loop prints <span class="math inline">\approx12{,}733</span>; dividing by 100 gives <span class="math inline">\approx127.3</span>, but the true per-image loss is <span class="math inline">152.8</span>; the <span class="math inline">[-2,2]^2</span> square holds about 91% of the prior’s mass.</p>
+</div>
+</div>
+</div>
+
+
+</section>
+</section>
+
+</main> <!-- /main -->
+<script id="quarto-html-after-body" type="application/javascript">
+  window.document.addEventListener("DOMContentLoaded", function (event) {
+    const icon = "";
+    const anchorJS = new window.AnchorJS();
+    anchorJS.options = {
+      placement: 'right',
+      icon: icon
+    };
+    anchorJS.add('.anchored');
+    const isCodeAnnotation = (el) => {
+      for (const clz of el.classList) {
+        if (clz.startsWith('code-annotation-')) {                     
+          return true;
+        }
+      }
+      return false;
+    }
+    const onCopySuccess = function(e) {
+      // button target
+      const button = e.trigger;
+      // don't keep focus
+      button.blur();
+      // flash "checked"
+      button.classList.add('code-copy-button-checked');
+      var currentTitle = button.getAttribute("title");
+      button.setAttribute("title", "Copied!");
+      let tooltip;
+      if (window.bootstrap) {
+        button.setAttribute("data-bs-toggle", "tooltip");
+        button.setAttribute("data-bs-placement", "left");
+        button.setAttribute("data-bs-title", "Copied!");
+        tooltip = new bootstrap.Tooltip(button, 
+          { trigger: "manual", 
+            customClass: "code-copy-button-tooltip",
+            offset: [0, -8]});
+        tooltip.show();    
+      }
+      setTimeout(function() {
+        if (tooltip) {
+          tooltip.hide();
+          button.removeAttribute("data-bs-title");
+          button.removeAttribute("data-bs-toggle");
+          button.removeAttribute("data-bs-placement");
+        }
+        button.setAttribute("title", currentTitle);
+        button.classList.remove('code-copy-button-checked');
+      }, 1000);
+      // clear code selection
+      e.clearSelection();
+    }
+    const getTextToCopy = function(trigger) {
+      const outerScaffold = trigger.parentElement.cloneNode(true);
+      const codeEl = outerScaffold.querySelector('code');
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+    }
+    const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
+      text: getTextToCopy
+    });
+    clipboard.on('success', onCopySuccess);
+    if (window.document.getElementById('quarto-embedded-source-code-modal')) {
+      const clipboardModal = new window.ClipboardJS('.code-copy-button[data-in-quarto-modal]', {
+        text: getTextToCopy,
+        container: window.document.getElementById('quarto-embedded-source-code-modal')
+      });
+      clipboardModal.on('success', onCopySuccess);
+    }
+      var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+      var mailtoRegex = new RegExp(/^mailto:/);
+        var filterRegex = new RegExp('/' + window.location.host + '/');
+      var isInternal = (href) => {
+          return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+      }
+      // Inspect non-navigation links and adorn them if external
+     var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+      for (var i=0; i<links.length; i++) {
+        const link = links[i];
+        if (!isInternal(link.href)) {
+          // undo the damage that might have been done by quarto-nav.js in the case of
+          // links that we want to consider external
+          if (link.dataset.originalHref !== undefined) {
+            link.href = link.dataset.originalHref;
+          }
+            // target, if specified
+            link.setAttribute("target", "_blank");
+            if (link.getAttribute("rel") === null) {
+              link.setAttribute("rel", "noopener");
+            }
+        }
+      }
+    function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+      const config = {
+        allowHTML: true,
+        maxWidth: 500,
+        delay: 100,
+        arrow: false,
+        appendTo: function(el) {
+            return el.parentElement;
+        },
+        interactive: true,
+        interactiveBorder: 10,
+        theme: 'quarto',
+        placement: 'bottom-start',
+      };
+      if (contentFn) {
+        config.content = contentFn;
+      }
+      if (onTriggerFn) {
+        config.onTrigger = onTriggerFn;
+      }
+      if (onUntriggerFn) {
+        config.onUntrigger = onUntriggerFn;
+      }
+      window.tippy(el, config); 
+    }
+    const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+    for (var i=0; i<noterefs.length; i++) {
+      const ref = noterefs[i];
+      tippyHover(ref, function() {
+        // use id or data attribute instead here
+        let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+        try { href = new URL(href).hash; } catch {}
+        const id = href.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note) {
+          return note.innerHTML;
+        } else {
+          return "";
+        }
+      });
+    }
+    const xrefs = window.document.querySelectorAll('a.quarto-xref');
+    const processXRef = (id, note) => {
+      // Strip column container classes
+      const stripColumnClz = (el) => {
+        el.classList.remove("page-full", "page-columns");
+        if (el.children) {
+          for (const child of el.children) {
+            stripColumnClz(child);
+          }
+        }
+      }
+      stripColumnClz(note)
+      if (id === null || id.startsWith('sec-')) {
+        // Special case sections, only their first couple elements
+        const container = document.createElement("div");
+        if (note.children && note.children.length > 2) {
+          container.appendChild(note.children[0].cloneNode(true));
+          for (let i = 1; i < note.children.length; i++) {
+            const child = note.children[i];
+            if (child.tagName === "P" && child.innerText === "") {
+              continue;
+            } else {
+              container.appendChild(child.cloneNode(true));
+              break;
+            }
+          }
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(container);
+          }
+          return container.innerHTML
+        } else {
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(note);
+          }
+          return note.innerHTML;
+        }
+      } else {
+        // Remove any anchor links if they are present
+        const anchorLink = note.querySelector('a.anchorjs-link');
+        if (anchorLink) {
+          anchorLink.remove();
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        if (note.classList.contains("callout")) {
+          return note.outerHTML;
+        } else {
+          return note.innerHTML;
+        }
+      }
+    }
+    for (var i=0; i<xrefs.length; i++) {
+      const xref = xrefs[i];
+      tippyHover(xref, undefined, function(instance) {
+        instance.disable();
+        let url = xref.getAttribute('href');
+        let hash = undefined; 
+        if (url.startsWith('#')) {
+          hash = url;
+        } else {
+          try { hash = new URL(url).hash; } catch {}
+        }
+        if (hash) {
+          const id = hash.replace(/^#\/?/, "");
+          const note = window.document.getElementById(id);
+          if (note !== null) {
+            try {
+              const html = processXRef(id, note.cloneNode(true));
+              instance.setContent(html);
+            } finally {
+              instance.enable();
+              instance.show();
+            }
+          } else {
+            // See if we can fetch this
+            fetch(url.split('#')[0])
+            .then(res => res.text())
+            .then(html => {
+              const parser = new DOMParser();
+              const htmlDoc = parser.parseFromString(html, "text/html");
+              const note = htmlDoc.getElementById(id);
+              if (note !== null) {
+                const html = processXRef(id, note);
+                instance.setContent(html);
+              } 
+            }).finally(() => {
+              instance.enable();
+              instance.show();
+            });
+          }
+        } else {
+          // See if we can fetch a full url (with no hash to target)
+          // This is a special case and we should probably do some content thinning / targeting
+          fetch(url)
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.querySelector('main.content');
+            if (note !== null) {
+              // This should only happen for chapter cross references
+              // (since there is no id in the URL)
+              // remove the first header
+              if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+                note.children[0].remove();
+              }
+              const html = processXRef(null, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      }, function(instance) {
+      });
+    }
+        let selectedAnnoteEl;
+        const selectorForAnnotation = ( cell, annotation) => {
+          let cellAttr = 'data-code-cell="' + cell + '"';
+          let lineAttr = 'data-code-annotation="' +  annotation + '"';
+          const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+          return selector;
+        }
+        const selectCodeLines = (annoteEl) => {
+          const doc = window.document;
+          const targetCell = annoteEl.getAttribute("data-target-cell");
+          const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+          const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+          const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+          const lineIds = lines.map((line) => {
+            return targetCell + "-" + line;
+          })
+          let top = null;
+          let height = null;
+          let parent = null;
+          if (lineIds.length > 0) {
+              //compute the position of the single el (top and bottom and make a div)
+              const el = window.document.getElementById(lineIds[0]);
+              top = el.offsetTop;
+              height = el.offsetHeight;
+              parent = el.parentElement.parentElement;
+            if (lineIds.length > 1) {
+              const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+              const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+              height = bottom - top;
+            }
+            if (top !== null && height !== null && parent !== null) {
+              // cook up a div (if necessary) and position it 
+              let div = window.document.getElementById("code-annotation-line-highlight");
+              if (div === null) {
+                div = window.document.createElement("div");
+                div.setAttribute("id", "code-annotation-line-highlight");
+                div.style.position = 'absolute';
+                parent.appendChild(div);
+              }
+              div.style.top = top - 2 + "px";
+              div.style.height = height + 4 + "px";
+              div.style.left = 0;
+              let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+              if (gutterDiv === null) {
+                gutterDiv = window.document.createElement("div");
+                gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+                gutterDiv.style.position = 'absolute';
+                const codeCell = window.document.getElementById(targetCell);
+                const gutter = codeCell.querySelector('.code-annotation-gutter');
+                gutter.appendChild(gutterDiv);
+              }
+              gutterDiv.style.top = top - 2 + "px";
+              gutterDiv.style.height = height + 4 + "px";
+            }
+            selectedAnnoteEl = annoteEl;
+          }
+        };
+        const unselectCodeLines = () => {
+          const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+          elementsIds.forEach((elId) => {
+            const div = window.document.getElementById(elId);
+            if (div) {
+              div.remove();
+            }
+          });
+          selectedAnnoteEl = undefined;
+        };
+          // Handle positioning of the toggle
+      window.addEventListener(
+        "resize",
+        throttle(() => {
+          elRect = undefined;
+          if (selectedAnnoteEl) {
+            selectCodeLines(selectedAnnoteEl);
+          }
+        }, 10)
+      );
+      function throttle(fn, ms) {
+      let throttle = false;
+      let timer;
+        return (...args) => {
+          if(!throttle) { // first call gets through
+              fn.apply(this, args);
+              throttle = true;
+          } else { // all the others get throttled
+              if(timer) clearTimeout(timer); // cancel #2
+              timer = setTimeout(() => {
+                fn.apply(this, args);
+                timer = throttle = false;
+              }, ms);
+          }
+        };
+      }
+        // Attach click handler to the DT
+        const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+        for (const annoteDlNode of annoteDls) {
+          annoteDlNode.addEventListener('click', (event) => {
+            const clickedEl = event.target;
+            if (clickedEl !== selectedAnnoteEl) {
+              unselectCodeLines();
+              const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+              if (activeEl) {
+                activeEl.classList.remove('code-annotation-active');
+              }
+              selectCodeLines(clickedEl);
+              clickedEl.classList.add('code-annotation-active');
+            } else {
+              // Unselect the line
+              unselectCodeLines();
+              clickedEl.classList.remove('code-annotation-active');
+            }
+          });
+        }
+    const findCites = (el) => {
+      const parentEl = el.parentElement;
+      if (parentEl) {
+        const cites = parentEl.dataset.cites;
+        if (cites) {
+          return {
+            el,
+            cites: cites.split(' ')
+          };
+        } else {
+          return findCites(el.parentElement)
+        }
+      } else {
+        return undefined;
+      }
+    };
+    var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+    for (var i=0; i<bibliorefs.length; i++) {
+      const ref = bibliorefs[i];
+      const citeInfo = findCites(ref);
+      if (citeInfo) {
+        tippyHover(citeInfo.el, function() {
+          var popup = window.document.createElement('div');
+          citeInfo.cites.forEach(function(cite) {
+            var citeDiv = window.document.createElement('div');
+            citeDiv.classList.add('hanging-indent');
+            citeDiv.classList.add('csl-entry');
+            var biblioDiv = window.document.getElementById('ref-' + cite);
+            if (biblioDiv) {
+              citeDiv.innerHTML = biblioDiv.innerHTML;
+            }
+            popup.appendChild(citeDiv);
+          });
+          return popup.innerHTML;
+        });
+      }
+    }
+  });
+  </script>
+<nav class="page-navigation">
+  <div class="nav-page nav-page-previous">
+      <a href="../lectures/week07.html" class="pagination-link" aria-label="Week 7: Variational Inference II and VAEs">
+        <i class="bi bi-arrow-left-short"></i> <span class="nav-page-text"><span class="chapter-title">Week 7: Variational Inference II and VAEs</span></span>
+      </a>          
+  </div>
+  <div class="nav-page nav-page-next">
+      <a href="../lectures/midterm-practice.html" class="pagination-link" aria-label="Midterm practice: Weeks 1–6">
+        <span class="nav-page-text"><span class="chapter-title">Midterm practice: Weeks 1–6</span></span> <i class="bi bi-arrow-right-short"></i>
+      </a>
+  </div>
+</nav>
+</div> <!-- /content -->
+
+
+
+
+<script src="../site_libs/quarto-html/zenscroll-min.js"></script>
+</body></html>
