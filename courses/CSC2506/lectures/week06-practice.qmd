@@ -33,24 +33,59 @@ An HMM with two hidden states has $\pi=(0.4,\ 0.6)$, a sticky transition matrix 
 ::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
 This uses [Week 6, From Markov chains to hidden states](week06.qmd#sec-hmm-motivate) and the forward recursion of [The forward algorithm](week06.qmd#sec-forward).
 
+**Main idea.** The question is whether the observations inherit the Markov property of the hidden chain. They do not. Each $x_t$ is only a noisy view of $z_t$, so after seeing $x_2$ we still do not know $z_2$ exactly, and the older observation $x_1$ tells us something more about $z_2$. Because the chain is sticky, that information carries forward to $z_3$ and changes the prediction for $x_3$. The formula $\alpha_1\propto\psi_1\odot\pi$ is a mechanical step in the computation, not the idea itself.
+
 **History $x_{1:2}=(0,0)$.**
 
-- $\psi_1=(0.8,\ 0.2)$, so $\psi_1\odot\pi = (0.32,\ 0.12)$ and $\alpha_1 = (0.727,\ 0.273)$.
-- Predict: $\Psi^\top\alpha_1 = (0.9\cdot0.727+0.1\cdot0.273,\ \ 0.1\cdot0.727+0.9\cdot0.273) = (0.682,\ 0.318)$.
-- Update with $\psi_2=(0.8,\ 0.2)$ and normalize: $\alpha_2 = (0.896,\ 0.104)$.
-- Predict $z_3$: $\Psi^\top\alpha_2 = (0.816,\ 0.184)$.
-- So $p(x_3=0\mid x_{1:2}) = 0.8\cdot0.816 + 0.2\cdot0.184 \approx 0.690$.
+- $\psi_1=(0.8,\ 0.2)$, so $\psi_1\odot\pi=(0.32,\ 0.12)$. Dividing by the sum $0.44$ gives $\alpha_1=(0.727,\ 0.273)$.
+- Predict: $\Psi^\top\alpha_1=(0.682,\ 0.318)$. The sticky chain keeps most of the mass in state 1.
+- Update with $\psi_2=(0.8,\ 0.2)$ and normalize: $\alpha_2=(0.896,\ 0.104)$.
+- Predict $z_3$: $\Psi^\top\alpha_2=(0.816,\ 0.184)$.
+- So $p(x_3=0\mid x_{1:2})=0.8\cdot0.816+0.2\cdot0.184\approx0.690$.
 
 **History $x_{1:2}=(1,0)$.**
 
-- $\psi_1=(0.2,\ 0.8)$, so $\psi_1\odot\pi = (0.08,\ 0.48)$ and $\alpha_1=(0.143,\ 0.857)$.
-- Predict: $(0.214,\ 0.786)$. Update with $(0.8,\ 0.2)$: $\alpha_2 = (0.522,\ 0.478)$.
-- Predict $z_3$: $(0.517,\ 0.483)$.
-- So $p(x_3=0\mid x_{1:2}) = 0.8\cdot0.517+0.2\cdot0.483\approx0.510$.
+- $\psi_1=(0.2,\ 0.8)$, so $\psi_1\odot\pi=(0.08,\ 0.48)$ and $\alpha_1=(0.143,\ 0.857)$. The first observation points strongly to state 2.
+- Predict: $\Psi^\top\alpha_1=(0.214,\ 0.786)$. Update with $(0.8,\ 0.2)$: $\alpha_2=(0.522,\ 0.478)$.
+- Predict $z_3$: $\Psi^\top\alpha_2=(0.517,\ 0.483)$.
+- So $p(x_3=0\mid x_{1:2})=0.8\cdot0.517+0.2\cdot0.483\approx0.510$.
 
-Both histories end in $x_2=0$, yet the prediction for $x_3$ differs. The earlier observation $x_1$ changes our belief about the hidden state $z_2$, and through the sticky chain that belief carries forward. If the observations were Markov, $x_1$ could not matter once $x_2$ is known.
+**How to read the comparison.** Both histories end in $x_2=0$, and the emission at time 2 is identical in both. The only difference is the belief about $z_2$: $\alpha_2=(0.896,\ 0.104)$ versus $(0.522,\ 0.478)$. That gap comes entirely from $x_1$, and the transition matrix carries it into the prediction for $x_3$. If the observations were a first-order Markov chain, $p(x_3\mid x_2,x_1)$ would equal $p(x_3\mid x_2)$, and $x_1$ would have no effect once $x_2$ is known. The two values $0.690$ and $0.510$ show that it does have an effect.
 
 **Answer.** (1) About $0.690$ and $0.510$. (2) No: $p(x_3\mid x_2,x_1)$ depends on $x_1$, so the observations alone are not a first-order Markov chain, even though the hidden states are.
+
+**Key takeaways.**
+
+- The hidden states can be Markov while the observations are not: a noisy observation does not pin down $z_t$, so older observations still carry information about it.
+- To predict the next observation in an HMM, filter to get $\alpha_t$, push it through $\Psi^\top$, then average the emission probabilities.
+- To show a sequence is not first-order Markov, one pair of histories with the same last value and different predictions is enough.
+:::
+
+::: {.callout-tip collapse="true" .clarification title="Question: Which equations does this problem use, and how does it map onto them?"}
+**Key equations.** Filtering tracks the belief about the current hidden state:
+
+$$\alpha_1 \propto \psi_1\odot\pi, \qquad \alpha_t \propto \psi_t\odot\left(\Psi^\top\alpha_{t-1}\right)\quad (t>1).$$
+
+The one-step-ahead prediction of the next observation averages the emission over the predicted state:
+
+$$p(x_{t+1}=v\mid x_{1:t}) = \sum_j p(x_{t+1}=v\mid z_{t+1}=j)\,\big(\Psi^\top\alpha_t\big)_j.$$
+
+**Variables.**
+
+- $\alpha_t(j)=p(z_t=j\mid x_{1:t})$: our belief about the hidden state at time $t$ after seeing the data so far. The problem needs $\alpha_2$ once for each history.
+- $\pi$: the prior on $z_1$, here $(0.4,\ 0.6)$.
+- $\psi_t(j)=p(x_t\mid z_t=j)$ at the observed $x_t$: $(0.8,\ 0.2)$ when $x_t=0$ and $(0.2,\ 0.8)$ when $x_t=1$.
+- $\Psi^\top\alpha_t$: the predicted distribution of $z_{t+1}$ before $x_{t+1}$ arrives.
+- $\odot$ multiplies entry by entry, and $\propto$ means "divide by the sum so the entries add to 1".
+
+**How to read the two rules.** The first rule is Bayes' rule: prior $\pi$ times likelihood $\psi_1$, normalized. The second is prediction ($\Psi^\top\alpha_{t-1}$ pushes yesterday's belief through the chain) followed by an update ($\psi_t$ reweights each state by how well it explains $x_t$).
+
+**How the problem maps onto them.**
+
+1. "Find $p(z_2\mid x_{1:2})$" is $\alpha_2$: apply the first rule with $x_1$, then the second rule once with $x_2=0$.
+2. "Push it one step through the chain" is $\Psi^\top\alpha_2=p(z_3\mid x_{1:2})$.
+3. "Average the emission probability" is the prediction formula with $v=0$: a dot product of $(0.8,\ 0.2)$ with $\Psi^\top\alpha_2$.
+4. Part 2 uses the definition of a first-order Markov chain, $p(x_3\mid x_2,x_1)=p(x_3\mid x_2)$ for all values. One pair of histories that disagrees is enough to show it fails.
 :::
 
 ### Problem 2: Counting parameters {#prb-2}
@@ -71,6 +106,34 @@ This uses [Week 6, From Markov chains to hidden states](week06.qmd#sec-hmm-motiv
 An order-$m$ chain needs $M^m(M-1)$ transition numbers, which grows exponentially in $m$. The HMM count does not depend on how far back the dependence reaches: Problem 1 showed that the HMM's observations depend on the whole past through the hidden state. This is the trade the lecture describes, keeping the temporal dependence in a small unobserved state.
 
 **Answer.** (1) $35$. (2) $900$. An order-$m$ chain needs $M^m(M-1)$; the HMM stays at $(K-1)+K(K-1)+K(M-1)$.
+
+**Key takeaways.**
+
+- Count the free parameters of a conditional table as (number of conditioning values) $\times$ (number of outcome values $-\,1$).
+- A Markov chain on the observations pays exponentially in how far back it looks. An HMM stores long-range dependence in a small hidden state at a fixed parameter cost.
+:::
+
+::: {.callout-tip collapse="true" .clarification title="Question: Which equations does this problem use, and how does it map onto them?"}
+**Key fact.** A distribution over $n$ values has $n-1$ free numbers, because the last one is fixed by summing to 1. A conditional probability table has one such distribution per value of what it conditions on:
+
+$$\#\text{free parameters} = (\#\text{conditioning values})\times(\#\text{outcome values}-1).$$
+
+Applied to the two models:
+
+$$\text{HMM: } (K-1)+K(K-1)+K(M-1), \qquad \text{order-}m\text{ chain: } M^m(M-1).$$
+
+**Variables.**
+
+- $K=3$: number of hidden states. $M=10$: number of observation values. $m$: how many past observations the chain conditions on ($m=2$ here, then general).
+- $\pi$: one distribution over $K$ states, conditioned on nothing.
+- $\Psi$: one distribution over $K$ next states for each of the $K$ current states.
+- Emission table: one distribution over $M$ observations for each of the $K$ states.
+
+**How the problem maps onto them.**
+
+1. For the HMM, list the three tables, count rows times (values minus 1) for each, and add: $2+6+27$.
+2. For the second-order chain, the conditioning value is the pair $(x_{t-1},x_{t-2})$, which has $M^2$ possibilities, each with $M-1$ free numbers.
+3. For general $m$, the conditioning tuple has $M^m$ values, so the count grows exponentially in $m$. Nothing in the HMM formula mentions $m$.
 :::
 
 ## Hidden Markov models {#sec-w6p-hmm}
@@ -89,6 +152,30 @@ This uses [Week 6, Hidden Markov models](week06.qmd#sec-hmm). The factorization 
 Multiply: $0.06\times0.63\times0.24$.
 
 **Answer.** $p(z_{1:3}=(1,1,2), x_{1:3}) = 0.009072$.
+
+**Key takeaways.**
+
+- When every variable is fixed, the HMM joint is a product of table lookups: one initial factor, $T-1$ transitions, and $T$ emissions.
+- Grouping the factors by time step (\"how the chain got here\" times \"what it emitted\") makes the product hard to get wrong.
+:::
+
+::: {.callout-tip collapse="true" .clarification title="Question: Which equations does this problem use, and how does it map onto them?"}
+**Key equation.** The HMM factorization of one complete configuration:
+
+$$p(z_{1:T},x_{1:T}) = \pi(z_1)\prod_{t=2}^{T}\Psi(z_{t-1},z_t)\prod_{t=1}^{T}p(x_t\mid z_t).$$
+
+**Variables.**
+
+- $z_{1:3}=(1,1,2)$ and $x_{1:3}=(1,0,1)$ are both given, so nothing is summed.
+- $\pi(z_1)$: the entry of $\pi$ for the first state, here $\pi(1)=0.6$.
+- $\Psi(z_{t-1},z_t)$: row is the previous state, column is the next state. Here $\Psi(1,1)=0.7$ and $\Psi(1,2)=0.3$.
+- $p(x_t\mid z_t)$: row $z_t$, column $x_t$ of the emission table.
+
+**How the problem maps onto them.**
+
+1. Count the factors: one initial factor, $T-1=2$ transition factors, $T=3$ emission factors.
+2. Group them by time: at each $t$, "how did the chain get to $z_t$" times "what did $z_t$ emit".
+3. Look up each entry and multiply.
 :::
 
 ### Problem 4: The emission vector is not a distribution {#prb-4}
@@ -101,6 +188,29 @@ This uses the definition of $\psi_t$ in [Week 6, Hidden Markov models](week06.qm
 The student read the **row** for $z=1$, which is a distribution over $x$ and does sum to 1. The column is a likelihood over hidden states: each entry comes from a different conditional distribution, so nothing forces them to sum to 1. Here they sum to $1.1$.
 
 **Answer.** $\psi_2=(0.9,\ 0.2)$, a likelihood over states whose entries sum to $1.1$; the student took a row of the emission table instead of the column for the observed value.
+
+**Key takeaways.**
+
+- $\psi_t$ is a column of the emission table (observed value fixed, state varying), so it is a likelihood over states and need not sum to 1.
+- Rows of the emission table are distributions over observations; columns are not. A sum check tells them apart.
+:::
+
+::: {.callout-tip collapse="true" .clarification title="Question: Which equations does this problem use, and how does it map onto them?"}
+**Key definition.** With the emission table $B(i,v)=p(x=v\mid z=i)$ and observed value $v_t$,
+
+$$\psi_t(i) = p(x_t=v_t\mid z_t=i) = B(i,v_t), \qquad i=1,\dots,K.$$
+
+**Variables.**
+
+- Row $i$ of $B$: a distribution over observations for state $i$. It always sums to 1.
+- Column $v$ of $B$: one number from each state's distribution. It is a likelihood over states and has no reason to sum to 1.
+- Here $x_2=0$, so $\psi_2$ is the $x=0$ column: $(0.9,\ 0.2)$.
+
+**How the problem maps onto them.**
+
+1. The observed value picks the column; the hidden-state index runs down it.
+2. The student's vector $(0.9,\ 0.1)$ is the row for $z=1$, so it answers a different question ("what does state 1 emit?").
+3. The sum check exposes the mix-up: rows sum to 1, columns generally do not.
 :::
 
 ### Problem 5: Reading independences off the HMM graph {#prb-5}
@@ -123,6 +233,30 @@ This uses the separation argument in [Week 6, Hidden Markov models](week06.qmd#s
 5. **True.** The only path is $x_2\leftarrow z_2\leftarrow z_1$, blocked at $z_2$.
 
 **Answer.** True, false, true, false, true.
+
+**Key takeaways.**
+
+- In an HMM, conditioning on a hidden state that lies on the path blocks it. Conditioning on an observation never does, because observations hang off the chain.
+- To test a conditional independence, write the path, then check whether a conditioned node sits on it.
+:::
+
+::: {.callout-tip collapse="true" .clarification title="Question: Which equations does this problem use, and how does it map onto them?"}
+**Key facts.** The HMM graph is the chain $z_1\to z_2\to z_3$ with an arrow $z_t\to x_t$ at each time. Two variables are conditionally independent given a set $S$ when every path between them is blocked. On this graph, every node on a path is a chain node ($\to\bullet\to$) or a fork node ($\leftarrow\bullet\to$), and such a node blocks the path exactly when it is in $S$.
+
+**Variables.**
+
+- The two variables named in each statement are the endpoints of the path.
+- The variable after $\mid$ is the conditioning set $S$.
+
+**How the problem maps onto them.** For each statement, write the unique path, then ask whether it passes through a node in $S$:
+
+| Statement | Path | Node in $S$ on the path? | Verdict |
+|---|---|---|---|
+| 1 | $x_1\leftarrow z_1\to z_2\to z_3\to x_3$ | $z_2$, yes | true |
+| 2 | same path | $x_2$ is not on it | false |
+| 3 | $z_1\to z_2\to z_3$ | $z_2$, yes | true |
+| 4 | $z_1\to z_2\to z_3$ | $x_2$ is not on it | false |
+| 5 | $x_2\leftarrow z_2\leftarrow z_1$ | $z_2$, yes | true |
 :::
 
 ## Two inference questions {#sec-w6p-goals}
@@ -142,6 +276,34 @@ This uses [Week 6, Two inference questions](week06.qmd#sec-hmm-goals).
 2. (a) A single marginal $\gamma_7(3)$: forward-backward. (b) The jointly most probable sequence: Viterbi. (c) This is the argmax of each $\gamma_t$ separately, which comes from forward-backward. It is **not** the same as (b): the most probable sequence need not be built from the individually most probable states (Problem 14 constructs an example).
 
 **Answer.** (1) About $1.1\times10^{12}$ sequences against about $320$ operations. (2) Marginal, MAP, marginal.
+
+**Key takeaways.**
+
+- Brute force grows as $K^T$; the forward recursion grows as $TK^2$, linear in the sequence length.
+- \"The whole sequence\" calls for Viterbi; \"at time $t$\" or \"each step separately\" calls for the marginals $\gamma_t$. The per-step argmaxes need not form the MAP sequence.
+:::
+
+::: {.callout-tip collapse="true" .clarification title="Question: Which equations does this problem use, and how does it map onto them?"}
+**Key equations.**
+
+$$\#\text{hidden sequences}=K^T, \qquad \text{forward-recursion cost}\approx TK^2.$$
+
+The two inference targets:
+
+$$\gamma_t(j)=p(z_t=j\mid x_{1:T}) \;\;(\text{forward-backward}), \qquad z^*_{1:T}=\arg\max_{z_{1:T}}p(z_{1:T}\mid x_{1:T}) \;\;(\text{Viterbi}).$$
+
+**Variables.**
+
+- $K=4$ states per time step and $T=20$ time steps.
+- $\gamma_t$: a distribution over the state at one time. $z^*_{1:T}$: one whole sequence.
+
+**How the problem maps onto them.**
+
+1. Part 1: plug in. $K^T$ counts choices made independently at each of $T$ steps; $TK^2$ counts one $K\times K$ matrix-vector product per step.
+2. Part 2: read the shape of the request.
+   - "Probability of state 3 at time 7" is one entry, $\gamma_7(3)$.
+   - "Single most probable explanation of the whole sequence" is $z^*_{1:T}$.
+   - "Most probable state at each step separately" is $\arg\max_j\gamma_t(j)$ for each $t$, computed from the $\gamma$'s, not from Viterbi.
 :::
 
 ## The forward algorithm {#sec-w6p-forward}
@@ -160,6 +322,33 @@ This uses [Week 6, The forward algorithm](week06.qmd#sec-forward): $\alpha_1\pro
 Each step follows the observation: a 1 favours state 2, a 0 favours state 1, and the chain's tendency to stay put softens each swing.
 
 **Answer.** $\alpha_1\approx(0.158,0.842)$, $\alpha_2\approx(0.785,0.215)$, $\alpha_3\approx(0.179,0.821)$; normalizers $0.38$, $0.513$, $0.355$.
+
+**Key takeaways.**
+
+- Each forward step is predict ($\Psi^\top\alpha_{t-1}$), update (multiply by $\psi_t$), normalize. Record each normalizer, since later problems need it.
+- By hand, $\Psi^\top\alpha$ is the belief-weighted average of the rows of $\Psi$.
+:::
+
+::: {.callout-tip collapse="true" .clarification title="Question: Which equations does this problem use, and how does it map onto them?"}
+**Key equations.**
+
+$$\alpha_1 \propto \psi_1\odot\pi, \qquad \alpha_t \propto \psi_t\odot\left(\Psi^\top\alpha_{t-1}\right),$$
+
+$$c_1=\sum_j\psi_1(j)\pi(j), \qquad c_t=\sum_j\psi_t(j)\big(\Psi^\top\alpha_{t-1}\big)_j, \qquad \big(\Psi^\top\alpha\big)_j=\sum_i\alpha(i)\,\Psi(i,j).$$
+
+**Variables.**
+
+- HMM-B: $\pi=(0.6,\ 0.4)$, $\Psi$ with rows $(0.7,\ 0.3)$ and $(0.4,\ 0.6)$.
+- $\psi_t$ is the emission column for the observed value: $\psi_1=\psi_3=(0.1,\ 0.8)$ for $x=1$ and $\psi_2=(0.9,\ 0.2)$ for $x=0$.
+- $c_t$: the normalizer at step $t$, the sum of the unnormalized vector. The problem asks for it explicitly.
+
+**How the problem maps onto them.** Each step has three moves:
+
+1. **Predict.** $\Psi^\top\alpha_{t-1}$ is the average of the rows of $\Psi$, weighted by the current belief: $\alpha_{t-1}(1)\times\text{row }1+\alpha_{t-1}(2)\times\text{row }2$. This is the quickest way to do it by hand.
+2. **Update.** Multiply entry by entry by $\psi_t$.
+3. **Normalize.** Record the sum as $c_t$, then divide by it to get $\alpha_t$.
+
+At $t=1$ there is nothing to predict from, so $\pi$ plays the role of the predicted vector.
 :::
 
 ### Problem 8: A transposition bug {#prb-8}
@@ -176,6 +365,35 @@ With $\alpha_1\approx(0.158,\ 0.842)$: $\Psi\alpha_1 \approx(0.7\cdot0.158+0.3\c
 The quick check: a predicted distribution must sum to 1. $\Psi^\top\alpha_1$ always does (each row of $\Psi$ sums to 1), but $\Psi\alpha_1$ sums to $0.932$ here. The bug is invisible when $\Psi$ is symmetric, which is why it should be tested on a non-symmetric $\Psi$.
 
 **Answer.** The bug gives $\alpha_2\approx(0.742,0.258)$ instead of $(0.785,0.215)$. Check that the predicted vector sums to 1 before multiplying by $\psi_t$.
+
+**Key takeaways.**
+
+- The prediction step sums over the \"from\" index of $\Psi$, so it is $\Psi^\top\alpha$, not $\Psi\alpha$. In code, write `Psi.T @ alpha` or `alpha @ Psi`.
+- A predicted distribution must sum to 1, and checking that catches the transposition. Test on a non-symmetric $\Psi$, where the bug is visible.
+:::
+
+::: {.callout-tip collapse="true" .clarification title="Question: Which equations does this problem use, and how does it map onto them?"}
+**Key equations.** The prediction step sums over where the chain came from:
+
+$$p(z_t=j\mid x_{1:t-1})=\sum_i\Psi(i,j)\,\alpha_{t-1}(i)=\big(\Psi^\top\alpha_{t-1}\big)_j.$$
+
+The buggy code computes instead
+
+$$\big(\Psi\,\alpha_{t-1}\big)_i=\sum_j\Psi(i,j)\,\alpha_{t-1}(j).$$
+
+The sanity check: since each row of $\Psi$ sums to 1 ($\Psi\mathbf 1=\mathbf 1$), $\;\mathbf 1^\top\Psi^\top\alpha=\alpha^\top\Psi\mathbf 1=\alpha^\top\mathbf 1=1$.
+
+**Variables.**
+
+- $\Psi(i,j)=p(z_{t+1}=j\mid z_t=i)$: first index is "from", second is "to".
+- $\alpha_1\approx(0.158,\ 0.842)$ from Problem 7.
+
+**How the problem maps onto them.**
+
+1. Identify the summed index. The correct formula sums over the "from" state $i$ (the unknown past) and keeps the "to" state $j$.
+2. `Psi @ alpha` sums over the second index of `Psi`, the "to" state. That is the wrong index.
+3. Compute the buggy vector, update and normalize as in Problem 7, and compare.
+4. The check: $\Psi^\top\alpha$ sums to 1 for every $\alpha$, while $\Psi\alpha$ does not in general. With a symmetric $\Psi$ the two coincide, which hides the bug.
 :::
 
 ### Problem 9: The probability of the data from the normalizers {#prb-9}
@@ -197,6 +415,32 @@ Brute force with $x_{1:2}=(1,0)$, each term $\pi(z_1)\,\psi_1(z_1)\,\Psi(z_1,z_2
 The sum is $0.195$.
 
 **Answer.** $p(x_{1:2})=0.195$ both ways.
+
+**Key takeaways.**
+
+- The forward normalizers are one-step predictive probabilities, and their product is $p(x_{1:T})$.
+- In code, add the $\log c_t$ instead of multiplying, to avoid underflow. Brute-force enumeration on a tiny case is a good check.
+:::
+
+::: {.callout-tip collapse="true" .clarification title="Question: Which equations does this problem use, and how does it map onto them?"}
+**Key equations.** Each forward normalizer is a one-step predictive probability, and the chain rule multiplies them:
+
+$$c_t = p(x_t\mid x_{1:t-1}), \qquad p(x_{1:T})=\prod_{t=1}^{T}c_t.$$
+
+The brute-force check sums the factorization of Problem 3 over all hidden pairs:
+
+$$p(x_{1:2})=\sum_{z_1}\sum_{z_2}\pi(z_1)\,\psi_1(z_1)\,\Psi(z_1,z_2)\,\psi_2(z_2).$$
+
+**Variables.**
+
+- $c_1=0.38$ and $c_2\approx0.513$ from Problem 7.
+- $\psi_1=(0.1,\ 0.8)$ for $x_1=1$ and $\psi_2=(0.9,\ 0.2)$ for $x_2=0$.
+
+**How the problem maps onto them.**
+
+1. Multiply the first two normalizers: $c_1c_2=p(x_1)\,p(x_2\mid x_1)=p(x_{1:2})$.
+2. For the check, list the $K^T=4$ hidden pairs, evaluate each product, and add.
+3. The two answers agree because the forward recursion does the same sum, one variable at a time.
 :::
 
 ## The forward-backward algorithm {#sec-w6p-fb}
@@ -223,6 +467,30 @@ This uses [Week 6, The forward-backward algorithm](week06.qmd#sec-fb): $\beta_T=
 $\gamma_1$ is close to $\alpha_1=(0.158,0.842)$ but shifted toward state 1: the next observation is a 0, which favours state 1 at $t=2$, and the chain makes state 1 at $t=1$ a little more plausible as a result. Enumerating all 8 hidden sequences gives the same $\gamma$'s.
 
 **Answer.** $\beta_2=(0.31,0.52)$, $\beta_1=(0.2265,0.174)$; $\gamma_1\approx(0.196,0.804)$, $\gamma_2\approx(0.685,0.315)$, $\gamma_3\approx(0.179,0.821)$.
+
+**Key takeaways.**
+
+- $\alpha_t$ carries evidence from the past and present, $\beta_t$ carries evidence from the future, and $\gamma_t\propto\alpha_t\odot\beta_t$ combines them.
+- The backward step uses $\Psi$ (average over where the chain goes next); the forward step uses $\Psi^\top$ (sum over where it came from).
+- Later observations can move a state's smoothed posterior away from its filtered one.
+:::
+
+::: {.callout-tip collapse="true" .clarification title="Question: Which equations does this problem use, and how does it map onto them?"}
+**Key equations.**
+
+$$\beta_T=\mathbf 1, \qquad \beta_t=\Psi\,\big(\psi_{t+1}\odot\beta_{t+1}\big), \qquad \gamma_t\propto\alpha_t\odot\beta_t.$$
+
+**Variables.**
+
+- $\beta_t(i)=p(x_{t+1:T}\mid z_t=i)$: how well state $i$ at time $t$ explains the future observations. It is a likelihood over states, not a distribution.
+- $\gamma_t(i)=p(z_t=i\mid x_{1:T})$: the smoothed posterior, using all the data.
+- $\alpha_t$ from Problem 7; $\psi_2=(0.9,\ 0.2)$, $\psi_3=(0.1,\ 0.8)$.
+
+**How the problem maps onto them.**
+
+1. Start at the end with $\beta_3=(1,\ 1)$: there are no future observations to explain.
+2. Step back: $\beta_2$ uses $\psi_3$, and $\beta_1$ uses $\psi_2$. Note that this is $\Psi$, not $\Psi^\top$: $(\Psi v)_i=\sum_j\Psi(i,j)v(j)$ averages over where the chain goes next from state $i$.
+3. Combine: multiply $\alpha_t$ and $\beta_t$ entry by entry, then normalize. At $t=T$, $\beta_T=\mathbf 1$ gives $\gamma_T=\alpha_T$.
 :::
 
 ### Problem 11: What the backward vector carries {#prb-11}
@@ -243,6 +511,33 @@ On HMM-B:
 - $t=3$: $0.0693\times(0.179+0.821)=0.0693$.
 
 **Answer.** (1) Every $\beta_t$ is constant and $\gamma_t=\alpha_t$. (2) The sum equals $p(x_{1:3})\approx0.0693$ at each $t$, which is a useful bug check for an implementation.
+
+**Key takeaways.**
+
+- Uninformative emissions make every $\beta_t$ constant, so smoothing adds nothing and $\gamma_t=\alpha_t$.
+- $p(x_{1:t})\sum_i\alpha_t(i)\beta_t(i)$ is the same at every $t$, which makes a cheap implementation check.
+- To verify an identity between recursion quantities, translate each symbol back into the probability it stands for.
+:::
+
+::: {.callout-tip collapse="true" .clarification title="Question: Which equations does this problem use, and how does it map onto them?"}
+**Key equations.** The probabilistic meaning of each symbol:
+
+$$\alpha_t(i)\,p(x_{1:t})=p(z_t=i,\ x_{1:t}), \qquad \beta_t(i)=p(x_{t+1:T}\mid z_t=i),$$
+
+$$p(x_{1:t})\sum_i\alpha_t(i)\,\beta_t(i)=\sum_i p(z_t=i,\ x_{1:T})=p(x_{1:T}).$$
+
+The fact used in Part 1: each row of $\Psi$ sums to 1, so $\Psi\,(c\mathbf 1)=c\mathbf 1$.
+
+**Variables.**
+
+- Part 1: an uninformative emission means $\psi_t=c_t\mathbf 1$ for some constant $c_t$.
+- Part 2: $p(x_1)=0.38$, $p(x_{1:2})\approx0.195$, $p(x_{1:3})\approx0.0693$, with $\alpha_t$ from Problem 7 and $\beta_t$ from Problem 10.
+
+**How the problem maps onto them.**
+
+1. Part 1: substitute $\psi_{t+1}=c_{t+1}\mathbf 1$ into the backward recursion. Starting from $\beta_T=\mathbf 1$, each step gives a constant vector. A constant vector cancels under $\propto$, so $\gamma_t=\alpha_t$.
+2. Part 2: multiply the two meanings. The step that joins them is $x_{t+1:T}\perp x_{1:t}\mid z_t$. Summing over $i$ removes $z_t$.
+3. The check: evaluate the left side at $t=1,2,3$ and confirm the same number each time.
 :::
 
 ## Worked example: a two-state HMM {#sec-w6p-example}
@@ -263,6 +558,30 @@ Verify. $\psi_1=(0.8,\ 0.4)$ and $\psi_2=\psi_3=(0.2,\ 0.6)$.
 In the original example the sticky chain linked $z_1$ to $z_2$ and $z_3$, so the two later 1's pulled $\gamma_1$ toward state 2. Smoothing adds information only through dependence between hidden states. Without it, $\beta_t$ is constant and the future observations say nothing about $z_t$.
 
 **Answer.** $\gamma_1\approx(0.667,0.333)$, $\gamma_2=\gamma_3=(0.25,0.75)$; each equals the normalized emission vector, and $\gamma_t=\alpha_t$ because the hidden states are independent.
+
+**Key takeaways.**
+
+- Smoothing differs from filtering only through the dependence between hidden states that $\Psi$ encodes.
+- If every row of $\Psi$ is the same, prediction forgets the past and each $z_t$ learns only from its own observation.
+:::
+
+::: {.callout-tip collapse="true" .clarification title="Question: Which equations does this problem use, and how does it map onto them?"}
+**Key equations.** The same forward-backward recursions, plus one fact about a memoryless $\Psi$. If every row of $\Psi$ equals the same vector $r$, then for any $\alpha$ and $v$,
+
+$$\Psi^\top\alpha=r, \qquad \Psi v=(r^\top v)\,\mathbf 1.$$
+
+So prediction ignores the past ($\alpha_t\propto\psi_t\odot r$), and every $\beta_t$ is constant ($\gamma_t=\alpha_t$).
+
+**Variables.**
+
+- $r=(0.5,\ 0.5)$, and the worked example's $\pi$ is also uniform.
+- $\psi_1=(0.8,\ 0.4)$ for $x_1=0$; $\psi_2=\psi_3=(0.2,\ 0.6)$ for $x=1$.
+
+**How the problem maps onto them.**
+
+1. Prediction: with independent hidden states, each $z_t$ can learn only from its own $x_t$, so $\gamma_t\propto\psi_t$.
+2. Verification: run the forward pass. $\Psi^\top\alpha_1=(0.5,\ 0.5)$ regardless of $\alpha_1$. Then run the backward pass and observe that each $\beta_t$ is constant.
+3. Comparison with the original example: there, $\Psi$ had unequal rows, so $\beta_1$ was not constant, and the later observations moved $\gamma_1$ away from $\alpha_1$.
 :::
 
 ## The Viterbi algorithm {#sec-w6p-viterbi}
@@ -284,6 +603,33 @@ This uses [Week 6, The Viterbi algorithm](week06.qmd#sec-viterbi).
 Its posterior probability is $0.027648/0.06927\approx0.399$. Here the MAP sequence agrees with the per-step argmaxes of the $\gamma$'s from Problem 10, but that is a property of this example, not a rule.
 
 **Answer.** MAP sequence $(2,1,2)$, joint probability $0.027648$, posterior probability about $0.40$.
+
+**Key takeaways.**
+
+- Viterbi is the forward recursion with the sum over the previous state replaced by a max, plus back-pointers to recover the winners.
+- $\delta_t$ is never normalized, so it stays a joint probability. Dividing the best final $\delta$ by $p(x_{1:T})$ gives the sequence's posterior probability.
+:::
+
+::: {.callout-tip collapse="true" .clarification title="Question: Which equations does this problem use, and how does it map onto them?"}
+**Key equations.** Viterbi is the forward recursion with the sum replaced by a max:
+
+$$\delta_1=\pi\odot\psi_1, \qquad \delta_t(j)=\psi_t(j)\max_i\big[\delta_{t-1}(i)\,\Psi(i,j)\big],$$
+
+$$\theta_t(j)=\arg\max_i\big[\delta_{t-1}(i)\,\Psi(i,j)\big].$$
+
+$$z^*_T=\arg\max_j\delta_T(j), \qquad z^*_t=\theta_{t+1}(z^*_{t+1}), \qquad p(z^*_{1:T}\mid x_{1:T})=\frac{\max_j\delta_T(j)}{p(x_{1:T})}.$$
+
+**Variables.**
+
+- $\delta_t(j)$: the joint probability of the best hidden path that ends in state $j$ at time $t$, together with $x_{1:t}$. There is no normalization, so it stays a joint probability.
+- $\theta_t(j)$: the back-pointer, the best previous state for a path ending in $j$ at time $t$.
+- HMM-B parameters, and $p(x_{1:3})\approx0.06927$ from Problem 11.
+
+**How the problem maps onto them.**
+
+1. For each $(t,j)$, list the $K$ candidates $\delta_{t-1}(i)\Psi(i,j)$. The largest gives $\theta_t(j)$, and multiplying it by $\psi_t(j)$ gives $\delta_t(j)$.
+2. At $T=3$, the largest $\delta_3(j)$ picks $z^*_3$. Follow back-pointers backward to get the rest.
+3. The posterior probability of the sequence divides the joint by $p(x_{1:3})$.
 :::
 
 ### Problem 14: When the best sequence is not built from the best states {#prb-14}
@@ -308,6 +654,32 @@ This uses [Week 6, Two inference questions](week06.qmd#sec-hmm-goals) and the re
 3. The marginal of $z_2$ adds probability from two different sequences, $(1,1)$ and $(2,1)$, which disagree about $z_1$. Neither alone beats $(2,2)$, but together they make state 1 the better guess for $z_2$. Viterbi asks for one coherent sequence; forward-backward asks about each position separately. Both answers are correct, for different questions.
 
 **Answer.** MAP sequence $(2,2)$; per-step marginal argmaxes $(2,1)$.
+
+**Key takeaways.**
+
+- Write the posterior over $(z_1,z_2)$ as a table: the MAP sequence is the largest cell, and the per-step answer takes the largest row sum and the largest column sum.
+- The argmax of the sums and the sum at the argmax are different operations, so the two answers can disagree. Each is correct for its own question.
+:::
+
+::: {.callout-tip collapse="true" .clarification title="Question: Which equations does this problem use, and how does it map onto them?"}
+**Key equations.** The joint of each hidden pair, the posterior, and the two ways to summarize it:
+
+$$p(z_1,z_2,x_{1:2})=\pi(z_1)\,\psi_1(z_1)\,\Psi(z_1,z_2)\,\psi_2(z_2),$$
+
+$$p(z_{1:2}\mid x_{1:2})=\frac{p(z_{1:2},x_{1:2})}{\sum_{z'_{1:2}}p(z'_{1:2},x_{1:2})},$$
+
+$$z^*_{1:2}=\arg\max_{z_1,z_2}p(z_1,z_2\mid x), \qquad p(z_1\mid x)=\sum_{z_2}p(z_1,z_2\mid x), \qquad p(z_2\mid x)=\sum_{z_1}p(z_1,z_2\mid x).$$
+
+**Variables.**
+
+- $\pi=(0.1,\ 0.9)$, $\Psi$ with rows $(0.7,\ 0.3)$ and $(0.3,\ 0.7)$.
+- $\psi_1=\psi_2=(0.8,\ 0.4)$, the emission column for $x=0$.
+
+**How the problem maps onto them.** Arrange the posterior as a $2\times2$ table with rows $z_1$ and columns $z_2$:
+
+1. Part 1 fills the four cells and divides by their total.
+2. Part 2: the MAP sequence is the largest cell. The per-step answer takes the largest row sum (for $z_1$) and the largest column sum (for $z_2$).
+3. Part 3: a column sum can win by adding two moderate cells that disagree about $z_1$, while a single cell elsewhere is the largest.
 :::
 
 ### Problem 15: Reading a Viterbi implementation {#prb-15}
@@ -351,6 +723,35 @@ This uses the algorithm block in [Week 6, The Viterbi algorithm](week06.qmd#sec-
    ```
 
 **Answer.** Buggy output `[0, 1, 1]`; correct output `[1, 0, 1]`, after changing `back[t - 1]` to `back[t]`.
+
+**Key takeaways.**
+
+- Working in logs avoids underflow and does not change any argmax, because $\log$ is increasing.
+- Before debugging index code, write a table mapping each code variable to its math symbol, including any index offset.
+- The traceback uses the back-pointer stored at the later time step: $z^*_t=\theta_{t+1}(z^*_{t+1})$.
+:::
+
+::: {.callout-tip collapse="true" .clarification title="Question: Which equations does this problem use, and how does it map onto them?"}
+**Key equations.** Viterbi in log space:
+
+$$\log\delta_t(j)=\log\psi_t(j)+\max_i\big[\log\delta_{t-1}(i)+\log\Psi(i,j)\big], \qquad z^*_t=\theta_{t+1}(z^*_{t+1}).$$
+
+Because $\log$ is increasing, $\arg\max_i f(i)=\arg\max_i\log f(i)$, and $\log(ab)=\log a+\log b$.
+
+**Variables.** Map each code name to its math symbol before debugging. Code time is 0-indexed, so code index $t$ is math time $t+1$:
+
+| Code | Math |
+|---|---|
+| `d` after the loop body at index `t` | $\log\delta_{t+1}$ |
+| `cand[i, j]` | $\log\delta_t(i)+\log\Psi(i,j)$ |
+| `back[t]` | $\theta_{t+1}$, the back-pointers for math time $t+1$ |
+| `log_psi[t]` | $\log\psi_{t+1}$ |
+
+**How the problem maps onto them.**
+
+1. Part 1 uses monotonicity of $\log$: the same candidates win, and sums of logs do not underflow.
+2. Part 2 fills `back` with Problem 13's $\theta$'s, shifted by the index offset. Row 0 is never written.
+3. Part 3: the traceback needs $z^*$ at math time $t$ from $\theta_{t+1}$. With the offset, that is `back[t]` at code index `t`, not `back[t - 1]`.
 :::
 
 ## Posterior inference in latent variable models {#sec-w6p-latent}
@@ -369,6 +770,35 @@ This uses [Week 6, Posterior inference in latent variable models](week06.qmd#sec
 Before the data the prior favours $z=1$; the likelihood is eight times larger at $z=3$ than at $z=1$, enough to overturn a prior that was only 2.5 times larger the other way.
 
 **Answer.** $p(x)=0.33$; posterior $\approx(0.152,\ 0.364,\ 0.485)$; the favoured value moves from $z=1$ to $z=3$.
+
+**Key takeaways.**
+
+- Joint is prior times likelihood, evidence is the sum of the joint, and posterior is joint divided by evidence.
+- A large enough likelihood ratio can overturn a prior. The odds form shows by how much without computing the evidence.
+- This is the same computation as $\alpha_1\propto\psi_1\odot\pi$ in the forward algorithm.
+:::
+
+::: {.callout-tip collapse="true" .clarification title="Question: Which equations does this problem use, and how does it map onto them?"}
+**Key equations.** The four pieces of Bayes' rule:
+
+$$p(x,z)=p(z)\,p(x\mid z), \qquad p(x)=\sum_z p(x,z), \qquad p(z\mid x)=\frac{p(x,z)}{p(x)}.$$
+
+The odds form compares two values of $z$ without the evidence:
+
+$$\frac{p(z=a\mid x)}{p(z=b\mid x)}=\frac{p(z=a)}{p(z=b)}\times\frac{p(x\mid z=a)}{p(x\mid z=b)}.$$
+
+**Variables.**
+
+- Prior $p(z)=(0.5,\ 0.3,\ 0.2)$: a distribution over $z$.
+- Likelihood $p(x\mid z)=(0.1,\ 0.4,\ 0.8)$: a function of $z$ for the fixed $x$. Like $\psi_t$ in Problem 4, it does not sum to 1.
+- Evidence $p(x)$: one number. Posterior $p(z\mid x)$: a distribution over $z$.
+
+**How the problem maps onto them.**
+
+1. Multiply prior and likelihood entry by entry to get the joint.
+2. Add the joint entries to get the evidence.
+3. Divide to get the posterior.
+4. The "before and after" comparison is the odds form with $a=3$, $b=1$: prior odds $0.4$ times likelihood ratio $8$ gives posterior odds $3.2$.
 :::
 
 ## What the TrueSkill posterior looks like {#sec-w6p-trueskill}
@@ -389,6 +819,32 @@ This uses [Week 6, What the TrueSkill posterior looks like](week06.qmd#sec-trues
 This is the three-player form of the lecture's fourth picture: game outcomes can pin down how players compare, never how good they all are in an absolute sense. Only the prior fixes the overall level.
 
 **Answer.** (1) Every pairwise difference is unchanged. (2) The average skill $\bar z$ keeps its prior $\mathcal N(0,\sigma^2/3)$.
+
+**Key takeaways.**
+
+- Game outcomes depend only on skill differences, so they cannot inform the average skill. Only the prior fixes the overall level.
+- A likelihood that is flat along some direction leaves the prior unchanged along it, when that direction is independent of the rest under the prior.
+:::
+
+::: {.callout-tip collapse="true" .clarification title="Question: Which equations does this problem use, and how does it map onto them?"}
+**Key equations.**
+
+$$p(\text{data}\mid z)=\sigma(z_A-z_B)\,\sigma(z_B-z_C), \qquad p(z\mid\text{data})\propto p(z)\,p(\text{data}\mid z).$$
+
+Decompose each skill into the average plus a deviation, $z_k=\bar z+d_k$. Under the prior, $\bar z\sim\mathcal N(0,\sigma^2/3)$ and $\bar z$ is independent of $d=(d_A,d_B,d_C)$. If the likelihood depends only on $d$, then
+
+$$p(\bar z,d\mid\text{data})\propto p(\bar z)\,\big[p(d)\,L(d)\big] \quad\Longrightarrow\quad p(\bar z\mid\text{data})=p(\bar z).$$
+
+**Variables.**
+
+- $\sigma(\cdot)$ is the logistic function. $\sigma^2$ is the prior variance. These are two different uses of the same letter.
+- $\bar z=(z_A+z_B+z_C)/3$, with variance $3\sigma^2/9=\sigma^2/3$.
+- $L(d)$: the likelihood written as a function of the deviations.
+
+**How the problem maps onto them.**
+
+1. Part 1: substitute $z_k+c$ into the likelihood. Each difference $z_i-z_j$ is unchanged.
+2. Part 2: rewrite the variables as $(\bar z,d)$. The prior factorizes, and the likelihood touches only $d$, so the posterior of $\bar z$ is its prior.
 :::
 
 ## Why the posterior is hard {#sec-w6p-hard}
@@ -405,6 +861,29 @@ This uses [Week 6, Why the posterior is hard](week06.qmd#sec-hard-post) and the 
 2. In an HMM each hidden variable interacts only with its two neighbours in a chain, so the sum can be pushed inside one variable at a time; the forward normalizers multiply to $p(x_{1:T})$ in about $TK^2$ steps (Problem 9). After many games among 50 players, the posterior couples most pairs of skills (Week 4's explaining away), so there is no chain or tree to eliminate along, and the variables are continuous with logistic factors that have no closed-form integral. Exact elimination is unavailable, which is why the course turns to sampling (Week 5) and variational methods (this week).
 
 **Answer.** (1) $10^4$ and $10^{100}$. (2) The HMM's chain structure (a tree) lets the recursion eliminate one variable at a time; the coupled TrueSkill posterior has no such structure.
+
+**Key takeaways.**
+
+- A grid costs $G^d$ evaluations, exponential in the dimension.
+- Exact inference is cheap when each factor touches a small group of variables arranged in a chain or tree. A densely coupled posterior has no such order to eliminate along.
+:::
+
+::: {.callout-tip collapse="true" .clarification title="Question: Which equations does this problem use, and how does it map onto them?"}
+**Key equations.**
+
+$$\#\text{grid points}=G^d, \qquad p(x_{1:T})=\sum_{z_1,\dots,z_T}\pi(z_1)\,\psi_1(z_1)\prod_{t=2}^{T}\Psi(z_{t-1},z_t)\,\psi_t(z_t).$$
+
+Every factor in the HMM sum involves at most two neighbouring variables, so the sums can be done one variable at a time at a cost of about $TK^2$ rather than $K^T$.
+
+**Variables.**
+
+- $G=100$ points per axis; $d=2$ or $d=50$ dimensions.
+- $T=50$ binary hidden states, so $K=2$ and $K^T=2^{50}$ terms.
+
+**How the problem maps onto them.**
+
+1. Part 1: plug in $G^d$.
+2. Part 2: look at which variables each factor touches. In the HMM, each factor touches neighbours on a chain, so summing out $z_1$ produces a function of $z_2$ only, and so on (this is the forward recursion). In the 50-player posterior, factors couple most pairs of players, so summing out one skill leaves a function of many others.
 :::
 
 ## Variational methods {#sec-w6p-vi}
@@ -422,6 +901,30 @@ This uses [Week 6, Variational methods](week06.qmd#sec-vi) and property 2 of the
 This is the trade the week chapter describes. A smaller family is cheaper to work with (here, two independent 1D Gaussians), but it builds in an error we accept on purpose. The diagonal family is the Gaussian case of the mean-field restriction later in the week.
 
 **Answer.** Zero for $Q_{\text{full}}$, strictly positive for $Q_{\text{diag}}$: the choice of $Q$ sets a floor on how good the approximation can be.
+
+**Key takeaways.**
+
+- Variational inference can be exact only if the target belongs to the family $Q$; otherwise the minimum KL is strictly positive.
+- A smaller family is cheaper but builds in an error. A diagonal Gaussian cannot represent correlation.
+:::
+
+::: {.callout-tip collapse="true" .clarification title="Question: Which equations does this problem use, and how does it map onto them?"}
+**Key facts.**
+
+$$q^*=\arg\min_{q\in Q}\mathrm{KL}(q\Vert p), \qquad \mathrm{KL}(q\Vert p)\ge0, \text{ with equality only when } q=p.$$
+
+So the minimum KL is zero exactly when $p$ itself belongs to $Q$.
+
+**Variables.**
+
+- $p$: a 2D Gaussian with correlation $0.8$.
+- $Q_{\text{full}}$: all 2D Gaussians. $Q_{\text{diag}}$: 2D Gaussians with zero correlation.
+
+**How the problem maps onto them.**
+
+1. For each family, ask whether $p$ is a member.
+2. $Q_{\text{full}}$ contains $p$, so the minimum KL is $0$.
+3. Every member of $Q_{\text{diag}}$ has correlation $0\ne0.8$, so the minimum KL is positive.
 :::
 
 ## Jensen's inequality {#sec-w6p-jensen}
@@ -439,6 +942,30 @@ This uses [Week 6, Jensen's inequality](week06.qmd#sec-jensen). $\phi=-\log$ is 
 Indeed $-0.693\ge-0.916$. Equality requires $y$ to be constant (since $-\log$ is not linear), for example $y=2.5$ with probability 1, where both sides equal $-\log2.5$.
 
 **Answer.** $-0.693\ge-0.916$, as Jensen requires; the sides are equal only when $y$ is constant.
+
+**Key takeaways.**
+
+- For a convex $\phi$, applying $\phi$ and then averaging gives at least as much as averaging and then applying $\phi$.
+- The gap grows with the spread of $y$ and vanishes only when $y$ is constant.
+:::
+
+::: {.callout-tip collapse="true" .clarification title="Question: Which equations does this problem use, and how does it map onto them?"}
+**Key equation.** Jensen's inequality for a convex function $\phi$:
+
+$$\mathbb{E}[\phi(y)]\ \ge\ \phi(\mathbb{E}[y]).$$
+
+For a strictly convex $\phi$, equality holds only when $y$ is constant. A twice-differentiable $\phi$ is convex when $\phi''\ge0$.
+
+**Variables.**
+
+- $y\in\{1,4\}$, each with probability $1/2$.
+- $\phi(y)=-\log y$, with $\phi''(y)=1/y^2>0$.
+
+**How the problem maps onto them.**
+
+1. Left side: apply $\phi$ to each value of $y$, then average.
+2. Right side: average $y$ first (giving $2.5$), then apply $\phi$.
+3. Equality: make $y$ constant, so the two operations act on a single value.
 :::
 
 ### Problem 21: Which way does the inequality point for a concave function? {#prb-21}
@@ -457,6 +984,31 @@ $$\mathcal L = \mathbb{E}_q[\log y] \le \log\mathbb{E}_q[y] = \log p(x).$$
 The week chapter reached the same bound through $\mathrm{KL}\ge0$, which is itself proved with Jensen.
 
 **Answer.** $\mathbb{E}[\log y]\le\log\mathbb{E}[y]$; applied to $y=p(x,z)/q(z)$ it gives $\mathcal L\le\log p(x)$.
+
+**Key takeaways.**
+
+- For a concave function such as $\log$, the inequality flips: $\mathbb{E}[\log y]\le\log\mathbb{E}[y]$.
+- Choosing $y=p(x,z)/q(z)$ with $z\sim q$ makes the right side $\log p(x)$, which is why the ELBO is a lower bound.
+:::
+
+::: {.callout-tip collapse="true" .clarification title="Question: Which equations does this problem use, and how does it map onto them?"}
+**Key equations.** Jensen applied to the convex $-\log$, then multiplied by $-1$:
+
+$$\mathbb{E}[-\log y]\ge-\log\mathbb{E}[y] \quad\Longleftrightarrow\quad \mathbb{E}[\log y]\le\log\mathbb{E}[y].$$
+
+The ELBO choice of $y$:
+
+$$y=\frac{p(x,z)}{q(z)},\ \ z\sim q, \qquad \mathbb{E}_q[y]=\sum_z q(z)\frac{p(x,z)}{q(z)}=\sum_z p(x,z)=p(x).$$
+
+**Variables.**
+
+- $y$: any positive random variable in the first part.
+- In the ELBO part, $y$ is the ratio of the joint to $q$, and $z$ is drawn from $q$.
+
+**How the problem maps onto them.**
+
+1. A concave function is the negative of a convex one, so the inequality flips.
+2. For the ELBO, choose $y$ so that its expectation under $q$ is the evidence $p(x)$. Then the left side, $\mathbb{E}_q[\log y]$, is the ELBO, and the right side is $\log p(x)$.
 :::
 
 ## The KL divergence {#sec-w6p-kl}
@@ -485,6 +1037,31 @@ $\mathrm{KL}(q\Vert p)=\sum_x q(x)\log\frac{q(x)}{p(x)}$:
 Total $\approx0.209$.
 
 **Answer.** $\mathrm{KL}(p\Vert q)\approx0.233$ and $\mathrm{KL}(q\Vert p)\approx0.209$: both positive, and different.
+
+**Key takeaways.**
+
+- In $\mathrm{KL}(p\Vert q)$, the first argument supplies both the weights and the numerator of the ratio.
+- Individual terms can be negative; only the total is guaranteed to be nonnegative. The two directions generally differ.
+:::
+
+::: {.callout-tip collapse="true" .clarification title="Question: Which equations does this problem use, and how does it map onto them?"}
+**Key equation.**
+
+$$\mathrm{KL}(p\Vert q)=\sum_x p(x)\log\frac{p(x)}{q(x)}.$$
+
+The first argument does two jobs: it supplies the weights, and it sits in the numerator of the ratio.
+
+**Variables.** $p=(0.5,\ 0.3,\ 0.2)$ and $q=(0.2,\ 0.4,\ 0.4)$ on $\{1,2,3\}$.
+
+**How the problem maps onto them.** Build one row per outcome:
+
+| $x$ | weight $p(x)$ | ratio $p(x)/q(x)$ | term $p(x)\log(\text{ratio})$ |
+|---|---|---|---|
+| 1 | 0.5 | 2.5 | positive |
+| 2 | 0.3 | 0.75 | negative |
+| 3 | 0.2 | 0.5 | negative |
+
+Add the terms. For $\mathrm{KL}(q\Vert p)$, swap the roles: weights from $q$ and ratio $q(x)/p(x)$.
 :::
 
 ### Problem 23: When one direction is infinite {#prb-23}
@@ -500,6 +1077,27 @@ This uses [Week 6, The KL divergence](week06.qmd#sec-kl) and previews [Which dir
 So $\mathrm{KL}(q\Vert p)$, the reverse KL with the average over $q$, punishes $q$ for any mass where $p$ is zero, infinitely so when $p$ is exactly zero. This is why the I-projection avoids regions where $p$ is small and tends to underestimate support.
 
 **Answer.** $\mathrm{KL}(p\Vert q)=\log2\approx0.693$ and $\mathrm{KL}(q\Vert p)=\infty$; the reverse direction $\mathrm{KL}(q\Vert p)$ does the punishing.
+
+**Key takeaways.**
+
+- $\mathrm{KL}(a\Vert b)$ is infinite whenever $a$ puts mass where $b$ has none. Compare supports before computing.
+- So the reverse KL $\mathrm{KL}(q\Vert p)$ forbids $q$ from covering regions where $p$ is zero, which is why the I-projection tends to underestimate support.
+:::
+
+::: {.callout-tip collapse="true" .clarification title="Question: Which equations does this problem use, and how does it map onto them?"}
+**Key equation and conventions.**
+
+$$\mathrm{KL}(a\Vert b)=\sum_x a(x)\log\frac{a(x)}{b(x)}, \qquad 0\log\frac{0}{b}=0, \qquad a\log\frac{a}{0}=+\infty\ \ (a>0).$$
+
+So $\mathrm{KL}(a\Vert b)$ is finite only if $b(x)>0$ wherever $a(x)>0$.
+
+**Variables.** $p=(0.5,\ 0.5,\ 0)$ and $q=(0.25,\ 0.25,\ 0.5)$.
+
+**How the problem maps onto them.**
+
+1. $\mathrm{KL}(p\Vert q)$: weights come from $p$. At $x=3$ the weight is $0$, so the term vanishes.
+2. $\mathrm{KL}(q\Vert p)$: weights come from $q$. At $x=3$ the weight is $0.5$ but $p(3)=0$, so the term is infinite.
+3. The direction that punishes $q$ for mass where $p$ has none is the one weighted by $q$, the reverse KL.
 :::
 
 ### Problem 24: KL between two Gaussians with the same variance (stretch) {#prb-24}
@@ -520,6 +1118,30 @@ Take the expectation with $z\sim p_1$. Use $\mathbb{E}[(z-\mu_1)^2]=\sigma^2$ an
 Swapping the two distributions gives $(\mu_2-\mu_1)^2/(2\sigma^2)$, the same number. This does not contradict property 3: the property says the two directions are not equal *in general*, and Problem 22 is an example where they differ. Particular pairs can still give equal values, but symmetry for every pair is what a metric would need.
 
 **Answer.** The formula holds; for this pair the KL is symmetric, which is allowed because property 3 is a statement about general pairs.
+
+**Key takeaways.**
+
+- For KLs between familiar continuous families, expand the log ratio into a polynomial in $z$ and use known moments instead of integrating directly.
+- Equal-variance Gaussians happen to give a symmetric KL. Asymmetry is a statement about general pairs, not about every pair.
+:::
+
+::: {.callout-tip collapse="true" .clarification title="Question: Which equations does this problem use, and how does it map onto them?"}
+**Key equations.** The Gaussian log density and two second moments:
+
+$$\log\mathcal N(z;\mu,\sigma^2)=-\tfrac12\log(2\pi\sigma^2)-\frac{(z-\mu)^2}{2\sigma^2},$$
+
+$$\mathbb{E}_{p_1}\big[(z-\mu_1)^2\big]=\sigma^2, \qquad \mathbb{E}_{p_1}\big[(z-\mu_2)^2\big]=\sigma^2+(\mu_1-\mu_2)^2.$$
+
+**Variables.**
+
+- $p_1=\mathcal N(\mu_1,\sigma^2)$ is the first argument, so the expectation is under $p_1$.
+- $p_2=\mathcal N(\mu_2,\sigma^2)$ has the same variance, so the normalizing constants cancel.
+
+**How the problem maps onto them.**
+
+1. Write $\log p_1(z)-\log p_2(z)$. The $\log(2\pi\sigma^2)$ terms cancel, leaving two squared terms.
+2. Take the expectation under $p_1$ term by term using the two second moments. The second one comes from writing $z-\mu_2=(z-\mu_1)+(\mu_1-\mu_2)$ and noting the cross term has mean zero.
+3. Swap $\mu_1$ and $\mu_2$ to see the formula is symmetric for this pair, and compare with property 3, which is about general pairs.
 :::
 
 ## Which direction? I-projection and M-projection {#sec-w6p-projections}
@@ -540,6 +1162,30 @@ This uses [Week 6, Tutorial example: fitting a Gaussian to a two-component mixtu
 The M-projection is penalized for missing either bump, so it covers both and, being a single Gaussian, puts its highest density in the valley between them, where $p$ is low.
 
 **Answer.** $q^*_{\text{M}}=\mathcal N(0,1.25)$; at $z=0$ it has density about $0.357$ against $p$'s $0.108$.
+
+**Key takeaways.**
+
+- The M-projection onto Gaussians matches the mean and variance of $p$, so it covers every mode.
+- For a multimodal $p$, that coverage can put the fit's highest density where $p$ itself is low.
+:::
+
+::: {.callout-tip collapse="true" .clarification title="Question: Which equations does this problem use, and how does it map onto them?"}
+**Key equations.** The M-projection onto Gaussians matches moments:
+
+$$q^*_{\text{M}}=\mathcal N\big(\mathbb{E}_p[z],\ \mathrm{Var}_p[z]\big).$$
+
+For a mixture with weights $w_k$, means $\mu_k$, and variances $s_k^2$:
+
+$$\mathbb{E}_p[z]=\sum_k w_k\mu_k, \qquad \mathrm{Var}_p[z]=\sum_k w_k\big(s_k^2+\mu_k^2\big)-\big(\mathbb{E}_p[z]\big)^2.$$
+
+A Gaussian density at a point: $\mathcal N(z;\mu,s^2)=\frac{1}{s\sqrt{2\pi}}\exp\!\big(-\frac{(z-\mu)^2}{2s^2}\big)$.
+
+**Variables.** $w=(0.5,\ 0.5)$, $\mu=(-1,\ 1)$, $s_k=0.5$ for both components.
+
+**How the problem maps onto them.**
+
+1. Part 1: compute the mixture mean and variance. That is the whole M-projection.
+2. Part 2: evaluate $p(0)$ as a weighted sum of the two component densities at $0$ (they are equal here), and $q^*_{\text{M}}(0)$ from the fitted Gaussian.
 :::
 
 ### Problem 26: Projecting onto point masses {#prb-26}
@@ -556,6 +1202,29 @@ This uses the definitions in [Week 6, Which direction? I-projection and M-projec
 This is the two behaviours in their sharpest form. The reverse KL is satisfied by a $q$ that sits on the mode and ignores the rest; the forward KL refuses any $q$ that misses part of $p$'s support.
 
 **Answer.** The I-projection is $\delta_1$ (KL $\approx0.693$); every $\delta_k$ has infinite forward KL, so there is no finite M-projection.
+
+**Key takeaways.**
+
+- With a finite family, a projection means evaluating the KL for each member and taking the smallest.
+- Reverse KL settles on the mode; forward KL rejects any $q$ that misses part of $p$'s support.
+:::
+
+::: {.callout-tip collapse="true" .clarification title="Question: Which equations does this problem use, and how does it map onto them?"}
+**Key equations.**
+
+$$q^*_{\text{I}}=\arg\min_{q\in Q}\mathrm{KL}(q\Vert p), \qquad q^*_{\text{M}}=\arg\min_{q\in Q}\mathrm{KL}(p\Vert q).$$
+
+For a point mass $\delta_k$:
+
+$$\mathrm{KL}(\delta_k\Vert p)=-\log p(k), \qquad \mathrm{KL}(p\Vert\delta_k)=+\infty \text{ whenever } p \text{ has mass outside } k.$$
+
+**Variables.** $p=(0.5,\ 0.3,\ 0.2)$ and $Q=\{\delta_1,\delta_2,\delta_3\}$.
+
+**How the problem maps onto them.**
+
+1. $Q$ has only three members, so each projection is "evaluate the objective for each member and take the smallest".
+2. I-projection: only the $x=k$ term of $\mathrm{KL}(\delta_k\Vert p)$ survives. Compare $-\log p(k)$ across $k$.
+3. M-projection: use the support rule from Problem 23. Every $\delta_k$ gives zero probability to outcomes where $p$ is positive, so every value is infinite.
 :::
 
 ### Problem 27: Predicting the projections for three bumps {#prb-27}
@@ -572,6 +1241,28 @@ This uses [Week 6, Which direction? I-projection and M-projection](week06.qmd#se
 2. The I-projection prefers to sit on one bump. Starting near any of the three components, the optimization will typically settle on a Gaussian close to that component, giving three local optima. Because the weights and widths are equal, the three should have (essentially) equal reverse KL, about $\log3$ each, since $q$ captures one third of $p$'s mass. This is the three-bump version of the slide's "two equivalently good solutions". The optimization is not convex, and the starting point decides which one we get.
 
 **Answer.** (1) $\mathcal N(0,\ 24.25)$, a broad Gaussian over all three bumps. (2) Three roughly equally good local optima, each a narrow Gaussian on one bump.
+
+**Key takeaways.**
+
+- The M-projection is one broad Gaussian over all the modes; the I-projection locks onto one mode.
+- Well-separated, equal modes give equally good I-projection optima, about $\log K$ each, and the starting point decides which one we reach.
+:::
+
+::: {.callout-tip collapse="true" .clarification title="Question: Which equations does this problem use, and how does it map onto them?"}
+**Key equations.** The M-projection matches moments (Problem 25), with the mixture variance
+
+$$\mathrm{Var}_p[z]=\sum_k w_k\big(s_k^2+\mu_k^2\big)-\big(\mathbb{E}_p[z]\big)^2.$$
+
+For the I-projection, a $q$ that sits on one of $K$ well-separated, equal-weight components sees $p\approx q/K$ where $q$ has its mass, so
+
+$$\mathrm{KL}(q\Vert p)=\mathbb{E}_q\Big[\log\frac{q}{p}\Big]\approx\log K.$$
+
+**Variables.** $K=3$, $w_k=1/3$, $\mu=(-6,\ 0,\ 6)$, $s_k=0.5$. The separation ($6$) is large compared with the width ($0.5$).
+
+**How the problem maps onto them.**
+
+1. Part 1: mean $0$ by symmetry; variance $0.25+\frac13(36+0+36)$.
+2. Part 2: each separated bump is a place where a narrow $q$ can sit, so count the bumps to count the local optima. Equal weights and widths give equal KL values, about $\log3$.
 :::
 
 ## Why variational inference uses the I-projection {#sec-w6p-why-iproj}
@@ -592,6 +1283,33 @@ The expectation is over $q$, so we can estimate it by averaging $\log q-\log\til
 **Forward KL.** $\mathrm{KL}(p\Vert q)=\mathbb{E}_p[\log p]-\mathbb{E}_p[\log q]$. The first term does not depend on $q$, but the second is an expectation under $p$, which needs samples from $p$ (or its normalizer for importance weights). Those are exactly what we lack. So we cannot easily minimize it.
 
 **Answer.** Reverse KL: yes, using samples from $q$; $\log Z$ only shifts the objective. Forward KL: not directly, because it needs expectations under $p$.
+
+**Key takeaways.**
+
+- An objective can be optimized by sampling when its expectation is under a distribution we can sample and every function inside it can be evaluated.
+- The reverse KL meets both conditions, with $\log Z$ only a constant shift. The forward KL needs expectations under $p$.
+:::
+
+::: {.callout-tip collapse="true" .clarification title="Question: Which equations does this problem use, and how does it map onto them?"}
+**Key equations.**
+
+$$p=\frac{\tilde p}{Z}, \qquad \log p=\log\tilde p-\log Z,$$
+
+$$\mathrm{KL}(q\Vert p)=\mathbb{E}_q\big[\log q(z)-\log\tilde p(z)\big]+\log Z, \qquad \mathrm{KL}(p\Vert q)=\mathbb{E}_p[\log p(z)]-\mathbb{E}_p[\log q(z)].$$
+
+A Monte Carlo estimate: $\mathbb{E}_q[f(z)]\approx\frac1S\sum_{s=1}^{S}f(z^{(s)})$ with $z^{(s)}\sim q$.
+
+**Variables.**
+
+- $\tilde p$: the unnormalized target, which we can evaluate. $Z$: its unknown normalizer.
+- $q$: our distribution, which we can evaluate and sample.
+
+**How the problem maps onto them.** For each objective, ask two questions:
+
+1. Under which distribution is the expectation? We need samples from it.
+2. Can every function inside the expectation be evaluated?
+
+Reverse KL: samples from $q$ are available, and $\log q$ and $\log\tilde p$ can both be evaluated. $\log Z$ is a constant that does not depend on $q$. Forward KL: the expectation is under $p$, and we cannot sample from $p$.
 :::
 
 ### Problem 29: Maximum entropy gives an exponential family (stretch) {#prb-29}
@@ -610,6 +1328,33 @@ Differentiate with respect to one $p(x)$ and set to zero: $-\log p(x)-1+\eta x+\
 For $t=1$, the middle of $\{0,1,2\}$: by symmetry, $\eta=0$ gives mean exactly 1, so $p$ is uniform, $(1/3,1/3,1/3)$. A constraint that the uniform distribution already satisfies costs no entropy.
 
 **Answer.** $p(x)\propto e^{\eta x}$ with $\eta$ set by the mean constraint; for $t=1$, $\eta=0$ and $p$ is uniform.
+
+**Key takeaways.**
+
+- Maximizing entropy under expectation constraints gives an exponential family, with one natural parameter per constraint.
+- The pattern \"Lagrangian, differentiate, exponentiate\" reappears in Problem 36 and in the mean-field update.
+:::
+
+::: {.callout-tip collapse="true" .clarification title="Question: Which equations does this problem use, and how does it map onto them?"}
+**Key equations.** Maximize entropy under a mean constraint and a normalization constraint:
+
+$$H(p)=-\sum_x p(x)\log p(x), \qquad \text{Lagrangian } = H(p)+\eta\Big(\sum_x p(x)\,x-t\Big)+\lambda\Big(\sum_x p(x)-1\Big).$$
+
+Setting the derivative with respect to $p(x)$ to zero:
+
+$$-\log p(x)-1+\eta x+\lambda=0 \quad\Longrightarrow\quad p(x)\propto e^{\eta x}.$$
+
+**Variables.**
+
+- $x\in\{0,1,2\}$ and the target mean $t$.
+- $\eta$: the multiplier for the mean constraint. $\lambda$: the multiplier for normalization.
+
+**How the problem maps onto them.**
+
+1. Write one multiplier per constraint.
+2. Differentiate term by term. The derivative of $-p\log p$ is $-\log p-1$; the constraints contribute $\eta x$ and $\lambda$.
+3. Solve for $p(x)$. $\lambda$ is set by normalization, and $\eta$ by the mean condition $\sum_x x\,e^{\eta x}\big/\sum_x e^{\eta x}=t$.
+4. For $t=1$, symmetry makes $\eta=0$ work, giving the uniform distribution.
 :::
 
 ## Tutorial: reverse KL and the ELBO {#sec-w6p-elbo}
@@ -634,6 +1379,30 @@ This uses [Week 6, Tutorial: reverse KL and the ELBO](week06.qmd#sec-elbo).
 3. At $q=(0.3,0.7)$, both ratios $p(x,z)/q(z)$ equal $0.4$, so the ELBO is $\log0.4=\log p(x)$ and the KL is $0$. The bound is tight exactly at the true posterior.
 
 **Answer.** $\log p(x)\approx-0.916$; at $q=(0.5,0.5)$, ELBO $\approx-1.003$ and KL $\approx0.087$, summing to $\log p(x)$; at the posterior, ELBO $=\log p(x)$.
+
+**Key takeaways.**
+
+- $\log p(x)=\mathcal L(q)+\mathrm{KL}(q\Vert p(z\mid x))$ and the left side does not depend on $q$, so maximizing the ELBO minimizes the reverse KL.
+- The bound is tight exactly at the posterior, where every ratio $p(x,z)/q(z)$ equals $p(x)$.
+:::
+
+::: {.callout-tip collapse="true" .clarification title="Question: Which equations does this problem use, and how does it map onto them?"}
+**Key equations.**
+
+$$\log p(x)=\mathcal L(q)+\mathrm{KL}\big(q\Vert p(z\mid x)\big), \qquad \mathcal L(q)=\sum_z q(z)\big[\log p(x,z)-\log q(z)\big],$$
+
+$$p(x)=\sum_z p(x,z), \qquad p(z\mid x)=\frac{p(x,z)}{p(x)}.$$
+
+**Variables.**
+
+- $p(x,z=1)=0.12$ and $p(x,z=2)=0.28$: the joint at the fixed observation.
+- $q$: the approximating distribution over $z$, first $(0.5,\ 0.5)$ and then the posterior.
+
+**How the problem maps onto them.**
+
+1. Part 1: add the joint entries for $p(x)$, then divide for the posterior.
+2. Part 2: compute $\mathcal L$ with the ratios $p(x,z)/q(z)$, and the KL with the ratios $q(z)/p(z\mid x)$. Check that they add up to $\log p(x)$.
+3. Part 3: when $q=p(z\mid x)$, every ratio $p(x,z)/q(z)$ equals $p(x)$, so $\mathcal L=\log p(x)$ and the KL is $0$.
 :::
 
 ### Problem 31: A sign error in a Monte Carlo ELBO {#prb-31}
@@ -661,6 +1430,34 @@ elbo = np.mean(log_joint(z) - log_q(z))
 (Equivalently, keep the original line and **minimize** it, since it estimates $\mathrm{KL}(q\Vert p(z\mid x))$ up to a constant.)
 
 **Answer.** It estimates $\mathrm{KL}(q\Vert p(z\mid x))-\log p(x)$; maximizing it drives $q$ away from the posterior. Swap the two terms.
+
+**Key takeaways.**
+
+- The ELBO integrand is $\log p(x,z)-\log q(z)$. Flipping it estimates $\mathrm{KL}(q\Vert p(z\mid x))-\log p(x)$ instead.
+- A sign check: at the posterior the ELBO equals $\log p(x)$, its largest value. An estimate that grows without bound during maximization points to a sign error.
+:::
+
+::: {.callout-tip collapse="true" .clarification title="Question: Which equations does this problem use, and how does it map onto them?"}
+**Key equations.**
+
+$$\mathcal L=\mathbb{E}_q\big[\log p(x,z)-\log q(z)\big]\approx\frac1S\sum_{s=1}^{S}\big[\log p(x,z^{(s)})-\log q(z^{(s)})\big], \quad z^{(s)}\sim q,$$
+
+$$\mathcal L=\log p(x)-\mathrm{KL}\big(q\Vert p(z\mid x)\big).$$
+
+**Variables.** Match the code to the math:
+
+| Code | Math |
+|---|---|
+| `z` | samples $z^{(s)}\sim q$ |
+| `np.mean(...)` | $\frac1S\sum_s$ |
+| `log_joint(z)` | $\log p(x,z)$ |
+| `log_q(z)` | $\log q(z)$ |
+
+**How the problem maps onto them.**
+
+1. Compare the integrand in the code, $\log q-\log p(x,z)$, with the ELBO integrand. It is the negative.
+2. So the code estimates $-\mathcal L=\mathrm{KL}(q\Vert p(z\mid x))-\log p(x)$.
+3. Maximizing that maximizes the KL, since $\log p(x)$ is a constant.
 :::
 
 ## Mean field for an MRF {#sec-w6p-mf-mrf}
@@ -688,6 +1485,30 @@ $$
 which matches $2.079-1.935$.
 
 **Answer.** $\log Z=\log8\approx2.079$; the objective is about $1.935$; the gap $\approx0.144$ is $\mathrm{KL}(q\Vert p)$.
+
+**Key takeaways.**
+
+- For an MRF, $\log Z=\sum_c\mathbb{E}_q[\phi_c]+H(q)+\mathrm{KL}(q\Vert p)$, so the mean-field objective is a lower bound on $\log Z$.
+- This is the ELBO identity of Problem 30 with $\log Z$ in place of $\log p(x)$.
+:::
+
+::: {.callout-tip collapse="true" .clarification title="Question: Which equations does this problem use, and how does it map onto them?"}
+**Key equations.**
+
+$$p(x)=\frac1Z\exp\Big\{\sum_c\phi_c(x_c)\Big\}, \qquad Z=\sum_x\exp\Big\{\sum_c\phi_c(x_c)\Big\},$$
+
+$$\log Z=\sum_c\mathbb{E}_q[\phi_c]+H(q)+\mathrm{KL}(q\Vert p), \qquad H(q)=\sum_i H(q_i)\ \text{ for a product } q.$$
+
+**Variables.**
+
+- One clique $\{x_1,x_2\}$ with $\phi_{12}=\log3$ when $x_1=x_2$ and $0$ otherwise.
+- $q=q_1q_2$ with both factors uniform.
+
+**How the problem maps onto them.**
+
+1. Part 1: enumerate the four configurations, exponentiate $\phi_{12}$, and add.
+2. Part 2: $\mathbb{E}_q[\phi_{12}]=P_q(x_1=x_2)\cdot\log3$, and $H(q)$ is the sum of the two binary entropies.
+3. Part 3: write $p$ by normalizing the four unnormalized values, then compute $\mathrm{KL}(q\Vert p)$ directly and compare with $\log Z$ minus the objective.
 :::
 
 ### Problem 33: Two meanings of phi {#prb-33}
@@ -706,6 +1527,31 @@ This uses the notation note in [Week 6, Mean field for an MRF](week06.qmd#sec-mf
 3. They are single-variable cliques, with log-potentials $\phi_s(x_s)=b_sx_s$. The slide's pairwise objective and update leave unary terms out; Problem 38 adds them back.
 
 **Answer.** (1) $\theta_{st}=J_{st}$ and $\phi_{st}=x_sx_t$. (2) $\phi_{st}=J_{st}x_sx_t$. (3) As unary log-potentials $\phi_s(x_s)=b_sx_s$.
+
+**Key takeaways.**
+
+- Week 3's $\phi$ is a feature multiplied by a parameter; this week's $\phi$ is the whole log-potential.
+- When a symbol is overloaded across weeks, write out the term it stands for in the exponent.
+:::
+
+::: {.callout-tip collapse="true" .clarification title="Question: Which equations does this problem use, and how does it map onto them?"}
+**Key equations.** The same Ising model written in the two weeks' notations:
+
+$$\text{Week 3: }\ \log\psi_C(x_C)=\theta_C^\top\phi_C(x_C), \qquad \text{Week 6: }\ p(x)\propto\exp\Big\{\sum_c\phi_c(x_c)\Big\},$$
+
+$$\text{Ising: }\ p(x)\propto\exp\Big\{\sum_{s\sim t}J_{st}x_sx_t+\sum_s b_sx_s\Big\}.$$
+
+**Variables.**
+
+- In Week 3, $\phi_C$ is a feature (sufficient statistic) and $\theta_C$ is the parameter that multiplies it.
+- In Week 6, $\phi_c$ is the whole log-potential, parameter included.
+
+**How the problem maps onto them.** Match each term of the Ising exponent to each notation:
+
+| Term | Week 3 | Week 6 |
+|---|---|---|
+| $J_{st}x_sx_t$ | $\theta_{st}=J_{st}$, $\phi_{st}=x_sx_t$ | $\phi_{st}=J_{st}x_sx_t$ |
+| $b_sx_s$ | $\theta_s=b_s$, $\phi_s=x_s$ | $\phi_s=b_sx_s$ (a unary clique) |
 :::
 
 ## Naive mean field {#sec-w6p-naive-mf}
@@ -724,6 +1570,29 @@ This uses the entropy decomposition in [Week 6, Naive mean field](week06.qmd#sec
 A product of marginals is the most spread-out joint with those marginals; correlation removes uncertainty. When mean field replaces $p$ by a product, the entropy it computes, $\sum_iH(q_i)$, is exact for $q$ but describes a joint with no correlation at all.
 
 **Answer.** (1) $H(q)\approx1.194=H(q_1)+H(q_2)$. (2) $H(r)\approx1.194<1.386$, the sum of its marginal entropies.
+
+**Key takeaways.**
+
+- The entropy of a product is the sum of the factor entropies, because the log of a product is a sum of logs.
+- Correlation lowers joint entropy below the sum of the marginal entropies, and a product of marginals cannot represent that.
+:::
+
+::: {.callout-tip collapse="true" .clarification title="Question: Which equations does this problem use, and how does it map onto them?"}
+**Key equations.**
+
+$$H(q)=-\sum_x q(x)\log q(x), \qquad q(x_1,x_2)=q_1(x_1)\,q_2(x_2)\ \Longrightarrow\ H(q)=H(q_1)+H(q_2).$$
+
+For a general joint $r$ with marginals $r_1,r_2$: $\;H(r)\le H(r_1)+H(r_2)$, with equality only when $r$ is a product.
+
+**Variables.**
+
+- $q_1=(0.5,\ 0.5)$ and $q_2=(0.8,\ 0.2)$ on $\{0,1\}$.
+- $r$: the correlated joint with $0.4$ on the diagonal and $0.1$ off it.
+
+**How the problem maps onto them.**
+
+1. Part 1: build the four joint probabilities by multiplying, compute $H(q)$, and compare with $H(q_1)+H(q_2)$. The decomposition holds because $\log(q_1q_2)=\log q_1+\log q_2$.
+2. Part 2: get $r$'s marginals by summing rows and columns, then compare $H(r)$ with the sum of the marginal entropies.
 :::
 
 ### Problem 35: When naive mean field is exact {#prb-35}
@@ -738,6 +1607,28 @@ This uses [Week 6, Naive mean field](week06.qmd#sec-naive-mf) and property 2 of 
 2. If $p$ is not a product, no member of $Q$ equals $p$, so $\mathrm{KL}(q\Vert p)>0$ for every $q\in Q$. The best mean field can do is a strictly positive KL, which is also the gap between the mean-field objective and $\log Z$ (Problem 32). The week's two-variable worked example shows this: the mean-field marginal came out more confident than the exact one.
 
 **Answer.** (1) Exact, because $p$ itself factorizes. (2) Never exact; the minimum KL is strictly positive.
+
+**Key takeaways.**
+
+- Mean field is exact exactly when $p$ factorizes. This is the same membership test as Problem 19.
+- Any real coupling leaves a strictly positive KL, which is also the gap between the mean-field objective and $\log Z$.
+:::
+
+::: {.callout-tip collapse="true" .clarification title="Question: Which equations does this problem use, and how does it map onto them?"}
+**Key facts.**
+
+$$Q_{\text{MF}}=\Big\{q:\ q(x)=\prod_i q_i(x_i)\Big\}, \qquad \min_{q\in Q_{\text{MF}}}\mathrm{KL}(q\Vert p)=0 \iff p\in Q_{\text{MF}}.$$
+
+With unary potentials only, $\exp\{\sum_i\phi_i(x_i)\}=\prod_i e^{\phi_i(x_i)}$ factorizes.
+
+**Variables.**
+
+- $\phi_i$: unary log-potentials. An edge potential $\phi_{ij}$ "really couples" its variables when $p$ cannot be written as a product.
+
+**How the problem maps onto them.**
+
+1. Part 1: rewrite the exponential of the sum as a product. Each factor normalizes on its own, so $p$ is in $Q_{\text{MF}}$ and the I-projection returns $p$.
+2. Part 2: if $p$ is not a product, it is not in $Q_{\text{MF}}$, so the KL is positive for every member. That minimum KL is also the gap to $\log Z$ from Problem 32.
 :::
 
 ## Pairwise MRFs and coordinate ascent {#sec-w6p-coord}
@@ -757,6 +1648,31 @@ $$\sum_xq^*(x)a(x)+H(q^*)=\sum_xq^*(x)a(x)-\sum_xq^*(x)\big(a(x)-\log6\big)=\log
 The mean-field update is this computation, one variable at a time, with $a$ supplied by the neighbours.
 
 **Answer.** $q^*=(1/6,\ 1/3,\ 1/2)$, and the maximum value is $\log6\approx1.792$.
+
+**Key takeaways.**
+
+- Maximizing \"expected score plus entropy\" gives the softmax of the score, and the maximum value is the log-sum-exp.
+- The mean-field update solves this problem once per variable, with the score supplied by the neighbours.
+:::
+
+::: {.callout-tip collapse="true" .clarification title="Question: Which equations does this problem use, and how does it map onto them?"}
+**Key equations.** Maximize "expected score plus entropy" over distributions:
+
+$$\max_q\ \sum_x q(x)\,a(x)+H(q)\ \text{ subject to }\ \sum_x q(x)=1,$$
+
+$$a(x)-\log q(x)-1+\lambda=0 \ \Longrightarrow\ q^*(x)=\frac{e^{a(x)}}{\sum_{x'}e^{a(x')}}, \qquad \text{maximum value}=\log\sum_x e^{a(x)}.$$
+
+**Variables.**
+
+- $a=(0,\ \log2,\ \log3)$, so $e^{a}=(1,\ 2,\ 3)$.
+- $\lambda$: the multiplier for normalization.
+- In the mean-field update, $a(x_i)=\sum_{j\in N(i)}\sum_{x_j}q_j(x_j)\,\phi_{ij}(x_i,x_j)$, the score supplied by the neighbours.
+
+**How the problem maps onto them.**
+
+1. Write the Lagrangian and differentiate with respect to one $q(x)$.
+2. Exponentiate and normalize to get $q^*$: here $e^{a}/6$.
+3. Substitute $\log q^*(x)=a(x)-\log6$ into the objective. The $a$ terms cancel and leave $\log6$.
 :::
 
 ### Problem 37: Two sweeps on a three-node chain {#prb-37}
@@ -779,6 +1695,30 @@ This uses [Week 6, The coordinate update](week06.qmd#sec-mf-update).
 3. The middle node has two attractive neighbours, so it ends up the most confident in both. Mean field overstates every marginal a little, the same direction as the week's two-variable example: replacing the neighbours by their averages ignores the joint configurations in which they are both 0.
 
 **Answer.** (1) $m_1=\sigma(m_2)$, $m_2=\sigma(m_1+m_3)$, $m_3=\sigma(m_2)$. (2) After two sweeps, $m\approx(0.680,\ 0.796,\ 0.689)$. (3) Close to exact, slightly overconfident.
+
+**Key takeaways.**
+
+- For a binary variable, the mean-field update is the logistic function of the score difference $a(1)-a(0)$.
+- Coordinate ascent plugs in the newest neighbour values at each step.
+- With attractive couplings, mean field tends to be slightly overconfident, because it ignores correlated configurations of the neighbours.
+:::
+
+::: {.callout-tip collapse="true" .clarification title="Question: Which equations does this problem use, and how does it map onto them?"}
+**Key equations.** The coordinate update, and its binary form when $\phi_{ij}=x_ix_j$:
+
+$$q_i(x_i)\propto\exp\Big\{\sum_{j\in N(i)}\sum_{x_j}q_j(x_j)\,\phi_{ij}(x_i,x_j)\Big\}, \qquad m_i=q_i(1)=\sigma\Big(\sum_{j\in N(i)}m_j\Big).$$
+
+**Variables.**
+
+- $m_i=q_i(1)$: the mean-field probability that $x_i=1$.
+- Neighbours: $N(1)=\{2\}$, $N(2)=\{1,3\}$, $N(3)=\{2\}$.
+- $\sigma(y)=1/(1+e^{-y})$, the logistic function.
+
+**How the problem maps onto them.**
+
+1. Part 1: compute the score $a(x_i)$ for both values. With $\phi_{ij}=x_ix_j$, $\sum_{x_j}q_j(x_j)\,x_ix_j=x_im_j$, so $a(0)=0$ and $a(1)=\sum_{j\in N(i)}m_j$. Then $q_i(1)=e^{a(1)}/(e^{a(0)}+e^{a(1)})=\sigma(a(1)-a(0))$.
+2. Part 2: update in the order $1,2,3$, always plugging in the newest neighbour values.
+3. Part 3: compare the fixed point with the exact marginals and note the direction of the error.
 :::
 
 ### Problem 38: Unary terms, and a fixed point that is not a maximum (stretch) {#prb-38}
@@ -800,4 +1740,34 @@ $$q_i(x_i)\propto\exp\Big\{\phi_i(x_i)+\sum_{j\in N(i)}\sum_{x_j}q_j(x_j)\phi_{i
 4. The exact $p$ puts almost all its mass on $(+1,+1)$ and $(-1,-1)$ equally, so each exact marginal is uniform. A product $q$ cannot put mass on both of those corners without also putting mass on the mixed corners, which $p$ penalizes. So the best product picks one corner, like the I-projection picking one bump of a mixture. The resulting marginals ($q_i(+1)\approx0.98$) are confidently wrong about each spin, even though the objective is as high as a product can get.
 
 **Answer.** (1) Add $\phi_i(x_i)$ inside the exponent. (2) $m_i\leftarrow\tanh(Jm_j)$. (3) Stuck at $0$ from a uniform start; from $m_2=0.2$, converges to $m\approx0.957$ (or $-0.957$ from the opposite start). (4) Mean field breaks the symmetry and picks one mode, as the I-projection does.
+
+**Key takeaways.**
+
+- With $\pm1$ spins the update uses $\tanh$, and with $0/1$ variables it uses $\sigma$. They are related by $\tanh(y)=2\sigma(2y)-1$.
+- A fixed point of the updates need not be a maximum, so compare objective values.
+- With strong coupling, mean field breaks the symmetry and picks one mode, as the I-projection does with a mixture.
+:::
+
+::: {.callout-tip collapse="true" .clarification title="Question: Which equations does this problem use, and how does it map onto them?"}
+**Key equations.** The update with unary terms, and its spin form:
+
+$$q_i(x_i)\propto\exp\Big\{\phi_i(x_i)+\sum_{j\in N(i)}\sum_{x_j}q_j(x_j)\,\phi_{ij}(x_i,x_j)\Big\},$$
+
+$$m_i=\mathbb{E}_{q_i}[x_i]=q_i(+1)-q_i(-1), \qquad \frac{e^{y}-e^{-y}}{e^{y}+e^{-y}}=\tanh(y).$$
+
+The objective and the exact normalizer for the two-spin model:
+
+$$Jm_1m_2+H(q_1)+H(q_2), \qquad \log Z=\log\sum_{x_1,x_2}e^{Jx_1x_2}.$$
+
+**Variables.**
+
+- Spins $x_i\in\{-1,+1\}$, coupling $J=2$, no unary terms in Parts 2 to 4.
+- $m_i$: the mean of spin $i$, with $q_i(+1)=(1+m_i)/2$.
+
+**How the problem maps onto them.**
+
+1. Part 1: a unary term adds $\phi_i(x_i)$ to the score $a(x_i)$ of Problem 36.
+2. Part 2: $\sum_{x_2}q_2(x_2)\,Jx_1x_2=Jx_1m_2$, so $q_1(\pm1)\propto e^{\pm Jm_2}$, and the mean is $\tanh(Jm_2)$.
+3. Part 3: iterate from each start. Then compare the objective at each fixed point with $\log Z$ to see which fixed point is higher.
+4. Part 4: the exact marginals are uniform. A product $q$ that keeps both high-probability corners must also keep the low-probability ones, so the best product commits to one corner, as the I-projection does with a mixture.
 :::

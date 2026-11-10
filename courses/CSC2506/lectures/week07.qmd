@@ -33,6 +33,31 @@ $$p(z\mid x) = \frac{p(x,z)}{p(x)} = \frac{p(x,z)}{\int p(x,z)\,dz}.$$
 
 The numerator is easy to evaluate. The denominator, the **evidence** $p(x)=\int p(x,z)\,dz$, is an integral over every latent variable at once, and we assume throughout that it is hard to compute (@sec-hard-post in Week 6).
 
+::: {.callout-tip collapse="true" .clarification title="Recap: Posterior inference in latent variable models"}
+What the symbols stand for:
+
+- $x$: the observed data. $z$: the latent (unobserved) variables.
+- $p(z)$: the prior, what we believe about $z$ before seeing $x$.
+- $p(x\mid z)$: the likelihood, how probable the data are for a given $z$.
+- $p(x,z)$: the joint, prior times likelihood.
+- $p(z\mid x)$: the posterior, what we believe about $z$ after seeing $x$.
+- $p(x)$: the evidence, the total probability of the data averaged over every $z$.
+
+Taking the equations apart:
+
+- $p(x,z) = p(z)\,p(x\mid z)$: to score a pair $(x,z)$, first ask how plausible $z$ is, then how well $z$ explains $x$.
+- $p(z\mid x) = p(x,z)/p(x)$: the posterior is the joint rescaled so that it sums (or integrates) to 1 over $z$.
+- $p(x) = \int p(x,z)\,dz$: the rescaling constant adds up the joint over every possible $z$. This sum is the hard part.
+
+A teaching example. Let $z\in\{0,1\}$ with $p(z=1) = 0.3$, and let $p(x=1\mid z=1) = 0.8$, $p(x=1\mid z=0) = 0.1$. We observe $x = 1$.
+
+- Joint: $p(x=1,z=1) = 0.3\times0.8 = 0.24$ and $p(x=1,z=0) = 0.7\times0.1 = 0.07$.
+- Evidence: $p(x=1) = 0.24 + 0.07 = 0.31$.
+- Posterior: $p(z=1\mid x=1) = 0.24/0.31\approx0.774$.
+
+With one binary latent variable the evidence is a sum of 2 terms. With 30 binary latent variables it is a sum of $2^{30}\approx1.07$ billion terms, which is why we treat it as intractable.
+:::
+
 ## Variational methods {#sec-w7-vi}
 
 Variational inference turns this integration problem into an optimization problem (@sec-vi in Week 6). It has two steps:
@@ -41,6 +66,27 @@ Variational inference turns this integration problem into an optimization proble
 2. Choose some notion of "distance" between $q_\phi(z)$ and $p(z\mid x)$ that can be estimated efficiently, and minimize it over $\phi$. Usually this is the reverse KL divergence $\mathrm{KL}(q_\phi(z)\,\|\,p(z\mid x))$ (@sec-why-iproj in Week 6).
 
 The word "distance" is in quotes on the slide because the [KL divergence](https://en.wikipedia.org/wiki/Kullback%E2%80%93Leibler_divergence) is not a true distance: it is not symmetric (@sec-kl in Week 6).
+
+::: {.callout-tip collapse="true" .clarification title="Recap: Variational methods"}
+What the symbols stand for:
+
+- $q_\phi(z)$: the approximating distribution, chosen from a family we can work with.
+- $\phi$: its adjustable parameters, for a Gaussian the mean $\mu$ and covariance $\Sigma$.
+- $\mathrm{KL}(q_\phi(z)\,\|\,p(z\mid x))$: the reverse KL divergence, how far $q_\phi$ is from the posterior, measured by averaging under $q_\phi$.
+
+Taking the recipe apart:
+
+- Step 1 replaces "find the posterior" by "pick the best member of a family". The family fixes the shape (here, a bell curve); $\phi$ fixes the position and spread.
+- Step 2 turns "best" into a number we can minimize. KL is zero only when the two distributions are equal, and positive otherwise.
+- KL is not a true distance: swapping its two arguments generally changes its value.
+
+A teaching example of the asymmetry, on two outcomes. Let $q = (0.5, 0.5)$ and $p = (0.9, 0.1)$.
+
+- $\mathrm{KL}(q\,\|\,p) = 0.5\log\frac{0.5}{0.9} + 0.5\log\frac{0.5}{0.1}\approx -0.294 + 0.805 = 0.511$.
+- $\mathrm{KL}(p\,\|\,q) = 0.9\log\frac{0.9}{0.5} + 0.1\log\frac{0.1}{0.5}\approx 0.529 - 0.161 = 0.368$.
+
+Same pair of distributions, two different numbers, so the order of the arguments matters.
+:::
 
 ## The ELBO: evidence lower bound {#sec-w7-elbo}
 
@@ -100,6 +146,31 @@ So the ELBO is a lower bound on the log of the evidence, which is where the name
 
 **Figure 1.** The identity $\mathcal L(\phi) + \mathrm{KL} = \log p(x)$ as a bar of fixed length. Changing $\phi$ only moves the boundary between the two parts.
 
+::: {.callout-tip collapse="true" .clarification title="Recap: The ELBO"}
+What the symbols stand for:
+
+- $\mathcal L(\phi)$: the ELBO, a number that depends on the parameters $\phi$ of $q_\phi$.
+- $\mathbb{E}_{z\sim q_\phi}[\cdot]$: an average over values of $z$ drawn from $q_\phi$.
+- $\log p(z,x)$: the log-joint, which we can evaluate for any $z$.
+- $\log q_\phi(z)$: the log-density of our approximation at $z$.
+- $\log p(x)$: the log evidence, a fixed number once the data are fixed.
+
+Taking the equations apart:
+
+- $\mathcal L(\phi) = \mathbb{E}_{q_\phi}[\log p(z,x) - \log q_\phi(z)]$: for each $z$, compare how much the model likes it with how much $q_\phi$ likes it, then average under $q_\phi$.
+- $\mathrm{KL}(q_\phi\,\|\,p(z\mid x)) = -\mathcal L(\phi) + \log p(x)$: the KL we want to shrink is the log evidence minus the ELBO.
+- $\mathcal L(\phi) + \mathrm{KL} = \log p(x)$: a fixed total split into two parts. Raising one part lowers the other.
+- $\mathcal L(\phi)\le\log p(x)$: because KL is never negative, the ELBO can never exceed the log evidence.
+
+A teaching example, continuing the two-state model from the first recap ($p(x=1,z=1) = 0.24$, $p(x=1,z=0) = 0.07$, so $\log p(x)=\log0.31\approx-1.171$). Take $q(z=1) = 0.5$, $q(z=0) = 0.5$.
+
+- ELBO: $0.5\big(\log0.24 - \log0.5\big) + 0.5\big(\log0.07-\log0.5\big)\approx -0.367 - 0.983 = -1.350$.
+- Gap: $-1.171 - (-1.350) = 0.179$.
+- Direct check: the posterior is $(0.774, 0.226)$, and $\mathrm{KL}(q\,\|\,p(z\mid x)) = 0.5\log\frac{0.5}{0.774} + 0.5\log\frac{0.5}{0.226}\approx0.179$. The gap is exactly this KL.
+
+If we instead set $q(z=1)=0.774$, the posterior itself, the gap becomes 0 and the ELBO equals $-1.171$.
+:::
+
 ## Two formulations of the ELBO {#sec-w7-two-forms}
 
 The ELBO can be split in two different ways, and each split says something different about what maximizing it does.
@@ -129,6 +200,28 @@ $$
 The last line uses $\mathbb{E}_{q_\phi}[\log p(z) - \log q_\phi(z)] = -\mathbb{E}_{q_\phi}[\log q_\phi(z)/p(z)] = -\mathrm{KL}(q_\phi\,\|\,p(z))$. Maximizing the ELBO now reads as: choose $q_\phi$ so that latent values drawn from it explain the data well (high log-likelihood), while staying close to the prior.
 
 Note which KL appears here. The KL in @sec-w7-elbo compared $q_\phi$ to the **posterior** $p(z\mid x)$ and was intractable. The KL in this second split compares $q_\phi$ to the **prior** $p(z)$, which we chose ourselves, and for Gaussian choices it has a closed form (@sec-w7-tut-terms). The lecture says this second formulation is the one the VAE uses.
+
+::: {.callout-tip collapse="true" .clarification title="Recap: Two formulations of the ELBO"}
+What the symbols stand for:
+
+- $\mathbb{E}_{q_\phi}[\log p(z,x)]$: the expected log-joint, how well $q_\phi$'s typical $z$ values score under the model.
+- $H(q_\phi) = \mathbb{E}_{q_\phi}[-\log q_\phi(z)]$: the entropy of $q_\phi$, how spread out it is.
+- $\mathbb{E}_{q_\phi}[\log p(x\mid z)]$: the expected log-likelihood, how well $q_\phi$'s typical $z$ values explain the data.
+- $\mathrm{KL}(q_\phi(z)\,\|\,p(z))$: the KL to the prior, how far $q_\phi$ strays from the prior.
+
+Taking the two splits apart:
+
+- First split, $\mathcal L = \text{expected log-joint} + H(q_\phi)$: the first term pulls $q_\phi$ toward high-probability $z$; the entropy stops it from collapsing onto a single point.
+- Second split, $\mathcal L = \text{expected log-likelihood} - \mathrm{KL}(q_\phi\,\|\,p(z))$: obtained by writing $\log p(x,z) = \log p(x\mid z) + \log p(z)$ and grouping $\log p(z) - \log q_\phi(z)$ into a KL.
+- The KL here is to the **prior**, which we chose, not to the posterior, which we cannot compute.
+
+A teaching example with the same two-state model and $q = (0.5, 0.5)$; recall $p(z=1)=0.3$, $p(x=1\mid z=1)=0.8$, $p(x=1\mid z=0)=0.1$.
+
+- First split: expected log-joint $= 0.5\log0.24 + 0.5\log0.07\approx-2.043$; entropy $=\log2\approx0.693$; sum $\approx-1.350$.
+- Second split: expected log-likelihood $= 0.5\log0.8 + 0.5\log0.1\approx-1.263$; KL to prior $= 0.5\log\frac{0.5}{0.3} + 0.5\log\frac{0.5}{0.7}\approx0.087$; difference $\approx-1.350$.
+
+Both splits give the ELBO from the previous recap. They are two readings of one number.
+:::
 
 ## Maximizing the ELBO: gradients of an expectation {#sec-w7-grad}
 
@@ -164,6 +257,29 @@ $$
 - **Gradient moved inside.** $f(z)=z^2$ does not contain $\mu$ at all, so $\nabla_\mu f(z) = 0$ for every $z$, and $\mathbb{E}[\nabla_\mu f(z)] = 0$.
 
 The answers disagree. All of the dependence on $\mu$ lives in the sampling distribution, which the naive swap ignores. Moving the mean right makes large values of $z^2$ more likely, and only the true gradient sees that.
+:::
+
+::: {.callout-tip collapse="true" .clarification title="Recap: Gradients of an expectation"}
+What the symbols stand for:
+
+- $\phi_t$: the parameters after $t$ steps. $s_t > 0$: the step size at step $t$.
+- $\nabla_\phi\mathcal L(\phi_t)$: the gradient, the direction in which the ELBO rises fastest.
+- $f(Z,\phi)$: a generic function being averaged, playing the role of $\log p(x,z) - \log q_\phi(z)$.
+- $z_1,\dots,z_n$: random draws used for a Monte Carlo average.
+
+Taking the equations apart:
+
+- $\phi_{t+1} = \phi_t + s_t\nabla_\phi\mathcal L(\phi_t)$: take a step of size $s_t$ uphill. The plus sign makes it ascent.
+- Easy case, $\nabla_\phi\mathbb{E}_Z[f] = \mathbb{E}_Z[\nabla_\phi f]$: if the distribution of $Z$ ignores $\phi$, differentiate each sample and then average.
+- Our case: $q_\phi$ depends on $\phi$, so $\phi$ also changes *which* $z$ are likely. Differentiating inside the expectation misses that effect.
+
+A teaching example of the easy case. Let $Z\sim\mathcal N(0,1)$, fixed, and $f(Z,\phi) = (\phi Z)^2$. Then $\mathbb{E}[f] = \phi^2$ and the true gradient is $2\phi$.
+
+- Inside the expectation: $\nabla_\phi f = 2\phi Z^2$. With draws $z = 0.8, -1.1, 1.0$, the squares average to $(0.64+1.21+1.00)/3 = 0.95$.
+- At $\phi = 3$: estimate $2\cdot3\cdot0.95 = 5.7$, close to the true $6$.
+- One ascent step with $s_t = 0.1$: $\phi_{t+1} = 3 + 0.1\times5.7 = 3.57$.
+
+A teaching example of our case. Let $z\sim\mathcal N(\mu,1)$ and $f(z) = 3z$. Then $\mathbb{E}[3z] = 3\mu$, whose gradient in $\mu$ is $3$. But $f$ contains no $\mu$, so the gradient moved inside is $0$. All of the dependence on $\mu$ is in the sampling distribution.
 :::
 
 ## The reparameterization trick {#sec-w7-reparam}
@@ -245,6 +361,27 @@ since $\mathbb{E}[\epsilon]=0$. This matches the true gradient $2\mu$ from @sec-
 
 The trick needs $T$ to exist and be differentiable in $\phi$. It works for Gaussians (and any location-scale family). The lecture says "in some situations"; for a discrete $q_\phi$, for instance, there is no differentiable $T$ of this kind.
 
+::: {.callout-tip collapse="true" .clarification title="Recap: The reparameterization trick"}
+What the symbols stand for:
+
+- $\epsilon$: noise drawn from a fixed distribution $p_0$ (for example $\mathcal N(0,1)$) that does not depend on $\phi$.
+- $T(\epsilon,\phi)$: a deterministic, differentiable function that turns the noise into a sample of $q_\phi$.
+- $\mu$, $\sigma$: the mean and standard deviation of a Gaussian $q_\phi$, so $\phi = (\mu,\sigma)$.
+
+Taking the equations apart:
+
+- $z = \mu + \sigma\epsilon$: shift the noise by $\mu$ and stretch it by $\sigma$. The result has distribution $\mathcal N(\mu,\sigma^2)$.
+- Line 2 of the derivation rewrites the same expectation as an average over $\epsilon$ instead of over $z$.
+- Line 3 moves the gradient inside, which is allowed now because $p_0$ does not depend on $\phi$.
+- $\partial z/\partial\mu = 1$ and $\partial z/\partial\sigma = \epsilon$: the chain rule can now reach both parameters through $z$.
+
+A teaching example, this time for the gradient in $\sigma$. Let $q = \mathcal N(\mu,\sigma^2)$ with $\mu = 2$, $\sigma = 0.5$, and $f(z) = z^2$.
+
+- True value: $\mathbb{E}[z^2] = \mu^2 + \sigma^2$, so $\nabla_\sigma\mathbb{E}[z^2] = 2\sigma = 1$.
+- Reparameterized: $\nabla_\sigma(\mu + \sigma\epsilon)^2 = 2(\mu+\sigma\epsilon)\,\epsilon$. Its average is $2\mu\,\mathbb{E}[\epsilon] + 2\sigma\,\mathbb{E}[\epsilon^2] = 0 + 2\sigma = 1$. It matches.
+- One draw, $\epsilon = 0.4$: $z = 2.2$, and the single-sample gradient is $2(2.2)(0.4) = 1.76$. One draw is unbiased but noisy, which is the next section's topic.
+:::
+
 ## Stochastic variational inference {#sec-w7-svi}
 
 The reparameterized gradient is still an expectation, $\mathbb{E}_{\epsilon\sim p_0}[\nabla_\phi(\cdots)]$, which in general we cannot compute exactly. Instead we compute a simple Monte Carlo estimate of it.
@@ -277,6 +414,29 @@ We now have two answers to an intractable posterior: Week 5's [Markov chain Mont
 
 ::: {.callout-important}
 **Homework note.** The lecture says SVI will probably come up again in Assignment 3. The reparameterized gradient and its Monte Carlo estimate above are the pieces to understand; any specific estimator the assignment asks for is left to the assignment.
+:::
+
+::: {.callout-tip collapse="true" .clarification title="Recap: Stochastic variational inference"}
+What the symbols stand for:
+
+- $m$: the number of noise samples per gradient estimate.
+- $\epsilon_1,\dots,\epsilon_m$: independent draws from $p_0$.
+- $T(\phi,\epsilon_i)$: the sample $z_i$ produced by the $i$-th noise draw.
+
+Taking the estimator apart:
+
+- Inside the sum: the exact gradient of the ELBO integrand for one fixed noise value $\epsilon_i$.
+- $\frac1m\sum_{i=1}^m$: average these $m$ gradients. On average over draws, the result equals the true gradient (unbiased).
+- Larger $m$ gives a less noisy estimate at the cost of more computation per step.
+- The MCMC vs SVI table: MCMC targets the exact posterior but is slow; SVI is fast but can be no better than the best member of the family $q_\phi$.
+
+A teaching example, continuing the previous recap ($\mu = 2$, $\sigma = 0.5$, $f(z)=z^2$, true $\sigma$-gradient $= 1$). Draw $m = 3$ noise values $\epsilon = 0.4, -1, 0.6$.
+
+- $\epsilon_1=0.4$: $z = 2.2$, gradient $2(2.2)(0.4) = 1.76$.
+- $\epsilon_2=-1$: $z = 1.5$, gradient $2(1.5)(-1) = -3.00$.
+- $\epsilon_3=0.6$: $z = 2.3$, gradient $2(2.3)(0.6) = 2.76$.
+
+The average is $1.52/3\approx0.51$, about half the true value. A single estimate can be far off; SVI still works because many such noisy steps point uphill on average.
 :::
 
 ## Autoencoders {#sec-w7-ae}
@@ -377,6 +537,32 @@ An autoencoder reconstructs its input via an encoder and a decoder:
 
 where $\mathcal X$ is the data space and $\mathcal F$ is the feature (latent) space. The code $z$ is a compressed representation of $x$, and it matters that the code is a bottleneck, $\dim\mathcal F\ll\dim\mathcal X$. Otherwise the network could learn to copy the input unchanged and would learn nothing about its structure. The goal is $\tilde x = f(g(x))\approx x$.
 
+::: {.callout-tip collapse="true" .clarification title="Recap: Autoencoders"}
+What the symbols stand for:
+
+- $D$: the dimension of the data. $M$: the dimension of the code, with $M < D$.
+- $g$: the encoder, data to code. $f$: the decoder, code to reconstruction.
+- $z = g(x)$: the code. $\tilde x = f(z)$: the reconstruction.
+- $w^{(1)}_{ji}$: first-layer weight from input $i$ to hidden unit $j$. $w^{(2)}_{kj}$: second-layer weight from hidden unit $j$ to output $k$.
+- $\sigma(\cdot)$: the activation function here, not a standard deviation.
+- $E(w)$: the reconstruction error over $N$ training points. $\mathcal X$, $\mathcal F$: the data space and the feature (code) space.
+
+Taking the equations apart:
+
+- Inner sum $\sum_i w^{(1)}_{ji}x_i$: hidden unit $j$ takes a weighted sum of the $D$ inputs; $\sigma$ then bends it.
+- Outer sum $\sum_j w^{(2)}_{kj}(\cdot)$: output $k$ takes a weighted sum of the $M$ hidden values.
+- $E(w) = \frac12\sum_n\|y(x_n,w) - x_n\|^2$: for each training point, square the difference between reconstruction and input in every coordinate, add up, and halve.
+- With identity activations the whole map is linear, so the code can only describe a flat subspace, as PCA does.
+
+A teaching example with $D = 3$, $M = 1$, identity activation. Take $x = (2, 1, 0)$, encoder weights $w^{(1)} = (0.5, 0.5, 0)$ and decoder weights $w^{(2)} = (1, 1, 0)^\top$.
+
+- Code: $z = 0.5\cdot2 + 0.5\cdot1 + 0\cdot0 = 1.5$.
+- Reconstruction: $\tilde x = (1.5, 1.5, 0)$.
+- Error: $\tfrac12\big[(1.5-2)^2 + (1.5-1)^2 + 0^2\big] = \tfrac12(0.25+0.25) = 0.25$.
+
+Three numbers went in, one came out of the bottleneck, and the decoder rebuilt three numbers from it. Training adjusts the 6 weights to make errors like this one small across the whole data set.
+:::
+
 ## Issues with deterministic autoencoders {#sec-w7-ae-issues}
 
 The autoencoder above is **deterministic**: each input gets exactly one code, $g(x_1)=z_1$ and $f(z_1)=\tilde x_1$. The lecture raises two problems.
@@ -390,6 +576,25 @@ The reconstruction error only asks that each code decode back to its own input. 
 **Issue 2: how do we measure how good a reconstruction is?** The lecture's example is a handwritten 7 whose reconstruction is also a clear 7, but shifted slightly sideways. To a person it is a good reconstruction. A simple pixel-by-pixel distance, such as the squared error $E(w)$ above, compares each pixel with the pixel in the same position; after a shift, the ink no longer lines up, so the two images count as far apart. Choosing a metric that matches what we mean by "a good reconstruction" can be difficult.
 
 The VAE below is designed around Issue 1. It still scores reconstructions pixel by pixel (with a different per-pixel loss, @sec-w7-tut-terms), so Issue 2 is raised here but not solved this week.
+
+::: {.callout-tip collapse="true" .clarification title="Recap: Issues with deterministic autoencoders"}
+What the symbols stand for:
+
+- $x_1, x_2$: two inputs. $z_1 = g(x_1)$, $z_2 = g(x_2)$: their codes.
+- $x_1\approx x_2\not\Rightarrow z_1\approx z_2$: similar inputs need not get similar codes.
+
+Taking the two issues apart:
+
+- Issue 1: the loss $E(w)$ checks each input against its own reconstruction only. Nothing in it compares the codes of different inputs, so the code space can have gaps the decoder never learned.
+- Issue 2: $E(w)$ compares pixel $d$ with pixel $d$. A shifted copy of an image misaligns every inked pixel, so it can score worse than a much poorer reconstruction.
+
+A teaching example of Issue 2 with a 4-pixel strip. The input is $x = (0,1,0,0)$.
+
+- A perfect copy shifted one pixel right, $(0,0,1,0)$, has error $\tfrac12(1^2 + 1^2) = 1$.
+- A blank strip, $(0,0,0,0)$, has error $\tfrac12(1^2) = 0.5$.
+
+By squared error, the blank strip is the "better" reconstruction, even though a person would pick the shifted copy.
+:::
 
 ## Variational autoencoders {#sec-w7-vae}
 
@@ -509,6 +714,37 @@ $$z_i = \mu_i + \sigma_i\odot\epsilon_i, \qquad \epsilon_i\sim\mathcal N(0,I).$$
 
 With this, gradients flow through the entire network, from the loss through the decoder, through $z_i$, and into the encoder outputs $\mu_i$ and $\sigma_i$ (Figure 4).
 
+::: {.callout-tip collapse="true" .clarification title="Recap: Variational autoencoders"}
+What the symbols stand for:
+
+- $q_\phi(z\mid x)$: the encoder's distribution over codes for input $x$, here $\mathcal N(\mu,\sigma^2)$.
+- $\phi_i = (\mu_i,\log\sigma_i)$: the mean and log standard deviation for data point $x_i$.
+- $p_\theta(x\mid z)$: the decoder's likelihood, with decoder weights $\theta$.
+- $p(z) = \mathcal N(0,I)$: the prior over codes.
+- $\mathcal L(\theta,\phi;x)$: the ELBO for one data point. $\ell(x;\theta,\phi) = -\mathcal L$: the training loss.
+- $\odot$: elementwise multiplication.
+
+Taking the equations apart:
+
+- $\mathbb{E}_{z\sim q_\phi}[\log p_\theta(x\mid z)]$: draw codes from the encoder, decode them, and score how probable the original $x$ is. High means good reconstruction.
+- $\mathrm{KL}(q_\phi(z)\,\|\,p(z))$: how far the encoder's cloud of codes is from the prior. Small means codes stay near the origin with spread about 1.
+- $\ell$ = reconstruction penalty + KL penalty. Minimizing $\ell$ maximizes the ELBO.
+- $\sigma_i = \exp(\log\sigma_i)$: predicting the log keeps $\sigma$ positive for any network output.
+- $z_i = \mu_i + \sigma_i\odot\epsilon_i$: the reparameterization trick, so gradients reach $\mu_i$ and $\sigma_i$.
+- After training: draw $z\sim p(z)$, decode, and get new data.
+
+A teaching example with a 1-dimensional code and a 2-pixel image $x = (1, 0)$. The encoder outputs $\mu = 0.6$ and $\log\sigma = -0.5$.
+
+- Standard deviation: $\sigma = e^{-0.5}\approx0.607$, so $\sigma^2\approx0.368$ and $\log\sigma^2 = -1$.
+- Sample: with $\epsilon = 0.5$, $z = 0.6 + 0.607\times0.5\approx0.903$.
+- Decode: suppose the decoder outputs pixel probabilities $(0.8, 0.3)$.
+- Reconstruction term: $-\big[\log0.8 + \log(1-0.3)\big]\approx0.223 + 0.357 = 0.580$.
+- KL term, using the closed form of @sec-w7-tut-kl: $\tfrac12(0.368 + 0.36 - 1 + 1)\approx0.364$.
+- Loss: $\ell\approx0.580 + 0.364 = 0.944$.
+
+Training lowers this number by making the decoder more confident on the right pixels and by keeping $\mu$ near 0 and $\sigma$ near 1.
+:::
+
 ## Application: image denoising {#sec-w7-denoise}
 
 Autoencoders are also useful as ordinary (non-generative) networks. A **denoising autoencoder** takes a noisy image as input and is trained to minimize the reconstruction error between its output and the corresponding **clean** image. The bottleneck forces it to keep the structure of the image and discard the noise. This requires training on noisy-clean image pairs.
@@ -549,6 +785,26 @@ The MNIST example becomes: prior $p(z) = \mathcal N(0,I)$, likelihood $p_\theta(
 - **Decoder:** $f_\theta(z_i) = \theta_i$, where $\theta_i$ are the parameters of a Bernoulli random variable for each input pixel.
 
 To get a reconstruction we again evaluate $\tilde x\sim p_\theta(x\mid z)$. This is exactly the model the tutorial's code builds (@sec-w7-code).
+
+::: {.callout-tip collapse="true" .clarification title="Recap: Amortized inference"}
+What the symbols stand for:
+
+- $\phi_i$: separate variational parameters for data point $i$ (the non-amortized VAE).
+- $\phi$: one shared set of encoder weights (the amortized VAE).
+- $\mu_\phi(x_i)$, $\Sigma_\phi(x_i)$: the mean and covariance the encoder network outputs for input $x_i$.
+- $g_\phi(x_i) = [\mu(x_i),\log\Sigma(x_i)]$: the encoder's two outputs. $f_\theta(z_i)$: the decoder's Bernoulli probabilities.
+
+Taking the equation apart:
+
+- $q_\phi(z_i\mid x_i) = \mathcal N(z_i\mid\mu_\phi(x_i),\Sigma_\phi(x_i))$: the approximate posterior is still a Gaussian, but its mean and covariance are now *computed* from $x_i$ by a network instead of *stored* per data point.
+- Only step 1 of the pipeline changes. Decoding, the loss, and the optimization are the same.
+- Trade-off: far fewer parameters, and instant inference for new $x$, at the cost of one shared network that cannot fit each posterior as freely.
+
+A teaching example of the parameter count. Take $N = 1{,}000$ images of 16 pixels and a 3-dimensional code.
+
+- Non-amortized: each image stores 3 means and 3 log-variances, so $1{,}000\times6 = 6{,}000$ numbers. With $N = 1{,}000{,}000$, it is 6 million.
+- Amortized, with a single linear layer from 16 pixels to the 6 outputs: $16\times6 = 96$ weights plus 6 biases, $102$ numbers, for any $N$.
+:::
 
 ## MNIST: autoencoder vs VAE codes {#sec-w7-ae-vs-vae}
 
@@ -863,6 +1119,47 @@ With $\beta=1$ the loss is exactly the negative ELBO, estimated with one sample.
 
 - **Training: loss = −ELBO.** Binary cross-entropy (the first term) plus $\beta$ times the closed-form KL (the second term), trained end to end via reparameterization.
 - **Inference: the decoder is a generator.** Sample $z$ from $\mathcal N(0,I)$ and decode it to create new digits; nearby codes give similar images.
+
+::: {.callout-tip collapse="true" .clarification title="Recap: The VAE as a latent variable model"}
+What the symbols stand for:
+
+- $\lambda_k$, $\mu_k$, $\Sigma_k$: the weight, mean, and covariance of mixture component $k$.
+- $f(z,\theta)$: the decoder network. $\sigma^2$ in $\mathcal N(x; f(z,\theta),\sigma^2 I)$: a fixed noise variance in data space.
+- $\hat\theta$: the maximum-likelihood decoder weights. $I$: the number of training points.
+- $g$: a concave function in Jensen's inequality, here $\log$.
+- $q(z\mid x,\phi) = \mathcal N(z;\mu,\mathrm{diag}(\sigma^2))$: the encoder's Gaussian, one variance per latent dimension.
+- $p_d$: the decoder's probability that pixel $d$ is on. $x_d$: the pixel's actual value.
+- $M$: the latent dimension, indexed by $m$. $z^*$, $\epsilon^*$: the single sample and its noise. $\beta$: the KL weight.
+
+Taking the equations apart:
+
+- $p(x) = \int p(x\mid z)p(z)\,dz$: two simple pieces combine into a complex density. A mixture is the discrete case.
+- Evidence and MLE: with a neural-network $f$, the integral has no closed form, so neither does the log-likelihood.
+- Jensen: $\log\mathbb{E}[y]\ge\mathbb{E}[\log y]$. Applied with $y = p(x,z)/q(z)$, it gives $\log p(x)\ge\text{ELBO}$ for any $q$.
+- $\mathrm{ELBO} = \log p(x\mid\theta) - \mathrm{KL}(q\,\|\,p(z\mid x))$: the gap is the KL to the posterior, zero when $q$ is the posterior.
+- Reconstruction $= -\mathrm{BCE}(\mathbf p, x)$: each pixel adds $x_d\log p_d + (1-x_d)\log(1-p_d)$.
+- $\mathrm{KL} = \tfrac12\sum_m(\sigma_m^2 + \mu_m^2 - 1 - \log\sigma_m^2)$: one term per latent dimension, zero when $\mu_m = 0$ and $\sigma_m^2 = 1$.
+- $z^* = \mu + \sigma\odot\epsilon^*$ with $\sigma = \exp(\tfrac12\log\sigma^2)$: the reparameterization in log-variance form.
+- $\ell = \mathrm{BCE} + \beta\cdot\mathrm{KL}$: equals $-\mathrm{ELBO}$ when $\beta = 1$.
+
+A teaching example of Jensen with two equally likely values $y_1 = 1$ and $y_2 = 4$:
+
+- $\log\mathbb{E}[y] = \log2.5\approx0.916$.
+- $\mathbb{E}[\log y] = \tfrac12(\log1 + \log4)\approx0.693$.
+
+The log of the average is larger, as Jensen says.
+
+A teaching example of one full loss, with $M = 2$ and a 3-pixel image $x = (1, 0, 1)$. The encoder outputs $\mu = (0.5, -1)$ and $\log\sigma^2 = (0, -2)$.
+
+- Variances: $\sigma^2 = (1,\ e^{-2})\approx(1,\ 0.135)$. Standard deviations: $\sigma\approx(1,\ 0.368)$.
+- Sample: with $\epsilon^* = (0.2, -0.5)$, $z^* = (0.5 + 0.2,\ -1 - 0.184)\approx(0.7,\ -1.184)$.
+- Decode: suppose $\mathbf p = (0.7, 0.2, 0.9)$.
+- BCE: $-\big[\log0.7 + \log0.8 + \log0.9\big]\approx0.357 + 0.223 + 0.105 = 0.685$.
+- KL, dimension 1: $\tfrac12(1 + 0.25 - 1 - 0) = 0.125$. Dimension 2: $\tfrac12(0.135 + 1 - 1 + 2)\approx1.068$. Total $\approx1.193$.
+- Loss with $\beta = 1$: $\ell\approx0.685 + 1.193 = 1.878$.
+
+Dimension 2 dominates the KL: its small variance and its mean one unit from the origin both pull it away from the prior.
+:::
 
 ## Code walk-through: the VAE notebook {#sec-w7-code}
 
@@ -1208,6 +1505,36 @@ The notebook was written for an older PyTorch. Two cells fail on current version
 
 - The first cell's install block (inside `if 'google.colab' in sys.modules ...`) imports `wheel.pep425tags` and installs torch 1.1.0; current Colab already has PyTorch, so this block can be deleted.
 - `iter(test_dataloader).next()` in the reconstruction cell needs to be written `next(iter(test_dataloader))`.
+
+::: {.callout-tip collapse="true" .clarification title="Recap: The VAE notebook"}
+What the symbols and variables stand for:
+
+- `latent_dims`: the latent dimension $M$. `batch_size`: images per gradient step.
+- `x_mu`, `x_logvar`: the encoder outputs $\mu$ and $\log\sigma^2$.
+- `std`, `eps`: $\sigma$ and the noise $\epsilon^*$ in the reparameterization.
+- `recon_loss`: the BCE summed over pixels and images. `kldivergence`: the KL summed over latent dimensions and images.
+- `variational_beta`: the KL weight $\beta$.
+- $z_\lambda$: a code on the straight line between two encoder means, with mixing weight $\lambda\in[0,1]$.
+
+Taking the code's formulas apart:
+
+- `std = logvar.mul(0.5).exp_()`: $\sigma = \exp(\tfrac12\log\sigma^2)$.
+- `eps.mul(std).add_(mu)`: $z^* = \mu + \sigma\odot\epsilon^*$.
+- `-0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp())`: pull the minus sign inside and this is the boxed KL formula, term by term.
+- Loss per image: the printed loss is summed over a batch, so divide by the batch size to read it per image.
+- $z_\lambda = \lambda\,\mu(x_1) + (1-\lambda)\,\mu(x_2)$: at $\lambda = 1$ we get the first code, at $\lambda = 0$ the second.
+
+A teaching example of the KL line. Suppose for one image `mu = (0.0, 0.8)` and `logvar = (0.5, -0.5)`.
+
+- `std` $= (e^{0.25}, e^{-0.25})\approx(1.284,\ 0.779)$.
+- Inside the sum, dimension 1: $1 + 0.5 - 0 - e^{0.5}\approx-0.149$. Dimension 2: $1 - 0.5 - 0.64 - e^{-0.5}\approx-0.747$.
+- `kldivergence` $= -0.5\times(-0.149 - 0.747)\approx0.448$.
+- Boxed form check: $\tfrac12(1.649 + 0 - 1 - 0.5) + \tfrac12(0.607 + 0.64 - 1 + 0.5)\approx0.074 + 0.373 = 0.448$.
+
+A teaching example of interpolation. Take $\mu(x_1) = (1, -1)$ and $\mu(x_2) = (-0.5, 2)$. At $\lambda = 0.25$:
+$$z_{0.25} = 0.25(1,-1) + 0.75(-0.5, 2) = (-0.125,\ 1.25).$$
+This point is three quarters of the way from the first code to the second, and the decoder turns it into an image between the two.
+:::
 
 ## Summary {#sec-summary7}
 
