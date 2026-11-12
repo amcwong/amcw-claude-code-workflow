@@ -54,7 +54,7 @@ Hand-placed image files (plots, photos) go in `lectures/figures/weekNN/` and are
 
 ## Clarification dropdowns
 
-Parked during `/course-notes revise` (when the user says park) or `/course-notes park-ingest` (after placement approval), not during `add`. Same shape either way. Closed by default.
+`Question: …` boxes are parked during `/course-notes revise` (when the user says park) or `/course-notes park-ingest` (after placement approval), not during `add`. Same shape either way. Closed by default. (The per-section `Recap: …` box below is the one `.clarification` that `add` writes.)
 
 ```markdown
 ::: {.callout-tip collapse="true" .clarification title="Question: [the question a reader would ask at this point]"}
@@ -65,6 +65,13 @@ Parked during `/course-notes revise` (when the user says park) or `/course-notes
 Write the title as a question a reader might have (`Question: Why …?`, `Question: How does this change when …?`), in plain text without math markup, so the closed box tells the reader whether it answers what they are wondering. Place the block **where the reader would ask it**: directly after the sentence, equation, or block that raises the question, not at the end of the section. Never place it inside a definition block, algorithm block, list, table, or display math; put it right after the enclosing block. Chat in Claude Code plan mode may be looser while teaching; **what gets parked still follows this voice file** (no invented analogies, no hype). Promote into the spine uses this register and must not duplicate the same prose in a dropdown.
 
 These boxes ship with the book on GitHub Pages.
+
+## Section Recap and Key Takeaways
+
+Written by `/course-notes add` at the end of every technical `##` section, with no park cue. Two blocks, Recap first, then Key Takeaways, as the last thing before the next `##` heading. Full template: [`/course-notes`](../skills/course-notes/SKILL.md) `add` Phase 1.
+
+- **Recap** is a collapsed `.clarification` box titled `Recap: <section title>`. It has three parts: *What the symbols stand for* (each symbol the section introduced, in words), *Taking the equations apart* (each equation split into the pieces a beginner reads separately, each piece explained), and *A teaching example* (small invented numbers, every step shown, checked against the equation). Its job is to make the equations less daunting, so it explains pieces rather than re-deriving the whole.
+- **Key takeaways** is a visible `.callout-note .section-takeaways` box, 1–3 bullets. It says plainly what the section is teaching and why it matters, in the words a classmate would use. Favour the insight a beginner misses over a restated definition. Example: *a sample $z$ drawn directly is just a number, not a function of $\phi$, so there is no gradient to take through it; moving the randomness into $\epsilon$ makes $z$ a function of $\phi$ again.*
 
 ## Practice dropdowns
 

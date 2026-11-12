@@ -34,6 +34,27 @@ Wikipedia on first mention of a term in this chapter only, e.g. [machine learnin
      ![caption](figures/weekNN/name.png). Inline SVG remains the default for diagrams. -->
 ```
 
+<!-- Every technical ## section ends with a Recap (collapsed) and then Key takeaways
+     (visible). They are the last two blocks before the next ## heading. -->
+
+::: {.callout-tip collapse="true" .clarification title="Recap: [First technical section]"}
+What the symbols stand for:
+
+- $[symbol]$: [what it represents, in words]
+
+Taking the equations apart:
+
+- $[equation or one piece of it]$: [what this piece says or computes]
+
+A teaching example, [what it shows]. [Small invented numbers, each step a bullet, checked against the equation. With no equations in the section, list key terms, take apart the key definition, and give a small concrete case.]
+:::
+
+::: {.callout-note .section-takeaways}
+**Key takeaways.**
+
+- [What this section is teaching and why it matters, in plain words.]
+:::
+
 ## [A concept with a formula] {#sec-formula}
 
 ::: {.boxed-eq}
@@ -53,6 +74,25 @@ $$\text{[key equation]}$$
 Place it right after the passage that raises the question, not at the end of the section.
 :::
 -->
+
+::: {.callout-tip collapse="true" .clarification title="Recap: [A concept with a formula]"}
+What the symbols stand for:
+
+- $[symbol]$: [what it represents]
+
+Taking the equations apart:
+
+- $[left-hand side]$: [what we are computing]
+- $[each term on the right]$: [what it contributes]
+
+A teaching example, [what it shows]. [New small numbers, not the worked example relabelled.]
+:::
+
+::: {.callout-note .section-takeaways}
+**Key takeaways.**
+
+- [The main point, in plain words.]
+:::
 
 ## Summary {#sec-summary}
 

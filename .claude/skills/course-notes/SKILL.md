@@ -73,10 +73,38 @@ Emit, then **stop and wait for approval**. Do not write notes yet:
 - dependency map (prerequisite / formalizes / builds-on)
 - proposed section order (**lecture/slide order**, not a wholesale dependency reorder). If a true prerequisite is missing, flag a short subsection where it will be inserted
 - which slides are logistics and will be skipped
+- for each proposed `##` section, its one-line **key takeaway** in plain words (the seed of that section's Key Takeaways box; see Phase 1)
 
 #### Phase 1 — Write the week chapter (source of truth)
 
-After approval, write `courses/<slug>/lectures/weekNN.qmd` from [`templates/course-notes-book/lectures/week.md`](../../../templates/course-notes-book/lectures/week.md). Honor [`.claude/rules/course-notes.md`](../../rules/course-notes.md) and [`course-notes-voice.md`](../../references/course-notes-voice.md): motivate then define, lecture-owned examples, no invented analogies, no em dashes, no homework numeric answers, no dense walls. Wikipedia on first mention of a term in this chapter. Inline SVG in `{=html}` blocks (Pastel Rainbow, Helvetica stack). Hand-placed images the user dropped in `lectures/figures/weekNN/` are included with `![caption](figures/weekNN/name.png)`. `{ojs}` is optional, not required. Do **not** insert empty `.clarification` dropdowns on `add`.
+After approval, write `courses/<slug>/lectures/weekNN.qmd` from [`templates/course-notes-book/lectures/week.md`](../../../templates/course-notes-book/lectures/week.md). Honor [`.claude/rules/course-notes.md`](../../rules/course-notes.md) and [`course-notes-voice.md`](../../references/course-notes-voice.md): motivate then define, lecture-owned examples, no invented analogies, no em dashes, no homework numeric answers, no dense walls. Wikipedia on first mention of a term in this chapter. Inline SVG in `{=html}` blocks (Pastel Rainbow, Helvetica stack). Hand-placed images the user dropped in `lectures/figures/weekNN/` are included with `![caption](figures/weekNN/name.png)`. `{ojs}` is optional, not required. Do **not** insert empty `.clarification` dropdowns or `Question: …` boxes on `add`; the one exception is the per-section recap below.
+
+**Every section ends with a Recap and Key Takeaways.** Close each technical `##` section (not Overview, Summary, Quick self-check, or the high-level overview) with these two blocks, in this order, after all of the section's prose, figures, worked examples, and `###` subsections, immediately before the next `##` heading:
+
+```markdown
+::: {.callout-tip collapse="true" .clarification title="Recap: [section title, plain text]"}
+What the symbols stand for:
+
+- $[symbol]$: [what it represents, in words; say if it is fixed data, a parameter we choose, or a random quantity]
+
+Taking the equations apart:
+
+- $[equation or one part of it]$: [what that piece computes or says, in words]
+
+A teaching example, [one phrase on what it shows]. [Small invented numbers in the lecture's domain, every step shown as a bullet, ending with a check against the equation.]
+:::
+
+::: {.callout-note .section-takeaways}
+**Key takeaways.**
+
+- [The main point the section is teaching, in plain words.]
+:::
+```
+
+- **Recap** (parked, collapsed). Follow this prompt: *reiterate what the variables introduced represent and deconstruct the equations presented into parts so that they are less daunting; end with a teaching example to bolster understanding of the equations.* List only the symbols this section introduced or reused in a new role. Split each display equation into the parts a beginner would read separately (each side, each term, each line of a derivation) and say what each part does. The teaching example uses new small numbers, not the section's worked example relabelled; it may continue a previous recap's example so the chapter builds one thread. If the section has no equations, keep the three-part shape: list the key terms instead of symbols, take apart the key definition or algorithm step, and make the teaching example a small concrete case.
+- **Key takeaways** (visible). 1–3 bullets that state **what the section is trying to teach and why it matters**, as a classmate would say it out loud: little or no notation, no restating of the definition block. Aim at the insight a beginner is most likely to miss. Example for a reparameterization-trick section: *"If we draw a random number $z$ directly, there is nothing to differentiate: a sample is just a number, not a function of $\phi$, so no gradient can pass back through it. Moving the randomness into $\epsilon$ makes $z$ an ordinary function of $\phi$, and then the chain rule works."*
+- Both blocks follow the same bans as the spine (homework answers, em dashes, invented cross-domain analogies, display-math row limit). No new Wikipedia links for terms already linked in this chapter.
+- Keep the chapter-level `## Summary` "Key takeaways from Week N" too; it summarizes the whole week, the section boxes summarize one section each.
 
 #### Phase 2 — Glossary and book list
 
@@ -189,7 +217,7 @@ Confirm `courses/<slug>/` exists and the target chapter exists (`lectures/weekNN
 
 | User says | Action |
 | --- | --- |
-| **Promote** / “put that in the section” / “change the section” | Edit the named section in lecture voice. No `.clarification` callout. If a promote introduces a new term, echo it in `glossary.qmd`. Then render + score (unless `--no-render`). |
+| **Promote** / “put that in the section” / “change the section” | Edit the named section in lecture voice. No `.clarification` callout. If a promote introduces a new term, echo it in `glossary.qmd`. If it changes the section's symbols, equations, or main point, update that section's Recap and Key Takeaways to match (add them if the section predates this convention). Then render + score (unless `--no-render`). |
 | **Park** / “clarification dropdown” / “add a clarification” | Insert a collapsed callout **at the point where the reader would ask the question**: directly after the sentence, equation, or block that raises it, not at the end of the section. Do not also paste that prose into the spine. Then render + score (unless `--no-render`). |
 | **Discard** | Drop the last explanation. Stay in revise. Write nothing. |
 | **Audit** | End revise; run the `audit` mode below. Chat-only text is not on the page. |
@@ -204,7 +232,7 @@ Parked shape (once per kept question, not one empty box per heading). The dropdo
 :::
 ```
 
-**Placement.** Put the box where the confusion arises. If the user names a spot, use it. Otherwise pick the passage the question is about (the equation, definition, or step that prompts it); if several qualify, take the earliest where the question is natural. Never inside a `.definition-block`, algorithm block, list, table, or display math: place it immediately after the enclosing block. Write the title in the reader's voice ("Why …?", "How does this change when …?"), with no math markup.
+**Placement.** Put the box where the confusion arises. If the user names a spot, use it. Otherwise pick the passage the question is about (the equation, definition, or step that prompts it); if several qualify, take the earliest where the question is natural. Never inside a `.definition-block`, algorithm block, list, table, or display math: place it immediately after the enclosing block. Never after the section's Recap / Key Takeaways pair; those stay last. Write the title in the reader's voice ("Why …?", "How does this change when …?"), with no math markup.
 
 Honor [`.claude/rules/course-notes.md`](../../rules/course-notes.md) and [`course-notes-voice.md`](../../references/course-notes-voice.md) on both promote and park (homework-answer ban, no em dashes, no invented analogies, Wikipedia-only links). After park/promote, `quarto render` from the course root and `python3 scripts/quality_score.py` on the chapter you edited (`weekNN.qmd` or `weekNN-practice.qmd`). Fix scores below 80 before calling the week ready.
 
