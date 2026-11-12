@@ -70,6 +70,37 @@ Figure 1 shows how two symmetric components can produce one lopsided bump. The n
 
 **Figure 1.** A two-component mixture with invented, crab-scale numbers: $\pi_1 = 0.4$, $\mu_1 = 0.635$; $\pi_2 = 0.6$, $\mu_2 = 0.655$; both standard deviations $0.01$. The dashed curves are the weighted components $\pi_k\,\mathcal N(x\mid\mu_k,\sigma_k^2)$, the solid curve is their sum. With the means only two standard deviations apart, the sum has a single peak and a long left shoulder: a skewed curve, like the one Weldon saw. The dotted line marks the crab used in @sec-w8-resp.
 
+::: {.callout-tip collapse="true" .clarification title="Recap: Mixture of Gaussians"}
+What the symbols stand for:
+
+- $K$: the number of components. $D$: the dimension of each data point.
+- $\pi_k$: the mixing coefficient of component $k$, its share of the total weight.
+- $\mu_k$, $\Sigma_k$: the mean vector and covariance matrix of component $k$.
+- $\mathcal N_D(x\mid\mu,\Sigma)$: the height of a $D$-dimensional bell curve at the point $x$. $|\Sigma|$: the determinant of $\Sigma$.
+
+Taking the equations apart:
+
+- $p(x) = \sum_k\pi_k\,\mathcal N_D(x\mid\mu_k,\Sigma_k)$: at each point $x$, read off the height of every bell curve, weight it by $\pi_k$, and add.
+- $\pi_k\ge0$, $\sum_k\pi_k = 1$: the weights split one unit of probability, so the blend still integrates to 1.
+- $\frac{1}{(2\pi)^{D/2}|\Sigma|^{1/2}}$: the constant that makes one bell curve integrate to 1. A wider curve (larger $|\Sigma|$) is lower.
+- $(x-\mu)^\top\Sigma^{-1}(x-\mu)$: the squared distance from $x$ to the mean, measured in units of the curve's spread.
+- $\exp(-\tfrac12\,\cdot)$: turns that distance into a height, largest at $x=\mu$ and falling off with distance.
+
+A teaching example in one dimension with $K=2$: $\pi = (0.3, 0.7)$, $\mu = (0, 3)$, both standard deviations 1. The constant is $1/\sqrt{2\pi}\approx0.3989$.
+
+- At $x=1$: the heights are $0.3989\,e^{-0.5}\approx0.2420$ and $0.3989\,e^{-2}\approx0.0540$, so $p(1)\approx0.3(0.2420) + 0.7(0.0540) = 0.0726 + 0.0378 = 0.1104$.
+- At $x=3$: the heights are $0.3989\,e^{-4.5}\approx0.0044$ and $0.3989$, so $p(3)\approx0.0013 + 0.2792 = 0.2806$.
+
+The density is highest near the mean of the heavier component, and the lighter component still adds its own bump near 0.
+:::
+
+::: {.callout-note .section-takeaways}
+**Key takeaways.**
+
+- A single Gaussian has one peak and a symmetric shape. A weighted blend of several Gaussians can have several bumps or a lopsided shape, so it can fit data that no single bell curve fits.
+- The weights must be nonnegative and add to 1 so the blend is still a valid density. Weldon's crabs show the idea: two overlapping symmetric groups can look like one skewed group.
+:::
+
 ## The mixture of Gaussians as a latent variable model {#sec-w8-latent}
 
 The mixture formula looks like a single density with many parameters. Rewriting it as a **[latent variable model](https://en.wikipedia.org/wiki/Latent_variable_model)** (the setting of Weeks 6 and 7) is what lets us reason about it, and Week 7's tutorial did exactly this (@sec-w7-tq1 in Week 7, where the weights were written $\lambda_k$).
@@ -116,6 +147,37 @@ This is the mixture density again. So the mixture is the same model as "first pi
 
 **Figure 2.** The mixture of Gaussians as a directed graphical model (Week 2). Purple nodes are parameters, the green node is hidden, the blue node is observed. The plate says that each of the $N$ data points has its own label $z_n$, while the parameters are shared.
 
+::: {.callout-tip collapse="true" .clarification title="Recap: The mixture of Gaussians as a latent variable model"}
+What the symbols stand for:
+
+- $z\in\{1,\dots,K\}$: the hidden label saying which component produced a data point.
+- $p(z=k) = \pi_k$: the prior on the label.
+- $p(x\mid z=k)$: the density of $x$ once we know the label, the $k$-th Gaussian.
+- $p(x, z=k)$: the joint, the probability of picking component $k$ and getting $x$.
+- The plate in Figure 2: each of the $N$ points has its own $z_n$; the parameters are shared.
+
+Taking the equations apart:
+
+- $p(z=k) = \pi_k$: roll a weighted $K$-sided die to pick a component.
+- $p(x\mid z=k) = \mathcal N_D(x\mid\mu_k,\Sigma_k)$: draw the point from the chosen component.
+- $p(x,z=k) = \pi_k\,\mathcal N_D(x\mid\mu_k,\Sigma_k)$: prior times likelihood.
+- $p(x) = \sum_k p(x,z=k)$: we never see the label, so we add over every possible label. The result is the mixture formula.
+
+A teaching example with the mixture from the previous recap ($\pi = (0.3, 0.7)$, $\mu = (0,3)$, standard deviations 1).
+
+- Sample a label: draw a uniform number $u = 0.45$. Since $u > 0.3$, the label is $z = 2$.
+- Sample the point: with standard normal noise $-0.4$, $x = 3 - 0.4 = 2.6$.
+- Joint at this $x$: $p(x, z=2)\approx0.7\times0.3989\,e^{-0.08}\approx0.2578$ and $p(x,z=1)\approx0.3\times0.3989\,e^{-3.38}\approx0.0041$.
+- Marginal: $p(2.6)\approx0.2578 + 0.0041 = 0.2619$, the mixture density at 2.6.
+:::
+
+::: {.callout-note .section-takeaways}
+**Key takeaways.**
+
+- The mixture formula is the same as a two-step story: secretly pick a component with probability $\pi_k$, then draw the point from that component's Gaussian.
+- Writing the mixture with a hidden label turns it into a latent variable model, so the tools of Weeks 6 and 7 (joint, posterior, evidence) apply. Here, unlike Week 7, the evidence is only a sum of $K$ terms.
+:::
+
 ## Inference: responsibilities {#sec-w8-resp}
 
 With several observations $x_1,\dots,x_N$, each data point $x_n$ has its own latent label $z_n$. Once we have seen $x_n$, what should we believe about which component it came from?
@@ -153,6 +215,33 @@ The prior favoured component 2 ($0.6$), but the crab sits much closer to compone
 
 The slides show 500 points drawn from a mixture of 3 Gaussians in 2 dimensions, three ways: coloured by the component $z$ that actually generated each point (samples from the joint $p(x,z)$); uncoloured (samples from the marginal $p(x)$, which is all we would see in practice); and coloured by a blend of the three components' colours in proportion to the responsibilities. Points near a single component's centre are a pure colour; points between two components are a mixture of colours.
 
+::: {.callout-tip collapse="true" .clarification title="Recap: Inference: responsibilities"}
+What the symbols stand for:
+
+- $\gamma_{nk} = p(z_n=k\mid x_n)$: the responsibility, the posterior probability that component $k$ produced point $x_n$.
+- $\pi_k$: here read as the prior probability of label $k$, before seeing the point.
+
+Taking the equation apart:
+
+- Numerator $\pi_k\,\mathcal N_D(x_n\mid\mu_k,\Sigma_k)$: how common component $k$ is, times how well it explains $x_n$.
+- Denominator $\sum_j\pi_j\,\mathcal N_D(x_n\mid\mu_j,\Sigma_j)$: the same product for every component, added up. It is the evidence $p(x_n)$.
+- The ratio: component $k$'s share of the total. The shares are nonnegative and add to 1 over $k$.
+
+A teaching example with the same mixture ($\pi = (0.3, 0.7)$, $\mu = (0,3)$, standard deviations 1).
+
+- At $x = 1$: the numerators are $0.0726$ and $0.0378$ (from the first recap), the evidence is $0.1104$, so $\gamma_1\approx0.658$ and $\gamma_2\approx0.342$. The point is closer to component 1, which overturns the prior's preference for component 2.
+- At $x = 1.5$, exactly halfway: both Gaussians have the same height there, $0.3989\,e^{-1.125}\approx0.1295$, so it cancels and $\gamma = (0.3, 0.7)$, the prior.
+
+When the data cannot tell the components apart, the responsibilities fall back to the prior.
+:::
+
+::: {.callout-note .section-takeaways}
+**Key takeaways.**
+
+- Once we see a point, Bayes' rule tells us how likely each component is to have produced it. That answer, the responsibility, is a share rather than a verdict: a point between two clusters is partly assigned to both.
+- It weighs two things: how common the component is ($\pi_k$) and how well its Gaussian explains the point. It is easy to compute because the label has only $K$ possible values.
+:::
+
 ## The likelihood function {#sec-w8-lik}
 
 To fit the model we need its parameters, $\pi = (\pi_1,\dots,\pi_K)$, $\mu = (\mu_1,\dots,\mu_K)$, $\Sigma = (\Sigma_1,\dots,\Sigma_K)$. The natural tool is **maximum likelihood** (@sec-mle in Week 1). Stack the data into a matrix $X\in\mathbb R^{N\times D}$ (one row per point); the latent labels form a vector $z\in\{1,\dots,K\}^N$, one label per point. With the data points independent,
@@ -162,6 +251,35 @@ $$\log p(X\mid\pi,\mu,\Sigma) = \sum_{n=1}^N\log\Bigg(\sum_{k=1}^K\pi_k\,\mathca
 :::
 
 Each data point contributes the log of its mixture density. The structure to notice is a **log of a sum**: the log cannot be pushed inside onto the individual Gaussians, so the nice simplification that made the single-Gaussian MLE a sample mean and sample covariance does not happen.
+
+::: {.callout-tip collapse="true" .clarification title="Recap: The likelihood function"}
+What the symbols stand for:
+
+- $X\in\mathbb R^{N\times D}$: the data, one row per point.
+- $\pi$, $\mu$, $\Sigma$: all the mixing coefficients, means, and covariances together.
+- $\log p(X\mid\pi,\mu,\Sigma)$: the log-likelihood, how probable the whole data set is under these parameters, on a log scale.
+
+Taking the equation apart:
+
+- $\sum_{n=1}^N$: the points are independent, so their log-probabilities add.
+- $\sum_{k=1}^K\pi_k\,\mathcal N_D(x_n\mid\mu_k,\Sigma_k)$: the mixture density of one point.
+- $\log(\sum_k\cdots)$: a log of a sum. A log turns a product into a sum of logs, but it does nothing useful to a sum, so it cannot be split into one piece per Gaussian.
+
+A teaching example with two points, $x = 0$ and $x = 3$, and the same mixture ($\pi = (0.3, 0.7)$, $\mu = (0,3)$, standard deviations 1).
+
+- $p(0)\approx0.3(0.3989) + 0.7(0.0044) = 0.1197 + 0.0031 = 0.1228$.
+- $p(3)\approx0.0013 + 0.2792 = 0.2806$ (from the first recap).
+- Log-likelihood: $\log0.1228 + \log0.2806\approx-2.097 - 1.271 = -3.368$.
+
+Inside $\log0.1228$, the two components' contributions $0.1197$ and $0.0031$ are already added together, so no algebra can separate the parameters of component 1 from those of component 2.
+:::
+
+::: {.callout-note .section-takeaways}
+**Key takeaways.**
+
+- To fit the parameters we maximize the log-likelihood: the sum over data points of the log of each point's mixture density.
+- The log sits on top of a sum over components, so it cannot be split into pieces that each involve one Gaussian. That is what stops the easy single-Gaussian answer (sample mean and sample covariance) from carrying over directly.
+:::
 
 ## Maximum likelihood {#sec-w8-mle}
 
@@ -224,6 +342,37 @@ $$\pi_k = \frac{N_k}{\sum_{j=1}^K N_j} = \frac{N_k}{N}.$$
 
 Each mixing coefficient is the **fraction of the data** that component $k$ is responsible for. (We did not impose $\pi_k\ge0$; the answer satisfies it automatically.)
 
+::: {.callout-tip collapse="true" .clarification title="Recap: Maximum likelihood"}
+What the symbols stand for:
+
+- $N_k = \sum_n\gamma_{nk}$: the effective number of points that component $k$ is responsible for.
+- $\lambda$: the Lagrange multiplier that enforces $\sum_k\pi_k = 1$.
+- $g(\pi) = \sum_k\pi_k - 1$: the constraint, written so that it equals 0 when satisfied.
+
+Taking the equations apart:
+
+- $\mu_k = \frac{1}{N_k}\sum_n\gamma_{nk}x_n$: a weighted average of all the data, each point weighted by component $k$'s responsibility for it.
+- $\Sigma_k = \frac{1}{N_k}\sum_n\gamma_{nk}(x_n-\mu_k)(x_n-\mu_k)^\top$: a weighted spread around that mean.
+- $\pi_k = N_k/N$: the share of the data the component is responsible for.
+- The Lagrange step: we cannot set each $\pi_k$'s derivative to zero on its own, because the weights must add to 1. Adding $\lambda\,g(\pi)$ and solving gives $\lambda = -N$.
+
+A teaching example in one dimension. Four points $x = (0, 1, 4, 5)$, with responsibilities of component 1 equal to $(1, 0.8, 0.2, 0)$, so those of component 2 are $(0, 0.2, 0.8, 1)$.
+
+- Effective counts: $N_1 = 2$, $N_2 = 2$, so $\pi = (0.5, 0.5)$.
+- Means: $\mu_1 = (0.8 + 0.8)/2 = 0.8$ and $\mu_2 = (0.2 + 3.2 + 5)/2 = 4.2$.
+- Variance of component 1: $\frac12\big[1(0.8)^2 + 0.8(0.2)^2 + 0.2(3.2)^2\big] = \frac12(0.64 + 0.032 + 2.048) = 1.36$.
+
+With hard labels, component 1 would have mean 0.5. The point at 4, with only 0.2 responsibility, still pulls the mean up to 0.8 and widens the variance.
+:::
+
+::: {.callout-note .section-takeaways}
+**Key takeaways.**
+
+- Setting the derivatives to zero gives familiar answers with a twist: each mean is a weighted average of the data, each covariance is a weighted spread, and each mixing weight is the share of the data the component is responsible for. The weights are the responsibilities.
+- The mixing weights have to add to 1, so they need a Lagrange multiplier instead of a plain derivative.
+- These are conditions the answer must satisfy, not the answer itself: the responsibilities on the right depend on the parameters on the left.
+:::
+
 ## Motivating the EM algorithm {#sec-w8-why-em}
 
 The three boxed equations look like a solution, but they are not one. Each right-hand side contains the responsibilities $p(z_n=k\mid x_n)$, and the responsibilities themselves depend on the parameters:
@@ -238,6 +387,34 @@ The way out is to iterate: fix one side, compute the other, and repeat.
 2. **E-step:** update the posteriors $p(z_n=k\mid x_n)$, holding the parameters fixed.
 3. **M-step:** update the parameters $\pi,\mu,\Sigma$ with the boxed formulas, holding the posteriors fixed.
 4. Repeat.
+
+::: {.callout-tip collapse="true" .clarification title="Recap: Motivating the EM algorithm"}
+What the symbols stand for:
+
+- $p(z_n=k\mid x_n)$: the responsibilities, computed from the parameters.
+- $\pi$, $\mu$, $\Sigma$: the parameters, computed from the responsibilities.
+- E-step and M-step: the two halves of the loop, one per direction.
+
+Taking the circularity apart:
+
+- The responsibility formula has $\pi$, $\mu$, $\Sigma$ on its right-hand side.
+- The three boxed MLE formulas have the responsibilities on their right-hand side.
+- Each side is easy if the other is known, so we fix one, compute the other, and alternate.
+
+A teaching example with the data $x = (0, 1, 4, 5)$ and standard deviations fixed at 1.
+
+- If we knew the labels were $(1, 1, 2, 2)$, fitting is easy: $\mu = (0.5, 4.5)$ and $\pi = (0.5, 0.5)$.
+- If we knew $\mu = (0.5, 4.5)$ and $\pi = (0.5, 0.5)$, inference is easy: for $x = 1$, $\gamma_1 = e^{-0.125}/(e^{-0.125} + e^{-6.125})\approx0.998$.
+
+In practice we know neither the labels nor the parameters. The next section starts from a guess and alternates.
+:::
+
+::: {.callout-note .section-takeaways}
+**Key takeaways.**
+
+- The maximum-likelihood equations go in a circle: the parameters are computed from the responsibilities, and the responsibilities are computed from the parameters. So there is no closed-form answer.
+- Each half is easy if the other half is known. The way out is to guess one side, compute the other, and repeat.
+:::
 
 ## EM for Gaussian mixtures {#sec-w8-em-gmm}
 
@@ -308,6 +485,35 @@ The next E-step would recompute the responsibilities from these new parameters, 
 The slides illustrate EM on a two-dimensional dataset with two clusters (it is the Old Faithful geyser data that the tutorial uses; Figure 6 in @sec-w8-code-em shows the tutorial's own run). The two components start as round circles placed away from the data. After one iteration ($L=1$), they have moved onto the data, stretched along it, and the points between them are coloured purple (shared responsibility). By $L=5$ the components have separated, and by $L=20$ each has settled on one cluster, with almost every point a pure colour.
 
 Two practical caveats, standard for EM though not on the slides. EM climbs to a **local** maximum of the likelihood, so the result can depend on the initialization; the illustration deliberately starts from a poor one to show that it can recover. And a component can collapse onto a single data point (its covariance shrinking toward zero), which sends the likelihood to infinity; implementations guard against this, for example by adding a small multiple of the identity to each $\Sigma_k$.
+
+::: {.callout-tip collapse="true" .clarification title="Recap: EM for Gaussian mixtures"}
+What the symbols stand for:
+
+- $\mu_k^{\text{new}}$, $\Sigma_k^{\text{new}}$, $\pi_k^{\text{new}}$: the parameters after one M-step.
+- Tolerance: the small change in log-likelihood below which we stop.
+
+Taking the algorithm apart:
+
+- E-step: with the parameters held fixed, compute every responsibility by Bayes' rule.
+- M-step: with the responsibilities held fixed, refit each component as a weighted Gaussian fit. The covariance update uses the new means.
+- Check: compute the log-likelihood and stop once it barely changes.
+
+A teaching example with $x = (0, 1, 4, 5)$, standard deviations fixed at 1, $\pi = (0.5, 0.5)$, and a poor start $\mu = (1, 3)$. With equal weights and spreads, $\gamma_1 = e^{-d_1^2/2}/(e^{-d_1^2/2} + e^{-d_2^2/2})$, where $d_k$ is the distance to $\mu_k$.
+
+- E-step: $\gamma_1\approx(0.982,\ 0.881,\ 0.018,\ 0.002)$ for the four points.
+- Effective counts: $N_1\approx1.883$ and $N_2\approx2.117$.
+- M-step means: $\mu_1\approx0.965/1.883\approx0.51$ and $\mu_2\approx9.035/2.117\approx4.27$.
+- M-step weights: $\pi\approx(0.471,\ 0.529)$.
+
+After one round the means moved from $(1, 3)$ to about $(0.51, 4.27)$, close to the centres of the two groups $\{0,1\}$ and $\{4,5\}$. The next E-step recomputes the responsibilities from these.
+:::
+
+::: {.callout-note .section-takeaways}
+**Key takeaways.**
+
+- EM breaks the circle by alternating two easy steps: with the parameters fixed, compute the responsibilities (E-step); with the responsibilities fixed, refit each Gaussian as a weighted fit (M-step). Repeat until the log-likelihood stops changing.
+- It finds a local maximum, so the answer can depend on where it starts. A component can also collapse onto a single point, which practical implementations guard against.
+:::
 
 ## The general EM algorithm {#sec-w8-general-em}
 
@@ -381,6 +587,38 @@ $$\log p(X\mid\theta^{\text{new}})\ \ge\ \mathcal L(q,\theta^{\text{new}})\ \ge\
 
 So EM is **coordinate ascent on the ELBO**: the E-step maximizes $\mathcal L$ over $q$ (exactly, by choosing the posterior), and the M-step maximizes it over $\theta$. This is also why "check the log-likelihood for convergence" in the algorithm is a sensible stopping rule: the sequence of log-likelihoods only goes up.
 
+::: {.callout-tip collapse="true" .clarification title="Recap: The general EM algorithm"}
+What the symbols stand for:
+
+- $X$, $Z$, $\theta$: observed data, latent variables, and parameters of any model.
+- $\log p(X,Z\mid\theta)$: the complete-data log-likelihood, what we would maximize if $Z$ were observed.
+- $Q(\theta,\theta^{\text{old}})$: that log-likelihood averaged over the posterior at the old parameters.
+- $\mathbb 1[z_n=k]$: the indicator, 1 if point $n$ has label $k$ and 0 otherwise.
+- $\mathcal L(q,\theta)$, $H(q)$: Week 7's ELBO and the entropy of $q$.
+
+Taking the equations apart:
+
+- $Q = \sum_Z p(Z\mid X,\theta^{\text{old}})\log p(X,Z\mid\theta)$: the log now sits on the complete-data likelihood, inside the average, where it splits into simple pieces.
+- For the mixture, the average of the indicator is the responsibility, so $Q$ is a responsibility-weighted sum of single-Gaussian log-likelihoods.
+- E-step: choosing $q$ as the exact posterior makes the KL term 0, so the ELBO touches the log-likelihood.
+- M-step: maximizing $Q$ raises the ELBO. The log-likelihood is at least the ELBO, so it cannot go down.
+
+A teaching example with one point $x = 1$, two components with standard deviation 1 and equal weights, $\mu_2 = 3$ fixed, and only $\mu_1$ free, starting at $\mu_1 = 0$.
+
+- Old log-likelihood: $\log\big(0.5\times0.3989\,(e^{-0.5} + e^{-2})\big)\approx\log0.1480\approx-1.911$.
+- E-step: $\gamma_1 = e^{-0.5}/(e^{-0.5} + e^{-2})\approx0.818$.
+- $Q$ as a function of $\mu_1$: $0.818\times\big(-\tfrac12(1-\mu_1)^2\big)$ plus terms without $\mu_1$. It is largest at $\mu_1 = 1$.
+- New log-likelihood: $\log\big(0.5\times0.3989\,(1 + e^{-2})\big)\approx\log0.2265\approx-1.485$. It went up.
+:::
+
+::: {.callout-note .section-takeaways}
+**Key takeaways.**
+
+- EM is not specific to Gaussians. For any model with hidden variables: compute the posterior over the hidden values with the current parameters, then maximize the log-likelihood we would have if we knew them, averaged over that posterior.
+- That swap moves the log inside the average, onto simple factors, which is why the M-step is usually solvable.
+- No round can lower the log-likelihood: the E-step makes the ELBO touch the log-likelihood, and the M-step pushes the ELBO up. EM is coordinate ascent on Week 7's ELBO.
+:::
+
 ## Relationship to k-means {#sec-w8-kmeans}
 
 CSC311 introduced **[k-means clustering](https://en.wikipedia.org/wiki/K-means_clustering)**: choose $K$ cluster centres $\mu_k$, then alternate between (a) assigning each point to its nearest centre and (b) moving each centre to the average of the points assigned to it. With $r_{nk} = 1$ if point $n$ is assigned to cluster $k$ and 0 otherwise, k-means decreases the **distortion measure**
@@ -409,6 +647,36 @@ As $\epsilon\to0$ the distance term, scaled by $1/\epsilon$, swamps the $\log\pi
 
 The lecture's verdict: in the limit, EM's maximization is k-means. EM is slower, but more flexible and more accurate, because it keeps soft assignments and learns a full covariance per cluster, so it can fit elongated or differently sized clusters that k-means, with its implicit round clusters of equal size, cannot.
 
+::: {.callout-tip collapse="true" .clarification title="Recap: Relationship to k-means"}
+What the symbols stand for:
+
+- $r_{nk}$: the hard assignment, 1 if point $n$ belongs to cluster $k$ and 0 otherwise.
+- $J$: the distortion, the total squared distance from each point to its own centre.
+- $\epsilon$: the shared variance of every component when $\Sigma_k = \epsilon I$.
+
+Taking the equations apart:
+
+- $J = \sum_n\sum_k r_{nk}\lVert x_n-\mu_k\rVert^2$: only each point's own centre counts, because $r_{nk}$ is 0 for the others.
+- $\Sigma_k = \epsilon I$: every cluster is a round blob of the same size, so the Gaussian's constant cancels from the responsibilities.
+- The softmax form: the responsibility depends only on $\pi_k$ and the squared distances, scaled by $1/2\epsilon$.
+- $\epsilon\to0$: dividing by a tiny $\epsilon$ blows up the differences between distances, so the nearest centre takes all the responsibility.
+
+A teaching example with one point $x = 1$, centres $\mu = (0, 3)$, and equal weights. The squared distances are 1 and 4, so $\gamma_1 = 1/(1 + e^{-3/(2\epsilon)})$.
+
+- $\epsilon = 1$: $\gamma_1 = 1/(1 + e^{-1.5})\approx0.818$.
+- $\epsilon = 0.25$: $\gamma_1 = 1/(1 + e^{-6})\approx0.998$.
+- $\epsilon = 0.1$: $\gamma_1 = 1/(1 + e^{-15})\approx0.9999997$.
+
+As the blobs shrink, the soft assignment hardens into "nearest centre", the k-means rule.
+:::
+
+::: {.callout-note .section-takeaways}
+**Key takeaways.**
+
+- k-means is EM for a mixture in which every cluster is a tiny round blob of the same size. As the blobs shrink, each point's responsibility goes entirely to its nearest centre, and EM's two steps become k-means' assign-to-nearest and move-to-average steps.
+- EM is slower but more flexible: soft assignments and a separate covariance per cluster let it fit elongated or differently sized clusters that k-means cannot.
+:::
+
 ## VI vs EM {#sec-w8-vi-em}
 
 Both EM and variational inference maximize something built from the expected complete-data log-likelihood. The slide puts them side by side.
@@ -426,6 +694,33 @@ $$Q(\theta,\theta^{\text{old}}) = \mathbb E_{z\sim p(z\mid x,\theta^{\text{old}}
 The slide writes the EM parameters as $\phi$ and the posterior as $q^{\text{old}}_\phi$; there is no separate variational family in EM, so here we write them as the model parameters $\theta$ and the exact posterior at $\theta^{\text{old}}$. EM also maximizes an expected complete-data log-likelihood, but the expectation is under the **exact posterior**, and each M-step **maximizes** fully rather than taking a gradient step.
 
 Reading the two together with @sec-w8-em-monotone: EM is the special case of maximizing the ELBO in which the E-step can choose $q$ to be the exact posterior, so the bound is tight after every E-step. Variational inference is what we do when that exact posterior is not available, as in the VAE.
+
+::: {.callout-tip collapse="true" .clarification title="Recap: VI vs EM"}
+What the symbols stand for:
+
+- $\mathcal L(x;\theta,\phi)$: the ELBO that variational inference maximizes, with model parameters $\theta$ and variational parameters $\phi$.
+- $q_\phi$: an approximating distribution from a chosen family.
+- $Q(\theta,\theta^{\text{old}})$: EM's objective, averaged under the exact posterior at $\theta^{\text{old}}$.
+
+Taking the two objectives apart:
+
+- Shared piece: both average the complete-data log-likelihood $\log p_\theta(x,z)$.
+- VI averages under $q_\phi$ and adds the entropy $H(q_\phi)$; it takes gradient steps in $\theta$ and $\phi$.
+- EM averages under the exact posterior and maximizes fully in $\theta$ at each M-step.
+- EM is the case of ELBO maximization in which $q$ can be set to the exact posterior, so the bound is tight after every E-step.
+
+A teaching example with Week 7's two-state model ($p(x=1,z=1) = 0.24$, $p(x=1,z=0) = 0.07$, $\log p(x)\approx-1.171$).
+
+- VI with $q = (0.5, 0.5)$: the ELBO is about $-1.350$, a gap of $0.179$ below the log evidence (@sec-w7-elbo in Week 7).
+- EM's E-step instead sets $q$ to the posterior $(0.774, 0.226)$. Then each ratio $p(x,z)/q(z)$ equals $p(x) = 0.31$, so the ELBO is $\log0.31\approx-1.171$ and the gap is 0.
+:::
+
+::: {.callout-note .section-takeaways}
+**Key takeaways.**
+
+- EM and variational inference push up the same kind of bound. EM can set its averaging distribution to the exact posterior, so the bound is tight after every E-step, and it maximizes fully in each M-step.
+- Variational inference is what we do when the exact posterior is out of reach, as in the VAE: pick an approximating family and take gradient steps instead.
+:::
 
 ## Part 1 summary {#sec-w8-summary1}
 
@@ -447,6 +742,34 @@ In practice, data is often very high-dimensional, but its important features can
 
 The slides' example is a PCA of genetic data from about 1,400 Europeans, from the study *Genes mirror geography within Europe* (Novembre et al., 2008). Each person is described by a very long vector of genetic markers. Projected onto the first two principal components and rotated, the people's points form a rough map of Europe: individuals from Italy, Spain, Portugal, the UK and so on cluster roughly where their countries sit geographically. Two numbers per person, out of hundreds of thousands, recover the dominant structure.
 
+::: {.callout-tip collapse="true" .clarification title="Recap: Low-dimensional representations"}
+What the terms stand for:
+
+- $D$: the number of coordinates each data point has.
+- $K$: the number of coordinates in the low-dimensional representation, with $K < D$.
+- Low-dimensional subspace: a flat surface of dimension $K$ inside the $D$-dimensional space, near which the data lies.
+
+Taking the three benefits apart:
+
+- Computation: each point is stored and processed as $K$ numbers instead of $D$.
+- Interpretability: with $K = 2$ or 3 we can plot the points and look at them.
+- Generalization: a model with fewer numbers to fit has less room to fit noise.
+
+A teaching example of the storage saving, with invented sizes on the scale of the genetics study: $N = 1{,}400$ people and $D = 500{,}000$ markers each.
+
+- Raw data: $1{,}400\times500{,}000 = 700$ million numbers.
+- With $K = 2$: two numbers per person ($2{,}800$), plus the two directions ($1{,}000{,}000$) and the mean ($500{,}000$), about $1.5$ million numbers.
+
+That is about 466 times fewer numbers, and the two coordinates per person are the ones that drew the map of Europe.
+:::
+
+::: {.callout-note .section-takeaways}
+**Key takeaways.**
+
+- Data with many coordinates often varies along only a few directions. Describing each point by its position along those few directions keeps most of the information.
+- That buys cheaper computation, plots we can actually read, and models less prone to overfitting. In the genetics example, two numbers per person recover a rough map of Europe.
+:::
+
 ## Recap: principal component analysis {#sec-w8-pca-recap}
 
 We have data $x^{(1)},\dots,x^{(N)}\in\mathbb R^D$ and want a $K$-dimensional representation with $K<D$ (here $K$ is the **latent dimension**, Week 7's $M$). PCA approximates each data point as
@@ -464,6 +787,40 @@ The solution is the top $K$ **[eigenvectors](https://en.wikipedia.org/wiki/Eigen
 In two dimensions, with $K=1$, we look for one direction $u_1$ along which the data is well represented. The slides offer two candidates: the direction of highest variance of the projected data, or the direction of minimum reconstruction error. These are the **same** direction: for a unit vector $u$ and centred data, each point's squared length splits as (squared length of its projection onto $u$) + (squared distance to that projection), by Pythagoras. The total is fixed by the data, so maximizing the first part is the same as minimizing the second.
 
 What PCA does not have is a probabilistic model: it has no likelihood and no noise model, and it cannot generate new data. PPCA adds these.
+
+::: {.callout-tip collapse="true" .clarification title="Recap: Principal component analysis"}
+What the symbols stand for:
+
+- $x^{(i)}$: data point $i$. $\bar x$: the mean of the data.
+- $U\in\mathbb R^{D\times K}$: the $K$ chosen directions as orthonormal columns, so $U^\top U = I_K$.
+- $z^{(i)}$: the code of point $i$, its $K$ coordinates along those directions.
+- $\tilde x^{(i)}$: the reconstruction of point $i$ from its code.
+- $\hat\Sigma$: the empirical covariance matrix of the data.
+
+Taking the equations apart:
+
+- $z^{(i)} = U^\top(x^{(i)}-\bar x)$: centre the point, then read its coordinate along each column of $U$.
+- $\tilde x^{(i)} = \bar x + Uz^{(i)}$: go back to data space using only those $K$ coordinates.
+- $\lVert x^{(i)}-\bar x - UU^\top(x^{(i)}-\bar x)\rVert^2$: the squared distance from the centred point to its projection, what we lose.
+- The best $U$: the top $K$ eigenvectors of $\hat\Sigma$, the directions of largest spread.
+
+A teaching example with $D = 2$, $K = 1$, $\bar x = (0,0)$, direction $u = (1,1)/\sqrt2$, and the point $x = (3, 1)$.
+
+- Code: $z = (3 + 1)/\sqrt2\approx2.828$.
+- Reconstruction: $\tilde x = 2.828\times(0.707, 0.707) = (2, 2)$.
+- Loss: $(3-2)^2 + (1-2)^2 = 2$.
+- Pythagoras: $\lVert x\rVert^2 = 10 = z^2 + \text{loss} = 8 + 2$.
+
+The total 10 is fixed by the data, so a direction that keeps more (larger $z^2$) loses less.
+:::
+
+::: {.callout-note .section-takeaways}
+**Key takeaways.**
+
+- PCA describes each point by its coordinates along a few chosen directions and rebuilds it from them. The best directions are the top eigenvectors of the data's covariance.
+- "Directions of greatest spread" and "directions that lose least when we project" are the same thing, because each point's squared length splits into the part kept plus the part lost.
+- PCA has no probability model: no likelihood, no noise, and no way to generate data. That is the gap probabilistic PCA fills.
+:::
 
 ## The probabilistic PCA model {#sec-w8-ppca}
 
@@ -513,6 +870,36 @@ The slides draw this in 2 dimensions with $K=1$: a one-dimensional standard norm
 
 Unlike PCA, which compresses $x\mapsto z$, the model is written in the direction $z\mapsto x$: it describes how low-dimensional causes generate high-dimensional data.
 
+::: {.callout-tip collapse="true" .clarification title="Recap: The probabilistic PCA model"}
+What the symbols stand for:
+
+- $z\in\mathbb R^K$: the latent coordinates, drawn from $\mathcal N_K(0,I_K)$.
+- $W\in\mathbb R^{D\times K}$: the matrix whose columns $w_1,\dots,w_K$ span the sheet the data lies near.
+- $\mu\in\mathbb R^D$: where the sheet is centred.
+- $\sigma^2$: the noise variance, the same in every direction. $\epsilon$: the noise itself.
+
+Taking the model apart:
+
+- $z\sim\mathcal N_K(0,I_K)$: pick $K$ independent standard normal coordinates.
+- $Wz = z_1w_1 + \dots + z_Kw_K$: a random combination of $W$'s columns, so it always lies in their span.
+- $Wz + \mu$: shift that point so the sheet passes through $\mu$.
+- $+\,\epsilon$ with $\epsilon\sim\mathcal N_D(0,\sigma^2I_D)$: nudge it off the sheet by a small amount in every direction.
+
+A teaching example with $D = 3$, $K = 1$, $w = (2, 1, 0)$, $\mu = (1, 1, 1)$, and $\sigma = 0.1$.
+
+- Draw $z = 0.5$: the noise-free point is $(1,1,1) + 0.5(2,1,0) = (2, 1.5, 1)$.
+- Draw noise $\epsilon = (0.1, -0.1, 0.05)$: the observed point is $x = (2.1, 1.4, 1.05)$.
+
+Every noise-free point has the form $(1,1,1) + z(2,1,0)$, a line through $\mu$. The data is a thin tube around that line.
+:::
+
+::: {.callout-note .section-takeaways}
+**Key takeaways.**
+
+- Probabilistic PCA is a story of how data is made: pick a few random coordinates, place them on a flat sheet inside the big space using $W$, then add a little noise that is the same in every direction.
+- The sheet spanned by $W$'s columns plays the role of PCA's principal subspace, but now there is a full probability model, written in the direction from latent coordinates to data.
+:::
+
 ## The PPCA likelihood {#sec-w8-ppca-lik}
 
 To do maximum likelihood we need the marginal density of $x$:
@@ -558,6 +945,36 @@ $$\log p(X\mid W,\mu,\sigma^2) = -\frac{ND}{2}\log2\pi - \frac N2\log|C| - \frac
 
 The first term is a constant, the second penalizes a large spread (large determinant), and the third penalizes data far from $\mu$ as measured by $C$. Unlike the mixture, this has no log of a sum, and the MLE $(\hat\mu,\hat W,\hat\sigma^2)$ can be found **in closed form** (Tipping and Bishop, *Probabilistic Principal Component Analysis*, 1999, has the details).
 
+::: {.callout-tip collapse="true" .clarification title="Recap: The PPCA likelihood"}
+What the symbols stand for:
+
+- $C = WW^\top + \sigma^2I_D$: the covariance of $x$ under the model.
+- $R$: any $K\times K$ orthogonal matrix, $RR^\top = I$, a rotation or reflection of the latent space.
+- $|C|$: the determinant of $C$, a measure of the total spread.
+
+Taking the equations apart:
+
+- $\mathbb E[x] = \mu$: the latent and the noise both average to zero.
+- $\mathrm{Cov}[x] = WW^\top + \sigma^2I_D$: spread along the sheet ($WW^\top$, rank at most $K$) plus round noise.
+- $(WR)(WR)^\top = WW^\top$: rotating the latent axes changes $W$ but not $C$, so the data cannot tell them apart.
+- In the log-likelihood: $-\frac{ND}{2}\log2\pi$ is a constant; $-\frac N2\log|C|$ penalizes a model that spreads its probability too thinly; $-\frac12\sum_i(x^{(i)}-\mu)^\top C^{-1}(x^{(i)}-\mu)$ penalizes points far from $\mu$ in units of $C$.
+
+A teaching example with $D = 2$, $K = 1$, $w = (2, 0)$, $\mu = (0,0)$, $\sigma^2 = 0.5$.
+
+- Covariance: $C = \mathrm{diag}(4 + 0.5,\ 0.5) = \mathrm{diag}(4.5,\ 0.5)$, so $|C| = 2.25$.
+- Non-identifiability: with $K = 1$ the orthogonal $R$ are $\pm1$, and $w = (-2, 0)$ gives the same $C$.
+- Log-density of $x = (3, 1)$: $-\log2\pi - \tfrac12\log2.25 - \tfrac12\big(9/4.5 + 1/0.5\big)\approx-1.838 - 0.405 - 2 = -4.243$.
+
+The offset of 3 along the sheet and the offset of 1 off it cost the same amount (2 each in the bracket), because the variance along the sheet is 9 times larger.
+:::
+
+::: {.callout-note .section-takeaways}
+**Key takeaways.**
+
+- Because probabilistic PCA builds $x$ by scaling and adding Gaussians, $x$ itself is a single Gaussian. Its covariance is a low-rank part (spread along the sheet) plus round noise, so the likelihood has no log of a sum, unlike the mixture.
+- Rotating the latent coordinates changes $W$ but not the distribution of $x$. The data can pin down the sheet, but not which axes we draw inside it.
+:::
+
 ## The maximum likelihood estimates {#sec-w8-ppca-mle}
 
 Let $\lambda_1\ge\lambda_2\ge\dots\ge\lambda_D$ be the eigenvalues of the empirical covariance $\hat\Sigma$, with unit eigenvectors $u_1,\dots,u_D$. The maximum likelihood estimator can be shown to be
@@ -577,6 +994,33 @@ Reading each piece:
 - $\hat\mu$ is the sample mean, as for any Gaussian.
 - $\hat\sigma^2$ is the **average of the $D-K$ discarded eigenvalues**: the average variance in the directions the plane does not cover.
 - $\hat W$ points along the top $K$ eigenvectors, scaled by $\sqrt{\lambda_i-\hat\sigma^2}$: the variance in direction $u_i$ beyond what the noise already accounts for. Since $\hat\sigma^2$ averages the smaller eigenvalues, $\lambda_i\ge\hat\sigma^2$ for $i\le K$, so the square root is real.
+
+::: {.callout-tip collapse="true" .clarification title="Recap: The maximum likelihood estimates"}
+What the symbols stand for:
+
+- $\lambda_1\ge\dots\ge\lambda_D$: the eigenvalues of the empirical covariance, the variance of the data along each eigenvector.
+- $u_1,\dots,u_D$: the matching unit eigenvectors. $\hat U$: the first $K$ of them as columns.
+- $\hat L$: the diagonal matrix of the top $K$ eigenvalues.
+- $R$: any orthogonal $K\times K$ matrix, left free by non-identifiability.
+
+Taking the estimates apart:
+
+- $\hat\mu$: the sample mean.
+- $\hat\sigma^2 = \frac{1}{D-K}\sum_{i>K}\lambda_i$: the average variance in the directions the sheet does not cover.
+- $\hat W = \hat U(\hat L - \hat\sigma^2I)^{1/2}R$: point along the top $K$ eigenvectors (PCA's directions), and stretch column $i$ by $\sqrt{\lambda_i - \hat\sigma^2}$, the variance beyond the noise.
+
+A teaching example with $D = 4$, $K = 1$, and eigenvalues $6,\ 1.2,\ 0.5,\ 0.3$.
+
+- Noise: $\hat\sigma^2 = (1.2 + 0.5 + 0.3)/3\approx0.667$.
+- Column of $\hat W$: points along $u_1$, with length $\sqrt{6 - 0.667}\approx2.309$.
+:::
+
+::: {.callout-note .section-takeaways}
+**Key takeaways.**
+
+- The best probabilistic PCA fit has a closed form built from PCA's ingredients: the sheet is spanned by the top $K$ eigenvectors of the data's covariance, exactly the PCA directions.
+- The noise level is the average variance left over in the discarded directions, and each column of $W$ is stretched by the variance in its direction beyond that noise. The rotation $R$ stays free.
+:::
 
 ## Interpreting the MLE {#sec-w8-ppca-interp}
 
@@ -626,6 +1070,34 @@ The model captures the variance along the principal axes **exactly**, and approx
 
 **Figure 5.** An invented spectrum with $D=6$: eigenvalues $5, 3, 0.6, 0.5, 0.4, 0.3$. PPCA with $K=2$ keeps variance 5 and 3 along $u_1,u_2$, and models the other four directions with $\hat\sigma^2 = (0.6+0.5+0.4+0.3)/4 = 0.45$. The columns of $\hat W$ then have lengths $\sqrt{5-0.45}\approx2.13$ and $\sqrt{3-0.45}\approx1.60$.
 
+::: {.callout-tip collapse="true" .clarification title="Recap: Interpreting the MLE"}
+What the symbols stand for:
+
+- $\hat C = \hat W\hat W^\top + \hat\sigma^2I$: the fitted model's covariance.
+- $u^\top\hat Cu$: the model's variance along a unit direction $u$.
+
+Taking the equations apart:
+
+- $\hat C = \hat U(\hat L - \hat\sigma^2I)\hat U^\top + \hat\sigma^2I$: the extra variance along the top directions, plus noise everywhere.
+- Along a top eigenvector: $(\lambda_i - \hat\sigma^2) + \hat\sigma^2 = \lambda_i$, the data's own variance.
+- Along any direction off the sheet: only the noise, $\hat\sigma^2$.
+
+A teaching example continuing the previous recap (eigenvalues $6,\ 1.2,\ 0.5,\ 0.3$, $K = 1$, $\hat\sigma^2\approx0.667$).
+
+- Along $u_1$: the model gives $6$, matching the data.
+- Along $u_2$, $u_3$, $u_4$: the model gives $0.667$ each, against the data's $1.2$, $0.5$, $0.3$.
+- Total variance: the data has $6 + 1.2 + 0.5 + 0.3 = 8$, and the model has $6 + 3(0.667) = 8$.
+
+The fit keeps the large direction exactly and replaces the three small ones by their average, without changing the total.
+:::
+
+::: {.callout-note .section-takeaways}
+**Key takeaways.**
+
+- The fitted model reproduces the data's variance exactly along the $K$ principal directions, and replaces the variance in all other directions by a single number, their average.
+- So probabilistic PCA keeps the important directions in full detail and summarizes everything else as noise.
+:::
+
 ## How does PPCA relate to PCA? {#sec-w8-ppca-pca}
 
 PCA maps a data point to a code, $x\mapsto z$. In PPCA the map from data to latent is the **posterior** $p(z\mid x)$. Since $z$ and $x$ are jointly Gaussian, the posterior is Gaussian too, and the Gaussian conditioning formula (the multivariate version of @sec-gauss-cond in Week 5; derived for PPCA in @sec-w8-code-woodbury) gives
@@ -642,6 +1114,34 @@ Mapping this back to data space gives $W(W^\top W)^{-1}W^\top(x-\mu)$, the **ort
 
 The tutorial (@sec-w8-code-post) also looks at what happens when $\sigma^2>0$: the PPCA reconstruction uses the same directions as PCA, but shrinks each coordinate toward the mean.
 
+::: {.callout-tip collapse="true" .clarification title="Recap: How does PPCA relate to PCA?"}
+What the symbols stand for:
+
+- $\mathbb E[z\mid x]$: the posterior mean, the best guess of a point's latent coordinates.
+- $\mathrm{Cov}[z\mid x]$: the posterior covariance, how uncertain that guess is.
+
+Taking the equations apart:
+
+- $\mathbb E[z\mid x] = (W^\top W + \sigma^2I)^{-1}W^\top(x-\mu)$: like a projection onto the sheet, but the $+\sigma^2I$ damps the answer toward 0.
+- $\mathrm{Cov}[z\mid x] = \sigma^2(W^\top W + \sigma^2I)^{-1}$: the uncertainty. It does not depend on $x$, and it shrinks to 0 as $\sigma^2\to0$.
+- As $\sigma^2\to0$: the mean becomes $(W^\top W)^{-1}W^\top(x-\mu)$, and mapping back with $W$ gives the orthogonal projection, PCA's answer.
+
+A teaching example with $D = 2$, $K = 1$, $w = (2, 0)$, $\mu = (0,0)$, and $x = (3, 1)$. Here $W^\top W = 4$ and $W^\top x = 6$.
+
+- $\sigma^2 = 1$: $\mathbb E[z\mid x] = 6/5 = 1.2$, variance $1/5 = 0.2$, reconstruction $2\times1.2 = 2.4$ along the first axis.
+- $\sigma^2 = 0.1$: $\mathbb E[z\mid x] = 6/4.1\approx1.463$, variance $\approx0.024$, reconstruction $\approx2.93$.
+- $\sigma^2\to0$: $\mathbb E[z\mid x]\to6/4 = 1.5$, reconstruction $3$, the PCA projection of $(3,1)$ onto the first axis.
+
+With $\sigma^2 = 1$ the reconstruction is $0.8$ of PCA's; with less noise the factor approaches 1.
+:::
+
+::: {.callout-note .section-takeaways}
+**Key takeaways.**
+
+- In PCA a point gets one code. In probabilistic PCA a point gets a posterior over codes: a best guess plus an uncertainty.
+- The best guess is PCA's answer pulled toward the centre, more so when the noise is large. As the noise shrinks to zero it becomes exactly PCA's projection, so PCA is the noise-free limit of probabilistic PCA.
+:::
+
 ## Why probabilistic PCA? {#sec-w8-why-ppca}
 
 If PCA gives the same directions, what does the probabilistic version buy?
@@ -650,6 +1150,33 @@ If PCA gives the same directions, what does the probabilistic version buy?
 - **A basis for more sophisticated Bayesian methods**, for example determining the number of components $K$ automatically.
 - **A likelihood function**, which lets us compare PPCA with other probabilistic models of the same data.
 - **EM instead of eigendecomposition.** Solving for the MLE directly needs the eigenvalues and eigenvectors of a $D\times D$ matrix. We can instead fit PPCA with EM (treating $z$ as the latent variable, with the posterior of @sec-w8-ppca-pca as the E-step), which scales to very large $D$.
+
+::: {.callout-tip collapse="true" .clarification title="Recap: Why probabilistic PCA?"}
+What the terms stand for:
+
+- Full Gaussian: a Gaussian with an unrestricted $D\times D$ covariance.
+- $O(D^2)$, $O(KD)$: how the parameter count grows with $D$.
+- Likelihood: a number that says how probable the data is under the model, which PCA alone does not provide.
+
+Taking the parameter counts apart:
+
+- Full Gaussian: a symmetric covariance has $D(D+1)/2$ free entries, plus $D$ for the mean.
+- Probabilistic PCA: $DK$ entries of $W$, $D$ for $\mu$, and 1 for $\sigma^2$.
+
+A teaching example with $D = 1{,}000$ and $K = 5$.
+
+- Full Gaussian: $1{,}000\times1{,}001/2 + 1{,}000 = 501{,}500$ parameters.
+- Probabilistic PCA: $5{,}000 + 1{,}000 + 1 = 6{,}001$ parameters.
+
+About 84 times fewer parameters, and the gap widens as $D$ grows.
+:::
+
+::: {.callout-note .section-takeaways}
+**Key takeaways.**
+
+- PCA and probabilistic PCA find the same directions, but only probabilistic PCA gives a likelihood. That lets us compare it with other models, choose $K$ on held-out data, and build Bayesian methods on top.
+- It needs far fewer parameters than a full Gaussian when $K$ is small, and it can be fitted with EM, which avoids a huge eigendecomposition when $D$ is large.
+:::
 
 ## Code walk-through: the PPCA tutorial notebook {#sec-w8-code}
 
@@ -1094,6 +1621,43 @@ Woodbury (K x K):        40.4 ms
 ```
 
 Both give the same matrix, and the Woodbury route is more than 20 times faster here. (The exact timings depend on the machine; the Woodbury route still pays for forming the $D\times D$ result, which is why it is not $(2000/5)^3$ times faster.)
+
+::: {.callout-tip collapse="true" .clarification title="Recap: The PPCA tutorial notebook"}
+What the variables stand for:
+
+- `X_of`: the standardized Old Faithful data. `gmm.predict_proba`: the responsibilities $\gamma_{nk}$. `gmm.score(X_of) * len(X_of)`: the total log-likelihood.
+- `W_true`, `mu_true`: the known parameters of the synthetic PPCA model. `make_data`: the generative process of @sec-w8-ppca.
+- `lam`, `sigmasq_hat`, `W_hat`: the sorted eigenvalues, $\hat\sigma^2$, and $\hat W$ from `ppca_mle`.
+- `M`: the $K\times K$ matrix $W^\top W + \sigma^2I_K$ used by the posterior and by the Woodbury identity.
+
+Taking the code's formulas apart:
+
+- `lam[K:].mean()`: $\hat\sigma^2$, the average of the discarded eigenvalues.
+- `U[:, :K] @ np.diag(np.sqrt(lam[:K] - sigmasq_hat))`: $\hat W$ with $R = I$.
+- `np.linalg.solve(M, W.T @ (X - mu).T)`: the posterior mean $M^{-1}W^\top(x-\mu)$.
+- Shrink factor $(\lambda_i - \hat\sigma^2)/\lambda_i$: how much PPCA pulls coordinate $i$ toward the mean compared with PCA.
+- Error floor $(D-K)\sigma^2$: the noise in the directions off the sheet, which no $K$-dimensional code can represent.
+- Woodbury: $C^{-1} = \sigma^{-2}(I_D - WM^{-1}W^\top)$, which inverts only $M$.
+
+A teaching example with $D = 3$, $K = 2$, and empirical eigenvalues $5,\ 2,\ 0.2$.
+
+- $\hat\sigma^2 = 0.2$, the single discarded eigenvalue.
+- Shrink factors: $(5 - 0.2)/5 = 0.96$ and $(2 - 0.2)/2 = 0.9$.
+- Error floor for PCA reconstruction of new points: $(3 - 2)\times0.2 = 0.2$.
+
+A teaching example of Woodbury with $D = 2$, $K = 1$, $w = (1, 1)$, $\sigma^2 = 1$.
+
+- Direct: $C = \begin{pmatrix}2 & 1\\ 1 & 2\end{pmatrix}$, so $C^{-1} = \frac13\begin{pmatrix}2 & -1\\ -1 & 2\end{pmatrix}$.
+- Woodbury: $M = 1 + 2 = 3$, and $C^{-1} = I - \frac13 ww^\top$, which gives the same matrix after inverting only the number 3.
+:::
+
+::: {.callout-note .section-takeaways}
+**Key takeaways.**
+
+- On the Old Faithful data, EM from a deliberately bad start finds the two eruption types, and the log-likelihood rises at every iteration, as the theory promises.
+- On synthetic data with a known answer, the closed-form fit recovers the true plane, and more data and less noise both help. Probabilistic PCA's shrunken reconstructions are closer to the clean signal than PCA's when the noise is large, while PCA stays closer to the noisy observation.
+- Reconstruction error cannot fall below the noise off the plane, $(D-K)\sigma^2$, however much data we have. The Woodbury identity makes the large matrix inverse cheap by inverting only a $K\times K$ matrix.
+:::
 
 ## Summary: some Gaussian models {#sec-w8-gaussian-models}
 

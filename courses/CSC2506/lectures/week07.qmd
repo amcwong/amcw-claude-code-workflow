@@ -58,6 +58,13 @@ A teaching example. Let $z\in\{0,1\}$ with $p(z=1) = 0.3$, and let $p(x=1\mid z=
 With one binary latent variable the evidence is a sum of 2 terms. With 30 binary latent variables it is a sum of $2^{30}\approx1.07$ billion terms, which is why we treat it as intractable.
 :::
 
+::: {.callout-note .section-takeaways}
+**Key takeaways.**
+
+- We want the posterior: what the hidden variables probably were, given the data we saw. Bayes' rule gives it as the joint divided by the evidence.
+- The joint is easy to compute for any single guess of $z$. The evidence is not, because it adds up the joint over every possible $z$, and that count explodes as the number of latent variables grows. Everything this week is a way around computing the evidence.
+:::
+
 ## Variational methods {#sec-w7-vi}
 
 Variational inference turns this integration problem into an optimization problem (@sec-vi in Week 6). It has two steps:
@@ -86,6 +93,13 @@ A teaching example of the asymmetry, on two outcomes. Let $q = (0.5, 0.5)$ and $
 - $\mathrm{KL}(p\,\|\,q) = 0.9\log\frac{0.9}{0.5} + 0.1\log\frac{0.1}{0.5}\approx 0.529 - 0.161 = 0.368$.
 
 Same pair of distributions, two different numbers, so the order of the arguments matters.
+:::
+
+::: {.callout-note .section-takeaways}
+**Key takeaways.**
+
+- Instead of computing the exact posterior, we choose a family of simple distributions we can work with and search for the member closest to it. Inference becomes an optimization problem.
+- "Closest" is measured with the KL divergence, which is zero only when the two distributions match. KL is not symmetric, so the order matters; variational inference uses $\mathrm{KL}(q\,\|\,p)$, which averages under our approximation $q$.
 :::
 
 ## The ELBO: evidence lower bound {#sec-w7-elbo}
@@ -171,6 +185,14 @@ A teaching example, continuing the two-state model from the first recap ($p(x=1,
 If we instead set $q(z=1)=0.774$, the posterior itself, the gap becomes 0 and the ELBO equals $-1.171$.
 :::
 
+::: {.callout-note .section-takeaways}
+**Key takeaways.**
+
+- The KL we want to shrink contains the evidence, which we cannot compute. The ELBO is the part we can compute, and the two are tied together: log evidence $=$ ELBO $+$ KL.
+- The log evidence is a fixed number, so every unit we add to the ELBO is a unit taken off the KL. Maximizing the ELBO minimizes the distance to the posterior without ever computing the posterior.
+- Because KL is never negative, the ELBO can never exceed the log evidence. That is where the name "lower bound" comes from.
+:::
+
 ## Two formulations of the ELBO {#sec-w7-two-forms}
 
 The ELBO can be split in two different ways, and each split says something different about what maximizing it does.
@@ -221,6 +243,13 @@ A teaching example with the same two-state model and $q = (0.5, 0.5)$; recall $p
 - Second split: expected log-likelihood $= 0.5\log0.8 + 0.5\log0.1\approx-1.263$; KL to prior $= 0.5\log\frac{0.5}{0.3} + 0.5\log\frac{0.5}{0.7}\approx0.087$; difference $\approx-1.350$.
 
 Both splits give the ELBO from the previous recap. They are two readings of one number.
+:::
+
+::: {.callout-note .section-takeaways}
+**Key takeaways.**
+
+- The two splits are the same number read two ways. The first says: put $q$ on values the model likes, but stay spread out. The second says: explain the data well, but do not stray far from the prior.
+- The second reading is the one the VAE later uses as its loss: a reconstruction term plus a KL-to-prior penalty.
 :::
 
 ## Maximizing the ELBO: gradients of an expectation {#sec-w7-grad}
@@ -280,6 +309,13 @@ A teaching example of the easy case. Let $Z\sim\mathcal N(0,1)$, fixed, and $f(Z
 - One ascent step with $s_t = 0.1$: $\phi_{t+1} = 3 + 0.1\times5.7 = 3.57$.
 
 A teaching example of our case. Let $z\sim\mathcal N(\mu,1)$ and $f(z) = 3z$. Then $\mathbb{E}[3z] = 3\mu$, whose gradient in $\mu$ is $3$. But $f$ contains no $\mu$, so the gradient moved inside is $0$. All of the dependence on $\mu$ is in the sampling distribution.
+:::
+
+::: {.callout-note .section-takeaways}
+**Key takeaways.**
+
+- We maximize the ELBO by gradient ascent, but the ELBO is an average over samples from $q_\phi$, and $\phi$ also decides which samples we get.
+- If the sampling distribution ignored $\phi$, we could differentiate each sample and average. Here it does not, so that shortcut silently drops part of the gradient (in the teaching example it returns 0 when the true gradient is 3).
 :::
 
 ## The reparameterization trick {#sec-w7-reparam}
@@ -404,6 +440,14 @@ A teaching example, this time for the gradient in $\sigma$. Let $q = \mathcal N(
 - One draw, $\epsilon = 0.4$: $z = 2.2$, and the single-sample gradient is $2(2.2)(0.4) = 1.76$. One draw is unbiased but noisy, which is the next section's topic.
 :::
 
+::: {.callout-note .section-takeaways}
+**Key takeaways.**
+
+- If we draw $z$ directly from $q_\phi$, we cannot take a derivative through it. A sample is just a number, not a function of $\phi$, so there is no gradient to pass back to the parameters.
+- The trick draws the randomness from a fixed source $\epsilon$ that has nothing to do with $\phi$, then builds $z = \mu + \sigma\epsilon$. Now $z$ is an ordinary function of $\phi$, and the chain rule (backpropagation) can reach $\mu$ and $\sigma$.
+- It only works when there is a differentiable recipe that turns noise into a sample. Gaussians have one; discrete distributions do not.
+:::
+
 ## Stochastic variational inference {#sec-w7-svi}
 
 The reparameterized gradient is still an expectation, $\mathbb{E}_{\epsilon\sim p_0}[\nabla_\phi(\cdots)]$, which in general we cannot compute exactly. Instead we compute a simple Monte Carlo estimate of it.
@@ -465,6 +509,13 @@ A teaching example, continuing the previous recap ($\mu = 2$, $\sigma = 0.5$, $f
 - $\epsilon_3=0.6$: $z = 2.3$, gradient $2(2.3)(0.6) = 2.76$.
 
 The average is $1.52/3\approx0.51$, about half the true value. A single estimate can be far off; SVI still works because many such noisy steps point uphill on average.
+:::
+
+::: {.callout-note .section-takeaways}
+**Key takeaways.**
+
+- The reparameterized gradient is still an average we cannot compute exactly, so we estimate it from a few noise draws. One estimate can be far off, but it is right on average, so many noisy uphill steps still climb the ELBO.
+- Against MCMC: SVI is fast and scales to large data, but it can only be as good as the best member of the chosen family. MCMC targets the exact posterior but is slow.
 :::
 
 ## Autoencoders {#sec-w7-ae}
@@ -591,6 +642,13 @@ A teaching example with $D = 3$, $M = 1$, identity activation. Take $x = (2, 1, 
 Three numbers went in, one came out of the bottleneck, and the decoder rebuilt three numbers from it. Training adjusts the 6 weights to make errors like this one small across the whole data set.
 :::
 
+::: {.callout-note .section-takeaways}
+**Key takeaways.**
+
+- An autoencoder squeezes each input through a narrow bottleneck and then tries to rebuild it. To rebuild well, the small code has to keep the important structure of the data and drop the rest.
+- With linear layers it can only find a flat subspace, the same kind of answer PCA gives. Nonlinear layers let it follow curved structure in the data.
+:::
+
 ## Issues with deterministic autoencoders {#sec-w7-ae-issues}
 
 The autoencoder above is **deterministic**: each input gets exactly one code, $g(x_1)=z_1$ and $f(z_1)=\tilde x_1$. The lecture raises two problems.
@@ -622,6 +680,13 @@ A teaching example of Issue 2 with a 4-pixel strip. The input is $x = (0,1,0,0)$
 - A blank strip, $(0,0,0,0)$, has error $\tfrac12(1^2) = 0.5$.
 
 By squared error, the blank strip is the "better" reconstruction, even though a person would pick the shifted copy.
+:::
+
+::: {.callout-note .section-takeaways}
+**Key takeaways.**
+
+- Training only asks each input to be rebuilt from its own code. Nothing makes the code space smooth, so similar inputs can land far apart and codes in the gaps decode to nonsense. That is why we cannot generate new data from a plain autoencoder by picking a random code.
+- Pixel-by-pixel squared error can rank a blank image above a perfect copy shifted by one pixel, so a low loss does not always mean a good-looking reconstruction.
 :::
 
 ## Variational autoencoders {#sec-w7-vae}
@@ -773,11 +838,47 @@ A teaching example with a 1-dimensional code and a 2-pixel image $x = (1, 0)$. T
 Training lowers this number by making the decoder more confident on the right pixels and by keeping $\mu$ near 0 and $\sigma$ near 1.
 :::
 
+::: {.callout-note .section-takeaways}
+**Key takeaways.**
+
+- A VAE makes the encoder output a distribution over codes instead of a single point, and adds a penalty that pulls those distributions toward the $\mathcal N(0,I)$ prior.
+- Its loss is the negative ELBO: reconstruction error plus KL to the prior. The reparameterization trick is what lets gradients pass through the sampling step in the middle.
+- Because training keeps codes where the prior has its mass, we can afterwards draw a code from the prior, decode it, and get new data.
+:::
+
 ## Application: image denoising {#sec-w7-denoise}
 
 Autoencoders are also useful as ordinary (non-generative) networks. A **denoising autoencoder** takes a noisy image as input and is trained to minimize the reconstruction error between its output and the corresponding **clean** image. The bottleneck forces it to keep the structure of the image and discard the noise. This requires training on noisy-clean image pairs.
 
 The lecture contrasts this with an approach from earlier in the course: loopy belief propagation on an MRF (@sec-denoise in Week 4, and Question 1 of Assignment 2). Loopy BP works directly on a single noisy image, with no training data set. It still needs a probabilistic model of the image and of the noise process, written down by hand. The two methods trade a hand-built model for a data set of examples.
+
+::: {.callout-tip collapse="true" .clarification title="Recap: Application: image denoising"}
+What the terms stand for:
+
+- Clean image $x_n$: the target we want the network to output.
+- Noisy image $\tilde x_n$: the same image with noise added; this is what the network sees as input.
+- Denoising autoencoder: an ordinary autoencoder trained on noisy and clean pairs.
+- Loopy belief propagation: the Week 4 method that cleans one image using a hand-built MRF model, with no training set.
+
+Taking the idea apart, using the reconstruction error $E(w)$ from @sec-w7-ae:
+
+- Ordinary autoencoder: $\tfrac12\sum_n\|y(x_n,w) - x_n\|^2$. The input and the target are the same image.
+- Denoising autoencoder: $\tfrac12\sum_n\|y(\tilde x_n,w) - x_n\|^2$. The input is the noisy image, the target is the clean one. That one change is the whole method.
+
+A teaching example with a 4-pixel strip. The clean image is $x = (0, 1, 1, 0)$ and the noisy input is $\tilde x = (0.2, 1, 0.7, 0.1)$.
+
+- If the network just copies its input, the error against the clean image is $\tfrac12(0.04 + 0 + 0.09 + 0.01) = 0.07$.
+- If it outputs $(0, 0.9, 0.9, 0)$, the error is $\tfrac12(0 + 0.01 + 0.01 + 0) = 0.01$.
+
+Copying the noise is penalized, so training pushes the network toward outputs that look like clean images.
+:::
+
+::: {.callout-note .section-takeaways}
+**Key takeaways.**
+
+- A denoising autoencoder learns to remove noise by being fed noisy images and graded against the clean originals. Copying its input is no longer rewarded, so it has to keep the image's structure and drop the noise.
+- Compared with loopy belief propagation from Week 4: belief propagation needs a hand-written model of images and noise but no training set; the denoising autoencoder needs a set of noisy and clean pairs but no hand-built model.
+:::
 
 ## Amortized inference {#sec-w7-amortized}
 
@@ -834,6 +935,13 @@ A teaching example of the parameter count. Take $N = 1{,}000$ images of 16 pixel
 - Amortized, with a single linear layer from 16 pixels to the 6 outputs: $16\times6 = 96$ weights plus 6 biases, $102$ numbers, for any $N$.
 :::
 
+::: {.callout-note .section-takeaways}
+**Key takeaways.**
+
+- Instead of storing and optimizing separate posterior parameters for every data point, we train one encoder network that computes them from the input.
+- The parameter count no longer grows with the data set, and a new data point gets its approximate posterior in one forward pass. The price is that one shared network cannot fit every posterior as precisely. The VAE people actually train is the amortized one.
+:::
+
 ## MNIST: autoencoder vs VAE codes {#sec-w7-ae-vs-vae}
 
 The lecture closes by plotting the 2-dimensional codes of MNIST test digits, coloured by digit class, for an ordinary autoencoder and for a VAE. The autoencoder's codes form separate clusters spread over a wide range with empty space between them, as in Issue 1 of @sec-w7-ae-issues. The VAE's codes are packed into a compact region around the origin, where the $\mathcal N(0,I)$ prior has its mass, with neighbouring classes touching.
@@ -865,6 +973,34 @@ The lecture closes by plotting the 2-dimensional codes of MNIST test digits, col
 **Figure 5.** A sketch of the contrast in the lecture's plot (three classes shown, not ten). A code chosen in a gap of the autoencoder's latent space decodes to something unrealistic; in the VAE, the KL-to-prior term keeps every class's codes inside the region the prior covers, so codes drawn from the prior decode to plausible digits.
 
 The tutorial's code produces the VAE side of this picture directly, by decoding a grid of codes (@sec-w7-code-grid).
+
+::: {.callout-tip collapse="true" .clarification title="Recap: MNIST: autoencoder vs VAE codes"}
+What the terms stand for:
+
+- Code: the 2-dimensional point $z$ the encoder assigns to a test digit, plotted and coloured by the digit's class.
+- Prior $p(z) = \mathcal N(0,I)$: the distribution we sample codes from when generating; most of its mass is within about 2 units of the origin.
+- KL-to-prior term: the part of the VAE loss that charges for codes whose distribution sits far from the prior.
+
+Taking the explanation apart, using the per-dimension KL from @sec-w7-tut:
+
+- $\tfrac12(\sigma^2 + \mu^2 - 1 - \log\sigma^2)$: the $\mu^2$ term grows as a code's mean moves away from the origin, so far-flung clusters cost loss.
+- The $\sigma^2 - 1 - \log\sigma^2$ part is zero at $\sigma^2 = 1$ and positive otherwise, so codes are kept from shrinking to points. Neighbouring classes then overlap instead of leaving gaps.
+- A plain autoencoder has no such term, so nothing stops its clusters from drifting apart.
+
+A teaching example for one latent dimension with $\sigma^2 = 1$:
+
+- A code centred at $\mu = 0.5$: KL $= \tfrac12(1 + 0.25 - 1 - 0) = 0.125$.
+- A code centred at $\mu = 4$: KL $= \tfrac12(1 + 16 - 1 - 0) = 8$.
+
+Moving the cluster from 0.5 to 4 costs 64 times as much KL, which is why the VAE's codes stay packed near the origin, where prior samples land.
+:::
+
+::: {.callout-note .section-takeaways}
+**Key takeaways.**
+
+- Plotting the 2-dimensional codes shows the practical difference: an autoencoder's codes form scattered clusters with empty gaps, and a VAE's codes are packed around the origin.
+- The KL-to-prior term does the packing. That is why a random code drawn from the prior decodes to a plausible digit in a VAE but not in a plain autoencoder.
+:::
 
 ## Tutorial: the VAE as a latent variable model {#sec-w7-tut}
 
@@ -1187,6 +1323,14 @@ A teaching example of one full loss, with $M = 2$ and a 3-pixel image $x = (1, 0
 - Loss with $\beta = 1$: $\ell\approx0.685 + 1.193 = 1.878$.
 
 Dimension 2 dominates the KL: its small variance and its mean one unit from the origin both pull it away from the prior.
+:::
+
+::: {.callout-note .section-takeaways}
+**Key takeaways.**
+
+- The VAE is a latent variable model: a simple prior on codes plus a neural-network decoder gives a flexible density over images. The network also makes the evidence integral impossible to compute, so we cannot maximize the likelihood directly.
+- Jensen's inequality turns the log of an average into an average of logs and gives the ELBO, a lower bound we can maximize instead. It is tight when $q$ equals the true posterior.
+- In practice the loss is two computable pieces: binary cross-entropy for reconstruction and the closed-form Gaussian KL. One reparameterized sample per image is enough for a gradient.
 :::
 
 ## Code walk-through: the VAE notebook {#sec-w7-code}
@@ -1562,6 +1706,13 @@ A teaching example of the KL line. Suppose for one image `mu = (0.0, 0.8)` and `
 A teaching example of interpolation. Take $\mu(x_1) = (1, -1)$ and $\mu(x_2) = (-0.5, 2)$. At $\lambda = 0.25$:
 $$z_{0.25} = 0.25(1,-1) + 0.75(-0.5, 2) = (-0.125,\ 1.25).$$
 This point is three quarters of the way from the first code to the second, and the decoder turns it into an image between the two.
+:::
+
+::: {.callout-note .section-takeaways}
+**Key takeaways.**
+
+- Each line of the notebook's loss is one of the tutorial's formulas: the standard deviation from the log-variance, the reparameterized sample, the binary cross-entropy, and the closed-form KL.
+- After training, one decoder does three jobs: it reconstructs test images, interpolates between two codes, and generates new digits from prior samples. With a 2-dimensional latent space the whole learned code map can be drawn as a grid.
 :::
 
 ## Summary {#sec-summary7}
