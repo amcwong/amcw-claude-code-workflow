@@ -133,7 +133,7 @@ Default 5–8 problems covering the week's takeaways, not one problem per headin
 
 After approval, write `courses/<slug>/lectures/weekNN-practice.qmd` from [`templates/course-notes-book/lectures/week-practice.md`](../../../templates/course-notes-book/lectures/week-practice.md). Honor [`.claude/rules/course-notes.md`](../../rules/course-notes.md) and [`course-notes-voice.md`](../../references/course-notes-voice.md).
 
-Each problem: visible stem, then one collapsed `.practice-answer` (not `.clarification`):
+Each problem: visible stem, then one collapsed `.practice-answer`, then one collapsed equation-map `.clarification` directly below it:
 
 ```markdown
 ## Problem 1: [concept in the reader's words] {#prb-1}
@@ -141,9 +141,21 @@ Each problem: visible stem, then one collapsed `.practice-answer` (not `.clarifi
 [Self-contained stem.]
 
 ::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
-[1. Which week section this reteaches. 2. Reasoning in lecture voice. 3. The answer last.]
+[1. Which week section this reteaches. 2. Reasoning in lecture voice. 3. **Answer.** 4. **Key takeaways.**]
+:::
+
+::: {.callout-tip collapse="true" .clarification title="Question: Which equations does this problem use, and how does it map onto them?"}
+**Key equations.** [display math]
+
+**Variables.** [symbol: meaning, and its value or role in this problem]
+
+**How the problem maps onto them.** [numbered steps: each part of the stem → the equation it uses, and why]
 :::
 ```
+
+**Key takeaways** close every worked solution, after **Answer.**: 1–3 bullets naming what transfers beyond this problem (the method, the trap, the interpretation). Do not restate the numeric answer.
+
+**Equation map.** Every problem gets one, written with this exact title. The rule's "park only when the user says park" gate does not apply: `practice` writes these as part of the chapter. The map teaches how to use the equations: the formulas, what each variable means here, and which part of the stem each formula answers. For a problem with no formula (a d-separation or classification question), list the key facts or definitions instead and keep the same three headings. The map must not repeat the walkthrough or the takeaways. Same homework-answer ban, em-dash ban, and display-math row limit as the rest of the chapter.
 
 The dropdown is a teaching walkthrough, not a one-line key. Point at the week section; do not paste the week spine. Wikipedia is allowed on first mention **in this chapter**. No empty `.clarification` boxes. No `{ojs}` graders in v1.
 

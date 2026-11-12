@@ -68,13 +68,19 @@ These boxes ship with the book on GitHub Pages.
 
 ## Practice dropdowns
 
-Written by `/course-notes practice`, not by `add`. Closed by default. One box per problem, titled **Worked solution** (not `Question: …`).
+Written by `/course-notes practice`, not by `add`. Closed by default. Two boxes per problem: the **Worked solution**, then an equation map directly below it.
 
 ```markdown
 ::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
-[1. Which week section this reteaches. 2. Reasoning in lecture voice. 3. The answer last.]
+[1. Which week section this reteaches. 2. Reasoning in lecture voice. 3. **Answer.** 4. **Key takeaways.** 1–3 bullets on what transfers beyond this problem.]
+:::
+
+::: {.callout-tip collapse="true" .clarification title="Question: Which equations does this problem use, and how does it map onto them?"}
+**Key equations.** … **Variables.** … **How the problem maps onto them.** …
 :::
 ```
+
+The equation map uses that fixed title on every problem. It is the one parked box written without a **park** cue.
 
 Place the box immediately after that problem's stem. Never inside a definition block, list, table, or display math. Teaching walkthrough first, numeric answer last. Same homework-answer ban, em-dash ban, and no-invented-analogies rule as the week chapter. Do not paste the week spine into the dropdown; point at `§…`. These boxes ship with the book on GitHub Pages.
 

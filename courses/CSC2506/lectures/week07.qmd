@@ -298,7 +298,29 @@ The lecture's example is the Gaussian. With $\phi=(\mu,\sigma)$, where $\sigma$ 
 
 $$\epsilon\sim\mathcal N(0,1),\qquad z = T(\epsilon,\phi) = \mu + \sigma\epsilon \quad\Longrightarrow\quad z\sim\mathcal N(\mu,\sigma^2).$$
 
-Shifting a standard normal by $\mu$ and scaling it by $\sigma$ gives a normal with mean $\mu$ and variance $\sigma^2$. (The slide writes $\mathcal N(\mu,\sigma)$ with $\sigma$ as the standard deviation; we write the variance $\sigma^2$ explicitly.)
+**Shifting a standard normal by $\mu$ and scaling it by $\sigma$ gives a normal with mean $\mu$ and variance $\sigma^2$.** (The slide writes $\mathcal N(\mu,\sigma)$ with $\sigma$ as the standard deviation; we write the variance $\sigma^2$ explicitly.)
+
+::: {.callout-tip collapse="true" .clarification title="Question: Why does shifting and scaling a standard normal give a normal with mean $\mu$ and variance $\sigma^2$?"}
+
+Take $\epsilon\sim\mathcal N(0,1)$, $\sigma>0$, and $z=\mu+\sigma\epsilon$. We check the mean and the variance first, then the full distribution.
+
+**Mean.** Expectation is linear, so $\mathbb E[z]=\mu+\sigma\,\mathbb E[\epsilon]=\mu+\sigma\cdot 0=\mu$.
+
+**Variance.** Adding a constant leaves the variance unchanged, and scaling by $\sigma$ multiplies it by $\sigma^2$, so $\operatorname{Var}(z)=\sigma^2\operatorname{Var}(\epsilon)=\sigma^2\cdot 1=\sigma^2$.
+
+**Full distribution.** Mean and variance alone do not establish that the result is normal, so we work with the cumulative distribution function. Because $\sigma>0$, the event $z\le t$ is the same as $\epsilon\le (t-\mu)/\sigma$:
+
+$$F_z(t)=P(z\le t)=P\!\left(\epsilon\le\frac{t-\mu}{\sigma}\right)=\Phi\!\left(\frac{t-\mu}{\sigma}\right),$$
+
+where $\Phi$ is the standard normal CDF. Differentiating in $t$ with the chain rule gives the density
+
+$$q(t)=\frac{1}{\sigma}\,\varphi\!\left(\frac{t-\mu}{\sigma}\right)=\frac{1}{\sqrt{2\pi\sigma^2}}\exp\!\left(-\frac{(t-\mu)^2}{2\sigma^2}\right),$$
+
+with $\varphi$ the standard normal density. This is the density of $\mathcal N(\mu,\sigma^2)$, so $z\sim\mathcal N(\mu,\sigma^2)$.
+
+The factor $1/\sigma$ is the Jacobian of the scaling step, the same one that appeared in the change-of-variables argument for $q_\phi(z)\,dz=p_0(\epsilon)\,d\epsilon$.
+
+:::
 
 The randomness now comes from $\epsilon$, whose density $p_0$ does not depend on $\phi$. Substituting $z = T(\phi,\epsilon)$ puts us back in the easy case of @sec-w7-grad:
 
@@ -411,6 +433,12 @@ We now have two answers to an intractable posterior: Week 5's [Markov chain Mont
 | **Cons** | High computational cost; hyperparameters to tune; convergence issues; inefficient when the posterior has complex dependencies | Approximate results, and it can collapse to something degenerate; limited flexibility (only as good as the family $q_\phi$); sensitive to hyperparameters |
 
 "No approximation" for MCMC means that, run long enough, its samples come from the exact posterior. SVI can never do better than the best member of its family. Recall from Week 6 that the reverse KL is mode-seeking (@sec-projections in Week 6), which is one reason SVI can lock onto one mode of a multimodal posterior.
+
+The table hides the main difference, which is that the two methods solve the problem in different ways. **MCMC is a sampling method.** It runs a Markov chain whose long-run distribution is the posterior and keeps the states it visits as samples. Each step usually needs the likelihood of the full dataset, so the cost grows with the data. The samples are exact only in the limit of many steps (asymptotically exact), and consecutive samples are dependent, so a chain needs burn-in and gives fewer effective samples than its length suggests.
+
+**VI is an optimization method.** It never draws samples from the posterior. It picks a family $q_\phi$ and adjusts $\phi$ to bring $q_\phi$ as close as possible to the posterior in KL divergence, which turns inference into a curve-fitting problem. **SVI** is VI with minibatches: each step uses a random subset of the data to estimate the gradient of the ELBO, so the cost of a step does not grow with the dataset size. The update is **gradient ascent** on the ELBO. We maximize the ELBO, so the step adds the gradient rather than subtracting it. Equivalently, it is gradient descent on the negative ELBO, the loss that neural network libraries minimize.
+
+Both methods use Monte Carlo averages, but for different things. MCMC averages over the states of its chain, which are samples from the posterior. SVI averages over noise draws $\epsilon$ to estimate a gradient, so its averages are not samples from the posterior.
 
 ::: {.callout-important}
 **Homework note.** The lecture says SVI will probably come up again in Assignment 3. The reparameterized gradient and its Monte Carlo estimate above are the pieces to understand; any specific estimator the assignment asks for is left to the assignment.

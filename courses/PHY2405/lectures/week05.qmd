@@ -1,0 +1,870 @@
+---
+title: "Week 5: Particle Interactions with Matter and Ionization Yield"
+---
+
+```{=html}
+<style>#title-block-header { display: none; }</style>
+<div class="lecture-header">
+  <h1>Week 5: Particle Interactions with Matter and Ionization Yield</h1>
+</div>
+```
+
+**Overview.** Every detector in this course works because a particle passing through matter leaves something behind: freed electrons, light, heat. Weeks 2 and 3 were about making particles collide; [Week 4](week04.qmd#sec-response) used the fact that a deposit splits into phonons, ionization and light to tell signal from background, without asking where those deposits come from. This week answers that question. William's handwritten notes put it simply: a tracker wants the *minimal* interaction (measure the particle without disturbing it), a calorimeter wants the *maximal* one (absorb all of its energy), and even a neutral particle must first be converted into charged ones before it can be seen.
+
+The chapter follows the two lecture decks in order. The first, *Particle Interactions*, derives how fast a charged particle loses energy (the Bethe-Bloch formula), how that loss fluctuates, how the particle's direction is smeared by many small deflections, and how electrons and photons behave differently from heavy particles. The handwritten notes *Interactions of charged particles with matter* fill in the same derivations step by step, and are merged into the matching sections. The second deck, *Ionization Yield*, turns from energy lost to charges counted: how many electron-ion or electron-hole pairs a deposit makes, how that number fluctuates, and why a recoiling nucleus makes far fewer of them than an electron of the same energy.
+
+Several problem sets lean on this week. **eHEP Homework 2**, item 4 (energy loss of a muon and an alpha in four media) uses the Bethe-Bloch formula. The **Third Problem Set** uses multiple scattering (item 3) and nuclear-recoil ionization yield (item 5). **HW4** uses the minimum-ionizing signal in silicon (item 1), radiation length and critical energy (item 2), and the Fano factor (item 5). These notes explain the concepts those items depend on. The specific calculations are left to the assignments.
+
+## Five kinds of interaction {#sec-kinds}
+
+The deck lists five kinds of interaction that between them cover how detectors see particles:
+
+1. Energy loss of **heavy charged particles** (anything charged other than electrons and positrons).
+2. Energy loss of **electrons and positrons**, which are light and behave differently.
+3. **Photon** interactions.
+4. **Electromagnetic showers**, the cascades started by high-energy electrons and photons.
+5. **Hadron showers**, the cascades started by strongly interacting particles.
+
+This week covers the first three. The deck stops at photon interactions, so showers (items 4 and 5) come later, when calorimeters are introduced.
+
+## Interaction probability and mean free path {#sec-mfp}
+
+Fire a beam at a slab of material. What fraction of the beam particles interact, and how far does a typical particle travel before it does?
+
+Recall from [Week 1](week01.qmd#sec-three) that a **[cross section](https://en.wikipedia.org/wiki/Cross_section_(physics))** $\sigma$ is an effective area for a process. The slides set up a target of thickness $d$ and face area $S$ containing $N_2$ target particles, so that $N_2/S = \rho d$. On this slide $\rho$ is the **number density** of target particles (particles per cm³), not the mass density. The interaction rate for $N_1$ incident particles is then
+
+::: {.boxed-eq}
+$$R = N_1\,\sigma\,\frac{N_2}{S} = N_1\,\sigma\,\rho\,d .$$
+:::
+
+The probability that a given incident particle interacts is $R/N_1 = \sigma\rho d$: proportional to the target density and its thickness. This is the fixed-target version of the collider relation $R = \mathcal{L}\sigma$ from [Week 2](week02.qmd#sec-lumi), with $N_1\rho d$ per unit time playing the role of the luminosity.
+
+What happens when the slab is thick, so that $\sigma\rho d$ is no longer small? Take a thin layer $dx$. The probability of interacting in it is $w\,dx$ with $w = \sigma\rho$. If $P(x)$ is the probability of having travelled a distance $x$ without interacting, then surviving to $x + dx$ requires surviving to $x$ and not interacting in $dx$:
+
+$$P(x+dx) = P(x)\,(1 - w\,dx) \quad\Longrightarrow\quad \frac{dP}{dx} = -w\,P(x) \quad\Longrightarrow\quad P(x) = e^{-wx}.$$
+
+::: {.definition-block}
+**Definition.** The **[mean free path](https://en.wikipedia.org/wiki/Mean_free_path)** $\lambda$ is the mean distance a particle travels between collisions:
+$$\lambda = \frac{1}{w} = \frac{1}{\sigma\rho}, \qquad P(x) = e^{-x/\lambda}.$$
+:::
+
+The survival probability falls exponentially because every layer removes the same *fraction* of the particles that reach it. After one mean free path, $e^{-1} \approx 37\%$ of the particles have not yet interacted; after three, about 5%.
+
+The symbol $\lambda$ returns later this week with a different meaning (the scaled energy in the [Landau distribution](#sec-landau)). In this section it is always the mean free path.
+
+### Thickness in g/cm² {#sec-arealdensity}
+
+Much of this chapter quotes thicknesses and energy losses in units that look odd at first: thicknesses in g/cm² and energy loss in MeV cm²/g. The idea is that what matters for most interactions is not how many centimetres a particle crosses but *how much material*, that is, how many atoms (and electrons) per unit area lie along its path.
+
+::: {.definition-block}
+**Definition.** The **[areal density](https://en.wikipedia.org/wiki/Area_density)** (or mass thickness) of a layer is its mass density times its thickness, $\rho x$, in g/cm². An energy loss written per unit areal density, $\frac{1}{\rho}\frac{dE}{dx}$ in MeV cm²/g, is called the **mass stopping power**.
+:::
+
+To return to an ordinary length, multiply or divide by the mass density. One centimetre of copper (mass density 8.96 g/cm³) is 8.96 g/cm² of material, and a mass stopping power of 1.5 MeV cm²/g in copper is an energy loss of $1.5 \times 8.96 \approx 13$ MeV per cm. Quoting per g/cm² removes most of the dependence on the material's density, which is why curves for very different materials sit close together when plotted this way ([Reading the energy-loss curve](#sec-curve)).
+
+## Ionization by heavy charged particles {#sec-heavy}
+
+What does a charged particle heavier than an electron (a [muon](https://en.wikipedia.org/wiki/Muon), pion, proton or [alpha particle](https://en.wikipedia.org/wiki/Alpha_particle)) mostly do as it crosses matter?
+
+At energies from keV to GeV, its energy loss is dominated by electromagnetic interactions with the **atomic electrons**. The slides give the reason in two numbers: electron orbits extend to about $10^{-10}$ m, while a nucleus is about $10^{-14}$ m across, so a passing particle is far more often close to an electron than to a nucleus. Each encounter transfers part of the particle's energy to an atomic electron.
+
+::: {.definition-block}
+**Definition.** **[Ionization](https://en.wikipedia.org/wiki/Ionization)** is the removal of an electron from an atom, leaving a free electron and a positive ion. Typical atomic binding energies are below a keV, so even a small energy transfer can ionize.
+:::
+
+The cross section for a single such collision is small, about $10^{-17}$ cm². But there are about $6\times10^{23}$ electrons per gram of a typical material (roughly Avogadro's number times $Z/A \approx 1/2$), so ionization is by far the most important contribution to the energy loss. The slide's illustration: a 10 MeV proton loses all of its energy in less than 1 mm of copper.
+
+::: {.definition-block}
+**Definition.** A **[delta ray](https://en.wikipedia.org/wiki/Delta_ray)** (δ-electron) is an electron freed in a collision with enough energy to ionize further atoms itself. It leaves a small, localized blob of extra ionization next to the track.
+:::
+
+The symbol $\delta$ is used for two unrelated things this week: the δ-ray here, and the density correction $\delta$ in the [Bethe-Bloch formula](#sec-bethe). The context always makes clear which is meant.
+
+## The classical derivation {#sec-bohr}
+
+Why does the energy loss depend on the particle's speed and charge the way it does? The lecture answers with a classical calculation (following Chapter 2 of Leo's *Techniques for Nuclear and Particle Physics Experiments*, then William's notes), due originally to Bohr. It rests on four assumptions:
+
+- The incoming particle is **heavy** compared with an electron, so collisions with electrons barely change its path.
+- It is **not so heavy** that collisions with nuclei matter.
+- The energy transferred in each collision is **small**.
+- The number of collisions per unit path length is **huge**, so only the average loss per unit length matters.
+
+::: {.definition-block}
+**Definition.** The **[stopping power](https://en.wikipedia.org/wiki/Stopping_power_(particle_radiation))** $-dE/dx$ is the average energy a particle loses per unit path length.
+:::
+
+**One collision.** Let the particle have charge $ze$ and speed $v$, and pass an electron at **[impact parameter](https://en.wikipedia.org/wiki/Impact_parameter)** $b$ (the closest distance between the electron and the particle's straight-line path). Assume the interaction is quick and the electron does not move during it. By symmetry, the component of the field along the path averages to zero (it pushes the electron forward, then back). Only the perpendicular component $E_\perp$ gives a net impulse:
+
+$$I = \int F\,dt = e\int E_\perp\,dt = e\int E_\perp\,\frac{dt}{dx}\,dx = \frac{e}{v}\int E_\perp\,dx .$$
+
+The integral of $E_\perp$ along the path follows from **[Gauss's law](https://en.wikipedia.org/wiki/Gauss%27s_law)** applied to a long cylinder of radius $b$ around the path (in [Gaussian units](https://en.wikipedia.org/wiki/Gaussian_units), as on the slides):
+
+$$\int E_\perp\, 2\pi b\, dx = 4\pi z e \quad\Longrightarrow\quad \int E_\perp\,dx = \frac{2ze}{b}.$$
+
+So the impulse and the energy given to the electron are
+
+::: {.boxed-eq}
+$$I = \frac{2ze^2}{bv}, \qquad \Delta E(b) = \frac{I^2}{2m_e} = \frac{2z^2e^4}{m_e v^2 b^2}.$$
+:::
+
+A closer pass ($1/b^2$) and a slower particle ($1/v^2$, because the electron feels the field for longer) both transfer more energy, and the transfer grows as $z^2$.
+
+```{=html}
+<svg viewBox="0 0 760 320" role="img" aria-label="A heavy charged particle moving along a horizontal axis passes an electron at impact parameter b; a cylindrical shell between b and b plus db surrounds the path" style="width:100%;max-width:760px;height:auto;font-family:'Helvetica Neue',Arial,sans-serif">
+  <text x="380" y="34" text-anchor="middle" font-size="24" fill="#205279">A collision at impact parameter b</text>
+  <defs>
+    <marker id="w5a1" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#555"/></marker>
+  </defs>
+  <line x1="50" y1="220" x2="720" y2="220" stroke="#555" stroke-width="2" marker-end="url(#w5a1)"/>
+  <circle cx="230" cy="220" r="14" fill="#F7D9C4" stroke="#C78557" stroke-width="2"/>
+  <text x="230" y="260" text-anchor="middle" font-size="16" fill="#794520">heavy particle, charge ze, speed v</text>
+  <circle cx="390" cy="120" r="8" fill="#C6DEF1" stroke="#5795C7" stroke-width="2"/>
+  <text x="404" y="112" font-size="16" fill="#205279">electron</text>
+  <line x1="390" y1="220" x2="390" y2="128" stroke="#888" stroke-width="2" stroke-dasharray="6 5"/>
+  <text x="372" y="180" text-anchor="end" font-size="16" fill="#555">b</text>
+  <line x1="390" y1="112" x2="390" y2="72" stroke="#C75794" stroke-width="2" marker-end="url(#w5a1)"/>
+  <text x="400" y="80" font-size="16" fill="#792051">E perp (net push)</text>
+  <ellipse cx="590" cy="220" rx="22" ry="100" fill="none" stroke="#57C7AE" stroke-width="2"/>
+  <ellipse cx="590" cy="220" rx="17" ry="78" fill="none" stroke="#57C7AE" stroke-width="2"/>
+  <text x="620" y="140" font-size="16" fill="#207965">shell from b to b + db,</text>
+  <text x="620" y="160" font-size="16" fill="#207965">length dx</text>
+  <text x="700" y="245" text-anchor="end" font-size="16" fill="#555">x</text>
+</svg>
+```
+
+::: {.callout-note collapse="false"}
+**Figure 1.** The geometry of the classical calculation. Only the field component perpendicular to the path gives the electron a net impulse. Summing over all electrons means summing over cylindrical shells around the path.
+:::
+
+**All the electrons.** Let $N_e$ be the number of electrons per unit volume. The shell between $b$ and $b + db$, over a length $dx$, has volume $dV = 2\pi b\,db\,dx$, so the energy lost to all electrons in it is
+
+$$-dE(b) = \Delta E(b)\,N_e\,dV = \frac{4\pi z^2e^4}{m_e v^2}\,N_e\,\frac{db}{b}\,dx .$$
+
+Integrating over $b$ gives a logarithm. It cannot run from $b = 0$ to $b \to \infty$, because the integral diverges at both ends: the formula is invalid for very close and very distant collisions. With reasonable cutoffs $b_{\min}$ and $b_{\max}$,
+
+::: {.boxed-eq}
+$$-\frac{dE}{dx} = \frac{4\pi z^2e^4}{m_e v^2}\,N_e\,\ln\frac{b_{\max}}{b_{\min}} .$$
+:::
+
+The prefactor already has the structure of the full result. Writing $e^2 = r_e m_e c^2$, where $r_e = 2.818\times10^{-13}$ cm is the **[classical electron radius](https://en.wikipedia.org/wiki/Classical_electron_radius)**, and $N_e = N_A\rho Z/A$ for a material of atomic number $Z$, atomic weight $A$ and mass density $\rho$ (Avogadro's number $N_A$), the prefactor becomes $4\pi N_A r_e^2 m_e c^2\,\rho\,(Z/A)\,z^2/\beta^2$, with $4\pi N_A r_e^2 m_e c^2 = 0.307$ MeV cm²/mol. Only the logarithm will change when quantum mechanics is included.
+
+### Choosing the cutoffs {#sec-cutoffs}
+
+**The closest collisions, $b_{\min}$.** The largest energy a heavy particle can give a free electron in a head-on collision is $2\gamma^2 m_e v^2$, where $\gamma$ is the [Lorentz factor](https://en.wikipedia.org/wiki/Lorentz_factor) from [Week 3](week03.qmd#sec-sr). Setting $\Delta E(b_{\min})$ equal to this maximum gives
+
+$$b_{\min} = \frac{ze^2}{\gamma m_e v^2}.$$
+
+**The most distant collisions, $b_{\max}$.** An electron is bound in its atom, orbiting with some characteristic frequency $\nu$. If the passing field changes slowly compared with the orbit, the electron follows it adiabatically and absorbs no energy. So the interaction time must be short compared with the orbital period. The interaction lasts about $b/v$, contracted to $b/(\gamma v)$ for a relativistic particle, so requiring $b/(\gamma v) \lesssim 1/\bar\nu$ (an average over the atom's electrons) gives
+
+$$b_{\max} = \frac{\gamma v}{\bar\nu}.$$
+
+Putting them together,
+
+::: {.boxed-eq}
+$$-\frac{dE}{dx} = \frac{4\pi z^2e^4}{m_e v^2}\,N_e\,\ln\frac{\gamma^2 m_e v^3}{z e^2 \bar\nu}.$$
+:::
+
+This is Bohr's classical formula. The slide's verdict: it works well for heavy, slow particles such as alphas, but not for protons. For lighter, faster particles the closest collisions are limited by quantum mechanics, not by the classical maximum energy transfer.
+
+William's notes show how that changes $b_{\min}$. The impact parameter cannot be resolved more finely than the [de Broglie wavelength](https://en.wikipedia.org/wiki/Matter_wave) of the electron in the centre-of-mass frame of the collision, $h/(m_e c\beta\gamma)$. With this $b_{\min}$ and the relativistic $b_{\max}$ the ratio becomes
+
+$$\frac{b_{\max}}{b_{\min}} \propto \frac{m_e c^2}{h\nu}\,\beta^2\gamma^2,$$
+
+and Bethe's full quantum calculation fixes the constant (a factor of 2) and replaces $h\nu$ by a mean excitation energy $I$. This is the argument of the logarithm in the [Bethe-Bloch formula](#sec-bethe).
+
+## Primary ionization in a gas {#sec-primary}
+
+Before reaching the full formula, the notes ask a counting question that matters for gas detectors: how many separate ionizing *encounters* does a particle have per centimetre?
+
+Define $\phi(E, E')\,dE'\,dx$ as the probability that a particle of energy $E$ loses an energy between $E'$ and $E' + dE'$ in a path length $dx$. Each energy transfer $E'$ corresponds to an impact parameter through $\Delta E(b)$; since $E' \propto 1/b^2$, $dE'/E' = -2\,db/b$. Counting the electrons in the shell at that impact parameter gives
+
+$$\phi(E,E')\,dE'\,dx = \frac{\tilde A\,(\rho\,dx)}{\beta^2}\,\frac{dE'}{E'^2}, \qquad \tilde A = 0.154\,\frac{z^2 Z}{A}\ \frac{\text{MeV cm}^2}{\text{g}} .$$
+
+Here $Z$ and $A$ are the atomic number and weight of the *medium*, $z$ is the charge of the incident particle, and $\rho\,dx$ is the areal density crossed. The $1/E'^2$ says that small energy transfers are far more likely than large ones.
+
+::: {.definition-block}
+**Definition.** **Primary ionization** is the number of ionizing collisions the incident particle itself makes per unit length (each producing one or more electron-ion pairs), as distinct from further ionization by the freed electrons.
+:::
+
+Integrating $\phi$ between the smallest transfer that can ionize, $E_{\min}$, and the largest, $E_{\max}$:
+
+$$
+\begin{aligned}
+\frac{n_{\text{prim}}}{\Delta x} &= \int_{E_{\min}}^{E_{\max}} \phi\,dE' \\
+&= \frac{\tilde A\rho}{\beta^2}\left(\frac{1}{E_{\min}} - \frac{1}{E_{\max}}\right) \\
+&\approx \frac{\tilde A\rho}{\beta^2}\,\frac{1}{E_{\min}} .
+\end{aligned}
+$$
+
+For most gases $\tilde A\rho/E_{\max} \ll 1$, so the $E_{\max}$ term can be dropped as $\beta \to 1$. The count is set by the lower limit, which is roughly the ionization threshold $I_0$ of the gas but has to absorb quantum effects (screening and others). For hydrogen, Bethe's full calculation gives
+
+$$E_{\min} = \frac{I_0}{r\left[\ln\left(\dfrac{2mc^2}{I_0}\,\dfrac{\beta^2}{1-\beta^2}\right) + s - \beta^2\right]},$$
+
+$$I_0 = 15.4\ \text{eV}, \qquad r = 0.29, \qquad s = 3.04,$$
+
+giving an effective $E_{\min} = 3.5$ eV and $n_{\text{prim}} = 4.6$ per cm. (The effective $E_{\min}$ comes out below $I_0$ because it is a fitted parameter of the simple $1/E'^2$ model, not a physical threshold.) For other gases the same form is used with two fitted constants $A_1$, $A_2$:
+
+$$E_{\min} = \frac{\tilde A\rho}{A_1\left[A_2 + \ln\left(\dfrac{\beta^2}{1-\beta^2}\right) - \beta^2\right]} .$$
+
+The notes tabulate these constants and the measured primary ionization at 0 °C and 1 atm:
+
+| Gas | Density (mg/cm³) | $I_0$ (eV) | $A_1$ | $A_2$ | $n_{\text{prim}}$ (cm⁻¹) |
+| --- | --- | --- | --- | --- | --- |
+| H₂ | 0.0899 | 15.4 | (Bethe's formula) | | 4.6 |
+| He | 0.1785 | 24.6 | 0.244 | 11.64 | 3.5 |
+| Ne | 0.9004 | 21.7 | 0.844 | 10.89 | 11.4 |
+| Ar | 1.7837 | 15.8 | 1.828 | 11.45 | 25.8 |
+| Xe | 5.8510 | 12.1 | 3.554 | 11.31 | 49.6 |
+| N₂ | 1.2506 | 15.5 | 1.941 | 11.43 | 27.1 |
+| O₂ | 1.4290 | 12.2 | 2.079 | 11.28 | 28.9 |
+
+The accompanying plot of $n_{\text{prim}}$ against $p/mc$ (that is, $\beta\gamma$) for H₂, Ne and Ar has the same shape as the full energy loss: falling steeply at low momentum, a broad minimum at $p/mc$ of a few, and a slow rise. A few tens of primary encounters per centimetre of argon is a small number, which is why the count fluctuates noticeably from track to track. The total number of charges is larger, because many primary electrons ionize further ([the W value](#sec-w)).
+
+## The Bethe-Bloch formula {#sec-bethe}
+
+What is the average energy loss once the quantum limits on the cutoffs are included? Weighting each energy transfer $E'$ by its probability gives the mean loss,
+
+$$
+\begin{aligned}
+\left\langle\frac{dE}{dx}\right\rangle &= \int_{E_{\min}}^{E_{\max}} E'\,\phi\,dE' \\
+&= \frac{\tilde A\rho}{\beta^2}\int_{E_{\min}}^{E_{\max}}\frac{dE'}{E'} = \frac{\tilde A\rho}{\beta^2}\,\ln\frac{E_{\max}}{E_{\min}} ,
+\end{aligned}
+$$
+
+the same logarithm as the classical result, now in energies rather than impact parameters ($E_{\min}$ corresponds to $b_{\max}$, and $E_{\max}$ to $b_{\min}$). Fixing the limits properly requires the quantum calculation. The result is the **[Bethe formula](https://en.wikipedia.org/wiki/Bethe_formula)**, usually called the Bethe-Bloch formula. The slide gives it in Leo's form (equation 2.27):
+
+$$
+\begin{aligned}
+-\frac{dE}{dx} &= 2\pi N_a r_e^2 m_e c^2\,\rho\,\frac{Z}{A}\,\frac{z^2}{\beta^2} \\
+&\quad\times\left[\ln\left(\frac{2m_e\gamma^2v^2W_{\max}}{I^2}\right) - 2\beta^2 - \delta - 2\frac{C}{Z}\right],
+\end{aligned}
+$$
+
+with $2\pi N_a r_e^2 m_e c^2 = 0.1535$ MeV cm²/g. The symbols:
+
+| Symbol | Meaning |
+| --- | --- |
+| $r_e$, $m_e$ | classical electron radius ($2.817\times10^{-13}$ cm) and electron mass |
+| $N_a$ | Avogadro's number, $6.022\times10^{23}$ mol⁻¹ |
+| $I$ | mean excitation potential of the absorber |
+| $Z$, $A$, $\rho$ | atomic number, atomic weight and density of the absorber |
+| $z$ | charge of the incident particle in units of $e$ |
+| $\beta = v/c$, $\gamma = 1/\sqrt{1-\beta^2}$ | speed and Lorentz factor of the incident particle |
+| $\delta$ | density correction ([below](#sec-density)) |
+| $C$ | shell correction (important only at low speed) |
+| $W_{\max}$ | maximum energy transfer in a single collision |
+
+The maximum energy transfer, for an incident particle of mass $M$, is
+
+$$W_{\max} = \frac{2m_ec^2\eta^2}{1 + 2s\sqrt{1+\eta^2} + s^2}, \qquad s = \frac{m_e}{M},\quad \eta = \beta\gamma .$$
+
+For a heavy particle ($s \ll 1$) that is not extremely relativistic, $W_{\max} \approx 2m_ec^2\beta^2\gamma^2$, the classical head-on value from the [cutoff argument](#sec-cutoffs). Substituting this, dropping the shell correction, and pulling a factor of 2 out of the bracket gives the working form boxed in William's notes, labelled (I) there:
+
+::: {.boxed-eq}
+$$
+\begin{aligned}
+-\frac{dE}{dx} &\simeq 0.31\,\frac{Z}{A}\,\frac{z^2}{\beta^2} \\
+&\quad\times\left[\ln\left(\frac{2m_ec^2\gamma^2\beta^2}{I}\right) - \beta^2 - \frac{\delta}{2}\right]\ \frac{\text{MeV cm}^2}{\text{g}} .
+\end{aligned}
+$$
+:::
+
+Read as a mass stopping power, the energy loss depends on the absorber almost only through $Z/A$ (close to 1/2 for everything except hydrogen) and, weakly, through $I$ inside the logarithm. It depends on the incident particle only through its charge $z$ and its speed $\beta$, not its mass. This is why the same curve, plotted against $\beta\gamma = p/Mc$, serves for muons, pions and protons.
+
+::: {.callout-note}
+**Worked example.** A pion with $\beta\gamma = 3.5$ crosses copper ($Z = 29$, $A = 63.55$, $I = 322$ eV, density 8.96 g/cm³). Neglect the density correction.
+
+1. Speed: $\beta^2\gamma^2 = 12.25$, so $\gamma^2 = 13.25$ and $\beta^2 = 12.25/13.25 = 0.925$.
+2. Logarithm: $2m_ec^2\beta^2\gamma^2/I = (2 \times 511{,}000\ \text{eV} \times 12.25)/322\ \text{eV} = 3.89\times10^{4}$, and $\ln(3.89\times10^4) = 10.57$.
+3. Bracket: $10.57 - 0.925 = 9.64$.
+4. Prefactor: $0.307 \times (29/63.55)/0.925 = 0.307 \times 0.456/0.925 = 0.151$ MeV cm²/g.
+5. Mass stopping power: $0.151 \times 9.64 = 1.46$ MeV cm²/g.
+6. Linear stopping power: $1.46 \times 8.96 = 13.1$ MeV per cm of copper.
+
+The tabulated minimum for copper is about 1.40 MeV cm²/g. Our value is a few percent higher because we dropped $\delta$, which is small but not zero at $\beta\gamma = 3.5$ in a dense metal.
+:::
+
+Homework 2 item 4 applies the same formula to a muon and an alpha of fixed momentum in four media. The method is the one above: find $\beta$ and $\gamma$ from the momentum and mass, look up $Z/A$, $I$ and the density, and convert from MeV cm²/g to MeV. Remember the $z^2$ for the alpha. The specific numbers are left to the assignment.
+
+## Reading the energy-loss curve {#sec-curve}
+
+Plotted against $\beta\gamma$, the Bethe-Bloch formula has a characteristic shape. William's notes read it in three regions.
+
+**At low speed, $dE/dx \propto 1/\beta^2$.** A slow particle spends longer near each electron: the collision time scales as $1/\beta$, so the momentum transfer scales as $1/\beta$, and the energy transfer (momentum squared) as $1/\beta^2$. Slowing particles therefore lose energy faster and faster, so most of their energy is deposited near the end of their path.
+
+**As $\beta \to 1$, the logarithm takes over.** With $\beta$ pinned near 1, the $1/\beta^2$ prefactor stops changing, and $\ln(\beta^2\gamma^2) \approx \ln p$ (up to constants) grows slowly with momentum. This growth is the **relativistic rise**. It begins after the minimum near $\beta\gamma \approx 3.5$–4.
+
+```{=html}
+<svg viewBox="0 0 760 380" role="img" aria-label="Schematic mean energy loss against beta gamma on log axes: a steep fall, a minimum near beta gamma of 3 to 4, a relativistic rise, and a plateau when the density effect is included" style="width:100%;max-width:760px;height:auto;font-family:'Helvetica Neue',Arial,sans-serif">
+  <text x="380" y="34" text-anchor="middle" font-size="24" fill="#205279">Shape of the Bethe-Bloch curve</text>
+  <line x1="100" y1="320" x2="720" y2="320" stroke="#555" stroke-width="2"/>
+  <line x1="100" y1="320" x2="100" y2="70" stroke="#555" stroke-width="2"/>
+  <path d="M120,80 C200,200 260,270 330,272 C420,274 520,230 710,190" fill="none" stroke="#C78557" stroke-width="3" stroke-dasharray="8 6"/>
+  <path d="M120,80 C200,200 260,270 330,272 C420,274 480,250 560,244 C620,240 680,240 710,240" fill="none" stroke="#5795C7" stroke-width="3"/>
+  <line x1="330" y1="272" x2="330" y2="320" stroke="#888" stroke-width="2" stroke-dasharray="5 5"/>
+  <g font-size="16">
+    <text x="160" y="118" fill="#205279">falls as 1/beta^2</text>
+    <text x="330" y="300" text-anchor="middle" fill="#555">minimum</text>
+    <text x="330" y="342" text-anchor="middle" fill="#555">beta gamma about 3 to 4</text>
+    <text x="560" y="180" fill="#794520">relativistic rise</text>
+    <text x="560" y="198" fill="#794520">(no density effect)</text>
+    <text x="560" y="270" fill="#205279">plateau (with density effect)</text>
+    <text x="410" y="368" text-anchor="middle" fill="#555">beta gamma (log scale)</text>
+  </g>
+  <text x="60" y="200" font-size="16" fill="#555" text-anchor="middle" transform="rotate(-90 60 200)">mean dE/dx</text>
+</svg>
+```
+
+::: {.callout-note collapse="false"}
+**Figure 2.** A sketch of the mean energy loss against $\beta\gamma$, not to scale. Without the density correction the loss would keep rising logarithmically (dashed). Polarization of the medium flattens it into a plateau (solid).
+:::
+
+### The density effect {#sec-density}
+
+Why can the relativistic rise not continue forever? Its origin is that the transverse field of a fast particle spreads out by a factor of about $\gamma$, so $b_{\max} \propto \gamma$ and more distant electrons join in. But the atoms between the particle and those distant electrons are themselves polarized by the field, and they screen it. The denser the material, the stronger the screening, hence the name **density effect** and the correction $\delta$.
+
+The screening is set by how freely the medium's electrons respond, which is measured by the **[plasma frequency](https://en.wikipedia.org/wiki/Plasma_oscillation)**.
+
+::: {.definition-block}
+**Definition.** The **plasma frequency** of a medium with $n_0$ electrons per unit volume is the natural frequency at which its electrons oscillate collectively (in SI units):
+$$\omega_p = \left(\frac{n_0e^2}{\epsilon_0 m_e}\right)^{1/2}.$$
+:::
+
+At high energy, the notes give the density correction as
+
+$$\frac{\delta}{2} = \ln\beta\gamma - \ln\frac{I}{\hbar\omega_p} - \frac{1}{2},$$
+
+so $\delta/2$ grows as $\ln\beta\gamma$ and cancels the growth of the logarithm in the Bethe-Bloch bracket. The cancellation sets in at
+
+$$\gamma_{\text{plateau}} \approx \frac{I}{\hbar\omega_p},$$
+
+about 1000 in gases and about 10 in silicon. A dense solid has many electrons per volume, a large $\omega_p$, and so an early plateau with very little relativistic rise. A gas has a small $\omega_p$ and a long rise, which some gas trackers use to identify particles (see the [delta-ray section](#sec-delta)).
+
+### The full range of momenta {#sec-mucu}
+
+The slides show the standard picture of the mass stopping power of positive muons in copper, over nine decades of $\beta\gamma$ (muon momenta from about 0.1 MeV/$c$ to 100 TeV/$c$). The Bethe-Bloch formula is the middle region, roughly $0.05 < \beta\gamma < 1000$, and other physics takes over at each end:
+
+- **Very low speeds** ($\beta\gamma$ below about 0.01). The particle is slower than the atomic electrons, the assumptions above fail, and phenomenological descriptions are used (labelled Lindhard-Scharff and Andersen-Ziegler on the plot). The loss peaks near $\beta\gamma \approx 0.01$ at a few hundred MeV cm²/g and falls toward zero at the lowest speeds, where losses to nuclei appear. A negative muon loses slightly less energy than a positive one in this region.
+- **The Bethe region.** The fall, the minimum near $\beta\gamma \approx 3$ at about 1.4 MeV cm²/g, and the rise. A dashed curve labelled "without δ" shows how much faster the rise would be with no density correction.
+- **Very high energies.** Above a few hundred GeV/$c$ for muons in copper, **radiative losses** (mainly bremsstrahlung, [below](#sec-brems)) take over and grow in proportion to the energy. The crossing point is the muon critical energy $E_{\mu c}$; the plot also marks where radiative effects first reach 1% of the total.
+
+A second plot from Leo shows $-dE/dx$ in MeV g⁻¹ cm² against $\beta\gamma$ for liquid H₂, He gas, C, Al, Fe, Sn and Pb, with extra axes converting $\beta\gamma$ into muon, pion and proton momentum. All the curves have the same shape and their minima lie between about 1 and 2 MeV cm²/g, except hydrogen (about 4, because its $Z/A = 1$ rather than about 1/2). The minimum falls slowly with increasing $Z$, through the larger $I$ in the logarithm and the slowly decreasing $Z/A$.
+
+## Minimum ionizing particles and mixtures {#sec-mip}
+
+Most relativistic particles at a collider or in cosmic rays have $\beta\gamma$ somewhere between a few and a few hundred, where the curve is near its minimum and nearly flat.
+
+::: {.definition-block}
+**Definition.** A **minimum ionizing particle** (MIP) is a particle whose mean energy loss is close to the minimum of the Bethe-Bloch curve,
+$$-\frac{1}{\rho}\frac{dE}{dx}\bigg|_{\min} \sim 2\ \text{MeV cm}^2/\text{g}.$$
+:::
+
+The slides' example is [cosmic-ray](https://en.wikipedia.org/wiki/Cosmic_ray) muons, which are the most common calibration source for this reason. Because the loss of a MIP is nearly independent of its energy, a MIP deposits a predictable signal per g/cm², which detector builders use to calibrate a thin detector. HW4 item 1 uses this to work out the thickness of a silicon detector from its signal; the specific numbers are left to the assignment.
+
+**Mixtures.** What if the particle crosses a mixture or a compound, or a stack of different layers such as a sampling calorimeter (later in the course)? William's notes give the rule: add the energy losses of the components, weighted by mass,
+
+::: {.boxed-eq}
+$$\frac{dE}{dx} = \sum_j w_j\,\frac{dE}{dx}\bigg|_j ,$$
+:::
+
+where $w_j$ is the fraction **by mass** of the $j$th component and $\frac{dE}{dx}\big|_j$ is formula (I) for that component, as a mass stopping power. Weighting by mass works because each component contributes in proportion to how many of its electrons are in the path, which is its share of the g/cm².
+
+## Fluctuations: the Landau distribution {#sec-landau}
+
+The Bethe-Bloch formula gives the *mean* energy loss. Does a particle crossing a thin layer actually lose that much?
+
+Usually not. Recall from the [primary-ionization section](#sec-primary) that the probability of a transfer $E'$ falls as $1/E'^2$: most collisions transfer a little energy, but very occasionally a close collision produces a high-energy δ-ray. That δ-electron has high energy compared with "normal" ionization, but low energy compared with the relativistic particle that made it, so by the $1/\beta^2$ behaviour it is itself **very heavily ionizing**. A single such collision can deposit several times the typical loss, so the distribution of energy loss in a thin layer is skewed, with a long tail to high losses.
+
+Landau worked out a first approximation to this distribution:
+
+::: {.boxed-eq}
+$$\phi(\lambda) = \frac{1}{\sqrt{2\pi}}\,e^{-\frac{1}{2}\left(\lambda + e^{-\lambda}\right)}, \qquad \lambda = \frac{E - E_{mp}}{\xi},$$
+:::
+
+where $E$ is the energy lost, $E_{mp}$ is the **most probable** energy loss (the peak), and the width scale is
+
+$$\xi = \frac{1}{2}\left(4\pi r_e^2\right) m_ec^2\, z^2\, \frac{Z}{A}\, N_A\rho\, \frac{\Delta x}{\beta^2} .$$
+
+Here $\lambda$ is the scaled deviation of the energy loss from its most probable value, not the mean free path of the [first section](#sec-mfp). The width $\xi$ is the same combination $\tilde A\rho\,\Delta x/\beta^2$ that set the primary ionization, now multiplied by the layer thickness $\Delta x$. This is the **[Landau distribution](https://en.wikipedia.org/wiki/Landau_distribution)**.
+
+```{=html}
+<svg viewBox="0 0 760 360" role="img" aria-label="A Landau-shaped curve of probability against energy lost, with a sharp peak at the most probable value, the mean to its right, and a long tail to high energy loss" style="width:100%;max-width:760px;height:auto;font-family:'Helvetica Neue',Arial,sans-serif">
+  <text x="380" y="34" text-anchor="middle" font-size="24" fill="#205279">Energy loss in a thin layer</text>
+  <line x1="100" y1="300" x2="720" y2="300" stroke="#555" stroke-width="2"/>
+  <line x1="100" y1="300" x2="100" y2="70" stroke="#555" stroke-width="2"/>
+  <path d="M150,298 C200,296 220,90 255,88 C300,86 320,200 380,240 C450,275 560,288 710,294" fill="#C6DEF1" fill-opacity="0.6" stroke="#5795C7" stroke-width="3"/>
+  <line x1="255" y1="88" x2="255" y2="300" stroke="#205279" stroke-width="2"/>
+  <line x1="330" y1="150" x2="330" y2="300" stroke="#C75794" stroke-width="2" stroke-dasharray="6 5"/>
+  <g font-size="16">
+    <text x="245" y="80" text-anchor="end" fill="#205279">most probable</text>
+    <text x="340" y="140" fill="#792051">mean</text>
+    <text x="520" y="268" fill="#555">long tail: rare</text>
+    <text x="520" y="250" fill="#555">delta rays</text>
+    <text x="410" y="330" text-anchor="middle" fill="#555">energy lost in the layer</text>
+  </g>
+  <text x="60" y="190" font-size="16" fill="#555" text-anchor="middle" transform="rotate(-90 60 190)">probability</text>
+</svg>
+```
+
+::: {.callout-note collapse="false"}
+**Figure 3.** The shape of the Landau distribution. The tail pulls the mean above the most probable value. A single thin-layer measurement most often gives a loss below the Bethe-Bloch mean.
+:::
+
+The slide's caution: **the most probable energy loss is not the average energy loss.** Its example, from Leo, is 3 GeV protons crossing 6.97 g/cm² of beryllium: the most probable loss is 10 MeV, the mean is 11.10 MeV, and the largest possible single transfer $W_{\max}$ is 17 MeV. A measured distribution for argon gas shows that Landau's approximation is too narrow for very thin gas layers, where the atomic structure of the electrons matters, and more refined calculations fit the data better.
+
+The notes also show, for silicon, the most probable loss per unit length divided by the minimum mean loss, against $\beta\gamma$ for thicknesses of 80, 160, 320 and 640 μm. The ratio is about 0.6 for 80 μm and about 0.7 for 640 μm near the minimum. So in a typical silicon detector, the signal you see most often from a MIP is 60–70% of what the mean Bethe-Bloch value would predict, and the thinner the layer, the bigger the gap. A pulse-height plot from a silicon tracker shows the same thing in data: a peak with a long tail to high signals.
+
+### What delta rays do to a detector {#sec-delta}
+
+The notes list at least two consequences for detector performance:
+
+1. **Particle identification.** Some trackers use the measured $dE/dx$ to identify particles: at the same momentum, particles of different mass have different $\beta\gamma$ and hence different energy loss. The Landau tail can mask 20–40% effects of differing particle masses if not properly accounted for. (A common remedy, not in the slides, is to take many samples along the track and discard the highest.)
+2. **Position resolution.** A δ-ray can travel roughly perpendicular to the original track. In very precise trackers such as silicon detectors, its ionization pulls the measured hit position away from the true crossing point.
+
+The notes end the topic with a warning: energy-loss fluctuations are far from an exact science, so be aware of the limitations of any parametrization.
+
+## Multiple scattering {#sec-ms}
+
+A heavy particle barely deviates in a single collision with an electron. But a charged particle crossing matter is also deflected, through many small angles, by the much heavier nuclei. What does that do to its direction?
+
+These are Coulomb (Rutherford) scattering events from the nuclei, and their combined effect is **multiple scattering**. The particle leaves the layer at a small random angle to its original direction, and also displaced sideways.
+
+```{=html}
+<svg viewBox="0 0 760 330" role="img" aria-label="A particle enters a slab of thickness x along a straight line, wanders through it, and exits at an angle theta plane and displaced by y plane from the undeflected path" style="width:100%;max-width:760px;height:auto;font-family:'Helvetica Neue',Arial,sans-serif">
+  <text x="380" y="34" text-anchor="middle" font-size="24" fill="#205279">Multiple scattering through a layer</text>
+  <rect x="250" y="90" width="220" height="210" fill="#C6DEF1" fill-opacity="0.5" stroke="#5795C7" stroke-width="2"/>
+  <line x1="250" y1="76" x2="470" y2="76" stroke="#555" stroke-width="2"/>
+  <text x="360" y="68" text-anchor="middle" font-size="16" fill="#555">thickness x</text>
+  <line x1="60" y1="160" x2="250" y2="160" stroke="#C78557" stroke-width="3"/>
+  <path d="M250,160 C275,150 290,175 315,168 C340,160 355,185 380,182 C410,178 430,200 470,206" fill="none" stroke="#C78557" stroke-width="3"/>
+  <line x1="470" y1="206" x2="710" y2="268" stroke="#C78557" stroke-width="3"/>
+  <line x1="250" y1="160" x2="710" y2="160" stroke="#888" stroke-width="2" stroke-dasharray="6 5"/>
+  <line x1="488" y1="160" x2="488" y2="206" stroke="#555" stroke-width="2"/>
+  <text x="496" y="190" font-size="16" fill="#555">y plane</text>
+  <path d="M640,160 A170,170 0 0 1 636,250" fill="none" stroke="#C75794" stroke-width="2"/>
+  <text x="652" y="215" font-size="16" fill="#792051">theta plane</text>
+  <text x="70" y="150" font-size="16" fill="#794520">incoming particle</text>
+</svg>
+```
+
+::: {.callout-note collapse="false"}
+**Figure 4.** Multiple scattering in one projected plane. The track wanders inside the layer, exits at an angle $\theta_{\text{plane}}$ and displaced by $y_{\text{plane}}$ from the undeflected line (dashed). The angles shown are exaggerated.
+:::
+
+The distribution of the projected exit angle is roughly Gaussian in its core, with long tails from occasional single hard scatters (William's notes cite Lynch and Dahl, NIM B58, 1991). About 98% of cases are described by a Gaussian of width
+
+::: {.boxed-eq}
+$$
+\begin{aligned}
+\theta_0 &= \theta_{\text{plane}}^{\text{rms}} = \frac{1}{\sqrt 2}\,\theta_{\text{space}}^{\text{rms}} \\
+&= \frac{13.6\ \text{MeV}}{\beta cp}\,z\,\sqrt{\frac{x}{X_0}}\left[1 + 0.038\ln\left(\frac{x z^2}{X_0\beta^2}\right)\right].
+\end{aligned}
+$$
+:::
+
+Here $p$ is the momentum, $z$ the particle's charge number, $x$ the thickness crossed, and $X_0$ the **radiation length** of the material, a characteristic length defined in the [section on electrons](#sec-x0). The $1/\sqrt2$ relates the angle projected onto one plane to the full space angle, which has two independent projected components. The scattering is smaller for a fast, high-momentum particle (the $1/p$) and grows only as the square root of the thickness, as expected for a sum of many random deflections. This form is often called the Highland formula.
+
+The notes and slides add three practical remarks:
+
+- For $z = 1$ and $\beta \to 1$, the formula agrees with measurements to better than 10% for $10^{-3} < x/X_0 < 10^{2}$.
+- Often the leading term is enough: $\theta_0 \approx \dfrac{13.6\ \text{MeV}}{\beta cp}\sqrt{x/X_0}$.
+- When a particle crosses **more than one material**, compute the combined $x/X_0$ of all the layers and apply the formula *once*. Do not compute an angle for each layer and add them in quadrature. Because of the logarithmic term, the formula is not additive in that way, so the per-layer angles cannot be combined independently.
+
+::: {.callout-note}
+**Worked example.** A pion of momentum 2 GeV/$c$ crosses 1 mm of aluminium ($X_0 = 8.90$ cm).
+
+1. Speed: $\beta = p/E = 2/\sqrt{2^2 + 0.1396^2} = 0.9976$, so $\beta cp = 1995$ MeV.
+2. Thickness in radiation lengths: $x/X_0 = 0.1/8.90 = 0.0112$, and $\sqrt{0.0112} = 0.106$.
+3. Leading term: $(13.6/1995) \times 0.106 = 7.23\times10^{-4}$ rad.
+4. Logarithmic correction: $\ln(0.0112/0.9952) = -4.48$, so the bracket is $1 - 0.038 \times 4.48 = 0.830$.
+5. Result: $\theta_0 = 7.23\times10^{-4} \times 0.830 = 6.0\times10^{-4}$ rad, or 0.60 mrad.
+
+Even a millimetre of metal deflects a 2 GeV/$c$ track by a fraction of a milliradian, and the short form overestimates it by about 20% at this thickness. At a lever arm of 10 cm, 0.6 mrad is a displacement of 60 μm, comparable with the resolution of a precise tracker.
+:::
+
+Third Problem Set item 3 combines this formula with the measurement errors of a gas tracker to find how well a track can be projected back to the beam line. The method is to sum $x/X_0$ for the material in front of each measurement and then propagate the angles and errors to $r = 0$; the specific numbers are left to the assignment.
+
+## Electrons: bremsstrahlung and the radiation length {#sec-brems}
+
+Why are electrons and positrons treated separately from heavy particles? Two reasons. They can lose a large fraction of their energy in a single collision with an atomic electron of the same mass, and, because they are so light, they are accelerated sharply by the field of a nucleus and radiate.
+
+::: {.definition-block}
+**Definition.** **[Bremsstrahlung](https://en.wikipedia.org/wiki/Bremsstrahlung)** ("braking radiation") is the photon emission of a charged particle that is deflected in the electric field of a nucleus.
+:::
+
+This is the same physics as the [synchrotron radiation of Week 3](week03.qmd#sec-sr), a charge radiating because it is accelerated, here caused by a nucleus rather than a magnet. As there, the radiated power is far larger for light particles, which is why bremsstrahlung matters for electrons at tens of MeV but for muons only above hundreds of GeV ([the muon-on-copper plot](#sec-mucu)).
+
+For electrons, bremsstrahlung dominates at high energy and ionization at low energy. The slide's plot for copper shows the energy loss per radiation length against electron energy from 2 to 200 MeV: the ionization loss is nearly flat (about 20 MeV per $X_0$), while the bremsstrahlung loss grows in proportion to the energy.
+
+::: {.definition-block}
+**Definition.** The **critical energy** $E_c$ is the electron energy at which the energy losses from ionization and from bremsstrahlung break even.
+:::
+
+The copper plot gives $E_c = 19.63$ MeV. It also shows that there are two conventions for defining the crossing: "Brems = ionization" (where the two curves cross) and Rossi's "ionization per $X_0$ = electron energy" (where the ionization line crosses the line $E$). The two give nearly the same number but are not identical, so check which one a table uses. HW4 writes the critical energy as $\epsilon$; this is unrelated to the pair-creation energy $\epsilon$ in the [second half of this chapter](#sec-epsilon).
+
+### Radiation length {#sec-x0}
+
+::: {.definition-block}
+**Definition.** The **[radiation length](https://en.wikipedia.org/wiki/Radiation_length)** $X_0$ of a material, usually quoted in g/cm², is the thickness over which a high-energy electron loses all but $e^{-1}$ of its energy by bremsstrahlung.
+:::
+
+Equivalently, a high-energy electron's mean energy after crossing a thickness $x$ is $E_0\,e^{-x/X_0}$. The radiation length is the natural unit of thickness for anything electromagnetic: it sets the electron's radiation, the photon's pair production (next section), and the multiple scattering formula [above](#sec-ms).
+
+The slide quotes the Particle Data Group (PDG) expression, due to Tsai:
+
+$$\frac{1}{X_0} = 4\alpha r_e^2\,\frac{N_A}{A}\left\{Z^2\left[L_{\text{rad}} - f(Z)\right] + Z\,L'_{\text{rad}}\right\},$$
+
+$$f(Z) = a^2\left[(1+a^2)^{-1} + 0.20206 - 0.0369a^2 + 0.0083a^4 - 0.002a^6\right], \qquad a = \alpha Z,$$
+
+where $\alpha \approx 1/137$ is the fine-structure constant. The $Z^2$ term is radiation in the field of the nucleus, and the $Z$ term radiation in the field of the atomic electrons. $f(Z)$ is a small correction (the Coulomb correction), and the $L$ factors are:
+
+| Element | $Z$ | $L_{\text{rad}}$ | $L'_{\text{rad}}$ |
+| --- | --- | --- | --- |
+| H | 1 | 5.31 | 6.144 |
+| He | 2 | 4.79 | 5.621 |
+| Li | 3 | 4.74 | 5.805 |
+| Be | 4 | 4.71 | 5.924 |
+| Others | > 4 | $\ln(184.15\,Z^{-1/3})$ | $\ln(1194\,Z^{-2/3})$ |
+
+William's notes add the more compact fit due to Dahl:
+
+::: {.boxed-eq}
+$$X_0 = \frac{716.4\ \text{g cm}^{-2}\ A}{Z(Z+1)\ln(287/\sqrt Z)} .$$
+:::
+
+The $Z^2$ in the denominator (via $Z(Z+1)$) dominates: heavy elements have short radiation lengths, which is why calorimeters for electrons and photons are made of lead or tungsten.
+
+::: {.callout-note}
+**Worked example.** Dahl's formula for copper ($Z = 29$, $A = 63.55$):
+
+1. $Z(Z+1) = 29 \times 30 = 870$.
+2. $\sqrt{29} = 5.385$, so $\ln(287/5.385) = \ln 53.29 = 3.976$.
+3. $X_0 = (716.4 \times 63.55)/(870 \times 3.976) = 45{,}530/3459 = 13.2$ g/cm².
+
+The plot on the slide quotes 12.86 g/cm² for copper, so the compact fit is within about 2%. Dividing by the density, 12.86/8.96 = 1.44 cm: an electron above the critical energy loses about two thirds of its energy in under 1.5 cm of copper.
+:::
+
+**Mixtures.** For a mixture or a layered material, the PDG combines radiation lengths with the same mass-fraction weighting as the [energy-loss rule](#sec-mip), applied to the inverse: $1/X_0 = \sum_j w_j/X_j$. HW4 item 2 asks for the effective radiation length and critical energy of a sampling calorimeter. This weighting is the concept it relies on; the specific numbers are left to the assignment.
+
+## Photon interactions {#sec-photons}
+
+A photon has no charge, so it does not lose energy gradually by ionization. Instead, it travels some distance and then interacts once, in one of a few ways, giving its energy to charged particles that the detector then sees. The probability of each process is a cross section, and the [mean-free-path picture](#sec-mfp) applies directly: a photon beam is attenuated exponentially.
+
+The slide shows the PDG plot of the photon cross section in lead, in barns per atom, from 10 eV to 100 GeV, broken into its parts:
+
+| Process | What happens | Where it dominates in lead |
+| --- | --- | --- |
+| [Photoelectric effect](https://en.wikipedia.org/wiki/Photoelectric_effect) ($\sigma_{\text{p.e.}}$) | the photon is absorbed and an atomic electron is ejected | low energies, up to several hundred keV, with sharp edges at the atomic shell energies |
+| [Rayleigh scattering](https://en.wikipedia.org/wiki/Rayleigh_scattering) ($\sigma_{\text{Rayleigh}}$) | coherent scattering from the whole atom, which is neither ionized nor excited | never dominant; matters at low energy |
+| [Compton scattering](https://en.wikipedia.org/wiki/Compton_scattering) ($\sigma_{\text{Compton}}$) | incoherent scattering from one electron, which recoils | a window around 1 MeV |
+| [Pair production](https://en.wikipedia.org/wiki/Pair_production) ($\kappa_{\text{nuc}}$, $\kappa_e$) | the photon converts into an electron-positron pair in the field of a nucleus or of an electron | above a few MeV, flattening to a constant at high energy |
+| Photonuclear ($\sigma_{\text{g.d.r.}}$) | the photon is absorbed by the nucleus, which usually breaks up; most prominently the [giant dipole resonance](https://en.wikipedia.org/wiki/Giant_resonance) | a small bump near 10–20 MeV |
+
+At high energy, pair production is the only important process, and its mean free path is a fixed multiple of the radiation length (the PDG gives $\frac{9}{7}X_0$). A high-energy photon therefore converts to an electron and a positron, each of which radiates further photons, and so on: an electromagnetic shower. That cascade is item 4 of the deck's opening list and is left for the calorimetry part of the course.
+
+## How many charges? The W value {#sec-w}
+
+The second deck turns from how much energy a particle loses to what a detector can actually count. Two questions open it: how many ionizations happen for a given energy deposit, and what does the statistical distribution of that number look like?
+
+The [primary-ionization count](#sec-primary) answered part of this for a gas: about 4.6 encounters per cm in hydrogen. But each primary electron can ionize further atoms, so the total number of electron-ion pairs is larger. The useful quantity is an average energy per pair.
+
+::: {.definition-block}
+**Definition.** The **W value** of a medium is the mean energy deposited per electron-ion pair created. For an energy deposit $E$, the mean number of pairs is
+$$\langle N\rangle = \frac{E}{W}.$$
+:::
+
+The symbol $W$ here is unrelated to the maximum energy transfer $W_{\max}$ of the [Bethe-Bloch formula](#sec-bethe). The deck quotes a table of gases (Leo, Table 6.1):
+
+| Gas | Excitation potential (eV) | Ionization potential (eV) | W (eV) |
+| --- | --- | --- | --- |
+| H₂ | 10.8 | 15.4 | 37 |
+| He | 19.8 | 24.6 | 41 |
+| N₂ | 8.1 | 15.5 | 35 |
+| O₂ | 7.9 | 12.2 | 31 |
+| Ne | 16.6 | 21.6 | 36 |
+| Ar | 11.6 | 15.8 | 26 |
+| Kr | 10.0 | 14.0 | 24 |
+| Xe | 8.4 | 12.1 | 22 |
+| CO₂ | 10.0 | 13.7 | 33 |
+| CH₄ | | 13.1 | 28 |
+| C₄H₁₀ | | 10.8 | 23 |
+
+$W$ is about 30 eV for gases, and always higher than the ionization potential. Not every bit of deposited energy goes into freeing electrons: some goes into exciting atoms without ionizing them, and each freed electron carries away some kinetic energy that ends up below the threshold for further ionization.
+
+::: {.callout-note}
+**Worked example.** A 5.9 keV X-ray (from an iron-55 source) is absorbed in argon. The mean number of electron-ion pairs is $\langle N\rangle = 5900\ \text{eV}/26\ \text{eV} \approx 227$. A few hundred electrons is a tiny charge (about $4\times10^{-17}$ C), which is why gas detectors amplify it before reading it out.
+:::
+
+## Ionization in a semiconductor {#sec-semi}
+
+What changes when the detecting medium is a solid crystal such as silicon or germanium?
+
+### Band structure in brief {#sec-bands}
+
+In a crystal, the allowed electron energies form bands. The **valence band** holds the electrons that bind the atoms together; the **conduction band** holds electrons free to move through the crystal. Between them is an energy range with no allowed states.
+
+::: {.definition-block}
+**Definition.** The **[band gap](https://en.wikipedia.org/wiki/Band_gap)** $E_g$ is the energy separating the top of the valence band from the bottom of the conduction band. In an insulator it is large (the slide's figure shows about 6 eV), in a **[semiconductor](https://en.wikipedia.org/wiki/Semiconductor)** it is about 1 eV, and in a metal the bands overlap.
+:::
+
+::: {.definition-block}
+**Definition.** When an electron is lifted from the valence band to the conduction band, it leaves behind a vacancy, an **[electron hole](https://en.wikipedia.org/wiki/Electron_hole)**, that moves through the crystal like a positive charge. The pair is an **electron-hole pair**.
+:::
+
+In a semiconductor, ionization means creating electron-hole pairs rather than completely free electrons, and both carriers can be collected.
+
+For heavy charged particles, the Bethe-Bloch formula still gives the energy loss. The initial ionization can lift an electron to a completely free state or only into the conduction band; either way, the energetic carriers then **cascade**, creating more electron-hole pairs until none has enough energy to make another. The deck stresses one distinction that returns [below](#sec-nr). Any process that dumps energy into the **electron system** goes through this same cascade. Processes that deposit energy into the **nuclear system** (a recoiling nucleus) behave differently.
+
+### The pair-creation energy in silicon and germanium {#sec-epsilon}
+
+::: {.definition-block}
+**Definition.** In a semiconductor, the W value is usually written $\epsilon$: the mean energy deposited per electron-hole pair, so that $\langle N\rangle = E/\epsilon$.
+:::
+
+As in a gas, $\epsilon$ is higher than the band gap. The deck explains this with kinematic phase space. When a pair is made, the electron and hole share the leftover energy, and later ionizations do not always split the energy perfectly, so some energy always ends up in carriers below the threshold for further ionization (and is eventually lost to the lattice as phonons). The deck quotes Leo's tables:
+
+| Property | Si | Ge |
+| --- | --- | --- |
+| Atomic number $Z$ | 14 | 32 |
+| Atomic weight $A$ | 28.1 | 72.6 |
+| Density (g/cm³) | 2.33 | 5.32 |
+| Band gap at 300 K (eV) | 1.1 | 0.7 |
+| Band gap at 0 K (eV) | 1.21 | 0.785 |
+| $\epsilon$ at 300 K (eV) | 3.62 | |
+| $\epsilon$ at 77 K (eV) | 3.81 | 2.96 |
+
+So $\epsilon$ is about ten times smaller than $W$ in a gas, and the same deposit makes about ten times as many charge carriers. That is usually an advantage (a larger signal and smaller relative fluctuations, [next section](#sec-stats)), though the deck notes that producing very many carriers in a small volume can give a dense charge cloud.
+
+::: {.callout-note}
+**Worked example.** The same 5.9 keV X-ray, absorbed in silicon at room temperature: $\langle N\rangle = 5900/3.62 \approx 1630$ electron-hole pairs, about seven times the 227 pairs in argon.
+:::
+
+## Fluctuations in the number of charges {#sec-stats}
+
+If the mean number of pairs is $E/\epsilon$, how much does the actual number vary from event to event? This sets the best possible energy resolution of an ionization detector.
+
+### Poisson counting {#sec-poisson}
+
+The deck starts from a familiar rule: "if I observe $N$ events in a bin of a histogram, the uncertainty on $N$ is $\sqrt N$." This holds because $N$ follows a **[Poisson distribution](https://en.wikipedia.org/wiki/Poisson_distribution)**, for which the variance equals the mean. And $N$ is Poisson because of how it arises: there is a large sample of independent particles, each with a tiny probability of undergoing the process in a given time. That is a **[binomial distribution](https://en.wikipedia.org/wiki/Binomial_distribution)** with a very large number of trials $n$ and a small success probability $p$, which tends to a Poisson distribution with mean $np$. At large $N$, the Poisson distribution is in turn well approximated by a Gaussian of mean $N$ and width $\sqrt N$.
+
+### The Fano factor {#sec-fano}
+
+Does the number of ionization pairs follow this rule? No. Poisson statistics require the individual events to be **independent**. But most of the charges come from secondary ionizations in the cascade, and the cascade is constrained: the total energy deposited is fixed, so if one branch makes more pairs, less energy is left for the others. Energy conservation makes the count *less* random than Poisson.
+
+::: {.definition-block}
+**Definition.** The **[Fano factor](https://en.wikipedia.org/wiki/Fano_factor)** $F$ is the ratio of the actual variance of the number of pairs to the Poisson variance:
+$$\sigma^2(N) = F\,\langle N\rangle .$$
+For ionization by a fixed energy deposit, $F$ is usually well below 1.
+:::
+
+The deck quotes measured values: silicon $0.128 \pm 0.001$ (at 5.9 keV), argon gas $0.20 \pm 0.01$/0.02, xenon gas 0.13 to 0.29, and CZT (cadmium zinc telluride) $0.089 \pm 0.005$. Fano's 1947 paper, shown on the slide, found the variance "two or three times smaller than if this number were governed by a Poisson distribution."
+
+Since the energy is reconstructed as $E = \epsilon N$, the relative energy resolution from this effect alone is
+
+::: {.boxed-eq}
+$$\frac{\sigma_E}{E} = \frac{\sqrt{F\langle N\rangle}}{\langle N\rangle} = \sqrt{\frac{F\,\epsilon}{E}} .$$
+:::
+
+Resolution improves as $1/\sqrt E$, and a small $\epsilon$ and small $F$ both help, which is part of why semiconductors give much sharper energy peaks than gases.
+
+::: {.callout-note}
+**Worked example.** For the 5.9 keV X-ray in silicon, with $\langle N\rangle = 1630$:
+
+1. Poisson would give $\sigma_N = \sqrt{1630} = 40$ pairs.
+2. With $F = 0.128$: $\sigma_N = \sqrt{0.128 \times 1630} = \sqrt{209} = 14.4$ pairs.
+3. In energy: $\sigma_E = \epsilon\,\sigma_N = 3.62 \times 14.4 = 52$ eV, a full width at half maximum of $2.355 \times 52 \approx 120$ eV.
+
+This is the Fano limit: no amount of better electronics can make a silicon detector resolve the 5.9 keV line more sharply than about 120 eV FWHM.
+:::
+
+HW4 item 5 asks for the Fano-limited resolution of a germanium detector at a gamma-ray energy, and how that relates to its threshold. The method is the one above, with germanium's $\epsilon$ and $F$ (which the assignment asks you to look up); the specific numbers are left to the assignment.
+
+## Near the ionization threshold {#sec-threshold}
+
+$\langle N\rangle = E/\epsilon$ and $\sigma^2 = F\langle N\rangle$ describe averages over large deposits. What happens when the deposit is only a few times the band gap, as for the low-energy recoils that [Week 4's](week04.qmd#sec-exposure-threshold) light-dark-matter searches care about?
+
+These averaged behaviours break down. The deck poses three scenarios for a photon absorbed in silicon (band gap 1.1 eV, $\epsilon = 3.8$ eV):
+
+- **A 0.9 eV photon** is below the band gap, so it cannot create a pair at all. $E/\epsilon$ would predict 0.24 pairs, which is meaningless for a single event.
+- **A 2 eV photon** is above the gap but below twice the gap, so it creates exactly one pair, with no fluctuation. Here the "energy per pair" is the photon energy itself, 2 eV, not 3.8 eV.
+- **A 10 eV photon** can create a few pairs, but how many depends on how the energy happens to be shared in the first steps of the cascade, and the average is not simply $10/3.8$.
+
+A compilation from the paper cited on the slide (arXiv:2004.10709) shows measured Fano factors from about 0.117 to 0.16 and pair-creation energies from 3.62 to 3.75 eV, depending on temperature and on the energy and type of the incident radiation. Both $\epsilon$ and $F$ appear to depend on temperature and energy.
+
+**Modelling the yield.** Near threshold, the yield is often modelled with an integral equation built from the microphysics. The deck's example:
+
+$$n(E_r) = 1 + \int_{E=0}^{E_r - E_g} dE\, P(E, E_r)\,\langle N(E)\rangle .$$
+
+Read it as: a deposit $E_r$ creates one pair, which costs at least $E_g$; the remaining energy $E$ is shared among the carriers with some probability distribution $P(E, E_r)$, and each share goes on to make $\langle N(E)\rangle$ pairs of its own. The assumptions enter through $P$ (for instance, how the energy splits between the electron and the hole). With initial and boundary conditions specified, the equation is solved numerically or by [Monte Carlo](https://en.wikipedia.org/wiki/Monte_Carlo_method) simulation. The model's results have the structure
+
+$$
+\epsilon_{eh}(E_r) = \begin{cases}
+\infty & E_r < E_g \\
+E_r & E_g \le E_r < 2E_g \\
+\epsilon_{\text{imp}}(E_r) & E_r \ge 2E_g \\
+\epsilon_{eh,\infty} & E_r \to \infty
+\end{cases}
+$$
+
+$$F(E_r) = \begin{cases} 0 & E_r < 2E_g \\ F_{\text{imp}}(E_r) & E_r \ge 2E_g \\ F_\infty & E_r \to \infty \end{cases}$$
+
+which matches the three scenarios above: no pairs below the gap, exactly one pair (with zero variance) up to twice the gap, and then a structured transition to the high-energy constants. The plotted results show peaks in the effective $\epsilon_{eh}$ and in $F$ below about 10 eV, and a set of probability curves for creating exactly 1, 2, 3, 4 or 5 pairs as a function of deposited energy. The same kind of approach is used to model the ionization yield of nuclear recoils, the next topic.
+
+## Nuclear recoils and quenching {#sec-nr}
+
+[Week 4](week04.qmd#sec-er-nr) split events into **electron recoils** (ER: gammas and betas scattering from atomic electrons, the most common background) and **nuclear recoils** (NR: WIMPs and neutrons scattering from a nucleus, plus alphas and recoiling parent nuclei, which are almost always surface events). A neutron recoil cannot be told apart from a WIMP recoil event by event. This week explains *why* the two kinds of recoil look different in an ionization detector.
+
+When the recoiling particle is a slow nucleus rather than an electron, the transfer of its energy to the electrons of the medium is **inefficient**, because of the large mass difference. Only a small fraction of the recoil energy reaches the electron system (and so goes into ionization, excitation and scintillation). The majority goes directly into atomic motion, through the recoiling nucleus knocking into other nuclei, and ends up as heat (phonons).
+
+```{=html}
+<svg viewBox="0 0 760 300" role="img" aria-label="Two bars compare where recoil energy first goes: for an electron recoil, almost all to the electron system; for a nuclear recoil, a small part to the electron system and most to atomic motion" style="width:100%;max-width:760px;height:auto;font-family:'Helvetica Neue',Arial,sans-serif">
+  <text x="380" y="34" text-anchor="middle" font-size="24" fill="#205279">Where the recoil energy goes first</text>
+  <text x="80" y="108" font-size="16" fill="#555" text-anchor="middle">electron</text>
+  <text x="80" y="126" font-size="16" fill="#555" text-anchor="middle">recoil</text>
+  <rect x="150" y="90" width="520" height="44" fill="#C6DEF1" stroke="#5795C7" stroke-width="2"/>
+  <rect x="670" y="90" width="30" height="44" fill="#F7D9C4" stroke="#C78557" stroke-width="2"/>
+  <text x="410" y="118" font-size="16" fill="#205279" text-anchor="middle">electron system: ionization, excitation, light</text>
+  <text x="80" y="198" font-size="16" fill="#555" text-anchor="middle">nuclear</text>
+  <text x="80" y="216" font-size="16" fill="#555" text-anchor="middle">recoil</text>
+  <rect x="150" y="180" width="130" height="44" fill="#C6DEF1" stroke="#5795C7" stroke-width="2"/>
+  <rect x="280" y="180" width="420" height="44" fill="#F7D9C4" stroke="#C78557" stroke-width="2"/>
+  <text x="215" y="208" font-size="16" fill="#205279" text-anchor="middle">electrons</text>
+  <text x="490" y="208" font-size="16" fill="#794520" text-anchor="middle">atomic motion (heat, phonons)</text>
+  <text x="425" y="270" font-size="16" fill="#555" text-anchor="middle">same total recoil energy; proportions schematic</text>
+</svg>
+```
+
+::: {.callout-note collapse="false"}
+**Figure 5.** A schematic of the energy partition. An electron recoil puts nearly all its energy into the electron system first. A nuclear recoil of the same energy puts only a fraction there, the rest going directly into atomic motion. The fraction depends on the material and the recoil energy.
+:::
+
+::: {.definition-block}
+**Definition.** The **quenching factor** (or ionization yield, or scintillation yield, depending on the channel measured) of a recoil is
+$$Q = \frac{E_I}{E_R},$$
+where $E_R$ is the true recoil energy and $E_I$ is the **ionization energy**: the energy an electron recoil would need to produce the same ionization (or light) signal.
+:::
+
+For electron recoils $Q = 1$ by construction. For nuclear recoils, $Q < 1$ and depends on the recoil energy and the material. It can be modelled with simulation software such as [SRIM](https://en.wikipedia.org/wiki/Stopping_and_Range_of_Ions_in_Matter) or with analytical models ([Lindhard](#sec-lindhard)), but the slide warns that neither is good near threshold.
+
+**"Ionization yield" now has three meanings in this course.** Stated once here:
+
+1. In the deck's title and in [the W value](#sec-w) section, *ionization yield* loosely means the number of pairs a deposit produces.
+2. In [Week 4](week04.qmd#sec-response), the ionization yield $Y$ was the ionization energy divided by the recoil energy measured in phonons, normalized so that electron recoils have $Y \approx 1$.
+3. Here, $Y(E_R)$ or $Q$ is the ionization energy divided by the true recoil energy, as a function of that energy.
+
+Meanings 2 and 3 are the same quantity whenever the phonon channel measures the true recoil energy, which is how Week 4 used it. Meaning 3 is the stricter one, and from here on "ionization yield" means $Y(E_R) = Q$ unless stated otherwise.
+
+### Why the yield matters: phonon readout with a bias {#sec-ntl}
+
+The deck's motivating example is a SuperCDMS-style detector that reads out **phonons** but has a voltage $V$ across the crystal. The electrons and holes created by a recoil are pulled across the crystal by the field, and as they drift they give energy to the lattice, creating extra phonons (labelled "Luke phonons" on the slide, after the Neganov-Trofimov-Luke effect). The total phonon energy is therefore
+
+::: {.boxed-eq}
+$$
+\begin{aligned}
+E_{\text{Phonon}} &= E_{\text{Recoil}} + E_{\text{NTL}} = E_{\text{Recoil}} + n_{eh}\,eV \\
+&= E_{\text{Recoil}} + \frac{E_{\text{Recoil}}}{\epsilon}\,Y(E_{\text{Recoil}})\,eV ,
+\end{aligned}
+$$
+:::
+
+with $\epsilon$ about 4 eV for silicon and about 3 eV for germanium. The number of pairs is $n_{eh} = Y E_R/\epsilon$: an electron recoil makes $E_R/\epsilon$ pairs, and a nuclear recoil makes only the fraction $Y$ of that. The bias amplifies the ionization signal into phonons, which is how these detectors reach very low thresholds. But it also means the measured phonon energy depends on $Y$.
+
+::: {.callout-note}
+**Worked example.** The slide's plot is for silicon ($\epsilon \approx 3.8$ eV) at a bias of 10 V and a recoil energy of 1000 eV. The recoil makes $1000/3.8 = 263$ pairs if it is an electron recoil, and each pair adds 10 eV of phonons:
+
+- Electron recoil ($Y = 1$): $E_{\text{Phonon}} = 1000 + 263 \times 10 = 3630$ eV.
+- Nuclear recoil with $Y = 0.2$: $1000 + 0.2 \times 2630 = 1526$ eV.
+- Nuclear recoil with $Y = 0.1$: $1000 + 0.1 \times 2630 = 1263$ eV.
+- Any recoil at 0 V: 1000 eV.
+
+A 1 keV nuclear recoil can look like a 1.26 keV or a 1.53 keV phonon signal depending on which yield is right. If we get $Y$ wrong, we assign the wrong recoil energy to every event, and so misinterpret a WIMP signal: the slide's warning.
+:::
+
+Third Problem Set item 5(b) asks for the phonon energy of a germanium recoil at a given bias under three competing yield models. The equation above is the concept it relies on; reading the yields off the measurements and the specific numbers are left to the assignment.
+
+## Scintillation yield: Birks' law {#sec-birks}
+
+The same quenching appears in the light channel. Why does a densely ionizing particle give less light per unit of energy than a MIP?
+
+**[Birks' law](https://en.wikipedia.org/wiki/Birks%27_law)** gives the [scintillation](https://en.wikipedia.org/wiki/Scintillation_(physics)) light yield per unit path length:
+
+::: {.boxed-eq}
+$$\frac{dL}{dx} = \frac{S\,\dfrac{dE}{dx}}{1 + kB\,\dfrac{dE}{dx}} ,$$
+:::
+
+where $S$ is the scintillation efficiency, $dE/dx$ is the energy loss of the ionizing particle (the linear energy transfer to the medium), and $kB$ is Birks' quenching coefficient. For a MIP, $kB\,dE/dx \ll 1$ and the light is proportional to the energy loss. For a very densely ionizing particle, such as a slow nucleus or the end of an alpha track, the denominator grows and the light per unit length saturates at $S/kB$: the excited molecules are so densely packed that many lose their energy without emitting light. Birks' law was derived for organic scintillators but also applies to some inorganic ones.
+
+The deck shows a compilation of scintillation quenching factors measured by different groups (1994 to 2021) for recoil energies from about 5 to 500 keV. The values lie mostly between 10% and 35%, rising with energy, with a spread between measurements larger than many of the quoted error bars.
+
+## The Lindhard model and its measurement {#sec-lindhard}
+
+The standard analytical model of nuclear-recoil ionization yield is Lindhard's. It writes an integral equation for the energy $\bar\nu(E)$ that a recoiling nucleus of energy $E$ eventually gives to atomic motion, by following one collision: after it, the original nucleus continues with less energy, a struck nucleus recoils with energy $T_n$ (minus a binding energy $U$), and some electrons are ionized. Lindhard made five approximations to solve it:
+
+1. Neglect the contribution to atomic motion coming from the electrons.
+2. Neglect the binding energy, $U = 0$.
+3. The energy transferred to ionized electrons is small compared with that transferred to recoiling ions.
+4. The effects of electronic and atomic collisions can be treated separately.
+5. $T_n$ is also small compared with the energy $E$.
+
+The slide (from Y. Sarkis, Magnificent CEvNS 2020, and Phys. Rev. D 101, 102001, 2020) highlights the second approximation. Newer models, such as Sarkis's, try to relax some of these assumptions. Keeping a binding energy makes the predicted yield drop to zero at low recoil energy, unlike the Lindhard curve, which stays finite.
+
+The deck then shows the state of the art for **germanium** and **silicon**: the ionization yield (in %) against recoil energy from about 0.1 to 100 keV, with the Lindhard and Sarkis model curves and measurements from many experiments since the 1960s. Above about 10 keV the measurements and models broadly agree, with yields of 20–40%. At low energy the picture is unsettled:
+
+- In silicon, the Lindhard curve lies above most measurements below a few keV, and the Sarkis curve, with its low-energy cutoff, follows them more closely.
+- In germanium, recent measurements at sub-keV energies disagree with one another strongly, some lying well above the Lindhard curve and some well below.
+
+Third Problem Set item 5(a) asks what could be causing the germanium discrepancy. Comparing the measurements and their assumptions is left to the assignment.
+
+### Measuring the yield with neutron scattering {#sec-measure}
+
+How do we produce nuclear recoils of a *known* energy, to measure $Y$? The deck shows the typical scheme. A [neutron source](https://en.wikipedia.org/wiki/Neutron_generator) produces neutrons of known energy, which are collimated through shielding into a narrow beam and aimed at the **target detector** whose yield we want. A neutron that scatters elastically in the target and is then caught by one of an array of **secondary neutron detectors** at a known angle $\theta$ must have given the target nucleus a definite recoil energy. A beam monitor directly behind the target checks the beam. The secondary detectors are chosen to distinguish neutrons from gammas, and the direct beam is kept away from them by shielding.
+
+The recoil energy follows from the kinematics of an [elastic collision](https://en.wikipedia.org/wiki/Elastic_collision). For a neutron of mass $m$ and kinetic energy $E_n$ scattering through angle $\theta$ from a nucleus of mass $M \gg m$, approximately
+
+::: {.boxed-eq}
+$$E_R \approx \frac{2\,m M}{(m+M)^2}\,E_n\,(1-\cos\theta) .$$
+:::
+
+Small angles give small recoils, and the largest recoil is at $\theta = 180°$. Choosing the angle of the secondary detector chooses the recoil energy.
+
+::: {.callout-note}
+**Worked example.** A 1 MeV neutron scatters through 20° from a silicon nucleus ($M/m \approx 28$):
+
+1. Mass factor: $2 \times 28/29^2 = 56/841 = 0.0666$.
+2. Angle factor: $1 - \cos 20° = 1 - 0.9397 = 0.0603$.
+3. Recoil energy: $0.0666 \times 0.0603 \times 1\ \text{MeV} = 4.0\times10^{-3}$ MeV, that is, 4.0 keV.
+
+The recoil energy is fixed by the angle, so the measured ionization of that event gives $Y$ at 4.0 keV. Any uncertainty in the angle (the finite size of the detectors) or in the neutron energy becomes an uncertainty in $E_R$, which is what limits these measurements at low energy.
+:::
+
+Third Problem Set item 5(c) asks what a facility of this kind needs from its secondary detectors to distinguish the competing yield models. The kinematics above is the concept it relies on; the specific requirements are left to the assignment.
+
+## Beyond the averages: nuclear-recoil Fano factor and the Migdal effect {#sec-migdal}
+
+The deck closes with two open questions.
+
+**A nuclear-recoil "Fano factor".** For a nuclear recoil, the number of pairs is the outcome of several random processes in sequence: first how the energy is partitioned between nuclear motion and the electron system, then the electron cascade. The extra randomness of the first step gives an **inflated effective Fano factor**. The plot (from arXiv:2206.13639) shows effective Fano factors for silicon nuclear recoils rising from a few at low energy to well over 100 at 100 keV, with model curves bracketing sparse measurements. In principle we should not even expect the distribution of the number of pairs to be Poisson or Gaussian. More data are needed.
+
+**The Migdal effect.** When a nucleus is struck suddenly, it starts to move before its electron cloud catches up. The electrons usually follow, but occasionally one is left behind and emitted, ionizing the atom. This process has a low probability, but the ionization it produces is **unquenched**: it comes directly from the electron system, not from the inefficient nuclear-to-electron transfer. Many experiments use it to lower their effective threshold for light dark matter, which would otherwise make recoils too small to see. The last slides show a reported non-observation (arXiv:2307.12952) and a more recent reported observation in some media, so the experimental status is still being settled.
+
+## Summary {#sec-summary}
+
+::: {.callout-note}
+**Key takeaways from Week 5:**
+
+- **Interactions are probabilistic.** The interaction probability in a thin target is $\sigma\rho d$; survival through thickness $x$ is $e^{-x/\lambda}$ with mean free path $\lambda = 1/\sigma\rho$. Thicknesses are best measured in g/cm².
+- **Heavy charged particles lose energy to atomic electrons.** The classical impulse calculation gives $-dE/dx \propto (z^2/\beta^2)\,N_e\ln(b_{\max}/b_{\min})$; quantum limits on $b_{\min}$ turn it into the Bethe-Bloch formula, $0.31\,(Z/A)(z^2/\beta^2)[\ln(2m_ec^2\beta^2\gamma^2/I) - \beta^2 - \delta/2]$ MeV cm²/g.
+- **The curve has a universal shape.** It falls as $1/\beta^2$, has a minimum near $\beta\gamma \approx 3$–4 at about 1–2 MeV cm²/g (a MIP), rises logarithmically, and is flattened by the density effect. Mixtures add by mass fraction.
+- **The mean is not the most probable.** Rare δ-rays give the Landau distribution its long tail; a thin detector most often sees less than the mean loss, and the tail complicates $dE/dx$ particle identification and position measurement.
+- **Multiple scattering smears direction.** $\theta_0 \approx (13.6\ \text{MeV}/\beta cp)\,z\sqrt{x/X_0}\,[1 + 0.038\ln(xz^2/X_0\beta^2)]$; combine all material into one $x/X_0$ before applying it.
+- **Electrons radiate.** Above the critical energy, bremsstrahlung dominates; the radiation length $X_0 \propto A/Z^2$ is the thickness over which a high-energy electron keeps $1/e$ of its energy. Photons convert once, by photoelectric effect, Compton scattering or pair production.
+- **Charges are counted with W or ε.** $\langle N\rangle = E/W$ with $W \approx 30$ eV in gases, and $E/\epsilon$ with $\epsilon \approx 3$–4 eV in Ge and Si, both above the ionization threshold or band gap.
+- **The count fluctuates less than Poisson.** $\sigma^2 = F\langle N\rangle$ with Fano factor $F \approx 0.1$ in silicon, setting a resolution limit $\sigma_E/E = \sqrt{F\epsilon/E}$. Near threshold, $\epsilon$ and $F$ depend on energy.
+- **Nuclear recoils are quenched.** Most of a nuclear recoil's energy goes to atomic motion, so its ionization yield $Q = E_I/E_R$ is below 1 and energy dependent. It sets the phonon signal in biased detectors, and its low-energy value is still disputed between measurements and models.
+:::
+
+**Next week:** tracking detectors, where the energy loss and multiple scattering of this week set how precisely a track can be measured.
+
+## Quick self-check
+
+If you can explain why a relativistic muon crossing a thin silicon sensor usually deposits less than the Bethe-Bloch mean, why its track direction is blurred, and why a nuclear recoil of the same deposited energy would produce fewer electron-hole pairs, using only "minimum ionizing," "Landau tail," "radiation length," "pair-creation energy," and "quenching factor," you have understood the core of Week 5.
