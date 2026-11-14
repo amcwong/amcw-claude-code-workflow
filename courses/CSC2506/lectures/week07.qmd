@@ -465,6 +465,14 @@ Each term in the sum is the exact gradient for one fixed draw $\epsilon_i$; aver
 $$2(1.5)=3.0,\qquad 2(-0.2)=-0.4,\qquad 2(1.3)=2.6,$$
 
 and their average is $5.2/3\approx1.73$. This is close to, but not equal to, the true value 2. Another three draws would give a different estimate; on average over draws the estimate equals 2, and its spread shrinks as $m$ grows.
+
+**The same setup with MCMC.** Here the target is the posterior $q = \mathcal N(1,1)$, and we use a Metropolis chain to approximate it. Start at $z_0=1$ and propose each move by adding the same noise values as before, $z' = z + \epsilon_i$, accepting with probability $\min\{1, q(z')/q(z)\}$. We use the same uniform draws $u$ to decide acceptance. The chain is:
+
+- Step 1: propose $z'=1.5$. The ratio is $e^{-0.125}\approx0.88$, and $u=0.60$ is below it, so we accept. State: $z_1=1.5$.
+- Step 2: propose $z'=0.3$. The ratio is $e^{-0.12}\approx0.89$, and $u=0.95$ is above it, so we reject. State: $z_2=1.5$.
+- Step 3: propose $z'=1.8$. The ratio is $e^{-0.195}\approx0.82$, and $u=0.50$ is below it, so we accept. State: $z_3=1.8$.
+
+Averaging $z^2$ over the three states after burn-in (here we drop $z_0$) gives $(2.25+2.25+3.24)/3 = 2.58$, which estimates $\mathbb{E}[z^2]=2$. Two things differ from SVI. First, the three states are dependent, since each one is built from the previous one, so they are worth fewer than three independent draws. Second, the chain gives an estimate of the expectation $\mathbb{E}[z^2]$, not of its gradient with respect to $\mu$. To get a gradient we would need a second chain at $\mu+h$ and $\mu-h$ and a finite difference between them. The reparameterized estimate above gets the gradient directly from each noise draw, without rerunning anything.
 :::
 
 ### MCMC vs SVI {#sec-w7-mcmc-svi}
@@ -787,15 +795,26 @@ $$z\sim p(z), \qquad \tilde x\sim p_\theta(x\mid z).$$
 
 Draw a code from the prior, then draw data from the decoder's likelihood for that code. The encoder is not used. This works because the KL-to-prior term trained the encoder's codes to lie where the prior puts its mass, so codes drawn from the prior land in regions the decoder knows how to decode.
 
+The $z$ in the training step and the $z$ in this sampling step are different draws, even though they share a symbol and a latent space.
+
+- **During training**, $z$ comes from the encoder's distribution for one specific photo: $z \sim q_\phi(z \mid x)$, which is $\mathcal N(\mu(x), \sigma(x)^2)$. It depends on $x$, and the reparameterization trick draws it as $z = \mu(x) + \sigma(x) \odot \eta$. The decoder is trained to reconstruct that $x$ from this $z$.
+- **After training**, $z$ is drawn from the prior with no input: $z \sim p(z) = \mathcal N(0, I)$. There is no $x$, and no encoder is involved. The decoder turns this $z$ into a new $x$.
+
 We can also **interpolate** between inputs using simple vector arithmetic: encode two inputs, take points on the line between their codes, and decode each point. @sec-w7-code-interp does this in the tutorial's code.
 
 ### Example: MNIST {#sec-w7-vae-mnist}
+
+After training, we can generate a new digit. Draw $z \sim \mathcal N(0, I)$, a vector of $M$ numbers. For a 2D latent space, this might be $z = (0.4, -1.1)$. The encoder is not used. The decoder takes $z$ and outputs one probability per pixel, for all 784 pixels of a $28 \times 28$ image. We display those probabilities as the image.
+
+The result can look like a 7 even though this exact image was never in the training set. The digit class is not new, since 7s are in the training data. The image is new, because the decoder produces a plausible picture from a code it was never given. This works because the KL penalty pushed the encoder's codes toward the region where $\mathcal N(0, I)$ has its mass, so the decoder has learned to produce digits from codes in that region. Some draws will still look like blends of digits, because the learned features are not labelled and the decoder only approximates the training distribution.
 
 For MNIST, the lecture makes three choices:
 
 - **Prior:** the standard Gaussian, $p(z) = \mathcal N(0, I)$.
 - **Likelihood:** $p_\theta(x\mid z) = \mathrm{Bernoulli}(\theta)$, one [Bernoulli](https://en.wikipedia.org/wiki/Bernoulli_distribution) probability per pixel, output by the decoder.
 - **Approximate posterior:** $q_{\phi_i}(z\mid x_i) = \mathcal N(\mu_i,\sigma_i^2 I)$.
+
+In the prior $\mathcal N(0, I)$, the $0$ is a vector of $M$ zeros, so the prior is centred at the origin of the latent space. $I$ is the $M \times M$ identity matrix, with 1s on the diagonal and 0s elsewhere. It says each latent coordinate has variance 1 and the coordinates are uncorrelated. For a 2D latent space ($M = 2$), $I = \begin{pmatrix} 1 & 0 \\ 0 & 1 \end{pmatrix}$, so each $z_i$ is an independent standard normal.
 
 To get a reconstruction, we evaluate $\tilde x\sim p_\theta(x\mid z)$, and we use neural networks as the encoder and decoder.
 
@@ -810,12 +829,18 @@ With this, gradients flow through the entire network, from the loss through the 
 ::: {.callout-tip collapse="true" .clarification title="Recap: Variational autoencoders"}
 What the symbols stand for:
 
+- $x$: one data point, a $D \times 1$ vector. For MNIST, $D = 784$, one value per pixel.
+- $z$: the code, an $M \times 1$ vector, where $M$ is the latent dimension we choose when designing the model. The tutorial's plots use $M = 2$ so the codes can be drawn on a page. Larger values are used when reconstructions matter more than plots.
+  - During training, $z$ is sampled from the encoder's distribution for one specific photo, $q_\phi(z\mid x)$, which is $M$-dimensional. It depends on $x$, and the reparameterization trick draws it as $z = \mu(x) + \sigma(x)\odot\eta$.
+  - After training, $z$ is sampled from the prior, $\mathcal N(0,I)$, which is an $M$-vector of independent standard normal values. There is no $x$ and no encoder.
 - $q_\phi(z\mid x)$: the encoder's distribution over codes for input $x$, here $\mathcal N(\mu,\sigma^2)$.
 - $\phi_i = (\mu_i,\log\sigma_i)$: the mean and log standard deviation for data point $x_i$.
 - $p_\theta(x\mid z)$: the decoder's likelihood, with decoder weights $\theta$.
 - $p(z) = \mathcal N(0,I)$: the prior over codes.
 - $\mathcal L(\theta,\phi;x)$: the ELBO for one data point. $\ell(x;\theta,\phi) = -\mathcal L$: the training loss.
 - $\odot$: elementwise multiplication.
+
+**Disclaimer on the parameter count.** The per-point $\phi_i$ above belongs to the standard (non-amortized) VAE. There, each data point has its own $\mu_i$ and $\log\sigma_i$, each of length $M$, so the variational parameters total $2MN$ for $N$ points and grow with the dataset. The amortized VAE used in practice shares one encoder, with weights $\phi$, whose size does not depend on $N$. The decoder weights $\theta$ have the same size in both versions.
 
 Taking the equations apart:
 
@@ -842,6 +867,7 @@ Training lowers this number by making the decoder more confident on the right pi
 **Key takeaways.**
 
 - A VAE makes the encoder output a distribution over codes instead of a single point, and adds a penalty that pulls those distributions toward the $\mathcal N(0,I)$ prior.
+- The encoder outputs two vectors: $\mu$, the centre of the blob, and $\sigma$, its width in each direction. Together they describe a normal distribution over codes, $q(z \mid x) = \mathcal N(\mu, \operatorname{diag}(\sigma^2))$.
 - Its loss is the negative ELBO: reconstruction error plus KL to the prior. The reparameterization trick is what lets gradients pass through the sampling step in the middle.
 - Because training keeps codes where the prior has its mass, we can afterwards draw a code from the prior, decode it, and get new data.
 :::
@@ -884,6 +910,8 @@ Copying the noise is penalized, so training pushes the network toward outputs th
 
 So far each data point $x_i$ has had its own variational parameters $\phi_i = (\mu_i,\log\sigma_i)$. With $N$ data points, that is $N$ separate sets of parameters to optimize, and a new data point would need a fresh optimization of its own.
 
+**Why we amortize.** Separate parameters become impractical as the data set grows. Take a million photos and a 20-dimensional latent space. Storing a mean and a log-variance for each photo needs $2\times20\times1{,}000{,}000 = 40{,}000{,}000$ numbers. A linear encoder from 784 pixels to 40 outputs (a mean and a log-variance per dimension) needs $784\times40+40 = 31{,}400$ numbers, and that count is the same whether the data set has a thousand photos or a million. Separate parameters also cannot produce a code for a photo that was not in training without optimizing a new set. The amortized encoder gives up some per-photo accuracy in exchange for a fixed-size model that handles any input in one forward pass.
+
 ::: {.definition-block}
 **Definition.** **Amortized inference** replaces the separate variational parameters $\phi_i$ of every data point by a single global $\phi$ that specifies one **recognition model** $q_\phi(z_i\mid x_i)$, typically a neural network that maps each $x_i$ to the parameters of its approximate posterior:
 $$q_\phi(z_i\mid x_i) = \mathcal N\big(z_i\mid\mu_\phi(x_i),\,\Sigma_\phi(x_i)\big).$$
@@ -891,11 +919,46 @@ $$q_\phi(z_i\mid x_i) = \mathcal N\big(z_i\mid\mu_\phi(x_i),\,\Sigma_\phi(x_i)\b
 
 "Amortized" means the cost of inference is spread over the whole data set: the network is trained once, and afterwards the approximate posterior for any $x$, including one never seen in training, is a single forward pass. The lecture's trade-off: the number of parameters goes down, at the cost of a less expressive encoder, because one set of weights is shared across all data points and cannot fit each one's posterior as freely as a private $\phi_i$ could.
 
+**Which KL, and which direction.** Amortization changes where $q$'s parameters come from, not the direction of the KL divergence. Every version in this chapter writes the KL with the approximation $q$ first and averages under $q$: $\mathrm{KL}(q\,\|\,\cdot)$. Week 6 called this the reverse KL (@sec-why-iproj in Week 6). The VAE's KL term is $\mathrm{KL}(q_\phi(z\mid x)\,\|\,p(z))$, which has the same shape with the prior in place of the posterior.
+
+Swapping the two arguments gives a different number, so the direction matters. Take a posterior $p(z\mid x)=(0.9,\,0.1)$ over two latent states and a guess $q=(0.5,\,0.5)$, the example from Week 6 (@sec-kl in Week 6):
+
+$$\mathrm{KL}(q\,\|\,p)=0.5\log\tfrac{0.5}{0.9}+0.5\log\tfrac{0.5}{0.1}\approx0.511$$
+
+$$\mathrm{KL}(p\,\|\,q)=0.9\log\tfrac{0.9}{0.5}+0.1\log\tfrac{0.1}{0.5}\approx0.368$$
+
+In $\mathrm{KL}(q\,\|\,p)$ each term is weighted by $q$. The term $0.5\log\frac{0.5}{0.1}\approx0.805$ is large because $q$ puts half its mass on a state where $p$ has only $0.1$. The reverse direction penalizes $q$ for placing mass where the target is small, and it does not penalize $q$ for leaving some of the target's mass uncovered.
+
+The direction is chosen for computability. The ELBO needs an average under $q$, and we can draw samples from $q$ (and differentiate them with the reparameterization trick). The other direction, $\mathrm{KL}(p\,\|\,q)$, would average under the posterior $p(z\mid x)$, which is the quantity we cannot evaluate.
+
 To make the parameter savings concrete with the numbers from the tutorial's code (@sec-w7-code-arch): with $N = 60{,}000$ training images and a 2-dimensional latent space, separate parameters would mean $60{,}000\times(2+2) = 240{,}000$ numbers (a mean and a log-variance per dimension per image). The amortized encoder in the code has $157{,}380$ parameters (weights and biases), and that count does not grow with $N$.
 
 This is a disambiguation worth holding onto. The "standard VAE" of @sec-w7-vae-specifics, with a private $(\mu_i,\sigma_i)$ per data point, is the non-amortized version. The VAE that people train in practice, including the one in the tutorial's code, is amortized: the encoder network is $q_\phi$.
 
 ### Standard vs amortized VAE {#sec-w7-amortized-pipeline}
+
+::: {.callout-tip collapse="true" .clarification title="Question: In the standard VAE, where does $\mu$ come from, and how is it different in the amortized VAE?"}
+The difference is where $\mu$ comes from. In both cases $z_i$ is drawn from a normal distribution, so the sampling step is the same. What changes is what the symbol $\mu$ refers to.
+
+**Standard VAE:** $\mu_i$ is a stored number. The subscript $i$ is a label for one training photo. $\mu_i$ is a vector of values that belongs to photo $i$, like a row in a table:
+
+| photo | $\mu$ | $\log\sigma$ |
+|---|---|---|
+| $x_1$ | $(0.6, -0.2)$ | $(-0.5, 0.1)$ |
+| $x_2$ | $(1.3, 0.4)$ | $(-0.8, -0.3)$ |
+
+Training adjusts each row directly. Nothing in the formula $\mu_i$ mentions $x_i$. The link to the photo exists only because the row is indexed by $i$. A new photo has no row, so it cannot be encoded without optimizing a new one.
+:::
+
+**Amortized VAE: what changes.** The parameters are now one shared set, $\phi$, the weights of an encoder network. The symbol $\mu_\phi$ is a function: a rule that takes an input and returns a mean, with the rule set by the weights $\phi$. For example, a linear encoder with $\phi=(W,b)$ gives $\mu_\phi(x)=Wx+b$. The notation $\mu_\phi(x_i)$ means: run $x_i$ through this network. The subscript $\phi$ names the weights, not a photo index. So the mean for $x_i$ is computed from the photo rather than looked up, and the same function serves every photo, including new ones.
+
+The sampling step keeps the same form, but its parameters now come from the network:
+
+$$z_i\sim q_\phi(z\mid x_i)=\mathcal N\big(\mu_\phi(x_i),\Sigma_\phi(x_i)\big)$$
+
+$$z_i=\mu_\phi(x_i)+\sigma_\phi(x_i)\odot\eta_i,\qquad \eta_i\sim\mathcal N(0,I)$$
+
+where $\sigma_\phi(x_i)$ is the square root of the diagonal of $\Sigma_\phi(x_i)$. Because $\mu_\phi(x_i)$ and $\sigma_\phi(x_i)$ are computed from $\phi$, the reparameterized draw passes gradients back into the encoder's weights.
 
 For a given input (or mini-batch) $x_i$, the two pipelines differ only in step 1:
 
@@ -1022,6 +1085,25 @@ The tutorial's $\theta$ and $\phi$ are swapped relative to the lecture. When rea
 
 We also fix two dimension letters for this part: $D$ is the dimension of the data (for MNIST, $D=784$ pixels, indexed by $d$), and $M$ is the dimension of the latent space (indexed by $m$), matching the bottleneck size $M$ of @sec-w7-ae. The tutorial writes $D$ for the latent dimension in its KL formula; that is our $M$.
 
+::: {.callout-tip collapse="true" .clarification title="Question: Why does the notation switch from $\sigma$ to $\Sigma$?"}
+**The output is the same kind of number either way.** A normal density evaluated at one point $x$ returns a single number: the height of the bell at $x$. Switching from $\sigma$ to $\Sigma$ does not change that kind of output. What changes is how the spread is written down, and whether the spread can tilt.
+
+**Step 1: the general density needs a covariance matrix.** For a vector $v$ with $M$ entries,
+$$\mathcal N(v;\mu,\Sigma)=(2\pi)^{-M/2}\,|\Sigma|^{-1/2}\exp\!\Big(-\tfrac12(v-\mu)^\top\Sigma^{-1}(v-\mu)\Big).$$
+This is the form that works for any covariance, so the textbook notation uses $\Sigma$.
+
+**Step 2: a diagonal $\Sigma$ collapses to a vector of standard deviations.** If $\Sigma=\mathrm{diag}(\sigma_1^2,\dots,\sigma_M^2)$, the density factors into one bell curve per latent dimension, each with its own $\sigma_m$. Writing $\sigma=(\sigma_1,\dots,\sigma_M)$ is a shorthand for this diagonal case. The density's value is identical in both notations.
+
+**Step 3: a full $\Sigma$ changes the shape, not just the number.** If the off-diagonal entries are nonzero, the bell is stretched along correlated directions and tilted. Two 2-D examples with the same spread in each coordinate:
+
+- $\sigma=(1,1)$: contours are circles, because the coordinates are uncorrelated.
+- $\Sigma=\begin{pmatrix}1 & 0.5\\ 0.5 & 1\end{pmatrix}$: contours are tilted ellipses, because the coordinates rise and fall together.
+
+**Why the VAE uses the vector.** The encoder's $\Sigma$ is diagonal, so the reparameterization $z=\mu+\sigma\odot\eta$ with an elementwise product works and needs only $\sigma$. A correlated $\Sigma$ would need a matrix $L$ with $LL^\top=\Sigma$, and the sample would be $z=\mu+L\eta$.
+
+**So the answer is no, not because the output changed.** The notation changes because the VAE's covariance is diagonal. When it is, $\sigma$ and $\Sigma$ describe the same density, and the density returns the same value. Only a non-diagonal $\Sigma$ gives a different output, and the VAE here does not use one.
+:::
+
 ### Tutorial question 1: Why decompose $p(x)$ at all? {#sec-w7-tq1}
 
 *Why not learn the distribution of the data directly? Why introduce a hidden variable and write $p(x)$ as an integral?*
@@ -1046,6 +1128,12 @@ p(x) &= \sum_{k=1}^K p(x, z=k) = \sum_{k=1}^K p(x\mid z=k)\,p(z=k) \\
 $$
 
 This is a **[mixture model](https://en.wikipedia.org/wiki/Mixture_model)**. Each component is a single bell curve, but the sum can have several peaks.
+
+**Taking the equation apart.**
+
+- $\lambda_k$: the probability of choosing component $k$. The $\lambda_k$ are positive and sum to 1.
+- $\mathcal N(x;\mu_k,\Sigma_k)$: the bell curve for component $k$, centred at $\mu_k$ with covariance $\Sigma_k$.
+- $\sum_{k=1}^K \lambda_k\,\mathcal N(\cdot)$: the weighted sum. Each bell is scaled by how often its component is chosen, so the total still integrates to 1.
 
 ```{=html}
 <div style="overflow-x:auto; margin:1.5rem 0;">
@@ -1076,11 +1164,37 @@ This is a **[mixture model](https://en.wikipedia.org/wiki/Mixture_model)**. Each
 
 $$p(z) = \mathcal N(z; 0, I), \qquad p(x\mid z,\theta) = \mathcal N\big(x;\ f(z,\theta),\ \sigma^2 I\big).$$
 
+**Taking the equations apart.**
+
+- $p(z)=\mathcal N(z;0,I)$: the prior over the code. $0$ is its mean and $I$ its covariance, so each latent dimension is an independent standard normal.
+- $p(x\mid z,\theta)$: the likelihood, the density of the data point $x$ once the code $z$ is fixed. The weights $\theta$ are the only parameters of this model.
+- $f(z,\theta)$: the decoder network. It maps the code to a point in data space, and that point is the mean of the Gaussian over $x$.
+- $\sigma^2 I$: the covariance of that Gaussian, the same variance in every direction. It is the round shape of the blob.
+
 (This $\sigma^2$ is a fixed noise variance in data space, not the encoder's $\sigma$.) The tutorial's picture uses a 1-dimensional $z$ and 2-dimensional $x$. As $z$ varies, the mean $f(z,\theta)$ traces a curve through the plane, and each $z$ contributes a small round Gaussian blob centred on that curve. Integrating over $z$ smears the blobs along the whole curve, giving a curved, banana-shaped density for $x$ that no single Gaussian could represent. This is the mixture idea with infinitely many components, one per value of $z$.
+
+::: {.callout-tip collapse="true" .clarification title="Question: Why would each $z$ give a small round blob centred on the curve? Give an example."}
+**The core idea.** Real data often lies along a curve rather than filling a cloud. A hidden number $z$ slides a point along that curve, and what we observe is the point plus a little noise. The model fixes two things: $z$ sets where on the curve we are, and the noise is equally large in every direction, so each value of $z$ gives a small round blob. Blobs for all values of $z$, smeared along the curve, produce a banana. A single Gaussian is a single round blob, so it cannot follow a bend. Many blobs placed along a curve can.
+
+**A real-life example.** Drive a car along a bent road and record the GPS position. Let $z$ be how far along the road we are, which we never observe directly. The road's shape gives the curve $f(z,\theta)$: the road point at distance $z$. The GPS reading $x$ is that road point plus error. The error is roughly as large in one direction as in another, so the readings for one fixed $z$ form a small round cloud. Over the whole trip, these clouds line up along the bend, so the readings form a banana, not a ball. The model says: one hidden distance explains a curved scatter of points.
+
+**A numeric check.** Take $f(z)=(z,\,z^2)$, a parabola standing in for the road, and $\sigma=0.5$, so each blob is $\mathcal N(x;\,f(z),\,0.25\,I)$. A reading that sits exactly on the curve is at the centre of its blob. A reading one unit away from the curve is at least one unit from every centre, so each blob gives it at most $\exp(-1/(2\cdot0.25)) = \exp(-2)\approx0.14$ of its peak height. Readings near the road get high density and readings far off it get low density, which is what lets the model tell them apart.
+
+**Why the round shape is a choice.** The curve itself, $f(z,\theta)$, is learned by the network. The round noise is an assumption we make: the measurement error has no preferred direction and a fixed size $\sigma^2$. If the errors were stretched along the road, we would need a different covariance, and the model would have to learn it.
+:::
+
+::: {.callout-note .section-takeaways}
+**Key takeaways.**
+
+- The model writes $p(x)$ as an integral over a hidden $z$. Two simple pieces, a Gaussian prior and a Gaussian likelihood, combine into a complicated density.
+- A network that maps $z$ to the centre of the blob lets simple round noise trace a curve, which a single Gaussian cannot do.
+:::
 
 ### Tutorial question 2: Why is the evidence intractable? {#sec-w7-tq2}
 
 *For the nonlinear model above, can we compute $p(x\mid\theta)$?*
+
+**The symbols.** $x$ is the **data**: a photo's 784 pixels for MNIST, or a point in the plane in the tutorial's picture. $z$ is the **latent code**, a hidden number we never observe, drawn from the **prior** $\mathcal N(0,I)$. $\theta$ holds the **decoder** weights, which map $z$ to the centre of the blob that $x$ comes from. The integral adds up every code $z$ that could have produced $x$.
 
 The evidence integrates the decoder over every value of $z$:
 
@@ -1091,7 +1205,49 @@ p(x\mid\theta) &= \int p(x,z\mid\theta)\,dz = \int p(x\mid z,\theta)\,p(z)\,dz \
 \end{aligned}
 $$
 
-The Gaussian in $x$ has mean $f(z,\theta)$, a neural network of $z$, so this integral has **no closed form**. If $f$ were a linear function of $z$, the integrand would be a product of Gaussians in which $z$ appears linearly, and the integral could be done exactly. The nonlinearity that makes the model expressive is the same thing that makes its evidence impossible to compute in closed form. And as in Week 6, a numerical grid over $z$ becomes hopeless once $z$ has more than a few dimensions.
+**Reading the equation.**
+
+- $p(x\mid\theta)$: the **evidence**, the probability of the data with $z$ averaged out.
+- $\int\cdots\,dz$: add up over every possible code.
+- $\mathcal N(x;\,f(z,\theta),\,\sigma^2 I)$: the **likelihood**, a blob centred on the decoder's output for that code.
+- $\mathcal N(z;0,I)$: the **prior**, which gives codes near the origin more weight.
+
+**Why it is intractable.** The decoder $f$ is a neural network, so $f(z,\theta)$ is a **nonlinear** function of $z$. That means the integral has **no closed form**: no standard formula gives its value. If $f$ were linear, the exponent would be a quadratic in $z$ and the integral could be done exactly. The nonlinearity that makes the model expressive is the same thing that blocks the closed form.
+
+::: {.callout-tip collapse="true" .clarification title="Question: Why does a linear decoder give a closed form, but a neural network does not?"}
+
+**Step 1: the two blobs in the integrand.** The likelihood term $\mathcal N(x; f(z,\theta), \sigma^2 I)$ is a Gaussian centred on $f(z,\theta)$. Up to a constant, its formula is
+$$
+\exp\left(-\frac{1}{2\sigma^2}\,\|x-f(z,\theta)\|^2\right).
+$$
+The exponent is the squared distance between the data $x$ and the decoder output, so a code $z$ whose output lands far from $x$ gets a small value. The prior $\mathcal N(z;0,I)$ contributes $\exp(-\tfrac12 z^\top z)$.
+
+**Step 2: multiplying blobs adds exponents.** The integrand is the product of the likelihood and the prior. Since $e^{a}e^{b}=e^{a+b}$, the integrand is $e^{E(z)}$, where
+$$
+E(z) = -\frac{1}{2\sigma^2}\,\|x-f(z,\theta)\|^2 - \frac12 z^\top z.
+$$
+Whether the integral can be done in closed form depends on what $f$ does to $z$ inside $E(z)$.
+
+**Step 3: a linear decoder keeps $E(z)$ quadratic.** Suppose $f(z,\theta)=Wz+b$. Expanding $\|x-(Wz+b)\|^2$ gives terms in $z^\top z$, in $z$, and constants. The prior term is also quadratic in $z$, and a sum of quadratics is a quadratic. So
+$$
+E(z) = -\tfrac12\, z^\top A z + c^\top z + C,
+$$
+where $A = I + W^\top W/\sigma^2$, $c = W^\top(x-b)/\sigma^2$, and $C$ is a constant. The matrix $A$ depends on $W$ and $\sigma$, not on $x$. An integral of $e^{\text{quadratic}}$ is the classic Gaussian integral, which has a known closed form. So with a linear decoder the evidence can be computed exactly.
+
+**Step 4: a neural network makes $E(z)$ non-quadratic.** Now $f(z,\theta)$ passes $z$ through nonlinear activations such as $\tanh$ or ReLU. The term $\|x-f(z,\theta)\|^2$ is then no longer a quadratic in $z$. With $\tanh$ it contains squared $\tanh$ terms. With ReLU it is piecewise quadratic, with a different formula on each side of each kink. No standard formula gives the integral of $e^{E(z)}$ for this kind of $E(z)$, so the closed form is gone.
+
+This is why the evidence is intractable. We can evaluate the integrand at any single $z$, but we cannot add up the whole curve in closed form.
+
+:::
+
+A **grid** over $z$ can approximate the integral, but it needs $K^M$ evaluations for $M$ dimensions. With $K=100$, that is $10^{2}$ for $M=1$, $10^{6}$ for $M=3$, and $10^{20}$ for $M=10$. So we use approximate methods instead, such as **variational inference** and **MCMC**.
+
+::: {.callout-note .section-takeaways}
+**Key takeaways.**
+
+- The **evidence** $p(x\mid\theta)$ averages over every hidden code. Because the decoder is **nonlinear**, that average has **no closed form**.
+- A **grid** over $z$ needs $K^M$ evaluations, so it fails once the **latent space** has more than a few dimensions. We need an approximation.
+:::
 
 ### Tutorial question 3: Why can't we just maximize the likelihood? {#sec-w7-tq3}
 
@@ -1106,9 +1262,23 @@ $$
 \end{aligned}
 $$
 
+**Taking the equation apart.**
+
+- $\hat\theta$: the decoder weights that best explain the training set. $\arg\max_\theta$ returns the $\theta$ that makes the bracketed quantity largest, rather than its maximum value.
+- $\sum_{i=1}^I$: a sum over the $I$ training points. Treating the points as independent is what lets their log-likelihoods add.
+- $\log p(x_i\mid\theta)$: the log-evidence of point $i$. The log turns products over independent pieces into sums and does not move the maximizer.
+- $\int p(x_i,z_i\mid\theta)\,dz_i$: the evidence of point $i$, with its own hidden code $z_i$ averaged out. This is the intractable part.
+
 Every term contains the intractable integral of Tutorial question 2. We cannot write the objective in closed form, so we cannot simply build a network that computes it and let [PyTorch](https://en.wikipedia.org/wiki/PyTorch) differentiate and optimize it.
 
 **The tutorial's answer:** instead, maximize a tractable **lower bound** on each $\log p(x_i\mid\theta)$, the ELBO. Pushing the lower bound up pushes the log-likelihood up with it (or at least never above it). The next two questions build that bound.
+
+::: {.callout-note .section-takeaways}
+**Key takeaways.**
+
+- Maximizing $\log p(x\mid\theta)$ directly needs the intractable integral, so we cannot write a standard loss and let autograd optimize it.
+- Instead we optimize a tractable lower bound, the ELBO, and pushing the bound up also pushes the log-likelihood up.
+:::
 
 ### Tutorial question 4: How does Jensen's inequality give the ELBO? {#sec-w7-tq4}
 
@@ -1121,6 +1291,13 @@ $$g\big(\mathbb{E}[y]\big) \ \ge\ \mathbb{E}\big[g(y)\big].$$
 This is Week 6's statement for convex functions (@sec-jensen in Week 6), turned upside down: if $g$ is concave then $-g$ is convex. The logarithm is concave, so
 
 $$\log\big(\mathbb{E}[y]\big)\ \ge\ \mathbb{E}\big[\log y\big], \qquad\text{that is,}\qquad \log\left[\int p(y)\,y\,dy\right] \ \ge\ \int p(y)\log y\,dy.$$
+
+**Taking the equation apart.**
+
+- $g(\mathbb E[y])$: the function applied to the average of $y$. In the picture, this is a point on the curve.
+- $\mathbb E[g(y)]$: the average of the function's values. In the picture, this is the midpoint of a chord.
+- $\ge$: for a concave $g$ the first quantity is never smaller, so the curve lies above its chords.
+- $\log\big[\int p(y)\,y\,dy\big]$ and $\int p(y)\log y\,dy$: the same two quantities written with an integral. The expectation of $y$ is $\int p(y)\,y\,dy$.
 
 The log of an average is at least the average of the logs. In the tutorial's picture with two equally likely values $y_1$ and $y_2$, the point $(\mathbb{E}[y], \log\mathbb{E}[y])$ is on the curve, while $(\mathbb{E}[y],\mathbb{E}[\log y])$ is the midpoint of the chord, which lies below it.
 
@@ -1137,7 +1314,21 @@ The integral on the right is an expectation under $q$ of the quantity $y = p(x,z
 
 $$\log\left[\int q(z)\,\frac{p(x,z\mid\theta)}{q(z)}\,dz\right] \ \ge\ \underbrace{\int q(z)\,\log\left[\frac{p(x,z\mid\theta)}{q(z)}\right]dz}_{\text{ELBO}}.$$
 
+**Taking the bound apart.**
+
+- $\int q(z)\,\big[\cdots\big]\,dz$: an average under $q$. The weights $q(z)$ say how much each code counts.
+- $\dfrac{p(x,z\mid\theta)}{q(z)}$: the quantity $y$ from Jensen's inequality. Multiplying and dividing by $q$ left the integral's value unchanged, but it made the integrand an average under $q$.
+- The outer $\log$ on the left: the concave function. The inner $\log$ on the right: applied to each $y$ separately. Moving the $\log$ inside the average is what makes the right side computable.
+- $\underbrace{\cdots}_{\text{ELBO}}$: the lower bound, an average of $\log p(x,z\mid\theta) - \log q(z)$ under $q$. We can evaluate both logs for any $z$ we sample.
+
 The right-hand side is the evidence lower bound, the same $\mathbb{E}_q[\log p(x,z) - \log q(z)]$ as in @sec-w7-elbo. It holds **for every choice of $q(z)$**. Different choices give different bounds, some tighter than others, which is what the next question measures.
+
+::: {.callout-note .section-takeaways}
+**Key takeaways.**
+
+- Jensen's inequality says the log of an average is at least the average of the logs. Applied to the integral, it turns the log of a hard sum into an average under any $q(z)$ that we can evaluate.
+- The resulting bound holds for every choice of $q$, so the choice of $q$ only affects how tight the bound is.
+:::
 
 ### Tutorial question 5: When is the bound tight? {#sec-w7-tq5}
 
@@ -1156,9 +1347,23 @@ $$
 
 In the third line, $\log p(x\mid\theta)$ does not depend on $z$ and $q$ integrates to 1, so the first integral is just $\log p(x\mid\theta)$. The second integral is minus the KL divergence.
 
+**Taking the derivation apart, line by line.**
+
+- Line 1: the ELBO as an average under $q$ of $\log$ of joint over $q$.
+- Line 2: the joint is replaced by posterior times evidence, $p(x,z\mid\theta)=p(z\mid x,\theta)\,p(x\mid\theta)$. Nothing has been approximated yet.
+- Line 3: the $\log$ of a product becomes a sum. The $\log p(x\mid\theta)$ piece does not depend on $z$, so it leaves the integral and multiplies $\int q\,dz=1$.
+- Line 4: the leftover integral $\int q\log\big(p(z\mid x,\theta)/q\big)\,dz$ is, by definition, minus the KL divergence from $q$ to the posterior.
+
 So **ELBO = log-likelihood minus KL divergence**. Since KL $\ge 0$, the ELBO is a lower bound on $\log p(x\mid\theta)$, and it is **tight exactly when $q(z\mid\phi) = p(z\mid x,\theta)$**, the true posterior. This is the lecture's identity from @sec-w7-why-lb, reached by a different road: the lecture started from the KL and found the ELBO, the tutorial started from Jensen and found the KL as the size of the gap.
 
 The two derivations also agree on the equality condition. Jensen's inequality is an equality when the quantity inside is constant, here when $p(x,z\mid\theta)/q(z)$ does not depend on $z$, that is, when $q(z)\propto p(x,z\mid\theta)$. Normalizing, that is exactly $q(z) = p(z\mid x,\theta)$.
+
+::: {.callout-note .section-takeaways}
+**Key takeaways.**
+
+- The gap between the ELBO and $\log p(x\mid\theta)$ is exactly the KL divergence between $q$ and the true posterior.
+- The bound is tight only when $q$ equals the posterior, so how well $q$ fits the posterior decides how much the bound loses.
+:::
 
 ### Tutorial question 6: Which variational distribution? {#sec-w7-tq6}
 
@@ -1167,6 +1372,12 @@ The two derivations also agree on the equality condition. Jensen's inequality is
 For the nonlinear model we cannot write the posterior down: it is $p(x,z\mid\theta)/p(x\mid\theta)$, and the denominator is the intractable evidence. So we choose a simple parametric family instead, here a normal distribution:
 
 $$q(z\mid\phi) = \mathcal N(z;\mu,\Sigma), \qquad \phi=\{\mu,\Sigma\}.$$
+
+**Taking the equation apart.**
+
+- $q(z\mid\phi)$: the approximation. It is a whole family of distributions, and $\phi$ picks one member.
+- $\mathcal N(z;\mu,\Sigma)$: a Gaussian with mean $\mu$ (its centre) and covariance $\Sigma$ (its width and tilt).
+- $\phi=\{\mu,\Sigma\}$: the variational parameters. Optimizing the ELBO means adjusting these numbers.
 
 A Gaussian cannot match every posterior. The tutorial's picture shows a skewed posterior with a long tail on one side, and a Gaussian approximation that captures its main peak but not its shape. Even so, some choices of $\mu$ and $\Sigma$ fit much better than others, and maximizing the ELBO picks the best one in KL.
 
@@ -1179,13 +1390,34 @@ q(z\mid x,\phi) &= \mathcal N\big(z;\ \mu,\ \mathrm{diag}(\sigma^2)\big), \\
 \end{aligned}
 $$
 
+**Taking the encoder equations apart.**
+
+- $q(z\mid x,\phi)$: the same family as before, but now its parameters depend on the input $x$.
+- $\mathcal N\big(z;\mu,\mathrm{diag}(\sigma^2)\big)$: a Gaussian whose covariance has zeros off the diagonal, so the latent dimensions are treated as independent.
+- $\mu=g_\mu(x,\phi)$: the first output layer of the encoder, a mean for each latent dimension.
+- $\log\sigma^2=g_{\log\sigma^2}(x,\phi)$: the second output layer. The network predicts the log of the variance, which can be any real number, and exponentiating it gives a variance that is always positive.
+
 Here $\sigma^2 = (\sigma_1^2,\dots,\sigma_M^2)$ is a vector with one variance per latent dimension, and $\mathrm{diag}(\sigma^2)$ is the [diagonal matrix](https://en.wikipedia.org/wiki/Diagonal_matrix) with those variances on its diagonal. In the code, $g_\mu$ and $g_{\log\sigma^2}$ are the two output layers `fc_mu` and `fc_logvar` (@sec-w7-code-arch).
 
 **The decoder.** For MNIST the tutorial replaces the Gaussian likelihood of Tutorial question 1 by a Bernoulli probability per pixel, predicted by a decoder network $f$:
 
 $$p(x\mid z,\theta) = \prod_{d=1}^{784} p_d^{\,x_d}\,(1-p_d)^{1-x_d}, \qquad \mathbf p = f(z,\theta)\in(0,1)^{784}.$$
 
+**Taking the equation apart.**
+
+- $\prod_{d=1}^{784}$: a product over the 784 pixels. The pixels are independent once $z$ is fixed, so their probabilities multiply.
+- $p_d^{\,x_d}$: if the pixel is on ($x_d=1$) this is $p_d$; if it is off ($x_d=0$) it is $p_d^0=1$ and drops out.
+- $(1-p_d)^{1-x_d}$: the mirror image. It contributes $1-p_d$ when the pixel is off and 1 when it is on.
+- $\mathbf p=f(z,\theta)\in(0,1)^{784}$: the decoder's output, one probability per pixel.
+
 Pixel $d$ is "on" ($x_d = 1$) with probability $p_d$ and "off" with probability $1-p_d$, independently across pixels given $z$. The last layer of the decoder is a [sigmoid](https://en.wikipedia.org/wiki/Sigmoid_function), $1/(1+e^{-a})$, which squashes any real number into $(0,1)$ so that each $p_d$ is a valid probability. In the code this is the `Decoder` class ending in `torch.sigmoid`.
+
+::: {.callout-note .section-takeaways}
+**Key takeaways.**
+
+- The tutorial's concrete choices are a Gaussian $q(z\mid x)$ whose mean and variance come from an encoder, and a decoder that outputs pixel probabilities.
+- These choices turn the reconstruction term into a binary cross-entropy and make the KL term closed form.
+:::
 
 ### Tutorial question 7: What are the two terms of the loss? {#sec-w7-tut-terms}
 
@@ -1200,6 +1432,12 @@ $$
 \end{aligned}
 $$
 
+**Taking the ELBO apart.**
+
+- $\int q(z\mid x,\phi)\,\cdots\,dz$: an average over codes drawn from the encoder's distribution.
+- $\log p(x\mid z,\theta)$: how well the decoder explains $x$ from one code. Larger means better.
+- $-\mathrm{KL}\big(q(z\mid x,\phi)\,\|\,p(z)\big)$: the penalty. Its minus sign means that the more the encoder's codes drift from the prior, the less the ELBO is worth.
+
 The first term asks that $x$ have high probability under the decoder, for codes drawn from the encoder. The second asks that the encoder's distribution stay close to the prior $p(z)$.
 
 #### The first term: reconstruction as binary cross-entropy {#sec-w7-tut-bce}
@@ -1212,6 +1450,13 @@ $$
 &= -\mathrm{BCE}(\mathbf p, x).
 \end{aligned}
 $$
+
+**Taking the equation apart.**
+
+- $x_d\log p_d$: this pixel's contribution when it is on. The term is active only when $x_d=1$.
+- $(1-x_d)\log(1-p_d)$: the contribution when it is off. Exactly one of the two terms is active for each pixel.
+- $\sum_{d=1}^{784}$: the sum over pixels. The product of the pixel probabilities has become a sum of logs.
+- $-\mathrm{BCE}(\mathbf p, x)$: the negative cross-entropy. Maximizing the log-likelihood is the same as minimizing BCE.
 
 Taking the log turns the product over pixels into a sum. Each summand is the log-probability of one pixel's value, and minus their sum is the **binary [cross-entropy](https://en.wikipedia.org/wiki/Cross-entropy)** (BCE) between the predicted probabilities $\mathbf p$ and the image $x$.
 
@@ -1241,6 +1486,14 @@ With the diagonal covariance $\Sigma = \mathrm{diag}(\sigma^2)$ used in the code
 $$\mathrm{KL} = \frac12\sum_{m=1}^M\Big(\sigma_m^2 + \mu_m^2 - 1 - \log\sigma_m^2\Big).$$
 :::
 
+**Taking the equation apart.**
+
+- $\tfrac12$: a constant from the Gaussian density's normalization. It halves the whole sum.
+- $\sigma_m^2$: the encoder's variance in dimension $m$. It is penalized because it grows the codes' spread, and the penalty is smallest at 1.
+- $\mu_m^2$: the squared mean in dimension $m$. It pulls codes toward the origin.
+- $-1$: a constant. Together with the terms above, it makes the sum zero exactly when $\mu_m=0$ and $\sigma_m^2=1$.
+- $-\log\sigma_m^2$: penalizes a variance that is too small. As $\sigma_m^2\to0$ this term grows without bound, so the encoder cannot collapse to a point.
+
 Each latent dimension contributes separately. A dimension contributes zero exactly when $\mu_m = 0$ and $\sigma_m^2 = 1$, that is, when the encoder's distribution matches the prior in that dimension. The function $\sigma^2 - 1 - \log\sigma^2$ is never negative and is zero only at $\sigma^2 = 1$, and $\mu_m^2$ penalizes codes away from the origin.
 
 ::: {.callout-note}
@@ -1261,6 +1514,13 @@ Of this, $\tfrac12\mu^2 = 0.5$ comes from the mean sitting one unit from the ori
 
 The KL term is fully differentiable in $\mu$ and $\log\sigma^2$, so **this term needs no sampling**. Only the reconstruction term needs the sample $z^*$, and therefore the reparameterization trick.
 
+::: {.callout-note .section-takeaways}
+**Key takeaways.**
+
+- The loss has two terms: reconstruction, which asks how well the decoder explains $x$ from a sampled $z$, and a KL term that pulls the codes toward the prior.
+- The KL term is closed form and needs no sampling, so only the reconstruction term is stochastic.
+:::
+
 ### Tutorial question 8: How do gradients get through the sample? {#sec-w7-tq8}
 
 *The reconstruction term uses a random sample $z^*\sim q(z\mid x,\phi)$. How does the gradient with respect to the encoder's parameters $\phi$ get past it?*
@@ -1268,6 +1528,13 @@ The KL term is fully differentiable in $\mu$ and $\log\sigma^2$, so **this term 
 We cannot backpropagate through "sample $z^*\sim q$". So, as in @sec-w7-reparam, we sample standard normal noise and transform it deterministically:
 
 $$z^* = \mu + \sigma\odot\epsilon^*, \qquad \sigma = \exp\!\big(\tfrac12\log\sigma^2\big), \qquad \epsilon^*\sim\mathcal N(0,I).$$
+
+**Taking the reparameterization apart.**
+
+- $z^*=\mu+\sigma\odot\epsilon^*$: shift the noise by $\mu$ and scale it by $\sigma$. The result has the right distribution, but it is a differentiable function of $\mu$ and $\sigma$.
+- $\mu$: the encoder's mean, which we differentiate with respect to.
+- $\sigma\odot\epsilon^*$: the elementwise product. $\odot$ multiplies each latent dimension's noise by its own standard deviation.
+- $\epsilon^*\sim\mathcal N(0,I)$: the randomness. It does not depend on $\phi$, so the gradient can pass around it.
 
 The encoder outputs $\log\sigma^2$; halving it and exponentiating gives the standard deviation $\sigma$. The noise $\epsilon^*$ enters from outside the gradient path, and the gradients now flow from the loss back through $z^*$ to $\mu$, $\log\sigma^2$, and the encoder's weights $\phi$. This is the pipeline of Figure 4.
 
@@ -1277,12 +1544,26 @@ Putting both terms together, the training loss is
 $$\ell = \mathrm{BCE} + \beta\cdot\mathrm{KL} = -\mathrm{ELBO} \qquad (\beta = 1).$$
 :::
 
+**Taking the loss apart.**
+
+- $\ell$: the quantity we minimize.
+- $\mathrm{BCE}$: the reconstruction term, the negative log-likelihood estimated from one sample.
+- $\beta\cdot\mathrm{KL}$: the regularizer, with a weight $\beta$ on it.
+- $=-\mathrm{ELBO}$: minimizing $\ell$ is the same as maximizing the ELBO. The minus sign is there only because optimizers minimize.
+
 With $\beta=1$ the loss is exactly the negative ELBO, estimated with one sample. The weight $\beta$ is a knob the code exposes as `variational_beta` (@sec-w7-code-sample); with $\beta\ne1$ the loss is no longer exactly the negative ELBO.
 
 **Takeaways from the tutorial.**
 
 - **Training: loss = −ELBO.** Binary cross-entropy (the first term) plus $\beta$ times the closed-form KL (the second term), trained end to end via reparameterization.
 - **Inference: the decoder is a generator.** Sample $z$ from $\mathcal N(0,I)$ and decode it to create new digits; nearby codes give similar images.
+
+::: {.callout-note .section-takeaways}
+**Key takeaways.**
+
+- Sampling $z$ blocks gradients, so we write $z=\mu+\sigma\odot\eta$ with $\eta\sim\mathcal N(0,I)$ and differentiate through $\mu$ and $\sigma$.
+- The noise $\eta$ does not depend on the encoder's weights, so gradients reach the encoder while the sampled $z$ stays a valid draw.
+:::
 
 ::: {.callout-tip collapse="true" .clarification title="Recap: The VAE as a latent variable model"}
 What the symbols stand for:
@@ -1336,6 +1617,24 @@ Dimension 2 dominates the KL: its small variance and its mean one unit from the 
 ## Code walk-through: the VAE notebook {#sec-w7-code}
 
 The tutorial demonstrates a VAE on MNIST with the notebook `variational_autoencoder.ipynb`. This part goes through it cell by cell, connecting each line to the equations above. The notebook's own prose uses the lecture's notation, $q_\phi(z\mid x_i)$ and $p_\theta(x\mid z)$, so no translation is needed here. The excerpts below trim comments, print statements, and plotting lines; otherwise they match the notebook.
+
+::: {.callout-tip collapse="true" .clarification title="Question: Where does the variance in $z$ come from, and how is it different from feeding the encoder output straight to the decoder?"}
+**The encoder outputs a distribution, not a single code.** A plain autoencoder passes the encoder's output straight to the decoder, so each image has one fixed code. The VAE's encoder outputs $\mu(x)$ and $\log\sigma^2(x)$, and the code is a random draw $z=\mu+\sigma\odot\eta$ with $\eta\sim\mathcal N(0,I)$. The same image can therefore produce a different $z$ on each pass, and the spread of those codes is $\sigma^2$ in each dimension.
+
+**The spread is learned, not added.** The noise is not an arbitrary term bolted onto the network. Training learns $\mu$ and $\sigma$ for each image, and two terms of the loss set the spread:
+
+- The reconstruction term favors small $\sigma$, because a precise code gives the decoder more information.
+- The KL term favors $\sigma\approx1$ and $\mu\approx0$, which matches the prior, and it stops $\sigma$ from collapsing to zero.
+
+The balance between them decides how spread out each image's codes are.
+
+**Two details in the code.**
+
+- **Training** draws one sample per image, and the reparameterization trick lets gradients pass through that draw (the loss in @sec-w7-code-loss and the training loop below).
+- **Evaluation** uses $z=\mu$ rather than a sample, so the test loss is deterministic. See @sec-w7-code-test.
+
+**A correction to the wording.** The variational part of a VAE is the use of $q_\phi(z\mid x)$ to approximate the posterior, not the variance itself. The randomness in $z$ follows from that choice, and its size is learned.
+:::
 
 ### Parameter settings {#sec-w7-code-settings}
 
