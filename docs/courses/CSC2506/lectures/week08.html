@@ -71,7 +71,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <script src="../site_libs/quarto-search/fuse.min.js"></script>
 <script src="../site_libs/quarto-search/quarto-search.js"></script>
 <meta name="quarto:offset" content="../">
-<link href="../glossary.html" rel="next">
+<link href="../lectures/week09.html" rel="next">
 <link href="../lectures/midterm-practice.html" rel="prev">
 <script src="../site_libs/quarto-html/quarto.js" type="module"></script>
 <script src="../site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
@@ -286,6 +286,11 @@ window.Quarto = {
 </li>
         <li class="sidebar-item">
   <div class="sidebar-item-container"> 
+  <a href="../lectures/week09.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Week 9: Bayesian Linear Regression and Gaussian Processes</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
   <a href="../glossary.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Glossary</span></a>
   </div>
 </li>
@@ -306,6 +311,7 @@ window.Quarto = {
   <li><a href="#sec-w8-latent" id="toc-sec-w8-latent" class="nav-link" data-scroll-target="#sec-w8-latent">The mixture of Gaussians as a latent variable model</a></li>
   <li><a href="#sec-w8-resp" id="toc-sec-w8-resp" class="nav-link" data-scroll-target="#sec-w8-resp">Inference: responsibilities</a></li>
   <li><a href="#sec-w8-lik" id="toc-sec-w8-lik" class="nav-link" data-scroll-target="#sec-w8-lik">The likelihood function</a></li>
+  <li><a href="#sec-w8-why-diff" id="toc-sec-w8-why-diff" class="nav-link" data-scroll-target="#sec-w8-why-diff">Why we can differentiate here but could not in Week 7</a></li>
   <li><a href="#sec-w8-mle" id="toc-sec-w8-mle" class="nav-link" data-scroll-target="#sec-w8-mle">Maximum likelihood</a>
   <ul class="collapse">
   <li><a href="#sec-w8-mle-mu" id="toc-sec-w8-mle-mu" class="nav-link" data-scroll-target="#sec-w8-mle-mu">The means</a></li>
@@ -466,6 +472,10 @@ Note
 <li>At <span class="math inline">x=3</span>: the heights are <span class="math inline">0.3989\,e^{-4.5}\approx0.0044</span> and <span class="math inline">0.3989</span>, so <span class="math inline">p(3)\approx0.0013 + 0.2792 = 0.2806</span>.</li>
 </ul>
 <p>The density is highest near the mean of the heavier component, and the lighter component still adds its own bump near 0.</p>
+<p><strong>What <span class="math inline">x_n</span> is.</strong> The observed value for one crab: its forehead-width-to-body-length ratio. It is a single number, the data, not a distribution. The crab example uses the ratio, not forehead width alone.</p>
+<p><strong>What <span class="math inline">p(x_n)</span> is.</strong> The mixture density evaluated at that number. It is a height, not a probability. For the crab with ratio <span class="math inline">x = 0.640</span> in Figure 1, the two weighted component heights are <span class="math inline">\pi_1\,\mathcal N(0.640\mid\mu_1,\sigma^2)\approx14.08</span> and <span class="math inline">\pi_2\,\mathcal N(0.640\mid\mu_2,\sigma^2)\approx7.77</span>, so <span class="math inline">p(x_n) = 14.08 + 7.77 = 21.85</span> (the worked example in <a href="#sec-w8-resp" class="quarto-xref"><span>Inference: responsibilities</span></a>). The sum runs over the <span class="math inline">K</span> components at one point, not over observations.</p>
+<p><strong>The generative story.</strong> A crab is not a sum of distributions. It comes from exactly one sub-species, the hidden label <span class="math inline">z_n</span>, which is picked with probability <span class="math inline">\pi_k</span>. Its ratio is then drawn from that sub-species’ Gaussian. Averaging over the unknown label gives <span class="math inline">p(x)</span>, which describes the population’s distribution of ratios. It does not describe a single observation as a blend.</p>
+<p><strong>Reading the sum in <a href="#sec-w8-why-diff" class="quarto-xref"><span>Why we can differentiate here but could not in Week 7</span></a>.</strong> The bottom panel of Figure 3 shows <span class="math inline">p(x_n)</span> with three terms because the label is unknown: the density of one observation is written as a sum over the possible labels. It does not mean one crab is three distributions added together.</p>
 </div>
 </div>
 </div>
@@ -722,21 +732,99 @@ Note
 </div>
 </div>
 </section>
+<section id="sec-w8-why-diff" class="level2">
+<h2 class="anchored" data-anchor-id="sec-w8-why-diff">Why we can differentiate here but could not in Week 7</h2>
+<p>Week 7 hit a wall before any calculus. The evidence <span class="math inline">p(x)=\int p(x,z)\,dz</span> (<a href="../lectures/week07.html#sec-w7-recap">Week 7 recap</a>) sums over every value of the latent variables, and with many latent variables that sum has exponentially many terms. Without the evidence we cannot evaluate the log-likelihood, so there is no function to differentiate, and maximum likelihood was out of reach. The ELBO was the workaround: it avoids the evidence by optimizing a lower bound.</p>
+<p>Here the latent variable is one label per point, <span class="math inline">z_n\in\{1,\dots,K\}</span>, so the evidence of one point is a sum of only <span class="math inline">K</span> terms, <span class="math inline">p(x_n)=\sum_{k=1}^K \pi_k\,\mathcal N_D(x_n\mid\mu_k,\Sigma_k)</span>. The log-likelihood is therefore a finite, computable function of the parameters, and it can be differentiated term by term. Figure 3 puts the two sums side by side, and the next section differentiates this log-likelihood.</p>
+<div style="overflow-x:auto; margin:1.5rem 0;">
+<svg viewbox="0 0 600 450" width="100%" style="max-width:600px;display:block;margin:auto;font-family:Helvetica,'Helvetica Neue',Arial,sans-serif;" role="img" aria-label="Two sum trees. Top, Week 7: a root with branches to a leaf for every full setting of M latent variables, giving 2 to the power M terms. Bottom, Week 8: one root with three leaves, one per label value k equal to 1, 2, 3, giving K terms.">
+  <text x="300" y="32" text-anchor="middle" font-size="24" font-weight="600" fill="#333">Week 7: one term per configuration</text>
+  <line x1="300" y1="95" x2="165" y2="111" stroke="#888" stroke-width="1.8"></line>
+  <line x1="300" y1="95" x2="435" y2="111" stroke="#888" stroke-width="1.8"></line>
+  <line x1="165" y1="159" x2="110" y2="181" stroke="#888" stroke-width="1.8"></line>
+  <line x1="165" y1="159" x2="220" y2="181" stroke="#888" stroke-width="1.8"></line>
+  <line x1="435" y1="159" x2="380" y2="181" stroke="#888" stroke-width="1.8"></line>
+  <line x1="435" y1="159" x2="490" y2="181" stroke="#888" stroke-width="1.8"></line>
+  <circle cx="300" cy="75" r="20" fill="#F7D9C4" stroke="#C78557" stroke-width="2"></circle>
+  <text x="300" y="81" text-anchor="middle" font-size="15" fill="#794520">p(x)</text>
+  <circle cx="165" cy="135" r="24" fill="#FAEDCB" stroke="#C7A857" stroke-width="2"></circle>
+  <text x="165" y="140" text-anchor="middle" font-size="13" fill="#796020">z1=0</text>
+  <circle cx="435" cy="135" r="24" fill="#FAEDCB" stroke="#C7A857" stroke-width="2"></circle>
+  <text x="435" y="140" text-anchor="middle" font-size="13" fill="#796020">z1=1</text>
+  <circle cx="110" cy="195" r="14" fill="#C9E4DE" stroke="#57C7AE" stroke-width="2"></circle>
+  <circle cx="220" cy="195" r="14" fill="#C9E4DE" stroke="#57C7AE" stroke-width="2"></circle>
+  <circle cx="380" cy="195" r="14" fill="#C9E4DE" stroke="#57C7AE" stroke-width="2"></circle>
+  <circle cx="490" cy="195" r="14" fill="#C9E4DE" stroke="#57C7AE" stroke-width="2"></circle>
+  <text x="300" y="203" text-anchor="middle" font-size="24" fill="#555">…</text>
+  <text x="300" y="238" text-anchor="middle" font-size="14" fill="#555">Each leaf is one full setting of the latents: 2^M leaves.</text>
+  <line x1="40" y1="256" x2="560" y2="256" stroke="#ccc" stroke-width="1.5" stroke-dasharray="6,5"></line>
+  <text x="300" y="292" text-anchor="middle" font-size="24" font-weight="600" fill="#333">Week 8: one term per label value</text>
+  <line x1="300" y1="350" x2="170" y2="378" stroke="#888" stroke-width="1.8"></line>
+  <line x1="300" y1="350" x2="300" y2="378" stroke="#888" stroke-width="1.8"></line>
+  <line x1="300" y1="350" x2="430" y2="378" stroke="#888" stroke-width="1.8"></line>
+  <circle cx="300" cy="330" r="20" fill="#F7D9C4" stroke="#C78557" stroke-width="2"></circle>
+  <text x="300" y="336" text-anchor="middle" font-size="15" fill="#794520">p(x_n)</text>
+  <circle cx="170" cy="400" r="22" fill="#C9E4DE" stroke="#57C7AE" stroke-width="2"></circle>
+  <text x="170" y="405" text-anchor="middle" font-size="13" fill="#207965">k=1</text>
+  <circle cx="300" cy="400" r="22" fill="#C9E4DE" stroke="#57C7AE" stroke-width="2"></circle>
+  <text x="300" y="405" text-anchor="middle" font-size="13" fill="#207965">k=2</text>
+  <circle cx="430" cy="400" r="22" fill="#C9E4DE" stroke="#57C7AE" stroke-width="2"></circle>
+  <text x="430" y="405" text-anchor="middle" font-size="13" fill="#207965">k=3</text>
+  <text x="300" y="442" text-anchor="middle" font-size="14" fill="#555">K = 3 terms, however many latent configurations there are</text>
+</svg>
+</div>
+<p><strong>Figure 3.</strong> The evidence as a sum over latent values, drawn two ways. Top: in Week 7 each full setting of the <span class="math inline">M</span> latent variables is a leaf, so the sum has <span class="math inline">2^M</span> terms and grows exponentially. Bottom: in Week 8 each point has one label that takes one of <span class="math inline">K</span> values, so the sum of its evidence has only <span class="math inline">K</span> terms.</p>
+<p>Being differentiable does not make the problem solvable. The derivatives involve the responsibilities <span class="math inline">\gamma_{nk}=p(z_n=k\mid x_n)</span>, which depend on all the parameters. Setting the derivatives to zero gives equations the parameters must satisfy, but they cannot be solved for the parameters directly. EM, below, is the way around that.</p>
+<div class="section-takeaways callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+Note
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p><strong>Key takeaways.</strong></p>
+<ul>
+<li>In Week 7 the evidence was a sum over exponentially many latent configurations, so the log-likelihood could not be computed and maximum likelihood was out of reach.</li>
+<li>With one label per point, the evidence is a sum of K terms, so the log-likelihood is computable and can be differentiated.</li>
+<li>Differentiable is not solvable: the stationarity equations contain the responsibilities, which depend on the parameters, which is why EM is needed.</li>
+</ul>
+</div>
+</div>
+</section>
 <section id="sec-w8-mle" class="level2">
 <h2 class="anchored" data-anchor-id="sec-w8-mle">Maximum likelihood</h2>
 <p>Even without a closed form, we can still differentiate the log-likelihood and set the derivatives to zero. This gives equations that the MLE must satisfy, and they have a clean interpretation.</p>
 <section id="sec-w8-mle-mu" class="level3">
 <h3 class="anchored" data-anchor-id="sec-w8-mle-mu">The means</h3>
-<p>Two facts do the work. First, for a symmetric matrix <span class="math inline">A</span>, the <strong><a href="https://en.wikipedia.org/wiki/Gradient">gradient</a></strong> of a quadratic form is <span class="math inline">\nabla_\mu\,(x-\mu)^\top A(x-\mu) = -2A(x-\mu)</span>, so</p>
-<p><span class="math display">\nabla_{\mu_k}\,\mathcal N_D(x_n\mid\mu_k,\Sigma_k) = \mathcal N_D(x_n\mid\mu_k,\Sigma_k)\,\Sigma_k^{-1}(x_n-\mu_k).</span></p>
-<p>Second, the derivative of <span class="math inline">\log f</span> is <span class="math inline">f'/f</span>. Only the <span class="math inline">k</span>-th term of the inner sum depends on <span class="math inline">\mu_k</span>, so</p>
+<p>Throughout this subsection, <span class="math inline">A</span> stands for the <strong>inverse covariance</strong> <span class="math inline">\Sigma_k^{-1}</span> of component <span class="math inline">k</span>. It is symmetric because <span class="math inline">\Sigma_k</span> is, and the steps below use that symmetry.</p>
+<div style="background:#C6DEF1; border-left:4px solid #5795C7; color:#205279; padding:0.75em 1em; border-radius:6px; margin:1em 0;">
+<p><strong>Reminder: why <span class="math inline">\Sigma</span> is a matrix.</strong> Week 1 treated a single Gaussian as one-dimensional, so its spread was one number, the variance <span class="math inline">\sigma^2</span>. Week 3 introduced the multivariate normal for a vector <span class="math inline">x\in\mathbb R^D</span>. Its spread is a <span class="math inline">D\times D</span> covariance matrix <span class="math inline">\Sigma</span>: the diagonal holds each coordinate’s variance, and the off-diagonal entries hold the covariances between pairs of coordinates. <span class="math inline">\Sigma</span> is symmetric (the covariance of <span class="math inline">x_i</span> with <span class="math inline">x_j</span> equals that of <span class="math inline">x_j</span> with <span class="math inline">x_i</span>) and positive definite, which makes the density well defined and <span class="math inline">\Sigma^{-1}</span> exist. The earlier weeks did not need a matrix because their observations were single numbers. In the crab example <span class="math inline">D=1</span>, so <span class="math inline">\Sigma_k</span> is just <span class="math inline">\sigma_k^2</span> and every formula reduces to the one-dimensional case.</p>
+</div>
+<p><strong>Step 1: the gradient of the quadratic form.</strong> Let <span class="math inline">q(\mu) = (x-\mu)^\top A(x-\mu)</span>. Expanding gives <span class="math inline">q = x^\top A x - 2\mu^\top A x + \mu^\top A\mu</span>. The two cross terms are equal only because <span class="math inline">A</span> is symmetric, which is how they combine into <span class="math inline">-2\mu^\top A x</span>. The first term does not depend on <span class="math inline">\mu</span>. The second has gradient <span class="math inline">-2Ax</span>. The third has gradient <span class="math inline">(A+A^\top)\mu = 2A\mu</span>. Adding these,</p>
+<p><span class="math display">\nabla_\mu\,q = -2Ax + 2A\mu = -2A(x-\mu).</span></p>
+<p>Symmetry is what makes the simple <span class="math inline">-2A(x-\mu)</span> form hold. For a non-symmetric matrix the gradient would be <span class="math inline">-(A+A^\top)(x-\mu)</span>.</p>
+<p><strong>Step 2: the density.</strong> Write <span class="math inline">\mathcal N_D(x_n\mid\mu_k,\Sigma_k) = c_k\,\exp(-\tfrac12 q)</span>, where <span class="math inline">c_k = 1/\big((2\pi)^{D/2}|\Sigma_k|^{1/2}\big)</span> does not depend on <span class="math inline">\mu_k</span>. The chain rule gives</p>
 <p><span class="math display">
 \begin{aligned}
-0 &amp;= \sum_{n=1}^N\frac{\pi_k\,\mathcal N(x_n\mid\mu_k,\Sigma_k)}{\sum_j\pi_j\,\mathcal N(x_n\mid\mu_j,\Sigma_j)}\,\Sigma_k^{-1}(x_n-\mu_k)\\
-&amp;= \Sigma_k^{-1}\sum_{n=1}^N p(z_n=k\mid x_n)\,(x_n-\mu_k).
+\nabla_{\mu_k}\,\mathcal N_D(x_n\mid\mu_k,\Sigma_k) &amp;= c_k\,\exp(-\tfrac12 q)\cdot\big(-\tfrac12\big)\nabla_{\mu_k}q\\
+&amp;= \mathcal N_D(x_n\mid\mu_k,\Sigma_k)\cdot\big(-\tfrac12\big)\cdot\big(-2\,\Sigma_k^{-1}(x_n-\mu_k)\big)\\
+&amp;= \mathcal N_D(x_n\mid\mu_k,\Sigma_k)\,\Sigma_k^{-1}(x_n-\mu_k).
 \end{aligned}
 </span></p>
-<p>The fraction that appeared is exactly the responsibility. Because <span class="math inline">\Sigma_k</span> is positive definite, <span class="math inline">\Sigma_k^{-1}</span> is invertible and we can multiply it away, leaving <span class="math inline">\sum_n\gamma_{nk}(x_n-\mu_k) = 0</span>. Solving for <span class="math inline">\mu_k</span>:</p>
+<p><strong>Step 3: the log of the mixture.</strong> The derivative of <span class="math inline">\log f</span> is <span class="math inline">f'/f</span>. Only the <span class="math inline">k</span>-th term of the inner sum depends on <span class="math inline">\mu_k</span>, so the derivative of the log-density of one point is</p>
+<p><span class="math display">
+\nabla_{\mu_k}\log\sum_{j}\pi_j\,\mathcal N_D(x_n\mid\mu_j,\Sigma_j) = \frac{\pi_k\,\mathcal N_D(x_n\mid\mu_k,\Sigma_k)}{\sum_j\pi_j\,\mathcal N_D(x_n\mid\mu_j,\Sigma_j)}\,\Sigma_k^{-1}(x_n-\mu_k) = \gamma_{nk}\,\Sigma_k^{-1}(x_n-\mu_k).
+</span></p>
+<p><strong>Step 4: sum over the data.</strong> Setting the derivative of the full log-likelihood to zero, and pulling out <span class="math inline">\Sigma_k^{-1}</span>, which does not depend on <span class="math inline">n</span>:</p>
+<p><span class="math display">
+0 = \sum_{n=1}^N\gamma_{nk}\,\Sigma_k^{-1}(x_n-\mu_k) = \Sigma_k^{-1}\sum_{n=1}^N\gamma_{nk}\,(x_n-\mu_k).
+</span></p>
+<p><strong>Step 5: solve.</strong> <span class="math inline">\Sigma_k</span> is positive definite, so <span class="math inline">\Sigma_k^{-1}</span> is invertible and we can multiply it away, leaving <span class="math inline">\sum_n\gamma_{nk}(x_n-\mu_k) = 0</span>. Split the sum and write <span class="math inline">N_k = \sum_n\gamma_{nk}</span>:</p>
+<p><span class="math display">\sum_n\gamma_{nk}\,x_n = \mu_k\sum_n\gamma_{nk} = N_k\,\mu_k.</span></p>
+<p>Solving for <span class="math inline">\mu_k</span> gives:</p>
 <div class="boxed-eq">
 <p><span class="math display">\mu_k = \frac{1}{N_k}\sum_{n=1}^N p(z_n=k\mid x_n)\,x_n,\qquad N_k = \sum_{n=1}^N p(z_n=k\mid x_n).</span></p>
 </div>
@@ -768,7 +856,7 @@ Note
 </div>
 <p>Each mixing coefficient is the <strong>fraction of the data</strong> that component <span class="math inline">k</span> is responsible for. (We did not impose <span class="math inline">\pi_k\ge0</span>; the answer satisfies it automatically.)</p>
 <div class="clarification callout callout-style-default callout-tip callout-titled" title="Recap: Maximum likelihood">
-<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-11-contents" aria-controls="callout-11" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-12-contents" aria-controls="callout-12" aria-expanded="false" aria-label="Toggle callout">
 <div class="callout-icon-container">
 <i class="callout-icon"></i>
 </div>
@@ -777,7 +865,7 @@ Note
 </div>
 <div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
 </div>
-<div id="callout-11" class="callout-11-contents callout-collapse collapse">
+<div id="callout-12" class="callout-12-contents callout-collapse collapse">
 <div class="callout-body-container callout-body">
 <p>What the symbols stand for:</p>
 <ul>
@@ -820,6 +908,25 @@ Note
 </ul>
 </div>
 </div>
+<div class="clarification callout callout-style-default callout-tip callout-titled" title="Question: Why did earlier MLEs give the answer directly, and why must this one be iterated?">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-14-contents" aria-controls="callout-14" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Question: Why did earlier MLEs give the answer directly, and why must this one be iterated?
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-14" class="callout-14-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>In Week 1 and Week 3 the stationarity equations could be rearranged into the form “parameter = formula in the data”: the sample mean, the sample covariance, and <span class="math inline">K^{-1} = S_n</span>. Each equation says that the model’s expected sufficient statistic equals its empirical average. For a single Gaussian those statistics are the data’s first and second moments, so the solution comes out in one step.</p>
+<p>Here the equations look just as familiar, but the right-hand side contains the responsibilities <span class="math inline">\gamma_{nk}</span>, and those depend on every parameter. The label that would make the sufficient statistics computable from the data, namely which component each point came from, is hidden. Each equation is therefore a fixed-point condition: the parameters appear on both sides, and no rearrangement isolates them.</p>
+<p>Iteration is the standard response. EM alternates between fixing the parameters to compute the responsibilities, and fixing the responsibilities to solve the closed-form update. Each pass does not decrease the likelihood. Gradient ascent on the log-likelihood would also work.</p>
+<p>Iteration is not new to the course. Week 6 minimized a reverse KL by gradient descent when its stationarity equations had no closed form, and Week 7 maximized the ELBO by gradient ascent. What is new here is that an MLE for a model as simple-looking as a Gaussian mixture needs it.</p>
+</div>
+</div>
+</div>
 </section>
 </section>
 <section id="sec-w8-why-em" class="level2">
@@ -835,7 +942,7 @@ Note
 <li>Repeat.</li>
 </ol>
 <div class="clarification callout callout-style-default callout-tip callout-titled" title="Recap: Motivating the EM algorithm">
-<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-13-contents" aria-controls="callout-13" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-15-contents" aria-controls="callout-15" aria-expanded="false" aria-label="Toggle callout">
 <div class="callout-icon-container">
 <i class="callout-icon"></i>
 </div>
@@ -844,7 +951,7 @@ Note
 </div>
 <div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
 </div>
-<div id="callout-13" class="callout-13-contents callout-collapse collapse">
+<div id="callout-15" class="callout-15-contents callout-collapse collapse">
 <div class="callout-body-container callout-body">
 <p>What the symbols stand for:</p>
 <ul>
@@ -897,6 +1004,95 @@ Note
 </ol>
 </div>
 <p>The covariance update uses the <strong>new</strong> means, which is what the stationarity condition for <span class="math inline">\Sigma_k</span> asks for.</p>
+<div class="clarification callout callout-style-default callout-tip callout-titled" title="Question: How are $\pi$, $\mu$, and $\Sigma$ set before the first E-step?">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-17-contents" aria-controls="callout-17" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Question: How are <span class="math inline">\pi</span>, <span class="math inline">\mu</span>, and <span class="math inline">\Sigma</span> set before the first E-step?
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-17" class="callout-17-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>The algorithm says “initialize <span class="math inline">\pi,\mu,\Sigma</span>” but not how. EM needs starting parameters, because the first E-step computes the responsibilities from them. It never needs starting responsibilities. Different starting rules give different instances of the same algorithm. The worked example below uses one of them.</p>
+<p><strong>Worked example: a one-dimensional start.</strong> Four customers spend <span class="math inline">x = (0.5,\ 1,\ 4,\ 5)</span>, and we fit <span class="math inline">K=2</span> components. The data are one-dimensional, so <span class="math inline">\Sigma_k</span> reduces to a scalar <span class="math inline">\sigma^2</span> shared by both components.</p>
+<ol type="1">
+<li><strong>Means.</strong> Pick two customers at random, one low and one high: <span class="math inline">\mu^{(0)} = (0.5,\ 5)</span>. Two centres at the same point would make the components identical, and EM would never separate them.</li>
+<li><strong>Weights.</strong> With no information, <span class="math inline">\pi^{(0)} = (0.5,\ 0.5)</span>.</li>
+<li><strong>Spread.</strong> Use the spread of the whole data set. Its mean is <span class="math inline">\bar x = 2.625</span>, the squared deviations sum to <span class="math inline">14.69</span>, so <span class="math inline">\sigma^{2(0)} = 14.69/4 \approx 3.67</span>.</li>
+</ol>
+<p><strong>E-step.</strong> Compute each score <span class="math inline">\pi_k\,\mathcal N(x_n\mid\mu_k,\sigma^2)</span> and divide by the total across <span class="math inline">k</span>. For <span class="math inline">x = 0.5</span>, the scores are <span class="math inline">1.000</span> for segment 1 and <span class="math inline">0.064</span> for segment 2, so the responsibilities are <span class="math inline">\approx(0.94,\ 0.06)</span>. Doing the same for every customer gives the rows <span class="math inline">(0.94, 0.06)</span>, <span class="math inline">(0.90, 0.10)</span>, <span class="math inline">(0.18, 0.82)</span>, and <span class="math inline">(0.06, 0.94)</span>. Low spenders lean toward the low centre and high spenders toward the high one.</p>
+<p><strong>M-step.</strong> The effective counts are <span class="math inline">N_1 \approx 2.07</span> and <span class="math inline">N_2 \approx 1.93</span>, so <span class="math inline">\pi^{(1)} \approx (0.52,\ 0.48)</span>. The new centres are <span class="math inline">\mu^{(1)} \approx (1.15,\ 4.22)</span>, and the new spread is <span class="math inline">\sigma^{(1)} \approx 1.15</span>. The spread fell from <span class="math inline">1.92</span> to <span class="math inline">1.15</span>. The start measured spread across the whole data set, while the update measures spread within each component, so it shrinks once customers are assigned.</p>
+<p><strong>Other instances.</strong> The same three parameters can be set in different ways:</p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 20%">
+<col style="width: 20%">
+<col style="width: 20%">
+<col style="width: 20%">
+<col style="width: 20%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Start rule</th>
+<th><span class="math inline">\pi^{(0)}</span></th>
+<th><span class="math inline">\mu^{(0)}</span></th>
+<th><span class="math inline">\Sigma^{(0)}</span></th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>Random data points (the example)</td>
+<td><span class="math inline">1/K</span> each</td>
+<td><span class="math inline">K</span> distinct customers picked at random</td>
+<td>overall sample covariance</td>
+<td>Simple, but sensitive to the draw, so use restarts</td>
+</tr>
+<tr class="even">
+<td>k-means++ seeding</td>
+<td><span class="math inline">1/K</span> each</td>
+<td>chosen one at a time, each far from the existing centres</td>
+<td>overall sample covariance</td>
+<td>Spreads the centres out; usually more reliable</td>
+</tr>
+<tr class="odd">
+<td>k-means hard assignments</td>
+<td>cluster sizes divided by <span class="math inline">N</span></td>
+<td>cluster means</td>
+<td>cluster sample covariances</td>
+<td>The usual choice in practice; each component starts from its own cluster</td>
+</tr>
+<tr class="even">
+<td>Random responsibilities</td>
+<td><span class="math inline">1/K</span> each</td>
+<td>from one M-step on random row-normalized <span class="math inline">\gamma</span></td>
+<td>from the same M-step</td>
+<td>Valid, but less common</td>
+</tr>
+<tr class="odd">
+<td>Previous fit (warm start)</td>
+<td>last fit’s values</td>
+<td>last fit’s values</td>
+<td>last fit’s values</td>
+<td>Useful when new data arrives</td>
+</tr>
+<tr class="even">
+<td>Prior hyperparameters (Bayesian)</td>
+<td>prior mean of <span class="math inline">\pi</span></td>
+<td>prior mean of <span class="math inline">\mu_k</span></td>
+<td>prior scale</td>
+<td>Not a point-estimate start: the prior is a belief that the data then updates</td>
+</tr>
+</tbody>
+</table>
+<p>Whatever the rule, the centres must differ. If every <span class="math inline">\mu_k</span> starts at the same point, the E-step gives equal responsibilities, the M-step gives identical components again, and EM never moves.</p>
+<p><strong>The crab example.</strong> The worked example later in this section starts from responsibilities that an E-step has already produced, so it skips initialization. The Old Faithful run in the tutorial uses its own starting components, shown in the figures.</p>
+</div>
+</div>
+</div>
 <div style="overflow-x:auto; margin:1.5rem 0;">
 <svg viewbox="0 0 620 260" width="100%" style="max-width:620px;display:block;margin:auto;font-family:Helvetica,'Helvetica Neue',Arial,sans-serif;" role="img" aria-label="A loop. Initialize parameters leads to an E-step box (compute responsibilities with parameters fixed), which leads to an M-step box (refit pi, mu, Sigma with responsibilities fixed), which leads to a convergence check. If not converged, an arrow returns to the E-step; if converged, stop.">
   <text x="310" y="32" text-anchor="middle" font-size="24" font-weight="600" fill="#333">The EM loop</text>
@@ -926,7 +1122,7 @@ Note
   <text x="555" y="72" text-anchor="middle" font-size="15" fill="#2e7d32">yes: stop</text>
 </svg>
 </div>
-<p><strong>Figure 3.</strong> EM alternates two easy problems: inferring the labels softly with the parameters fixed, and refitting the parameters with the soft labels fixed.</p>
+<p><strong>Figure 4.</strong> EM alternates two easy problems: inferring the labels softly with the parameters fixed, and refitting the parameters with the soft labels fixed.</p>
 <div class="callout callout-style-default callout-note callout-titled">
 <div class="callout-header d-flex align-content-center">
 <div class="callout-icon-container">
@@ -938,11 +1134,12 @@ Note
 </div>
 <div class="callout-body-container callout-body">
 <p><strong>Worked example: one M-step in one dimension.</strong> Three crabs have ratios <span class="math inline">x = (0.630,\ 0.640,\ 0.660)</span>, and suppose an E-step has just produced the responsibilities of component 1, <span class="math inline">\gamma_{\cdot1} = (0.9,\ 0.6,\ 0.1)</span>, so those of component 2 are <span class="math inline">\gamma_{\cdot2} = (0.1,\ 0.4,\ 0.9)</span>.</p>
+<p>Each component is the Gaussian for one value of the hidden label <span class="math inline">z</span>: component 1 is <span class="math inline">z=1</span> and component 2 is <span class="math inline">z=2</span>. So <span class="math inline">\gamma_{n1} = p(z_n=1 \mid x_n)</span> is the probability that crab <span class="math inline">n</span> belongs to class <span class="math inline">z=1</span>, and the two responsibilities for a crab sum to 1 because every crab belongs to exactly one class. The M-step below refits each component using its own column of responsibilities as weights.</p>
 <ol type="1">
-<li><strong>Effective counts.</strong> <span class="math inline">N_1 = 0.9+0.6+0.1 = 1.6</span> and <span class="math inline">N_2 = 0.1+0.4+0.9 = 1.4</span>. They add up to <span class="math inline">N=3</span>.</li>
-<li><strong>Mixing coefficients.</strong> <span class="math inline">\pi_1 = 1.6/3\approx0.533</span> and <span class="math inline">\pi_2 = 1.4/3\approx0.467</span>.</li>
-<li><strong>Means.</strong> <span class="math inline">\mu_1 = (0.9\cdot0.630 + 0.6\cdot0.640 + 0.1\cdot0.660)/1.6 = 1.017/1.6\approx0.6356</span>. Similarly <span class="math inline">\mu_2 = 0.913/1.4\approx0.6521</span>. Each mean is pulled toward the points its component is most responsible for.</li>
-<li><strong>Variances.</strong> <span class="math inline">\sigma_1^2 = \frac{1}{1.6}\big[0.9(0.630-0.6356)^2 + 0.6(0.640-0.6356)^2 + 0.1(0.660-0.6356)^2\big]\approx6.2\times10^{-5}</span>, a standard deviation of about <span class="math inline">0.0079</span>. The same recipe for component 2 gives about <span class="math inline">0.0108</span>.</li>
+<li><strong>Effective counts.</strong> Each component’s count is the sum of its responsibilities, <span class="math inline">N_k = \sum_n \gamma_{nk}</span>. So <span class="math inline">N_1 = 0.9+0.6+0.1 = 1.6</span> and <span class="math inline">N_2 = 0.1+0.4+0.9 = 1.4</span>. They add up to <span class="math inline">N=3</span>, the number of crabs. Read <span class="math inline">N_k</span> as the soft number of crabs that component <span class="math inline">k</span> is responsible for.</li>
+<li><strong>Mixing coefficients.</strong> <span class="math inline">\pi_k = N_k / N</span>, the share of the data that component <span class="math inline">k</span> is responsible for. So <span class="math inline">\pi_1 = 1.6/3\approx0.533</span> and <span class="math inline">\pi_2 = 1.4/3\approx0.467</span>.</li>
+<li><strong>Means.</strong> <span class="math inline">\mu_k = \frac{1}{N_k}\sum_n \gamma_{nk}\, x_n</span>, a responsibility-weighted average of the data. For component 1, <span class="math inline">\mu_1 = (0.9\cdot0.630 + 0.6\cdot0.640 + 0.1\cdot0.660)/1.6 = 1.017/1.6\approx0.6356</span>. Similarly <span class="math inline">\mu_2 = 0.913/1.4\approx0.6521</span>. Each mean is pulled toward the points its component is most responsible for.</li>
+<li><strong>Variances.</strong> <span class="math inline">\sigma_k^2 = \frac{1}{N_k}\sum_n \gamma_{nk}(x_n-\mu_k)^2</span>, a responsibility-weighted average squared distance from the mean. For component 1, <span class="math inline">\sigma_1^2 = \frac{1}{1.6}\big[0.9(0.630-0.6356)^2 + 0.6(0.640-0.6356)^2 + 0.1(0.660-0.6356)^2\big]\approx6.2\times10^{-5}</span>, a standard deviation of about <span class="math inline">0.0079</span>. The same recipe for component 2 gives about <span class="math inline">0.0108</span>.</li>
 </ol>
 <p>The next E-step would recompute the responsibilities from these new parameters, and so on.</p>
 </div>
@@ -960,10 +1157,10 @@ Warning
 <p><strong>Homework.</strong> Assignment 3, Question 3 asks you to implement the E-step and M-step yourself in numpy, implement k-means, and compare the two. This chapter explains the method and works small invented examples; the implementation and the comparison on the assignment’s data are left to the assignment.</p>
 </div>
 </div>
-<p>The slides illustrate EM on a two-dimensional dataset with two clusters (it is the Old Faithful geyser data that the tutorial uses; Figure 6 in <a href="#sec-w8-code-em" class="quarto-xref"><span>Part 1: EM on the Old Faithful data</span></a> shows the tutorial’s own run). The two components start as round circles placed away from the data. After one iteration (<span class="math inline">L=1</span>), they have moved onto the data, stretched along it, and the points between them are coloured purple (shared responsibility). By <span class="math inline">L=5</span> the components have separated, and by <span class="math inline">L=20</span> each has settled on one cluster, with almost every point a pure colour.</p>
+<p>The slides illustrate EM on a two-dimensional dataset with two clusters (it is the Old Faithful geyser data that the tutorial uses; Figure 7 in <a href="#sec-w8-code-em" class="quarto-xref"><span>Part 1: EM on the Old Faithful data</span></a> shows the tutorial’s own run). The two components start as round circles placed away from the data. After one iteration (<span class="math inline">L=1</span>), they have moved onto the data, stretched along it, and the points between them are coloured purple (shared responsibility). By <span class="math inline">L=5</span> the components have separated, and by <span class="math inline">L=20</span> each has settled on one cluster, with almost every point a pure colour.</p>
 <p>Two practical caveats, standard for EM though not on the slides. EM climbs to a <strong>local</strong> maximum of the likelihood, so the result can depend on the initialization; the illustration deliberately starts from a poor one to show that it can recover. And a component can collapse onto a single data point (its covariance shrinking toward zero), which sends the likelihood to infinity; implementations guard against this, for example by adding a small multiple of the identity to each <span class="math inline">\Sigma_k</span>.</p>
 <div class="clarification callout callout-style-default callout-tip callout-titled" title="Recap: EM for Gaussian mixtures">
-<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-17-contents" aria-controls="callout-17" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-20-contents" aria-controls="callout-20" aria-expanded="false" aria-label="Toggle callout">
 <div class="callout-icon-container">
 <i class="callout-icon"></i>
 </div>
@@ -972,12 +1169,16 @@ Warning
 </div>
 <div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
 </div>
-<div id="callout-17" class="callout-17-contents callout-collapse collapse">
+<div id="callout-20" class="callout-20-contents callout-collapse collapse">
 <div class="callout-body-container callout-body">
 <p>What the symbols stand for:</p>
 <ul>
 <li><span class="math inline">\mu_k^{\text{new}}</span>, <span class="math inline">\Sigma_k^{\text{new}}</span>, <span class="math inline">\pi_k^{\text{new}}</span>: the parameters after one M-step.</li>
 <li>Tolerance: the small change in log-likelihood below which we stop.</li>
+<li>Effective counts: <span class="math inline">N_k = \sum_n \gamma_{nk}</span>, read as the soft number of crabs component <span class="math inline">k</span> is responsible for.</li>
+<li>Mixing coefficients: <span class="math inline">\pi_k = N_k / N</span>, the share of the data that component <span class="math inline">k</span> is responsible for.</li>
+<li>Means: <span class="math inline">\mu_k = \frac{1}{N_k}\sum_n \gamma_{nk}\, x_n</span>, a responsibility-weighted average of the data.</li>
+<li>Variances: <span class="math inline">\sigma_k^2 = \frac{1}{N_k}\sum_n \gamma_{nk}(x_n-\mu_k)^2</span>, a responsibility-weighted average squared distance from the mean.</li>
 </ul>
 <p>Taking the algorithm apart:</p>
 <ul>
@@ -1067,7 +1268,7 @@ Q(\theta,\theta^{\text{old}}) &amp;= \mathbb E_Z\big[\log p(X,Z\mid\theta)\,\big
 <p><span class="math display">\log p(X\mid\theta^{\text{new}})\ \ge\ \mathcal L(q,\theta^{\text{new}})\ \ge\ \mathcal L(q,\theta^{\text{old}})\ =\ \log p(X\mid\theta^{\text{old}}).</span></p>
 <p>So EM is <strong>coordinate ascent on the ELBO</strong>: the E-step maximizes <span class="math inline">\mathcal L</span> over <span class="math inline">q</span> (exactly, by choosing the posterior), and the M-step maximizes it over <span class="math inline">\theta</span>. This is also why “check the log-likelihood for convergence” in the algorithm is a sensible stopping rule: the sequence of log-likelihoods only goes up.</p>
 <div class="clarification callout callout-style-default callout-tip callout-titled" title="Recap: The general EM algorithm">
-<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-19-contents" aria-controls="callout-19" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-22-contents" aria-controls="callout-22" aria-expanded="false" aria-label="Toggle callout">
 <div class="callout-icon-container">
 <i class="callout-icon"></i>
 </div>
@@ -1076,7 +1277,7 @@ Q(\theta,\theta^{\text{old}}) &amp;= \mathbb E_Z\big[\log p(X,Z\mid\theta)\,\big
 </div>
 <div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
 </div>
-<div id="callout-19" class="callout-19-contents callout-collapse collapse">
+<div id="callout-22" class="callout-22-contents callout-collapse collapse">
 <div class="callout-body-container callout-body">
 <p>What the symbols stand for:</p>
 <ul>
@@ -1139,7 +1340,7 @@ Note
 <p>As <span class="math inline">\epsilon\to0</span> the distance term, scaled by <span class="math inline">1/\epsilon</span>, swamps the <span class="math inline">\log\pi_k</span> term, so maximizing <span class="math inline">Q</span> over the means is the same as minimizing <span class="math inline">\frac12\sum_n\sum_k r_{nk}\lVert x_n-\mu_k\rVert^2</span>, the k-means distortion. (The slide writes the limit as <span class="math inline">-\frac12\sum_n\sum_k r_{nk}\lVert x_n-\mu_k\rVert^2 + \text{const}</span>, dropping the positive factor <span class="math inline">1/\epsilon</span>, which does not change where the maximum is.) The M-step for <span class="math inline">\mu_k</span> becomes “move each mean to the average of its points”.</p>
 <p>The lecture’s verdict: in the limit, EM’s maximization is k-means. EM is slower, but more flexible and more accurate, because it keeps soft assignments and learns a full covariance per cluster, so it can fit elongated or differently sized clusters that k-means, with its implicit round clusters of equal size, cannot.</p>
 <div class="clarification callout callout-style-default callout-tip callout-titled" title="Recap: Relationship to k-means">
-<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-21-contents" aria-controls="callout-21" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-24-contents" aria-controls="callout-24" aria-expanded="false" aria-label="Toggle callout">
 <div class="callout-icon-container">
 <i class="callout-icon"></i>
 </div>
@@ -1148,7 +1349,7 @@ Note
 </div>
 <div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
 </div>
-<div id="callout-21" class="callout-21-contents callout-collapse collapse">
+<div id="callout-24" class="callout-24-contents callout-collapse collapse">
 <div class="callout-body-container callout-body">
 <p>What the symbols stand for:</p>
 <ul>
@@ -1193,6 +1394,59 @@ Note
 </section>
 <section id="sec-w8-vi-em" class="level2">
 <h2 class="anchored" data-anchor-id="sec-w8-vi-em">VI vs EM</h2>
+<div class="clarification callout callout-style-default callout-tip callout-titled" title="Question: When does $p(Z\mid X)$ have a closed form, and when does it not?">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-26-contents" aria-controls="callout-26" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Question: When does <span class="math inline">p(Z\mid X)</span> have a closed form, and when does it not?
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-26" class="callout-26-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>EM needs the posterior <span class="math inline">p(Z\mid X,\theta)</span> in closed form, or at least computable exactly. VI is for when it is not. Whether that holds depends on whether the latent variables factorize once the parameters <span class="math inline">\theta</span> are fixed.</p>
+<p><strong>Closed form: clustering customer spending.</strong> A retailer records spending <span class="math inline">x_i</span> for each of <span class="math inline">N</span> customers. Each customer belongs to one of <span class="math inline">K=3</span> hidden segments, <span class="math inline">z_i \in \{1,2,3\}</span>, and each segment <span class="math inline">k</span> has mean <span class="math inline">\mu_k</span> and variance <span class="math inline">\sigma^2</span>. Given <span class="math inline">\theta</span>, each customer’s segment depends only on that customer’s own spending, so the posterior splits into one small problem per customer:</p>
+<p><span class="math display">
+p(z_i = k \mid x_i, \theta) = \frac{\pi_k\, \mathcal{N}(x_i \mid \mu_k, \sigma^2)}{\sum_{j=1}^{3} \pi_j\, \mathcal{N}(x_i \mid \mu_j, \sigma^2)}.
+</span></p>
+<p>That is three numbers per customer, so the E-step is exact. Here is the calculation for one customer, with three segments, <span class="math inline">\mu_1 = 0</span>, <span class="math inline">\mu_2 = 3</span>, <span class="math inline">\mu_3 = 6</span>, <span class="math inline">\sigma = 1</span>, equal weights <span class="math inline">\pi_1 = \pi_2 = \pi_3 = \tfrac{1}{3}</span>, and a customer who spent <span class="math inline">x = 1.2</span>.</p>
+<ol type="1">
+<li><strong>What we want.</strong> The probability that this customer is in segment 1, given their spending: <span class="math inline">p(z = 1 \mid x = 1.2)</span>. Steps 2 and 3 repeat the calculation for segments 2 and 3.</li>
+<li><strong>Score each segment by how well it explains the spending.</strong> The Gaussian density for segment <span class="math inline">k</span> is proportional to <span class="math inline">\exp\!\big(-(x-\mu_k)^2 / 2\sigma^2\big)</span>. The factor <span class="math inline">1/\sqrt{2\pi\sigma^2}</span> is the same for both segments because they share <span class="math inline">\sigma</span>, so it cancels and we drop it. The score is larger when <span class="math inline">x</span> is closer to <span class="math inline">\mu_k</span>.
+<ul>
+<li>Segment 1: the distance from its mean is <span class="math inline">x - \mu_1 = 1.2 - 0 = 1.2</span>. The score is <span class="math inline">\exp(-1.2^2/2) = \exp(-0.72) \approx 0.487</span>.</li>
+<li>Segment 2: the distance from its mean is <span class="math inline">x - \mu_2 = 1.2 - 3 = -1.8</span>. The score is <span class="math inline">\exp(-1.8^2/2) = \exp(-1.62) \approx 0.198</span>.</li>
+<li>Segment 3: the distance from its mean is <span class="math inline">x - \mu_3 = 1.2 - 6 = -4.8</span>. The score is <span class="math inline">\exp(-4.8^2/2) = \exp(-11.52) \approx 0.00001</span>. The customer is far from segment 3’s mean, so the score is almost zero.</li>
+</ul></li>
+<li><strong>Weight each score by the prior.</strong> Multiply by <span class="math inline">\pi_k</span>, the share of customers in segment <span class="math inline">k</span>:
+<ul>
+<li>Segment 1: <span class="math inline">\tfrac{1}{3} \times 0.487 \approx 0.162</span></li>
+<li>Segment 2: <span class="math inline">\tfrac{1}{3} \times 0.198 \approx 0.066</span></li>
+<li>Segment 3: <span class="math inline">\tfrac{1}{3} \times 0.00001 \approx 0.000003</span></li>
+</ul></li>
+<li><strong>Normalize so the two probabilities sum to one.</strong> The total <span class="math inline">0.162 + 0.066 + 0.000003 \approx 0.228</span> is the probability of this spending value across all segments, <span class="math inline">p(x \mid \theta)</span>. Divide each weighted score by it:
+<ul>
+<li><span class="math inline">p(z = 1 \mid x = 1.2) = 0.162 / 0.228 \approx 0.71</span></li>
+<li><span class="math inline">p(z = 2 \mid x = 1.2) = 0.066 / 0.228 \approx 0.29</span></li>
+<li><span class="math inline">p(z = 3 \mid x = 1.2) \approx 0.00001</span></li>
+</ul>
+The three values sum to 1, as they must. Segment 3 gets almost no probability because its mean is far from the customer’s spending.</li>
+</ol>
+<p>Step 4’s denominator is exactly the sum over <span class="math inline">j</span> in the general formula: it runs over the three segments for one customer, which is why each customer’s posterior is cheap. A topic model’s denominator instead sums over every way of assigning every word to a topic, as explained below.</p>
+<p>Factor analysis on survey responses works the same way. The latent factors are Gaussian and the observations are linear-Gaussian in the factors, so the posterior is Gaussian with a closed-form mean and covariance. Hidden Markov models also fit: the chain structure lets forward-backward compute the posterior exactly in time linear in the sequence length.</p>
+<p><strong>No closed form: topic models.</strong> A corpus has <span class="math inline">D</span> documents. Each document <span class="math inline">d</span> has its own topic mixture <span class="math inline">\theta_d</span>. There are <span class="math inline">K</span> shared topics, each a distribution <span class="math inline">\beta_k</span> over words. Each word <span class="math inline">w_{dn}</span> has a hidden topic label <span class="math inline">z_{dn}</span>. The labels depend on their document’s mixture, and the mixtures and topics are shared across documents. Computing the posterior requires the normalizer <span class="math inline">p(X)</span>, which sums over every way of assigning every word to a topic. With thousands of words, that is astronomically many terms. A mean-field family with one factor per <span class="math inline">\theta_d</span>, <span class="math inline">\beta_k</span>, and <span class="math inline">z_{dn}</span>, updated by CAVI, is the standard approach.</p>
+<p><strong>No closed form: Bayesian logistic regression.</strong> A bank predicts loan default from applicant features. The weights <span class="math inline">w</span> get a Gaussian prior, and the Bernoulli likelihood uses a sigmoid link. The sigmoid is not conjugate to the Gaussian prior, so <span class="math inline">p(w \mid \text{data})</span> has no closed form. Here the latent variable is the parameter itself. EM would give only a point estimate of <span class="math inline">w</span>, while VI gives an approximate posterior over <span class="math inline">w</span>, which is what you need when you want uncertainty on the default probabilities.</p>
+<p><strong>A quick test.</strong> Ask two questions:</p>
+<ol type="1">
+<li>Given <span class="math inline">\theta</span>, do the latents factorize over data points or along a chain? If so, the E-step is exact and EM applies.</li>
+<li>Is there shared structure that couples the latents, such as shared topics, shared parameters, a graph or grid, or a non-conjugate likelihood? If so, the posterior is intractable and VI applies.</li>
+</ol>
+<p>“Closed form” and “computable exactly” are not quite the same. The HMM posterior has no simple formula, but an algorithm computes it exactly. VI is needed when no such exact algorithm exists in reasonable time.</p>
+</div>
+</div>
+</div>
 <p>Both EM and variational inference maximize something built from the expected complete-data log-likelihood. The slide puts them side by side.</p>
 <p><strong>Variational inference</strong> (Week 7) maximizes the ELBO</p>
 <p><span class="math display">\mathcal L(x;\theta,\phi) = \mathbb E_{z\sim q_\phi}\big[\log p_\theta(x,z)\big] + H(q_\phi).</span></p>
@@ -1202,7 +1456,7 @@ Note
 <p>The slide writes the EM parameters as <span class="math inline">\phi</span> and the posterior as <span class="math inline">q^{\text{old}}_\phi</span>; there is no separate variational family in EM, so here we write them as the model parameters <span class="math inline">\theta</span> and the exact posterior at <span class="math inline">\theta^{\text{old}}</span>. EM also maximizes an expected complete-data log-likelihood, but the expectation is under the <strong>exact posterior</strong>, and each M-step <strong>maximizes</strong> fully rather than taking a gradient step.</p>
 <p>Reading the two together with <a href="#sec-w8-em-monotone" class="quarto-xref"><span>Why EM never decreases the likelihood</span></a>: EM is the special case of maximizing the ELBO in which the E-step can choose <span class="math inline">q</span> to be the exact posterior, so the bound is tight after every E-step. Variational inference is what we do when that exact posterior is not available, as in the VAE.</p>
 <div class="clarification callout callout-style-default callout-tip callout-titled" title="Recap: VI vs EM">
-<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-23-contents" aria-controls="callout-23" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-27-contents" aria-controls="callout-27" aria-expanded="false" aria-label="Toggle callout">
 <div class="callout-icon-container">
 <i class="callout-icon"></i>
 </div>
@@ -1211,7 +1465,7 @@ Note
 </div>
 <div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
 </div>
-<div id="callout-23" class="callout-23-contents callout-collapse collapse">
+<div id="callout-27" class="callout-27-contents callout-collapse collapse">
 <div class="callout-body-container callout-body">
 <p>What the symbols stand for:</p>
 <ul>
@@ -1274,7 +1528,7 @@ Note
 </ul>
 <p>The slides’ example is a PCA of genetic data from about 1,400 Europeans, from the study <em>Genes mirror geography within Europe</em> (Novembre et al., 2008). Each person is described by a very long vector of genetic markers. Projected onto the first two principal components and rotated, the people’s points form a rough map of Europe: individuals from Italy, Spain, Portugal, the UK and so on cluster roughly where their countries sit geographically. Two numbers per person, out of hundreds of thousands, recover the dominant structure.</p>
 <div class="clarification callout callout-style-default callout-tip callout-titled" title="Recap: Low-dimensional representations">
-<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-25-contents" aria-controls="callout-25" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-29-contents" aria-controls="callout-29" aria-expanded="false" aria-label="Toggle callout">
 <div class="callout-icon-container">
 <i class="callout-icon"></i>
 </div>
@@ -1283,7 +1537,7 @@ Note
 </div>
 <div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
 </div>
-<div id="callout-25" class="callout-25-contents callout-collapse collapse">
+<div id="callout-29" class="callout-29-contents callout-collapse collapse">
 <div class="callout-body-container callout-body">
 <p>What the terms stand for:</p>
 <ul>
@@ -1335,7 +1589,7 @@ Note
 <p>In two dimensions, with <span class="math inline">K=1</span>, we look for one direction <span class="math inline">u_1</span> along which the data is well represented. The slides offer two candidates: the direction of highest variance of the projected data, or the direction of minimum reconstruction error. These are the <strong>same</strong> direction: for a unit vector <span class="math inline">u</span> and centred data, each point’s squared length splits as (squared length of its projection onto <span class="math inline">u</span>) + (squared distance to that projection), by Pythagoras. The total is fixed by the data, so maximizing the first part is the same as minimizing the second.</p>
 <p>What PCA does not have is a probabilistic model: it has no likelihood and no noise model, and it cannot generate new data. PPCA adds these.</p>
 <div class="clarification callout callout-style-default callout-tip callout-titled" title="Recap: Principal component analysis">
-<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-27-contents" aria-controls="callout-27" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-31-contents" aria-controls="callout-31" aria-expanded="false" aria-label="Toggle callout">
 <div class="callout-icon-container">
 <i class="callout-icon"></i>
 </div>
@@ -1344,7 +1598,7 @@ Note
 </div>
 <div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
 </div>
-<div id="callout-27" class="callout-27-contents callout-collapse collapse">
+<div id="callout-31" class="callout-31-contents callout-collapse collapse">
 <div class="callout-body-container callout-body">
 <p>What the symbols stand for:</p>
 <ul>
@@ -1425,11 +1679,11 @@ Note
   <text x="190" y="80" text-anchor="middle" font-size="14" fill="#555">multiply by W</text>
 </svg>
 </div>
-<p><strong>Figure 4.</strong> PPCA as a generative process. The latent <span class="math inline">z</span> has only <span class="math inline">K</span> coordinates; <span class="math inline">W</span> places it on a plane in <span class="math inline">D</span> dimensions; isotropic noise then moves it off the plane in every direction.</p>
-<p>The slides draw this in 2 dimensions with <span class="math inline">K=1</span>: a one-dimensional standard normal <span class="math inline">p(z)</span>; a sampled value <span class="math inline">\hat z</span> placed at <span class="math inline">\mu + \hat z\,w</span> along the line through <span class="math inline">\mu</span> in direction <span class="math inline">w</span>, with a small round Gaussian <span class="math inline">p(x\mid\hat z)</span> around it; and the resulting marginal <span class="math inline">p(x)</span>, an ellipse elongated along <span class="math inline">w</span>. The column span of <span class="math inline">W</span> plays the role of the <strong>principal subspace</strong> in PCA. Figure 7 in <a href="#sec-w8-code-data" class="quarto-xref"><span>Part 2: sampling from a PPCA model</span></a> shows the same picture in 3 dimensions with <span class="math inline">K=2</span>.</p>
+<p><strong>Figure 5.</strong> PPCA as a generative process. The latent <span class="math inline">z</span> has only <span class="math inline">K</span> coordinates; <span class="math inline">W</span> places it on a plane in <span class="math inline">D</span> dimensions; isotropic noise then moves it off the plane in every direction.</p>
+<p>The slides draw this in 2 dimensions with <span class="math inline">K=1</span>: a one-dimensional standard normal <span class="math inline">p(z)</span>; a sampled value <span class="math inline">\hat z</span> placed at <span class="math inline">\mu + \hat z\,w</span> along the line through <span class="math inline">\mu</span> in direction <span class="math inline">w</span>, with a small round Gaussian <span class="math inline">p(x\mid\hat z)</span> around it; and the resulting marginal <span class="math inline">p(x)</span>, an ellipse elongated along <span class="math inline">w</span>. The column span of <span class="math inline">W</span> plays the role of the <strong>principal subspace</strong> in PCA. Figure 8 in <a href="#sec-w8-code-data" class="quarto-xref"><span>Part 2: sampling from a PPCA model</span></a> shows the same picture in 3 dimensions with <span class="math inline">K=2</span>.</p>
 <p>Unlike PCA, which compresses <span class="math inline">x\mapsto z</span>, the model is written in the direction <span class="math inline">z\mapsto x</span>: it describes how low-dimensional causes generate high-dimensional data.</p>
 <div class="clarification callout callout-style-default callout-tip callout-titled" title="Recap: The probabilistic PCA model">
-<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-29-contents" aria-controls="callout-29" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-33-contents" aria-controls="callout-33" aria-expanded="false" aria-label="Toggle callout">
 <div class="callout-icon-container">
 <i class="callout-icon"></i>
 </div>
@@ -1438,7 +1692,7 @@ Note
 </div>
 <div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
 </div>
-<div id="callout-29" class="callout-29-contents callout-collapse collapse">
+<div id="callout-33" class="callout-33-contents callout-collapse collapse">
 <div class="callout-body-container callout-body">
 <p>What the symbols stand for:</p>
 <ul>
@@ -1516,7 +1770,7 @@ Note
 </div>
 <p>The first term is a constant, the second penalizes a large spread (large determinant), and the third penalizes data far from <span class="math inline">\mu</span> as measured by <span class="math inline">C</span>. Unlike the mixture, this has no log of a sum, and the MLE <span class="math inline">(\hat\mu,\hat W,\hat\sigma^2)</span> can be found <strong>in closed form</strong> (Tipping and Bishop, <em>Probabilistic Principal Component Analysis</em>, 1999, has the details).</p>
 <div class="clarification callout callout-style-default callout-tip callout-titled" title="Recap: The PPCA likelihood">
-<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-31-contents" aria-controls="callout-31" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-35-contents" aria-controls="callout-35" aria-expanded="false" aria-label="Toggle callout">
 <div class="callout-icon-container">
 <i class="callout-icon"></i>
 </div>
@@ -1525,7 +1779,7 @@ Note
 </div>
 <div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
 </div>
-<div id="callout-31" class="callout-31-contents callout-collapse collapse">
+<div id="callout-35" class="callout-35-contents callout-collapse collapse">
 <div class="callout-body-container callout-body">
 <p>What the symbols stand for:</p>
 <ul>
@@ -1588,7 +1842,7 @@ Note
 <li><span class="math inline">\hat W</span> points along the top <span class="math inline">K</span> eigenvectors, scaled by <span class="math inline">\sqrt{\lambda_i-\hat\sigma^2}</span>: the variance in direction <span class="math inline">u_i</span> beyond what the noise already accounts for. Since <span class="math inline">\hat\sigma^2</span> averages the smaller eigenvalues, <span class="math inline">\lambda_i\ge\hat\sigma^2</span> for <span class="math inline">i\le K</span>, so the square root is real.</li>
 </ul>
 <div class="clarification callout callout-style-default callout-tip callout-titled" title="Recap: The maximum likelihood estimates">
-<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-33-contents" aria-controls="callout-33" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-37-contents" aria-controls="callout-37" aria-expanded="false" aria-label="Toggle callout">
 <div class="callout-icon-container">
 <i class="callout-icon"></i>
 </div>
@@ -1597,7 +1851,7 @@ Note
 </div>
 <div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
 </div>
-<div id="callout-33" class="callout-33-contents callout-collapse collapse">
+<div id="callout-37" class="callout-37-contents callout-collapse collapse">
 <div class="callout-body-container callout-body">
 <p>What the symbols stand for:</p>
 <ul>
@@ -1676,9 +1930,9 @@ Note
   <text x="400" y="288" text-anchor="middle" font-size="15" fill="#796020">replaced by one number</text>
 </svg>
 </div>
-<p><strong>Figure 5.</strong> An invented spectrum with <span class="math inline">D=6</span>: eigenvalues <span class="math inline">5, 3, 0.6, 0.5, 0.4, 0.3</span>. PPCA with <span class="math inline">K=2</span> keeps variance 5 and 3 along <span class="math inline">u_1,u_2</span>, and models the other four directions with <span class="math inline">\hat\sigma^2 = (0.6+0.5+0.4+0.3)/4 = 0.45</span>. The columns of <span class="math inline">\hat W</span> then have lengths <span class="math inline">\sqrt{5-0.45}\approx2.13</span> and <span class="math inline">\sqrt{3-0.45}\approx1.60</span>.</p>
+<p><strong>Figure 6.</strong> An invented spectrum with <span class="math inline">D=6</span>: eigenvalues <span class="math inline">5, 3, 0.6, 0.5, 0.4, 0.3</span>. PPCA with <span class="math inline">K=2</span> keeps variance 5 and 3 along <span class="math inline">u_1,u_2</span>, and models the other four directions with <span class="math inline">\hat\sigma^2 = (0.6+0.5+0.4+0.3)/4 = 0.45</span>. The columns of <span class="math inline">\hat W</span> then have lengths <span class="math inline">\sqrt{5-0.45}\approx2.13</span> and <span class="math inline">\sqrt{3-0.45}\approx1.60</span>.</p>
 <div class="clarification callout callout-style-default callout-tip callout-titled" title="Recap: Interpreting the MLE">
-<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-35-contents" aria-controls="callout-35" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-39-contents" aria-controls="callout-39" aria-expanded="false" aria-label="Toggle callout">
 <div class="callout-icon-container">
 <i class="callout-icon"></i>
 </div>
@@ -1687,7 +1941,7 @@ Note
 </div>
 <div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
 </div>
-<div id="callout-35" class="callout-35-contents callout-collapse collapse">
+<div id="callout-39" class="callout-39-contents callout-collapse collapse">
 <div class="callout-body-container callout-body">
 <p>What the symbols stand for:</p>
 <ul>
@@ -1738,7 +1992,7 @@ Note
 <p>Mapping this back to data space gives <span class="math inline">W(W^\top W)^{-1}W^\top(x-\mu)</span>, the <strong>orthogonal projection</strong> of <span class="math inline">x-\mu</span> onto the column space of <span class="math inline">W</span>. Plugging in the MLEs, that column space is the span of <span class="math inline">\hat U</span>, the PCA subspace, so this limit <strong>recovers standard PCA</strong>.</p>
 <p>The tutorial (<a href="#sec-w8-code-post" class="quarto-xref"><span>The posterior and PCA as a limit</span></a>) also looks at what happens when <span class="math inline">\sigma^2&gt;0</span>: the PPCA reconstruction uses the same directions as PCA, but shrinks each coordinate toward the mean.</p>
 <div class="clarification callout callout-style-default callout-tip callout-titled" title="Recap: How does PPCA relate to PCA?">
-<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-37-contents" aria-controls="callout-37" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-41-contents" aria-controls="callout-41" aria-expanded="false" aria-label="Toggle callout">
 <div class="callout-icon-container">
 <i class="callout-icon"></i>
 </div>
@@ -1747,7 +2001,7 @@ Note
 </div>
 <div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
 </div>
-<div id="callout-37" class="callout-37-contents callout-collapse collapse">
+<div id="callout-41" class="callout-41-contents callout-collapse collapse">
 <div class="callout-body-container callout-body">
 <p>What the symbols stand for:</p>
 <ul>
@@ -1798,7 +2052,7 @@ Note
 <li><strong>EM instead of eigendecomposition.</strong> Solving for the MLE directly needs the eigenvalues and eigenvectors of a <span class="math inline">D\times D</span> matrix. We can instead fit PPCA with EM (treating <span class="math inline">z</span> as the latent variable, with the posterior of <a href="#sec-w8-ppca-pca" class="quarto-xref"><span>How does PPCA relate to PCA?</span></a> as the E-step), which scales to very large <span class="math inline">D</span>.</li>
 </ul>
 <div class="clarification callout callout-style-default callout-tip callout-titled" title="Recap: Why probabilistic PCA?">
-<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-39-contents" aria-controls="callout-39" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-43-contents" aria-controls="callout-43" aria-expanded="false" aria-label="Toggle callout">
 <div class="callout-icon-container">
 <i class="callout-icon"></i>
 </div>
@@ -1807,7 +2061,7 @@ Note
 </div>
 <div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
 </div>
-<div id="callout-39" class="callout-39-contents callout-collapse collapse">
+<div id="callout-43" class="callout-43-contents callout-collapse collapse">
 <div class="callout-body-container callout-body">
 <p>What the terms stand for:</p>
 <ul>
@@ -1923,10 +2177,10 @@ fitted mixing weights: [0.356 0.644]</code></pre>
 <div class="quarto-figure quarto-figure-center">
 <figure class="figure">
 <p><img src="figures/week08/em-old-faithful.png" class="img-fluid figure-img" alt="Five panels. The first shows grey points in two clusters, lower left and upper right, with a blue circle at the top left and a red circle at the bottom right, both away from the data. After 1 iteration both components are long thin ellipses lying along the whole diagonal of the data, and points in the middle are pale. After 5 iterations the blue ellipse covers the lower-left cluster and the red ellipse the upper-right one. After 20 iterations each ellipse fits its cluster tightly and nearly every point is clearly red or blue. The last panel shows the log-likelihood rising from about minus 535 to about minus 386 and flattening after about 11 iterations."></p>
-<figcaption><strong>Figure 6.</strong> The tutorial’s EM run on the standardized Old Faithful data. From left: the initialization (two unit circles off the data), the fit after 1, 5, and 20 iterations, and the total log-likelihood over 25 iterations. Point colour is the responsibility of the blue component, from red (0) through pale and purple-ish shades (shared) to blue (1).</figcaption>
+<figcaption><strong>Figure 7.</strong> The tutorial’s EM run on the standardized Old Faithful data. From left: the initialization (two unit circles off the data), the fit after 1, 5, and 20 iterations, and the total log-likelihood over 25 iterations. Point colour is the responsibility of the blue component, from red (0) through pale and purple-ish shades (shared) to blue (1).</figcaption>
 </figure>
 </div>
-<p>What to read off Figure 6, following the notebook’s comments:</p>
+<p>What to read off Figure 7, following the notebook’s comments:</p>
 <ul>
 <li><strong>Soft assignments.</strong> After one iteration, the points between the two ellipses are pale: they are shared between the clusters. EM does not force a choice until the data does.</li>
 <li><strong>Monotone likelihood.</strong> The log-likelihood goes up at every iteration (the printed check confirms no decrease, up to a tolerance of <span class="math inline">10^{-6}</span> for rounding), as proved in <a href="#sec-w8-em-monotone" class="quarto-xref"><span>Why EM never decreases the likelihood</span></a>, and is flat after about 11 iterations, once the two components have settled on which cluster each owns.</li>
@@ -1965,14 +2219,14 @@ Warning
 <span id="cb7-12"><a href="#cb7-12" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> X, Z, signal</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <ul>
 <li><strong>The true parameters.</strong> <code>U_true</code> has two orthonormal columns, <span class="math inline">(1,1,0)/\sqrt2</span> and <span class="math inline">(-1,1,1)/\sqrt3</span> (each has length 1, and their dot product is <span class="math inline">(-1+1+0)/\sqrt6 = 0</span>). <code>W_true</code> scales them by 2 and 1, so <span class="math inline">w_1</span> has length 2 and <span class="math inline">w_2</span> length 1. Then <span class="math inline">W W^\top = U\,\mathrm{diag}(4,1)\,U^\top</span>: the true variance along the plane is 4 in direction <span class="math inline">u_1</span> and 1 in direction <span class="math inline">u_2</span>.</li>
-<li><strong><code>make_data</code></strong> is the generative process of Figure 4, row by row. <code>rng.standard_normal((N, K))</code> draws <span class="math inline">N</span> latent vectors <span class="math inline">z\sim\mathcal N(0,I_2)</span>, stacked as rows of <code>Z</code>. With data points as rows, <span class="math inline">Wz</span> for every point at once is <code>Z @ W_true.T</code> (<span class="math inline">N\times K</span> times <span class="math inline">K\times D</span>). Adding <code>mu_true</code> gives the noise-free <code>signal</code>, which lies exactly on the plane. Adding <code>np.sqrt(sigmasq)</code> times standard normals gives noise with variance <span class="math inline">\sigma^2</span> in each of the 3 coordinates.</li>
+<li><strong><code>make_data</code></strong> is the generative process of Figure 5, row by row. <code>rng.standard_normal((N, K))</code> draws <span class="math inline">N</span> latent vectors <span class="math inline">z\sim\mathcal N(0,I_2)</span>, stacked as rows of <code>Z</code>. With data points as rows, <span class="math inline">Wz</span> for every point at once is <code>Z @ W_true.T</code> (<span class="math inline">N\times K</span> times <span class="math inline">K\times D</span>). Adding <code>mu_true</code> gives the noise-free <code>signal</code>, which lies exactly on the plane. Adding <code>np.sqrt(sigmasq)</code> times standard normals gives noise with variance <span class="math inline">\sigma^2</span> in each of the 3 coordinates.</li>
 <li>It returns the latent <code>Z</code> and the clean <code>signal</code> too, which a real dataset would never provide; the notebook uses them later to measure how well each method recovers the truth.</li>
 </ul>
 <p>The next cell (omitted here) draws the plane <span class="math inline">\mu + \mathrm{span}(W)</span> in orange, the two columns of <span class="math inline">W</span> as red arrows, and 400 samples.</p>
 <div class="quarto-figure quarto-figure-center">
 <figure class="figure">
 <p><img src="figures/week08/ppca-generative.png" class="img-fluid figure-img" alt="Three 3D scatter plots of blue points with a translucent orange plane seen nearly edge-on and two short red arrows at its centre. In the left plot every point lies on the plane. In the middle plot the points form a thin layer around the plane. In the right plot the points form a ball and the plane is hard to see."></p>
-<figcaption><strong>Figure 7.</strong> 400 samples from the tutorial’s PPCA model, viewed almost edge-on to the plane. Left: the noise-free <span class="math inline">Wz+\mu</span>, all on the orange plane. Middle: after adding noise with <span class="math inline">\sigma^2 = 0.1</span>. Right: the same with <span class="math inline">\sigma^2 = 2</span>.</figcaption>
+<figcaption><strong>Figure 8.</strong> 400 samples from the tutorial’s PPCA model, viewed almost edge-on to the plane. Left: the noise-free <span class="math inline">Wz+\mu</span>, all on the orange plane. Middle: after adding noise with <span class="math inline">\sigma^2 = 0.1</span>. Right: the same with <span class="math inline">\sigma^2 = 2</span>.</figcaption>
 </figure>
 </div>
 <p>With small <span class="math inline">\sigma^2</span> the data is a thin pancake around the plane; with large <span class="math inline">\sigma^2</span> the pancake becomes a ball and the plane is hard to see. In practice we only see the blue points <span class="math inline">x^{(i)}</span> and must estimate <span class="math inline">W</span>, <span class="math inline">\mu</span>, <span class="math inline">\sigma^2</span>.</p>
@@ -2060,7 +2314,7 @@ u_i^T C_hat u_i: [4.065 1.083 0.104]   = (lambda_1, lambda_2, sigma_hat^2)</code
 <div class="quarto-figure quarto-figure-center">
 <figure class="figure">
 <p><img src="figures/week08/ppca-fits.png" class="img-fluid figure-img" alt="Four 3D scatter plots with orange and purple crosses of axes at the centre. Titles: N=20, sigma squared 0.1, estimate 0.05, subspace angle 4.2 degrees; N=1000, sigma squared 0.1, estimate 0.10, angle 1.1 degrees; N=20, sigma squared 2.0, estimate 0.58, angle 10.6 degrees; N=1000, sigma squared 2.0, estimate 2.01, angle 4.1 degrees. The purple axes nearly coincide with the orange ones except in the third panel, where they are visibly tilted and the short axes differ."></p>
-<figcaption><strong>Figure 8.</strong> PPCA fits for <span class="math inline">N\in\{20, 1000\}</span> and <span class="math inline">\sigma^2\in\{0.1, 2\}</span>. Orange: principal axes of the true covariance <span class="math inline">C</span>. Purple: those of the fitted <span class="math inline">\hat C</span>. The panel titles report <span class="math inline">\hat\sigma^2</span> and the angle between the fitted and true subspaces.</figcaption>
+<figcaption><strong>Figure 9.</strong> PPCA fits for <span class="math inline">N\in\{20, 1000\}</span> and <span class="math inline">\sigma^2\in\{0.1, 2\}</span>. Orange: principal axes of the true covariance <span class="math inline">C</span>. Purple: those of the fitted <span class="math inline">\hat C</span>. The panel titles report <span class="math inline">\hat\sigma^2</span> and the angle between the fitted and true subspaces.</figcaption>
 </figure>
 </div>
 <p>More data helps (compare left and right within each noise level), and more noise hurts (compare the two <span class="math inline">N=20</span> panels). With 20 points and <span class="math inline">\sigma^2=2</span>, the noise estimate is far too small (<span class="math inline">0.58</span> against <span class="math inline">2</span>) and the plane is off by about <span class="math inline">10.6°</span>. With 1,000 points both are estimated well even at high noise.</p>
@@ -2189,13 +2443,13 @@ N = 100000:  test reconstruction error (PCA projection) = 0.104</code></pre>
 <div class="quarto-figure quarto-figure-center">
 <figure class="figure">
 <p><img src="figures/week08/ppca-samples.png" class="img-fluid figure-img" alt="A 3D scatter plot in which blue training points and purple sampled points overlap, both forming the same flat tilted cloud."></p>
-<figcaption><strong>Figure 9.</strong> 300 training points (blue) and 300 new points sampled from the PPCA model fitted to them (purple).</figcaption>
+<figcaption><strong>Figure 10.</strong> 300 training points (blue) and 300 new points sampled from the PPCA model fitted to them (purple).</figcaption>
 </figure>
 </div>
 <pre><code>PPCA K=1:  7 parameters, held-out log-likelihood per point = -4.440
 PPCA K=2: 10 parameters, held-out log-likelihood per point = -3.845
 full Gaussian:  9 parameters, held-out log-likelihood per point = -3.845</code></pre>
-<p>The samples in Figure 9 fill the same pancake as the training data. <span class="math inline">K=1</span> scores clearly worse: it has to explain a two-dimensional pancake with a line plus isotropic noise. <span class="math inline">K=2</span> matches the full Gaussian. With <span class="math inline">D=3</span> PPCA saves nothing in parameters (the printed count <span class="math inline">DK+D+1</span> does not subtract the rotation redundancy, which is why it even exceeds the full Gaussian’s 9); with <span class="math inline">D = 10^4</span>, the saving is the difference between a model we can fit and one we cannot.</p>
+<p>The samples in Figure 10 fill the same pancake as the training data. <span class="math inline">K=1</span> scores clearly worse: it has to explain a two-dimensional pancake with a line plus isotropic noise. <span class="math inline">K=2</span> matches the full Gaussian. With <span class="math inline">D=3</span> PPCA saves nothing in parameters (the printed count <span class="math inline">DK+D+1</span> does not subtract the rotation redundancy, which is why it even exceeds the full Gaussian’s 9); with <span class="math inline">D = 10^4</span>, the saving is the difference between a model we can fit and one we cannot.</p>
 </section>
 <section id="sec-w8-code-woodbury" class="level3">
 <h3 class="anchored" data-anchor-id="sec-w8-code-woodbury">Appendix: the Woodbury identity and the posterior</h3>
@@ -2230,7 +2484,7 @@ direct D x D inverse:   945.4 ms
 Woodbury (K x K):        40.4 ms</code></pre>
 <p>Both give the same matrix, and the Woodbury route is more than 20 times faster here. (The exact timings depend on the machine; the Woodbury route still pays for forming the <span class="math inline">D\times D</span> result, which is why it is not <span class="math inline">(2000/5)^3</span> times faster.)</p>
 <div class="clarification callout callout-style-default callout-tip callout-titled" title="Recap: The PPCA tutorial notebook">
-<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-42-contents" aria-controls="callout-42" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-46-contents" aria-controls="callout-46" aria-expanded="false" aria-label="Toggle callout">
 <div class="callout-icon-container">
 <i class="callout-icon"></i>
 </div>
@@ -2239,7 +2493,7 @@ Woodbury (K x K):        40.4 ms</code></pre>
 </div>
 <div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
 </div>
-<div id="callout-42" class="callout-42-contents callout-collapse collapse">
+<div id="callout-46" class="callout-46-contents callout-collapse collapse">
 <div class="callout-body-container callout-body">
 <p>What the variables stand for:</p>
 <ul>
@@ -2804,8 +3058,8 @@ Note
       </a>          
   </div>
   <div class="nav-page nav-page-next">
-      <a href="../glossary.html" class="pagination-link" aria-label="Glossary">
-        <span class="nav-page-text"><span class="chapter-title">Glossary</span></span> <i class="bi bi-arrow-right-short"></i>
+      <a href="../lectures/week09.html" class="pagination-link" aria-label="Week 9: Bayesian Linear Regression and Gaussian Processes">
+        <span class="nav-page-text"><span class="chapter-title">Week 9: Bayesian Linear Regression and Gaussian Processes</span></span> <i class="bi bi-arrow-right-short"></i>
       </a>
   </div>
 </nav>

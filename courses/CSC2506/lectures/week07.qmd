@@ -1782,6 +1782,30 @@ class VariationalAutoencoder(nn.Module):
 
 `self.training` is a flag PyTorch sets with `vae.train()` and clears with `vae.eval()`. In evaluation mode, `latent_sample` skips the noise and returns $\mu$, the mean of $q(z\mid x)$, so evaluation is deterministic: the same image always gets the same code and the same reconstruction.
 
+::: {.callout-tip collapse="true" .clarification title="Question: Where do $\mu$ and $\log\sigma^2$ come from at the start, and how is $z$ sampled from them?"}
+The encoder does not compute $\mu$ and $\log\sigma^2$ from statistics of the data. For each image $x$, the encoder runs $x$ through its layers, and the last two layers output $\mu = g_\mu(x,\phi)$ and $\log\sigma^2 = g_{\log\sigma^2}(x,\phi)$. The data enters only through this forward pass.
+
+**At the start, these values are arbitrary.** The encoder weights $\phi$ are random, so the outputs are essentially random functions of $x$. With small random weights, the outputs are typically near zero, which puts $\log\sigma^2$ near 0 and $\sigma$ near 1. That is a side effect of the initialization, not a rule. Nothing in the notebook fits $\mu$ or $\sigma$ to the images beforehand. Training adjusts $\phi$ until the outputs are useful. This differs from the mixture model, where the starting centres could be drawn from the data.
+
+**$q$ is a density, and its output is a number.** For $M$ latent dimensions, $q(z\mid x,\phi) = \prod_{m=1}^{M}\mathcal N(z_m;\,\mu_m,\sigma_m^2)$. You give it a vector $z$ and it returns one density value. The vectors are the input $z$ and the parameters $(\mu, \log\sigma^2)$.
+
+**Sampling from $q$.** The encoder does not output $z$. To draw one sample for an image:
+
+1. Compute $\sigma = \exp\big(\tfrac12\log\sigma^2\big)$ from the encoder output.
+2. Draw $e\sim\mathcal N(0, I)$. This noise does not depend on $x$ or $\phi$.
+3. Compute $z = \mu + \sigma\odot e$.
+
+Each $z$ is a draw from $q(z\mid x,\phi)$, because a shifted and scaled Gaussian is still Gaussian with mean $\mu$ and standard deviation $\sigma$. The noise $e$ does not model noise in the image. It is the randomness that makes $z$ a sample, moved outside the parameters so that gradients can reach $\mu$ and $\sigma$. The spread of $z$ comes from $\sigma$, which the encoder learns.
+
+**Worked example** with $M=2$, $\mu = (0.3,\ -1.2)$, and $\log\sigma^2 = (0,\ -2)$:
+
+- $\sigma = (1,\ 0.368)$.
+- Draw $e = (0.5,\ -1)$.
+- $z = \mu + \sigma\odot e = (0.3 + 0.5,\ -1.2 - 0.368) = (0.8,\ -1.568)$.
+
+A different draw of $e$ gives a different $z$ for the same image. Evaluating the density at that $z$ gives $q(z\mid x)\approx 0.352 \times 0.658 \approx 0.232$.
+:::
+
 ### The loss {#sec-w7-code-loss}
 
 ```python

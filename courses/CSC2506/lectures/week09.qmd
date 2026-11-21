@@ -1,0 +1,1353 @@
+---
+title: "Week 9: Bayesian Linear Regression and Gaussian Processes"
+---
+
+```{=html}
+<style>#title-block-header { display: none; }</style>
+<div class="lecture-header">
+  <h1>Week 9: Bayesian Linear Regression and Gaussian Processes</h1>
+</div>
+```
+
+**Overview.** Week 8 fitted two Gaussian latent variable models (the mixture of Gaussians and probabilistic PCA) by maximum likelihood: one best value of the parameters. This week stays with Gaussian models of continuous variables but changes two things. The models are **discriminative**: they describe a target $y$ given an input $x$, $p(y\mid x)$, rather than the data $x$ itself. And we keep a whole **posterior distribution** over the parameters instead of a single best value. The first hour gives ordinary linear regression a probabilistic reading: least squares is maximum likelihood under Gaussian noise, ridge regression is MAP estimation (Week 4) under a Gaussian prior, and keeping the full Gaussian posterior gives **Bayesian linear regression**, whose predictions come with error bars. The main tool is a matrix version of completing the square. The second hour notices that the prior on the weights only ever enters through a covariance between function values, the **kernel**, and builds **Gaussian processes** by choosing that kernel directly. Gaussian process regression has closed-form predictions; Gaussian process classification does not, and needs the approximate inference of Weeks 5 and 7.
+
+The slides for this lecture are labelled **"Week 11"**, because the course numbers calendar weeks. As in Week 8, these notes number lectures in order, so this is Week 9 here. The first hour follows Chapter 3.3 of Bishop's *Pattern Recognition and Machine Learning*, as the slides say.
+
+Skipped: the title slide, and the "Overview of the first hour" slide (slide 2, folded into this paragraph). The two summary slides are folded into @sec-w9-summary1 and @sec-summary9.
+
+::: {.callout-note}
+**Notation used in this chapter.** The training set is $\mathcal D = \{(x^{(i)}, y^{(i)})\}_{i=1}^N$: $N$ input-target pairs, with the superscript $(i)$ indexing data points. Each input is turned into a feature vector $\psi(x)\in\mathbb R^M$; the slides do not name its length, and we call it $M$. The weights $w\in\mathbb R^M$ are the parameters. $\sigma^2$ is the **noise variance** throughout, except in @sec-w9-gpc, where $\sigma(\cdot)$ is the **sigmoid function**; that section says so again. The prior variance of the weights has three names on the slides: $S$ (a general covariance matrix), $\eta I$ (slide 8), and $\frac1\alpha I$ (slide 19, so $\alpha$ is a precision). In this chapter $\mu$ and $\Sigma$ are the mean and covariance of the **posterior over $w$**, not a data mean or a mixture component as in Week 8. Bold symbols on the slides are written plain here, as in earlier weeks: $y$ is either one target or the vector of all $N$ targets, and each use says which.
+:::
+
+## Completing the square for Gaussians {#sec-w9-cts}
+
+Over and over this week we will multiply Gaussian densities together and need to know what comes out. Expanding the product and integrating would be slow. Is there a faster way to recognize a Gaussian, and read off its mean and covariance, from the formula for its log-density?
+
+The lecture's answer is a matrix version of [completing the square](https://en.wikipedia.org/wiki/Completing_the_square). Start from a Gaussian $x\sim\mathcal N(\mu,\Sigma)$ (the [multivariate normal](https://en.wikipedia.org/wiki/Multivariate_normal_distribution) density of @sec-w8-mog in Week 8). Taking logs of its density and expanding the quadratic,
+
+$$
+\begin{aligned}
+\log p(x) &= -\tfrac12(x-\mu)^\top\Sigma^{-1}(x-\mu) + \text{const}\\
+&= -\tfrac12x^\top\Sigma^{-1}x + x^\top\Sigma^{-1}\mu + \text{const}.
+\end{aligned}
+$$
+
+Here "const" collects everything that does not depend on $x$: the normalizing constant and the term $-\tfrac12\mu^\top\Sigma^{-1}\mu$. The cross terms combine because $\Sigma^{-1}$ is symmetric, so $x^\top\Sigma^{-1}\mu = \mu^\top\Sigma^{-1}x$.
+
+Now read this backwards. The coefficient of the quadratic term is (minus a half times) the inverse covariance, and the coefficient of the linear term is the inverse covariance times the mean.
+
+::: {.definition-block}
+**Definition.** **Completing the square for Gaussians.** Suppose we know that $w$ is Gaussian, and that its log-density has the form
+$$\log p(w) = -\tfrac12w^\top Aw + w^\top b + \text{const}$$
+for a symmetric [positive definite](https://en.wikipedia.org/wiki/Definite_matrix) matrix $A$ and a vector $b$. Then matching against the expansion above, $\Sigma^{-1} = A$ and $\Sigma^{-1}\mu = b$, so
+$$w\sim\mathcal N\big(A^{-1}b,\ A^{-1}\big).$$
+:::
+
+The matrix $A$ is the **precision** (inverse covariance) and can be read off the quadratic term directly; the mean then comes from dividing the linear coefficient by the precision. We never have to integrate anything: the constant is whatever makes the density integrate to 1, and the Gaussian's form already fixes it. Week 5 used the one-dimensional version of this step to find the conditional of a bivariate Gaussian (@sec-gauss-cond in Week 5).
+
+::: {.callout-note}
+**Worked example: reading off a one-dimensional Gaussian.** Suppose $\log p(w) = -w^2 + 3w + \text{const}$.
+
+1. Match the quadratic term: $-w^2 = -\tfrac12\cdot 2\cdot w^2$, so $A = 2$.
+2. Match the linear term: $3w = w\cdot b$, so $b = 3$.
+3. Read off: mean $A^{-1}b = 3/2 = 1.5$ and variance $A^{-1} = 0.5$.
+
+Check by completing the square by hand: $-w^2+3w = -(w-1.5)^2 + 2.25$, and $-(w-1.5)^2 = -\frac{(w-1.5)^2}{2\cdot 0.5}$, the exponent of $\mathcal N(1.5, 0.5)$.
+:::
+
+::: {.callout-tip collapse="true" .clarification title="Recap: Completing the square for Gaussians"}
+What the symbols stand for:
+
+- $\mu$, $\Sigma$: the mean vector and covariance matrix of a Gaussian.
+- $\Sigma^{-1}$: the **precision** matrix, the inverse of the covariance. Large precision means small spread.
+- $A$, $b$: the matrix and vector we find when we expand some log-density as a quadratic in $w$. They are whatever the problem hands us.
+- "const": every term that does not involve the variable. It is fixed by normalization, so we can ignore it.
+
+Taking the equations apart:
+
+- $-\tfrac12(x-\mu)^\top\Sigma^{-1}(x-\mu)$: the Gaussian's exponent, a bowl-shaped penalty for being far from $\mu$.
+- $-\tfrac12x^\top\Sigma^{-1}x$: the purely quadratic piece. Its matrix is the precision.
+- $x^\top\Sigma^{-1}\mu$: the linear piece. Its vector is precision times mean.
+- $w\sim\mathcal N(A^{-1}b, A^{-1})$: so covariance is "one over the quadratic coefficient", and mean is "linear coefficient over quadratic coefficient", in matrix form.
+
+A teaching example, in two dimensions. Suppose $\log p(w) = -w_1^2 - 2w_2^2 + 2w_1 + 2w_2 + \text{const}$.
+
+- Quadratic part: $-\tfrac12(2w_1^2 + 4w_2^2) = -\tfrac12 w^\top A w$ with $A = \begin{pmatrix}2&0\\0&4\end{pmatrix}$.
+- Linear part: $2w_1 + 2w_2 = w^\top b$ with $b = (2, 2)^\top$.
+- Covariance: $A^{-1} = \begin{pmatrix}0.5&0\\0&0.25\end{pmatrix}$.
+- Mean: $A^{-1}b = (0.5\cdot2,\ 0.25\cdot2) = (1, 0.5)$.
+- Check one coordinate by hand: $-2w_2^2 + 2w_2 = -2(w_2 - 0.5)^2 + 0.5$, a Gaussian in $w_2$ with mean $0.5$ and variance $\tfrac14$. It matches.
+:::
+
+::: {.callout-note .section-takeaways}
+**Key takeaways.**
+
+- If a log-density is a quadratic in $w$ with a negative definite quadratic part, the distribution is Gaussian, and we can read its covariance off the quadratic term and its mean off the linear term. No integral is needed.
+- This is how we will find every posterior this week: write down the log of prior times likelihood, collect the terms in $w$, and match.
+:::
+
+## Why a Bayesian approach to regression {#sec-w9-why}
+
+**[Linear regression](https://en.wikipedia.org/wiki/Linear_regression)**, as met in CSC311, returns one weight vector and one prediction per input. It cannot tell us whether that prediction rests on a lot of nearby data or on none. How could a model know what it does not know?
+
+The lecture takes the Bayesian approach: put a prior on the weights, and instead of a single fitted value, infer a **posterior distribution** over them. This is in contrast with standard regression, which picks one weight vector. Uncertainty in the weights then carries over to uncertainty in the predictions, which helps in three ways the slides list:
+
+- **Smoother predictions.** We average over many plausible explanations of the data instead of trusting one.
+- **Confidence.** Each prediction comes with a measure of how sure the model is.
+- **More robust decisions.** A decision can take the uncertainty into account, for example by being cautious where the model is unsure.
+
+The tools are the ones from Week 1 (@sec-bayes in Week 1): prior, likelihood, Bayes' rule, posterior. What is new is that the unknown is a whole weight vector and the distributions are Gaussian, so the posterior can be computed exactly with @sec-w9-cts.
+
+::: {.callout-tip collapse="true" .clarification title="Recap: Why a Bayesian approach to regression"}
+The key terms:
+
+- **Point estimate**: a single best value of the weights, such as the least-squares or ridge solution.
+- **Posterior over the weights**: a distribution saying how plausible each weight vector is after seeing the data.
+- **Uncertainty in a prediction**: how much the prediction at an input would change across the plausible weight vectors.
+
+Taking the idea apart:
+
+- Prior: what we believe about $w$ before data.
+- Likelihood: how well each $w$ explains the observed targets.
+- Posterior: prior times likelihood, normalized. Every plausible $w$ keeps a weight.
+- Prediction: instead of one line, we get a spread of lines, and their spread at an input is our uncertainty there.
+
+A teaching example, a small concrete case. One data point is observed at $x = 0.8$ with $y = 0.1$. The line $y = 0.1$ (flat) and the line $y = -0.7 + x$ both pass through it.
+
+- At $x = 0.8$ both predict $0.1$: they agree where we have data.
+- At $x = -1$ the flat line predicts $0.1$ and the other predicts $-1.7$: they disagree far from the data.
+- A point estimate picks one line and reports one number at $x=-1$. A posterior keeps both (and every other line near the point), and the disagreement at $x = -1$ is reported as uncertainty.
+:::
+
+::: {.callout-note .section-takeaways}
+**Key takeaways.**
+
+- A single fitted line gives the same kind of answer everywhere, whether or not there was data nearby. Keeping a distribution over the weights lets the model's confidence depend on where we ask.
+- Nothing about the model changes except that the weights get a prior and we keep the whole posterior. The rest of Part 1 works out what that posterior is.
+:::
+
+## Linear regression and feature maps {#sec-w9-linreg}
+
+This section and the next recap CSC311. What does "linear" in linear regression actually require? The lecture's answer: linear in the **weights**, not in the input.
+
+We are given a training set of inputs and targets $\{(x^{(i)}, y^{(i)})\}_{i=1}^N$. The model is
+$$y = w^\top\psi(x) + \epsilon,$$
+where $\psi$ is a **feature map**: any fixed function turning the input into a vector of $M$ numbers called **[features](https://en.wikipedia.org/wiki/Feature_(machine_learning))**, and $\epsilon$ is noise. The simplest feature map for a scalar input is $\psi(x) = (1, x)^\top$, which gives the straight line $y = w_0 + w_1x$ (the constant feature 1 provides the intercept $w_0$). A nonlinear $\psi$ such as $(1, x, x^2)$ still gives a model that is linear in $w$, which is all the computations below need.
+
+Stacking the feature vectors of all $N$ inputs as rows gives the **[design matrix](https://en.wikipedia.org/wiki/Design_matrix)** in feature space, and stacking the targets gives a vector:
+
+$$
+\Psi = \begin{pmatrix} \psi(x^{(1)})^\top\\ \psi(x^{(2)})^\top\\ \vdots\\ \psi(x^{(N)})^\top \end{pmatrix}\in\mathbb R^{N\times M},
+\qquad
+y = \begin{pmatrix} y^{(1)}\\ y^{(2)}\\ \vdots\\ y^{(N)} \end{pmatrix}\in\mathbb R^N.
+$$
+
+The slides also mention a design matrix $X$ in the original input space; $\Psi$ is the same idea after the feature map. The predictions for all training inputs at once are $\hat y = \Psi w$: row $i$ of $\Psi$ dotted with $w$ is the prediction for input $i$.
+
+The lecture's running example (slide 12) is the line $y = w_0 + w_1x$ with true weights $w_0 = -0.3$, $w_1 = 0.5$. We use it throughout Part 1, with $\psi(x) = (1, x)^\top$ and $M = 2$.
+
+::: {.callout-tip collapse="true" .clarification title="Recap: Linear regression and feature maps"}
+What the symbols stand for:
+
+- $x^{(i)}$, $y^{(i)}$: the $i$-th input and its observed target (data).
+- $\psi(x)\in\mathbb R^M$: the feature vector of input $x$, a fixed function we choose.
+- $w\in\mathbb R^M$: the weights (parameters).
+- $\epsilon$: noise, the part of $y$ the model does not explain.
+- $\Psi$: the $N\times M$ design matrix, one row per training input. $y$ here is the vector of all $N$ targets.
+- $\hat y = \Psi w$: the vector of the model's predictions at the training inputs.
+
+Taking the equations apart:
+
+- $w^\top\psi(x) = \sum_j w_j\psi_j(x)$: a weighted sum of features. Linear in $w$ whatever $\psi$ is.
+- $+\,\epsilon$: the observed target wobbles around that weighted sum.
+- $\hat y = \Psi w$: the same weighted sum for every training input at once.
+
+A teaching example, building $\Psi$ for two inputs of the running example.
+
+- Inputs $x^{(1)} = 0.8$ and $x^{(2)} = -0.6$ with $\psi(x) = (1, x)$: rows $(1, 0.8)$ and $(1, -0.6)$, so $\Psi = \begin{pmatrix}1&0.8\\1&-0.6\end{pmatrix}$.
+- With the true weights $w = (-0.3, 0.5)$: $\hat y^{(1)} = -0.3 + 0.5\cdot0.8 = 0.1$ and $\hat y^{(2)} = -0.3 + 0.5\cdot(-0.6) = -0.6$.
+- Check with the line: $-0.3 + 0.5x$ at $x = 0.8$ is $0.1$. It matches.
+:::
+
+::: {.callout-note .section-takeaways}
+**Key takeaways.**
+
+- "Linear" regression is linear in the weights. The features can be any fixed nonlinear function of the input, which is how a linear model can fit curves (@sec-w9-rbf).
+- Writing all inputs as the rows of $\Psi$ turns every computation into matrix algebra, which is what makes the closed-form answers below possible.
+:::
+
+## Ridge regression {#sec-w9-ridge}
+
+Least squares alone can overfit when there are many features. How did CSC311 keep the weights in check, and how is the answer computed?
+
+The slides call this the version with **no statistical model**: just an objective to minimize.
+
+::: {.definition-block}
+**Definition.** **[Ridge regression](https://en.wikipedia.org/wiki/Ridge_regression)** chooses the weights that minimize the **penalized sum of squares**
+$$\tfrac12\lVert y-\Psi w\rVert^2 + \tfrac\lambda2\lVert w\rVert^2,$$
+where $\lambda\ge0$ is the **regularization strength**. The first term rewards fitting the targets; the second, an **L2 penalty**, rewards small weights.
+:::
+
+The gradient with respect to $w$ adds the gradient of each term: $\Psi^\top(\Psi w - y)$ from the squared error and $\lambda w$ from the penalty, so
+
+$$\nabla_w = (\Psi^\top\Psi + \lambda I)\,w - \Psi^\top y.$$
+
+The lecture gives two ways to find the minimizer.
+
+**Solution 1: set the gradient to zero.** Solving the linear system gives
+
+::: {.boxed-eq}
+$$w = (\Psi^\top\Psi + \lambda I)^{-1}\Psi^\top y.$$
+:::
+
+The matrix $\Psi^\top\Psi + \lambda I$ is always invertible when $\lambda > 0$, so ridge has a unique answer even when least squares does not. With $\lambda = 0$ this is ordinary [least squares](https://en.wikipedia.org/wiki/Least_squares).
+
+**Solution 2: [gradient descent](https://en.wikipedia.org/wiki/Gradient_descent).** Step against the gradient with a learning rate. Grouping the terms,
+
+$$w \leftarrow (1-\alpha\lambda)\,w - \alpha\,\Psi^\top(\Psi w - y).$$
+
+In this formula only, $\alpha$ is the **learning rate** (the step size), not the prior precision of slide 19. The factor $(1-\alpha\lambda)$ shrinks the weights a little on every step before the usual least-squares step, which is why the L2 penalty is also called **weight decay**.
+
+::: {.callout-tip collapse="true" .clarification title="Recap: Ridge regression"}
+What the symbols stand for:
+
+- $\lambda$: the regularization strength, a number we choose. Larger means stronger pull toward zero.
+- $\lVert v\rVert^2 = v^\top v$: the squared length of a vector.
+- $\alpha$ (in the update only): the learning rate.
+- $I$: the $M\times M$ identity matrix.
+
+Taking the equations apart:
+
+- $\tfrac12\lVert y-\Psi w\rVert^2$: half the sum of squared residuals over the training set. The $\tfrac12$ cancels when we differentiate.
+- $\tfrac\lambda2\lVert w\rVert^2$: the penalty for large weights.
+- $(\Psi^\top\Psi + \lambda I)^{-1}\Psi^\top y$: the least-squares formula with $\lambda$ added to the diagonal of $\Psi^\top\Psi$.
+- $(1-\alpha\lambda)w$: shrink. $-\alpha\Psi^\top(\Psi w - y)$: correct toward the data.
+
+A teaching example, with one feature and no intercept, $\psi(x) = x$, so $w$ is a single number. Data: $x = (1, 2)$, $y = (1, 3)$.
+
+- $\Psi^\top\Psi = 1^2 + 2^2 = 5$ and $\Psi^\top y = 1\cdot1 + 2\cdot3 = 7$.
+- Least squares ($\lambda = 0$): $w = 7/5 = 1.4$.
+- Ridge with $\lambda = 1$: $w = 7/(5+1) \approx 1.167$, pulled toward zero.
+- Check the gradient at $w = 7/6$: $(5+1)\cdot\tfrac76 - 7 = 0$. It matches.
+:::
+
+::: {.callout-note .section-takeaways}
+**Key takeaways.**
+
+- Ridge regression adds a penalty on the size of the weights. It still has a closed-form answer: least squares with $\lambda$ added to the diagonal.
+- So far this is just an objective with a knob $\lambda$, with no probabilistic meaning. The next two sections give both terms one.
+:::
+
+## Linear regression as maximum likelihood {#sec-w9-ml}
+
+Why squared error, rather than absolute error or something else? A probabilistic model answers that: squared error is what we get from Gaussian noise.
+
+Assume the target is the model's prediction plus Gaussian noise of variance $\sigma^2$:
+
+$$y\mid x \sim \mathcal N\big(w^\top\psi(x),\ \sigma^2\big).$$
+
+With the data points independent, the log-likelihood of the weights (@sec-mle in Week 1) is a sum over points:
+
+$$
+\begin{aligned}
+\sum_{i=1}^N\log p(y^{(i)}\mid x^{(i)}; w) &= \sum_{i=1}^N\log\mathcal N\big(y^{(i)};\ w^\top\psi(x^{(i)}),\ \sigma^2\big)\\
+&= \sum_{i=1}^N\log\Bigg[\frac{1}{\sqrt{2\pi}\,\sigma}\exp\Big(-\frac{(y^{(i)}-w^\top\psi(x^{(i)}))^2}{2\sigma^2}\Big)\Bigg]\\
+&= \text{const} - \frac{1}{2\sigma^2}\sum_{i=1}^N\big(y^{(i)}-w^\top\psi(x^{(i)})\big)^2\\
+&= \text{const} - \frac{1}{2\sigma^2}\lVert y-\Psi w\rVert^2.
+\end{aligned}
+$$
+
+The constant is $-N\log(\sqrt{2\pi}\,\sigma)$, which does not depend on $w$. So maximizing the log-likelihood over $w$ is the same as minimizing $\lVert y-\Psi w\rVert^2$: **linear regression is maximum likelihood under Gaussian noise**. The semicolon in $p(y\mid x; w)$ marks $w$ as a parameter, not a random variable; that changes in the next section.
+
+::: {.callout-tip collapse="true" .clarification title="Recap: Linear regression as maximum likelihood"}
+What the symbols stand for:
+
+- $\sigma^2$: the noise variance, here treated as fixed and known.
+- $\mathcal N(y; m, \sigma^2)$: the Gaussian density with mean $m$ and variance $\sigma^2$, evaluated at $y$.
+- $p(y^{(i)}\mid x^{(i)}; w)$: the probability density of the observed target under weights $w$.
+
+Taking the equations apart:
+
+- $y\mid x\sim\mathcal N(w^\top\psi(x), \sigma^2)$: the line gives the centre of a bell curve; the target lands somewhere near it.
+- $\log\frac{1}{\sqrt{2\pi}\sigma}$: the same for every point and every $w$, so it goes into "const".
+- $-\frac{(y^{(i)}-w^\top\psi(x^{(i)}))^2}{2\sigma^2}$: one point's squared residual, scaled by the noise variance.
+- $-\frac{1}{2\sigma^2}\lVert y-\Psi w\rVert^2$: all the residuals together. Bigger total squared error means lower likelihood.
+
+A teaching example, comparing two weight vectors on the two points $(0.8, 0.1)$ and $(-0.6, -0.55)$ with $\sigma^2 = 0.04$.
+
+- True weights $w = (-0.3, 0.5)$: predictions $0.1$ and $-0.6$, residuals $0$ and $0.05$, squared error $0.0025$. Log-likelihood $= \text{const} - \frac{0.0025}{0.08} = \text{const} - 0.031$.
+- Flat line $w = (0, 0)$: residuals $0.1$ and $-0.55$, squared error $0.01 + 0.3025 = 0.3125$. Log-likelihood $= \text{const} - \frac{0.3125}{0.08} = \text{const} - 3.906$.
+- The true line has the higher likelihood, by the same ranking as squared error.
+:::
+
+::: {.callout-note .section-takeaways}
+**Key takeaways.**
+
+- Least squares is not an arbitrary choice: it is exactly maximum likelihood if we assume the targets scatter around the line with Gaussian noise.
+- Once the model is probabilistic, we can treat $w$ as a random quantity with a prior, which is what the next section does.
+:::
+
+## Ridge regression as MAP estimation {#sec-w9-map}
+
+If squared error comes from the likelihood, where does the ridge penalty come from? From a prior on the weights.
+
+Put a zero-mean isotropic Gaussian prior on the weights, $w\sim\mathcal N(0, \eta I)$, where $\eta$ is the prior variance of each weight. Its log-density is
+$$\log p(w) = -\frac{1}{2\eta}\lVert w\rVert^2 + \text{const},$$
+and from @sec-w9-ml, $\log p(\mathcal D\mid w) = \text{const} - \frac{1}{2\sigma^2}\lVert y-\Psi w\rVert^2$. Bayes' rule gives $p(w\mid\mathcal D) = p(w)\,p(\mathcal D\mid w)/p(\mathcal D)$, and $p(\mathcal D)$ does not depend on $w$. So the **[MAP](https://en.wikipedia.org/wiki/Maximum_a_posteriori_estimation)** estimate (@sec-maxproduct in Week 4), the most probable weights under the posterior, is
+
+$$
+\begin{aligned}
+\arg\max_w\ \log p(w\mid\mathcal D) &= \arg\max_w\ \big[\log p(w) + \log p(\mathcal D\mid w)\big]\\
+&= \arg\min_w\ \Big[\frac{1}{2\eta}\lVert w\rVert^2 + \frac{1}{2\sigma^2}\lVert y-\Psi w\rVert^2\Big].
+\end{aligned}
+$$
+
+Multiplying the objective by $\sigma^2$ does not move its minimizer, and gives $\tfrac12\lVert y-\Psi w\rVert^2 + \tfrac{\sigma^2}{2\eta}\lVert w\rVert^2$. This is the ridge objective of @sec-w9-ridge with
+
+::: {.boxed-eq}
+$$\lambda = \frac{\sigma^2}{\eta}.$$
+:::
+
+So **L2 regularization is MAP estimation with a Gaussian prior**. The regularization strength is a ratio: noise variance over prior variance. A noisier likelihood or a tighter prior both mean stronger regularization.
+
+::: {.callout-tip collapse="true" .clarification title="Recap: Ridge regression as MAP estimation"}
+What the symbols stand for:
+
+- $\eta$: the prior variance of each weight, a number we choose. Small $\eta$ means we expect small weights.
+- $p(w)$: the prior. $p(\mathcal D\mid w)$: the likelihood. $p(w\mid\mathcal D)$: the posterior.
+- $\arg\max_w$: the value of $w$ that makes the expression largest.
+
+Taking the equations apart:
+
+- $\log p(w) = -\frac{1}{2\eta}\lVert w\rVert^2$: the prior penalizes large weights, more strongly when $\eta$ is small.
+- $\log p(w) + \log p(\mathcal D\mid w)$: log-prior plus log-likelihood is the log-posterior up to $\log p(\mathcal D)$, which is the same for every $w$.
+- Turning $\arg\max$ of a negative into $\arg\min$ of a positive: same location, flipped sign.
+- $\lambda = \sigma^2/\eta$: how much to trust the prior relative to the data.
+
+A teaching example, the values used for the running example from here on: noise variance $\sigma^2 = 0.04$ (noise standard deviation $0.2$) and prior variance $\eta = 0.5$.
+
+- $\lambda = 0.04/0.5 = 0.08$.
+- Halve the prior variance to $\eta = 0.25$: $\lambda = 0.16$, twice the pull toward zero.
+- Double the noise variance to $\sigma^2 = 0.08$ with $\eta = 0.5$: $\lambda = 0.16$ too. Noisier data is trusted less, which has the same effect as a stronger prior.
+:::
+
+::: {.callout-note .section-takeaways}
+**Key takeaways.**
+
+- The ridge penalty is a Gaussian prior on the weights in disguise, and ridge regression returns the posterior's peak.
+- The knob $\lambda$ now has a meaning: noise variance divided by prior variance. But MAP still keeps only one weight vector and throws the rest of the posterior away.
+:::
+
+## Full Bayesian inference {#sec-w9-full}
+
+The MAP weights can be used for predictions. But MAP throws away everything about the posterior except its peak. Can we use the whole posterior instead?
+
+Full Bayesian inference makes predictions by **averaging over all likely $w$** under the posterior. For a new input $x$ with unknown target $y$, the sum rule and product rule give
+
+$$
+\begin{aligned}
+p(y\mid x,\mathcal D) &= \int p(w, y\mid x, \mathcal D)\,dw\\
+&= \int p(y\mid x, w)\,p(w\mid\mathcal D)\,dw.
+\end{aligned}
+$$
+
+The second line uses two assumptions of the model: once $w$ is known, the training data says nothing more about the new target, $p(y\mid x, w, \mathcal D) = p(y\mid x, w)$; and the new input on its own says nothing about $w$, $p(w\mid x,\mathcal D) = p(w\mid\mathcal D)$. Each weight vector's prediction is weighted by how plausible that weight vector is. Doing this lets us quantify our uncertainty: where plausible weight vectors disagree, the averaged prediction is spread out.
+
+Figure 1 places the three approaches side by side.
+
+```{=html}
+<div style="overflow-x:auto; margin:1.5rem 0;">
+<svg viewBox="0 0 600 390" width="100%" style="max-width:600px;display:block;margin:auto;font-family:Helvetica,'Helvetica Neue',Arial,sans-serif;" role="img" aria-label="Three stacked boxes joined by downward arrows. Top: least squares, which is maximum likelihood under Gaussian noise and returns one best w. Arrow labelled add a Gaussian prior on w. Middle: ridge regression, the MAP estimate, the posterior's peak. Arrow labelled keep the whole posterior. Bottom: Bayesian linear regression, the full posterior over w and predictions with error bars.">
+  <text x="300" y="32" text-anchor="middle" font-size="24" font-weight="600" fill="#333">Three ways to fit the weights</text>
+  <rect x="110" y="62" width="300" height="74" rx="10" fill="#FAEDCB" stroke="#C7A857" stroke-width="2"/>
+  <text x="260" y="92" text-anchor="middle" font-size="18" font-weight="600" fill="#796020">Least squares</text>
+  <text x="260" y="118" text-anchor="middle" font-size="15" fill="#796020">maximum likelihood, Gaussian noise</text>
+  <line x1="260" y1="136" x2="260" y2="176" stroke="#555" stroke-width="1.8"/>
+  <polygon points="260,184 254,174 266,174" fill="#555"/>
+  <text x="275" y="165" font-size="15" fill="#555">add a Gaussian prior on w</text>
+  <rect x="110" y="186" width="300" height="74" rx="10" fill="#DBCDF0" stroke="#8457C7" stroke-width="2"/>
+  <text x="260" y="216" text-anchor="middle" font-size="18" font-weight="600" fill="#442079">Ridge regression</text>
+  <text x="260" y="242" text-anchor="middle" font-size="15" fill="#442079">MAP estimate: the posterior's peak</text>
+  <line x1="260" y1="260" x2="260" y2="300" stroke="#555" stroke-width="1.8"/>
+  <polygon points="260,308 254,298 266,298" fill="#555"/>
+  <text x="275" y="289" font-size="15" fill="#555">keep the whole posterior</text>
+  <rect x="110" y="310" width="300" height="74" rx="10" fill="#F7D9C4" stroke="#C78557" stroke-width="2"/>
+  <text x="260" y="340" text-anchor="middle" font-size="18" font-weight="600" fill="#794520">Bayesian linear regression</text>
+  <text x="260" y="366" text-anchor="middle" font-size="15" fill="#794520">posterior over w, predictions with error bars</text>
+  <text x="430" y="104" font-size="15" fill="#555">one w</text>
+  <text x="430" y="228" font-size="15" fill="#555">one w</text>
+  <text x="430" y="352" font-size="15" fill="#555">all w, weighted</text>
+</svg>
+</div>
+```
+
+**Figure 1.** Three ways to fit the weights. Each step adds one probabilistic ingredient: Gaussian noise turns least squares into maximum likelihood, a Gaussian prior turns ridge into MAP, and keeping the whole posterior gives Bayesian linear regression.
+
+The slides show samples of lines from the prior $p(w)$ and from the posterior $p(w\mid\mathcal D)$. Figure 2 redraws this for the running example.
+
+```{=html}
+<div style="overflow-x:auto; margin:1.5rem 0;">
+<svg viewBox="0 0 600 305" width="100%" style="max-width:600px;display:block;margin:auto;font-family:Helvetica,'Helvetica Neue',Arial,sans-serif;" role="img" aria-label="Three panels of straight lines on the square from minus 1 to 1. With no observations the six sampled lines point in all directions. After one observation at x = 0.8 they all pass close to that point but fan out elsewhere. After two observations they cluster tightly around the dashed true line.">
+  <text x="300" y="32" text-anchor="middle" font-size="24" font-weight="600" fill="#333">Lines drawn from the prior and the posterior</text>
+  <clipPath id="w9clip1"><rect x="40" y="80" width="160" height="160"/></clipPath>
+  <rect x="40" y="80" width="160" height="160" fill="#fff" stroke="#888" stroke-width="1.2"/>
+  <text x="40.0" y="258" text-anchor="middle" font-size="14" fill="#555">-1</text>
+  <text x="120.0" y="258" text-anchor="middle" font-size="14" fill="#555">0</text>
+  <text x="200.0" y="258" text-anchor="middle" font-size="14" fill="#555">1</text>
+  <text x="34" y="245.0" text-anchor="end" font-size="14" fill="#555">-1</text>
+  <text x="34" y="165.0" text-anchor="end" font-size="14" fill="#555">0</text>
+  <text x="34" y="85.0" text-anchor="end" font-size="14" fill="#555">1</text>
+  <text x="120.0" y="70" text-anchor="middle" font-size="16" font-weight="600" fill="#333">no observations</text>
+  <path clip-path="url(#w9clip1)" d="M40.0,224.0 L43.3,222.4 L46.5,220.7 L49.8,219.1 L53.1,217.5 L56.3,215.8 L59.6,214.2 L62.9,212.6 L66.1,210.9 L69.4,209.3 L72.7,207.7 L75.9,206.0 L79.2,204.4 L82.4,202.8 L85.7,201.1 L89.0,199.5 L92.2,197.9 L95.5,196.2 L98.8,194.6 L102.0,193.0 L105.3,191.3 L108.6,189.7 L111.8,188.1 L115.1,186.4 L118.4,184.8 L121.6,183.2 L124.9,181.6 L128.2,179.9 L131.4,178.3 L134.7,176.7 L138.0,175.0 L141.2,173.4 L144.5,171.8 L147.8,170.1 L151.0,168.5 L154.3,166.9 L157.6,165.2 L160.8,163.6 L164.1,162.0 L167.3,160.3 L170.6,158.7 L173.9,157.1 L177.1,155.4 L180.4,153.8 L183.7,152.2 L186.9,150.5 L190.2,148.9 L193.5,147.3 L196.7,145.6 L200.0,144.0" fill="none" stroke="#57C7AE" stroke-width="2.5" stroke-dasharray="6 4"/>
+  <path clip-path="url(#w9clip1)" d="M40.0,206.5 L43.3,207.2 L46.5,207.8 L49.8,208.5 L53.1,209.2 L56.3,209.8 L59.6,210.5 L62.9,211.1 L66.1,211.8 L69.4,212.5 L72.7,213.1 L75.9,213.8 L79.2,214.5 L82.4,215.1 L85.7,215.8 L89.0,216.5 L92.2,217.1 L95.5,217.8 L98.8,218.5 L102.0,219.1 L105.3,219.8 L108.6,220.5 L111.8,221.1 L115.1,221.8 L118.4,222.4 L121.6,223.1 L124.9,223.8 L128.2,224.4 L131.4,225.1 L134.7,225.8 L138.0,226.4 L141.2,227.1 L144.5,227.8 L147.8,228.4 L151.0,229.1 L154.3,229.8 L157.6,230.4 L160.8,231.1 L164.1,231.8 L167.3,232.4 L170.6,233.1 L173.9,233.7 L177.1,234.4 L180.4,235.1 L183.7,235.7 L186.9,236.4 L190.2,237.1 L193.5,237.7 L196.7,238.4 L200.0,239.1" fill="none" stroke="#5795C7" stroke-width="1.6" opacity="0.85"/>
+  <path clip-path="url(#w9clip1)" d="M40.0,161.5 L43.3,162.0 L46.5,162.6 L49.8,163.1 L53.1,163.7 L56.3,164.2 L59.6,164.8 L62.9,165.3 L66.1,165.9 L69.4,166.4 L72.7,167.0 L75.9,167.5 L79.2,168.1 L82.4,168.6 L85.7,169.1 L89.0,169.7 L92.2,170.2 L95.5,170.8 L98.8,171.3 L102.0,171.9 L105.3,172.4 L108.6,173.0 L111.8,173.5 L115.1,174.1 L118.4,174.6 L121.6,175.2 L124.9,175.7 L128.2,176.3 L131.4,176.8 L134.7,177.3 L138.0,177.9 L141.2,178.4 L144.5,179.0 L147.8,179.5 L151.0,180.1 L154.3,180.6 L157.6,181.2 L160.8,181.7 L164.1,182.3 L167.3,182.8 L170.6,183.4 L173.9,183.9 L177.1,184.5 L180.4,185.0 L183.7,185.5 L186.9,186.1 L190.2,186.6 L193.5,187.2 L196.7,187.7 L200.0,188.3" fill="none" stroke="#5795C7" stroke-width="1.6" opacity="0.85"/>
+  <path clip-path="url(#w9clip1)" d="M40.0,104.2 L43.3,103.9 L46.5,103.6 L49.8,103.3 L53.1,103.0 L56.3,102.7 L59.6,102.4 L62.9,102.1 L66.1,101.8 L69.4,101.5 L72.7,101.2 L75.9,100.9 L79.2,100.6 L82.4,100.2 L85.7,99.9 L89.0,99.6 L92.2,99.3 L95.5,99.0 L98.8,98.7 L102.0,98.4 L105.3,98.1 L108.6,97.8 L111.8,97.5 L115.1,97.2 L118.4,96.9 L121.6,96.6 L124.9,96.3 L128.2,95.9 L131.4,95.6 L134.7,95.3 L138.0,95.0 L141.2,94.7 L144.5,94.4 L147.8,94.1 L151.0,93.8 L154.3,93.5 L157.6,93.2 L160.8,92.9 L164.1,92.6 L167.3,92.3 L170.6,91.9 L173.9,91.6 L177.1,91.3 L180.4,91.0 L183.7,90.7 L186.9,90.4 L190.2,90.1 L193.5,89.8 L196.7,89.5 L200.0,89.2" fill="none" stroke="#5795C7" stroke-width="1.6" opacity="0.85"/>
+  <path clip-path="url(#w9clip1)" d="M40.0,140.0 L43.3,140.0 L46.5,140.0 L49.8,140.0 L53.1,140.0 L56.3,140.0 L59.6,139.9 L62.9,139.9 L66.1,139.9 L69.4,139.9 L72.7,139.9 L75.9,139.9 L79.2,139.9 L82.4,139.9 L85.7,139.8 L89.0,139.8 L92.2,139.8 L95.5,139.8 L98.8,139.8 L102.0,139.8 L105.3,139.8 L108.6,139.7 L111.8,139.7 L115.1,139.7 L118.4,139.7 L121.6,139.7 L124.9,139.7 L128.2,139.7 L131.4,139.7 L134.7,139.6 L138.0,139.6 L141.2,139.6 L144.5,139.6 L147.8,139.6 L151.0,139.6 L154.3,139.6 L157.6,139.5 L160.8,139.5 L164.1,139.5 L167.3,139.5 L170.6,139.5 L173.9,139.5 L177.1,139.5 L180.4,139.4 L183.7,139.4 L186.9,139.4 L190.2,139.4 L193.5,139.4 L196.7,139.4 L200.0,139.4" fill="none" stroke="#5795C7" stroke-width="1.6" opacity="0.85"/>
+  <path clip-path="url(#w9clip1)" d="M40.0,220.5 L43.3,220.1 L46.5,219.7 L49.8,219.4 L53.1,219.0 L56.3,218.6 L59.6,218.2 L62.9,217.8 L66.1,217.4 L69.4,217.0 L72.7,216.6 L75.9,216.2 L79.2,215.8 L82.4,215.4 L85.7,215.0 L89.0,214.6 L92.2,214.2 L95.5,213.8 L98.8,213.4 L102.0,213.0 L105.3,212.6 L108.6,212.2 L111.8,211.8 L115.1,211.4 L118.4,211.0 L121.6,210.6 L124.9,210.2 L128.2,209.8 L131.4,209.4 L134.7,209.0 L138.0,208.6 L141.2,208.2 L144.5,207.8 L147.8,207.4 L151.0,207.1 L154.3,206.7 L157.6,206.3 L160.8,205.9 L164.1,205.5 L167.3,205.1 L170.6,204.7 L173.9,204.3 L177.1,203.9 L180.4,203.5 L183.7,203.1 L186.9,202.7 L190.2,202.3 L193.5,201.9 L196.7,201.5 L200.0,201.1" fill="none" stroke="#5795C7" stroke-width="1.6" opacity="0.85"/>
+  <path clip-path="url(#w9clip1)" d="M40.0,125.6 L43.3,125.3 L46.5,125.0 L49.8,124.7 L53.1,124.5 L56.3,124.2 L59.6,123.9 L62.9,123.7 L66.1,123.4 L69.4,123.1 L72.7,122.8 L75.9,122.6 L79.2,122.3 L82.4,122.0 L85.7,121.8 L89.0,121.5 L92.2,121.2 L95.5,121.0 L98.8,120.7 L102.0,120.4 L105.3,120.1 L108.6,119.9 L111.8,119.6 L115.1,119.3 L118.4,119.1 L121.6,118.8 L124.9,118.5 L128.2,118.2 L131.4,118.0 L134.7,117.7 L138.0,117.4 L141.2,117.2 L144.5,116.9 L147.8,116.6 L151.0,116.3 L154.3,116.1 L157.6,115.8 L160.8,115.5 L164.1,115.3 L167.3,115.0 L170.6,114.7 L173.9,114.5 L177.1,114.2 L180.4,113.9 L183.7,113.6 L186.9,113.4 L190.2,113.1 L193.5,112.8 L196.7,112.6 L200.0,112.3" fill="none" stroke="#5795C7" stroke-width="1.6" opacity="0.85"/>
+  <clipPath id="w9clip2"><rect x="230" y="80" width="160" height="160"/></clipPath>
+  <rect x="230" y="80" width="160" height="160" fill="#fff" stroke="#888" stroke-width="1.2"/>
+  <text x="230.0" y="258" text-anchor="middle" font-size="14" fill="#555">-1</text>
+  <text x="310.0" y="258" text-anchor="middle" font-size="14" fill="#555">0</text>
+  <text x="390.0" y="258" text-anchor="middle" font-size="14" fill="#555">1</text>
+  <text x="310.0" y="70" text-anchor="middle" font-size="16" font-weight="600" fill="#333">one observation</text>
+  <path clip-path="url(#w9clip2)" d="M230.0,224.0 L233.3,222.4 L236.5,220.7 L239.8,219.1 L243.1,217.5 L246.3,215.8 L249.6,214.2 L252.9,212.6 L256.1,210.9 L259.4,209.3 L262.7,207.7 L265.9,206.0 L269.2,204.4 L272.4,202.8 L275.7,201.1 L279.0,199.5 L282.2,197.9 L285.5,196.2 L288.8,194.6 L292.0,193.0 L295.3,191.3 L298.6,189.7 L301.8,188.1 L305.1,186.4 L308.4,184.8 L311.6,183.2 L314.9,181.6 L318.2,179.9 L321.4,178.3 L324.7,176.7 L328.0,175.0 L331.2,173.4 L334.5,171.8 L337.8,170.1 L341.0,168.5 L344.3,166.9 L347.6,165.2 L350.8,163.6 L354.1,162.0 L357.3,160.3 L360.6,158.7 L363.9,157.1 L367.1,155.4 L370.4,153.8 L373.7,152.2 L376.9,150.5 L380.2,148.9 L383.5,147.3 L386.7,145.6 L390.0,144.0" fill="none" stroke="#57C7AE" stroke-width="2.5" stroke-dasharray="6 4"/>
+  <path clip-path="url(#w9clip2)" d="M230.0,117.8 L233.3,119.0 L236.5,120.3 L239.8,121.5 L243.1,122.7 L246.3,123.9 L249.6,125.1 L252.9,126.3 L256.1,127.6 L259.4,128.8 L262.7,130.0 L265.9,131.2 L269.2,132.4 L272.4,133.6 L275.7,134.8 L279.0,136.1 L282.2,137.3 L285.5,138.5 L288.8,139.7 L292.0,140.9 L295.3,142.1 L298.6,143.4 L301.8,144.6 L305.1,145.8 L308.4,147.0 L311.6,148.2 L314.9,149.4 L318.2,150.7 L321.4,151.9 L324.7,153.1 L328.0,154.3 L331.2,155.5 L334.5,156.7 L337.8,158.0 L341.0,159.2 L344.3,160.4 L347.6,161.6 L350.8,162.8 L354.1,164.0 L357.3,165.2 L360.6,166.5 L363.9,167.7 L367.1,168.9 L370.4,170.1 L373.7,171.3 L376.9,172.5 L380.2,173.8 L383.5,175.0 L386.7,176.2 L390.0,177.4" fill="none" stroke="#5795C7" stroke-width="1.6" opacity="0.85"/>
+  <path clip-path="url(#w9clip2)" d="M230.0,289.8 L233.3,286.9 L236.5,284.1 L239.8,281.2 L243.1,278.4 L246.3,275.6 L249.6,272.7 L252.9,269.9 L256.1,267.1 L259.4,264.2 L262.7,261.4 L265.9,258.6 L269.2,255.7 L272.4,252.9 L275.7,250.0 L279.0,247.2 L282.2,244.4 L285.5,241.5 L288.8,238.7 L292.0,235.9 L295.3,233.0 L298.6,230.2 L301.8,227.4 L305.1,224.5 L308.4,221.7 L311.6,218.8 L314.9,216.0 L318.2,213.2 L321.4,210.3 L324.7,207.5 L328.0,204.7 L331.2,201.8 L334.5,199.0 L337.8,196.2 L341.0,193.3 L344.3,190.5 L347.6,187.6 L350.8,184.8 L354.1,182.0 L357.3,179.1 L360.6,176.3 L363.9,173.5 L367.1,170.6 L370.4,167.8 L373.7,165.0 L376.9,162.1 L380.2,159.3 L383.5,156.4 L386.7,153.6 L390.0,150.8" fill="none" stroke="#5795C7" stroke-width="1.6" opacity="0.85"/>
+  <path clip-path="url(#w9clip2)" d="M230.0,98.4 L233.3,100.1 L236.5,101.8 L239.8,103.5 L243.1,105.1 L246.3,106.8 L249.6,108.5 L252.9,110.2 L256.1,111.9 L259.4,113.6 L262.7,115.3 L265.9,117.0 L269.2,118.7 L272.4,120.3 L275.7,122.0 L279.0,123.7 L282.2,125.4 L285.5,127.1 L288.8,128.8 L292.0,130.5 L295.3,132.2 L298.6,133.9 L301.8,135.5 L305.1,137.2 L308.4,138.9 L311.6,140.6 L314.9,142.3 L318.2,144.0 L321.4,145.7 L324.7,147.4 L328.0,149.1 L331.2,150.8 L334.5,152.4 L337.8,154.1 L341.0,155.8 L344.3,157.5 L347.6,159.2 L350.8,160.9 L354.1,162.6 L357.3,164.3 L360.6,166.0 L363.9,167.6 L367.1,169.3 L370.4,171.0 L373.7,172.7 L376.9,174.4 L380.2,176.1 L383.5,177.8 L386.7,179.5 L390.0,181.2" fill="none" stroke="#5795C7" stroke-width="1.6" opacity="0.85"/>
+  <path clip-path="url(#w9clip2)" d="M230.0,183.7 L233.3,182.9 L236.5,182.2 L239.8,181.4 L243.1,180.7 L246.3,179.9 L249.6,179.2 L252.9,178.4 L256.1,177.7 L259.4,176.9 L262.7,176.2 L265.9,175.5 L269.2,174.7 L272.4,174.0 L275.7,173.2 L279.0,172.5 L282.2,171.7 L285.5,171.0 L288.8,170.2 L292.0,169.5 L295.3,168.7 L298.6,168.0 L301.8,167.2 L305.1,166.5 L308.4,165.7 L311.6,165.0 L314.9,164.2 L318.2,163.5 L321.4,162.7 L324.7,162.0 L328.0,161.2 L331.2,160.5 L334.5,159.7 L337.8,159.0 L341.0,158.3 L344.3,157.5 L347.6,156.8 L350.8,156.0 L354.1,155.3 L357.3,154.5 L360.6,153.8 L363.9,153.0 L367.1,152.3 L370.4,151.5 L373.7,150.8 L376.9,150.0 L380.2,149.3 L383.5,148.5 L386.7,147.8 L390.0,147.0" fill="none" stroke="#5795C7" stroke-width="1.6" opacity="0.85"/>
+  <path clip-path="url(#w9clip2)" d="M230.0,99.3 L233.3,100.6 L236.5,101.8 L239.8,103.1 L243.1,104.4 L246.3,105.6 L249.6,106.9 L252.9,108.2 L256.1,109.4 L259.4,110.7 L262.7,112.0 L265.9,113.2 L269.2,114.5 L272.4,115.8 L275.7,117.0 L279.0,118.3 L282.2,119.6 L285.5,120.8 L288.8,122.1 L292.0,123.4 L295.3,124.6 L298.6,125.9 L301.8,127.2 L305.1,128.4 L308.4,129.7 L311.6,131.0 L314.9,132.2 L318.2,133.5 L321.4,134.8 L324.7,136.0 L328.0,137.3 L331.2,138.6 L334.5,139.8 L337.8,141.1 L341.0,142.4 L344.3,143.6 L347.6,144.9 L350.8,146.2 L354.1,147.4 L357.3,148.7 L360.6,150.0 L363.9,151.2 L367.1,152.5 L370.4,153.8 L373.7,155.0 L376.9,156.3 L380.2,157.6 L383.5,158.8 L386.7,160.1 L390.0,161.4" fill="none" stroke="#5795C7" stroke-width="1.6" opacity="0.85"/>
+  <path clip-path="url(#w9clip2)" d="M230.0,175.3 L233.3,174.9 L236.5,174.5 L239.8,174.2 L243.1,173.8 L246.3,173.4 L249.6,173.0 L252.9,172.7 L256.1,172.3 L259.4,171.9 L262.7,171.5 L265.9,171.1 L269.2,170.8 L272.4,170.4 L275.7,170.0 L279.0,169.6 L282.2,169.3 L285.5,168.9 L288.8,168.5 L292.0,168.1 L295.3,167.7 L298.6,167.4 L301.8,167.0 L305.1,166.6 L308.4,166.2 L311.6,165.8 L314.9,165.5 L318.2,165.1 L321.4,164.7 L324.7,164.3 L328.0,164.0 L331.2,163.6 L334.5,163.2 L337.8,162.8 L341.0,162.4 L344.3,162.1 L347.6,161.7 L350.8,161.3 L354.1,160.9 L357.3,160.6 L360.6,160.2 L363.9,159.8 L367.1,159.4 L370.4,159.0 L373.7,158.7 L376.9,158.3 L380.2,157.9 L383.5,157.5 L386.7,157.2 L390.0,156.8" fill="none" stroke="#5795C7" stroke-width="1.6" opacity="0.85"/>
+  <circle cx="374.0" cy="152.0" r="5" fill="#F2C6DE" stroke="#C75794" stroke-width="2"/>
+  <clipPath id="w9clip3"><rect x="420" y="80" width="160" height="160"/></clipPath>
+  <rect x="420" y="80" width="160" height="160" fill="#fff" stroke="#888" stroke-width="1.2"/>
+  <text x="420.0" y="258" text-anchor="middle" font-size="14" fill="#555">-1</text>
+  <text x="500.0" y="258" text-anchor="middle" font-size="14" fill="#555">0</text>
+  <text x="580.0" y="258" text-anchor="middle" font-size="14" fill="#555">1</text>
+  <text x="500.0" y="70" text-anchor="middle" font-size="16" font-weight="600" fill="#333">two observations</text>
+  <path clip-path="url(#w9clip3)" d="M420.0,224.0 L423.3,222.4 L426.5,220.7 L429.8,219.1 L433.1,217.5 L436.3,215.8 L439.6,214.2 L442.9,212.6 L446.1,210.9 L449.4,209.3 L452.7,207.7 L455.9,206.0 L459.2,204.4 L462.4,202.8 L465.7,201.1 L469.0,199.5 L472.2,197.9 L475.5,196.2 L478.8,194.6 L482.0,193.0 L485.3,191.3 L488.6,189.7 L491.8,188.1 L495.1,186.4 L498.4,184.8 L501.6,183.2 L504.9,181.6 L508.2,179.9 L511.4,178.3 L514.7,176.7 L518.0,175.0 L521.2,173.4 L524.5,171.8 L527.8,170.1 L531.0,168.5 L534.3,166.9 L537.6,165.2 L540.8,163.6 L544.1,162.0 L547.3,160.3 L550.6,158.7 L553.9,157.1 L557.1,155.4 L560.4,153.8 L563.7,152.2 L566.9,150.5 L570.2,148.9 L573.5,147.3 L576.7,145.6 L580.0,144.0" fill="none" stroke="#57C7AE" stroke-width="2.5" stroke-dasharray="6 4"/>
+  <path clip-path="url(#w9clip3)" d="M420.0,198.5 L423.3,197.8 L426.5,197.0 L429.8,196.3 L433.1,195.6 L436.3,194.8 L439.6,194.1 L442.9,193.4 L446.1,192.7 L449.4,191.9 L452.7,191.2 L455.9,190.5 L459.2,189.8 L462.4,189.0 L465.7,188.3 L469.0,187.6 L472.2,186.9 L475.5,186.1 L478.8,185.4 L482.0,184.7 L485.3,183.9 L488.6,183.2 L491.8,182.5 L495.1,181.8 L498.4,181.0 L501.6,180.3 L504.9,179.6 L508.2,178.9 L511.4,178.1 L514.7,177.4 L518.0,176.7 L521.2,175.9 L524.5,175.2 L527.8,174.5 L531.0,173.8 L534.3,173.0 L537.6,172.3 L540.8,171.6 L544.1,170.9 L547.3,170.1 L550.6,169.4 L553.9,168.7 L557.1,167.9 L560.4,167.2 L563.7,166.5 L566.9,165.8 L570.2,165.0 L573.5,164.3 L576.7,163.6 L580.0,162.9" fill="none" stroke="#5795C7" stroke-width="1.6" opacity="0.85"/>
+  <path clip-path="url(#w9clip3)" d="M420.0,227.2 L423.3,225.8 L426.5,224.3 L429.8,222.9 L433.1,221.4 L436.3,220.0 L439.6,218.5 L442.9,217.1 L446.1,215.6 L449.4,214.2 L452.7,212.8 L455.9,211.3 L459.2,209.9 L462.4,208.4 L465.7,207.0 L469.0,205.5 L472.2,204.1 L475.5,202.6 L478.8,201.2 L482.0,199.7 L485.3,198.3 L488.6,196.9 L491.8,195.4 L495.1,194.0 L498.4,192.5 L501.6,191.1 L504.9,189.6 L508.2,188.2 L511.4,186.7 L514.7,185.3 L518.0,183.8 L521.2,182.4 L524.5,180.9 L527.8,179.5 L531.0,178.1 L534.3,176.6 L537.6,175.2 L540.8,173.7 L544.1,172.3 L547.3,170.8 L550.6,169.4 L553.9,167.9 L557.1,166.5 L560.4,165.0 L563.7,163.6 L566.9,162.1 L570.2,160.7 L573.5,159.3 L576.7,157.8 L580.0,156.4" fill="none" stroke="#5795C7" stroke-width="1.6" opacity="0.85"/>
+  <path clip-path="url(#w9clip3)" d="M420.0,198.9 L423.3,197.8 L426.5,196.7 L429.8,195.6 L433.1,194.6 L436.3,193.5 L439.6,192.4 L442.9,191.3 L446.1,190.2 L449.4,189.2 L452.7,188.1 L455.9,187.0 L459.2,185.9 L462.4,184.9 L465.7,183.8 L469.0,182.7 L472.2,181.6 L475.5,180.6 L478.8,179.5 L482.0,178.4 L485.3,177.3 L488.6,176.3 L491.8,175.2 L495.1,174.1 L498.4,173.0 L501.6,172.0 L504.9,170.9 L508.2,169.8 L511.4,168.7 L514.7,167.6 L518.0,166.6 L521.2,165.5 L524.5,164.4 L527.8,163.3 L531.0,162.3 L534.3,161.2 L537.6,160.1 L540.8,159.0 L544.1,158.0 L547.3,156.9 L550.6,155.8 L553.9,154.7 L557.1,153.7 L560.4,152.6 L563.7,151.5 L566.9,150.4 L570.2,149.4 L573.5,148.3 L576.7,147.2 L580.0,146.1" fill="none" stroke="#5795C7" stroke-width="1.6" opacity="0.85"/>
+  <path clip-path="url(#w9clip3)" d="M420.0,227.3 L423.3,225.2 L426.5,223.1 L429.8,221.0 L433.1,218.9 L436.3,216.7 L439.6,214.6 L442.9,212.5 L446.1,210.4 L449.4,208.3 L452.7,206.1 L455.9,204.0 L459.2,201.9 L462.4,199.8 L465.7,197.6 L469.0,195.5 L472.2,193.4 L475.5,191.3 L478.8,189.2 L482.0,187.0 L485.3,184.9 L488.6,182.8 L491.8,180.7 L495.1,178.6 L498.4,176.4 L501.6,174.3 L504.9,172.2 L508.2,170.1 L511.4,167.9 L514.7,165.8 L518.0,163.7 L521.2,161.6 L524.5,159.5 L527.8,157.3 L531.0,155.2 L534.3,153.1 L537.6,151.0 L540.8,148.9 L544.1,146.7 L547.3,144.6 L550.6,142.5 L553.9,140.4 L557.1,138.3 L560.4,136.1 L563.7,134.0 L566.9,131.9 L570.2,129.8 L573.5,127.6 L576.7,125.5 L580.0,123.4" fill="none" stroke="#5795C7" stroke-width="1.6" opacity="0.85"/>
+  <path clip-path="url(#w9clip3)" d="M420.0,209.8 L423.3,208.1 L426.5,206.4 L429.8,204.8 L433.1,203.1 L436.3,201.5 L439.6,199.8 L442.9,198.1 L446.1,196.5 L449.4,194.8 L452.7,193.1 L455.9,191.5 L459.2,189.8 L462.4,188.1 L465.7,186.5 L469.0,184.8 L472.2,183.2 L475.5,181.5 L478.8,179.8 L482.0,178.2 L485.3,176.5 L488.6,174.8 L491.8,173.2 L495.1,171.5 L498.4,169.8 L501.6,168.2 L504.9,166.5 L508.2,164.9 L511.4,163.2 L514.7,161.5 L518.0,159.9 L521.2,158.2 L524.5,156.5 L527.8,154.9 L531.0,153.2 L534.3,151.6 L537.6,149.9 L540.8,148.2 L544.1,146.6 L547.3,144.9 L550.6,143.2 L553.9,141.6 L557.1,139.9 L560.4,138.2 L563.7,136.6 L566.9,134.9 L570.2,133.3 L573.5,131.6 L576.7,129.9 L580.0,128.3" fill="none" stroke="#5795C7" stroke-width="1.6" opacity="0.85"/>
+  <path clip-path="url(#w9clip3)" d="M420.0,207.8 L423.3,206.7 L426.5,205.6 L429.8,204.5 L433.1,203.3 L436.3,202.2 L439.6,201.1 L442.9,200.0 L446.1,198.9 L449.4,197.8 L452.7,196.6 L455.9,195.5 L459.2,194.4 L462.4,193.3 L465.7,192.2 L469.0,191.1 L472.2,189.9 L475.5,188.8 L478.8,187.7 L482.0,186.6 L485.3,185.5 L488.6,184.4 L491.8,183.2 L495.1,182.1 L498.4,181.0 L501.6,179.9 L504.9,178.8 L508.2,177.7 L511.4,176.5 L514.7,175.4 L518.0,174.3 L521.2,173.2 L524.5,172.1 L527.8,170.9 L531.0,169.8 L534.3,168.7 L537.6,167.6 L540.8,166.5 L544.1,165.4 L547.3,164.2 L550.6,163.1 L553.9,162.0 L557.1,160.9 L560.4,159.8 L563.7,158.7 L566.9,157.5 L570.2,156.4 L573.5,155.3 L576.7,154.2 L580.0,153.1" fill="none" stroke="#5795C7" stroke-width="1.6" opacity="0.85"/>
+  <circle cx="564.0" cy="152.0" r="5" fill="#F2C6DE" stroke="#C75794" stroke-width="2"/>
+  <circle cx="452.0" cy="204.0" r="5" fill="#F2C6DE" stroke="#C75794" stroke-width="2"/>
+  <text x="300" y="290" text-anchor="middle" font-size="15" fill="#555">x (horizontal) against y (vertical); dashed: the true line y = -0.3 + 0.5x</text>
+</svg>
+</div>
+```
+
+**Figure 2.** Lines $y = w_0 + w_1x$ with $w$ drawn from the prior $\mathcal N(0, 0.5I)$ (left), and from the posterior after the observation $(0.8, 0.1)$ (middle) and after adding $(-0.6, -0.55)$ (right). Noise variance $\sigma^2 = 0.04$. With no data the lines go anywhere; one point pins them down near that point only; two points narrow the whole line, though with noise of standard deviation $0.2$ some spread remains.
+
+::: {.callout-tip collapse="true" .clarification title="Recap: Full Bayesian inference"}
+What the symbols stand for:
+
+- $x$, $y$: a new input and its unknown target (not part of the training set).
+- $p(y\mid x,\mathcal D)$: the prediction for $y$ given everything we have seen, a full distribution.
+- $p(y\mid x, w)$: the prediction if we knew the weights, the Gaussian noise model.
+- $p(w\mid\mathcal D)$: the posterior over the weights.
+
+Taking the equations apart:
+
+- $\int p(w, y\mid x,\mathcal D)\,dw$: the sum rule. To get rid of the unknown $w$, add up the joint over all its values.
+- $p(y\mid x, w)\,p(w\mid\mathcal D)$: the product rule, plus the two independence assumptions above.
+- The integral as a whole: a weighted average of the per-$w$ predictions, with weights given by the posterior.
+
+A teaching example, with a toy posterior that puts weight on only two lines (a discrete stand-in for the integral). The posterior gives line A probability $0.7$ and line B probability $0.3$. At some input, line A predicts $0.2$ and line B predicts $0.6$.
+
+- Averaged prediction (ignoring noise): $0.7\cdot0.2 + 0.3\cdot0.6 = 0.14 + 0.18 = 0.32$.
+- MAP would report line A's $0.2$ alone.
+- Spread: the variance of the two predictions is $0.7(0.2-0.32)^2 + 0.3(0.6-0.32)^2 = 0.01008 + 0.02352 = 0.0336$. That nonzero spread is the uncertainty MAP cannot report.
+:::
+
+::: {.callout-note .section-takeaways}
+**Key takeaways.**
+
+- Instead of asking "which line?", full Bayesian inference asks "what do all the plausible lines predict, on average, and how much do they disagree?"
+- It needs the whole posterior $p(w\mid\mathcal D)$. For Gaussian prior and noise, the next section shows the posterior is Gaussian with a closed form, so the average can be computed exactly.
+:::
+
+## The posterior over the weights {#sec-w9-post}
+
+What exactly is $p(w\mid\mathcal D)$ for linear regression with a Gaussian prior?
+
+The model of **[Bayesian linear regression](https://en.wikipedia.org/wiki/Bayesian_linear_regression)** is:
+
+- **Prior:** $w\sim\mathcal N(0, S)$, for a prior covariance matrix $S$.
+- **Likelihood:** $y\mid x, w\sim\mathcal N(w^\top\psi(x), \sigma^2)$, independently for each data point.
+
+For now $S$ and $\sigma^2$ are fixed and known (@sec-w9-hyper returns to choosing such quantities). By Bayes' rule, the log-posterior is log-prior plus log-likelihood plus a constant. Expanding the squared norm,
+
+$$
+\begin{aligned}
+\log p(w\mid\mathcal D) &= \log p(w) + \log p(\mathcal D\mid w) + \text{const}\\
+&= -\tfrac12w^\top S^{-1}w - \tfrac{1}{2\sigma^2}\lVert\Psi w - y\rVert^2 + \text{const}\\
+&= -\tfrac12w^\top S^{-1}w - \tfrac{1}{2\sigma^2}\big(w^\top\Psi^\top\Psi w - 2y^\top\Psi w + y^\top y\big) + \text{const}\\
+&= -\tfrac12w^\top\big(\sigma^{-2}\Psi^\top\Psi + S^{-1}\big)w + \tfrac{1}{\sigma^2}y^\top\Psi w + \text{const}.
+\end{aligned}
+$$
+
+The last line has the form of @sec-w9-cts with $A = \sigma^{-2}\Psi^\top\Psi + S^{-1}$ and $b = \sigma^{-2}\Psi^\top y$ (the term $y^\top y$ went into the constant). Completing the square, $w\mid\mathcal D\sim\mathcal N(\mu,\Sigma)$ with $\Sigma = A^{-1}$ and $\mu = A^{-1}b$. Factoring $\sigma^{-2}$ out of $A$ gives the lecture's form:
+
+::: {.boxed-eq}
+$$\mu = \big(\Psi^\top\Psi + \sigma^2S^{-1}\big)^{-1}\Psi^\top y,\qquad \Sigma = \sigma^2\big(\Psi^\top\Psi + \sigma^2S^{-1}\big)^{-1}.$$
+:::
+
+The posterior precision $\Sigma^{-1} = S^{-1} + \sigma^{-2}\Psi^\top\Psi$ is the prior precision plus a data term that grows with every observation, so the posterior narrows as data arrives.
+
+**Comparison with ridge.** The closed-form ridge solution was $w = (\Psi^\top\Psi + \lambda I)^{-1}\Psi^\top y$. With the isotropic prior $S = \frac{\sigma^2}{\lambda}I$, we get $\sigma^2S^{-1} = \lambda I$, and the **posterior mean $\mu$ is exactly the ridge solution**. This matches @sec-w9-map: there $S = \eta I$ and $\lambda = \sigma^2/\eta$. It also makes sense for a Gaussian, whose mean and peak coincide, so the posterior mean and the MAP estimate are the same point.
+
+**An uninformative prior.** As $\lambda\to0$, the prior variance $\sigma^2/\lambda$ goes to infinity: the prior becomes flat and expresses no preference (an [uninformative prior](https://en.wikipedia.org/wiki/Prior_probability#Uninformative_priors)). The posterior mean then converges to the least-squares solution, ridge with no regularization.
+
+::: {.callout-note}
+**Worked example: the posterior after one observation.** Running example: $\psi(x) = (1,x)$, prior $S = 0.5I$, noise $\sigma^2 = 0.04$. We observe one point, $(x^{(1)}, y^{(1)}) = (0.8, 0.1)$, which lies on the true line.
+
+1. **Design matrix.** $\Psi = (1\ \ 0.8)$, so $\Psi^\top\Psi = \begin{pmatrix}1&0.8\\0.8&0.64\end{pmatrix}$ and $\Psi^\top y = \begin{pmatrix}0.1\\0.08\end{pmatrix}$.
+2. **Add the prior term.** $\sigma^2S^{-1} = 0.04\cdot2\,I = 0.08\,I$, so $\Psi^\top\Psi + \sigma^2S^{-1} = \begin{pmatrix}1.08&0.8\\0.8&0.72\end{pmatrix}$, with determinant $1.08\cdot0.72 - 0.8^2 = 0.1376$.
+3. **Invert.** For a $2\times2$ matrix, swap the diagonal, negate the off-diagonal, divide by the determinant: $\frac{1}{0.1376}\begin{pmatrix}0.72&-0.8\\-0.8&1.08\end{pmatrix}$.
+4. **Mean.** $\mu = \frac{1}{0.1376}\begin{pmatrix}0.72\cdot0.1 - 0.8\cdot0.08\\ -0.8\cdot0.1 + 1.08\cdot0.08\end{pmatrix} = \frac{1}{0.1376}\begin{pmatrix}0.008\\0.0064\end{pmatrix}\approx\begin{pmatrix}0.058\\0.047\end{pmatrix}$.
+5. **Covariance.** $\Sigma = \frac{0.04}{0.1376}\begin{pmatrix}0.72&-0.8\\-0.8&1.08\end{pmatrix}\approx\begin{pmatrix}0.209&-0.233\\-0.233&0.314\end{pmatrix}$.
+
+How to read it. The mean line $0.058 + 0.047x$ predicts $0.095$ at $x = 0.8$, close to the observed $0.1$, but it is nowhere near the true weights $(-0.3, 0.5)$: one point cannot identify a line, and the prior pulls the weights toward zero. Both variances fell from the prior's $0.5$. The negative covariance says that a larger intercept goes with a smaller slope: the plausible lines all pivot around the observed point.
+:::
+
+::: {.callout-tip collapse="true" .clarification title="Recap: The posterior over the weights"}
+What the symbols stand for:
+
+- $S$: the prior covariance of the weights (fixed, chosen by us).
+- $\sigma^2$: the noise variance (fixed, known).
+- $\mu$, $\Sigma$: the posterior mean and covariance of $w$, computed from the data.
+- $\Sigma^{-1}$: the posterior precision, how sharply the data and prior pin $w$ down.
+
+Taking the equations apart:
+
+- $-\tfrac12w^\top S^{-1}w$: the log-prior, a bowl centred at zero.
+- $-\tfrac{1}{2\sigma^2}\lVert\Psi w - y\rVert^2$: the log-likelihood, a bowl centred at the least-squares fit.
+- $\sigma^{-2}\Psi^\top\Psi + S^{-1}$: the two bowls' curvatures add. This is the posterior precision.
+- $\tfrac{1}{\sigma^2}y^\top\Psi w$: the only linear term, coming from the data.
+- $\mu = (\Psi^\top\Psi + \sigma^2S^{-1})^{-1}\Psi^\top y$: ridge, with $\sigma^2S^{-1}$ in place of $\lambda I$.
+- $\Sigma = \sigma^2(\cdots)^{-1}$: the same matrix inverted, scaled by the noise variance. It does not depend on $y$, only on where the inputs are.
+
+A teaching example, one weight and no intercept ($\psi(x) = x$), so every matrix is a number. Data $x = (1, 2)$, $y = (1, 3)$, noise $\sigma^2 = 1$, prior variance $S = 1$.
+
+- $\Psi^\top\Psi = 5$, $\Psi^\top y = 7$, $\sigma^2S^{-1} = 1$.
+- Mean: $\mu = 7/(5+1) \approx 1.167$. This is the ridge answer with $\lambda = 1$ from @sec-w9-ridge, as it should be, since $S = \sigma^2/\lambda$.
+- Variance: $\Sigma = 1/(5+1) \approx 0.167$, down from the prior's $1$.
+- Check via precisions: prior precision $1$ plus data precision $\sigma^{-2}\Psi^\top\Psi = 5$ gives $6$, and $1/6\approx0.167$. It matches.
+:::
+
+::: {.callout-note .section-takeaways}
+**Key takeaways.**
+
+- With a Gaussian prior and Gaussian noise, the posterior over the weights is Gaussian, found by collecting the terms in $w$ and completing the square.
+- Its mean is the ridge solution, so ridge was never wrong; it was just reporting the centre of a distribution and discarding its width. The width is what tells us how well the data pins the weights down.
+:::
+
+## Sequential Bayesian learning {#sec-w9-seq}
+
+What happens to the posterior as data points arrive one at a time?
+
+The slides illustrate this for $y = w_0 + w_1x$ with true weights $w_0 = -0.3$, $w_1 = 0.5$, plotting the **weight space**: the plane of $(w_0, w_1)$, where each point is a whole line.
+
+**One point does not identify a line.** Fix a single observation $(x, y)$. Ignoring noise, every line through it satisfies $w_0 = y - w_1x$: a straight line in weight space. With noise, the likelihood of that point is a **ridge-shaped band** around this line: high for every weight vector whose line passes near the point, regardless of what it does elsewhere.
+
+**The posterior is the next prior.** Because the data points are independent given $w$, adding a new point multiplies in one more likelihood factor:
+$$p(w\mid\mathcal D_1,\mathcal D_2)\ \propto\ p(\mathcal D_2\mid w)\ p(w\mid\mathcal D_1).$$
+So we can start from the prior, multiply in the first point's likelihood band to get a posterior, use that posterior as the prior for the second point, and so on. The result is the same as using all points at once (the batch formula of @sec-w9-post), because both multiply the same factors.
+
+```{=html}
+<div style="overflow-x:auto; margin:1.5rem 0;">
+<svg viewBox="0 0 600 305" width="100%" style="max-width:600px;display:block;margin:auto;font-family:Helvetica,'Helvetica Neue',Arial,sans-serif;" role="img" aria-label="Three panels in weight space, w0 horizontal and w1 vertical. The prior is a purple disc centred at the origin. After one observation a tan diagonal band shows the weights consistent with that point, and the purple posterior becomes a tilted ellipse lying along the band. After the second observation a band with the opposite tilt crosses it, and the posterior is a small ellipse near the true weights, marked with a cross.">
+  <text x="300" y="32" text-anchor="middle" font-size="24" font-weight="600" fill="#333">The posterior over the weights</text>
+  <clipPath id="w9clip4"><rect x="40" y="80" width="160" height="160"/></clipPath>
+  <rect x="40" y="80" width="160" height="160" fill="#fff" stroke="#888" stroke-width="1.2"/>
+  <text x="40.0" y="258" text-anchor="middle" font-size="14" fill="#555">-1</text>
+  <text x="120.0" y="258" text-anchor="middle" font-size="14" fill="#555">0</text>
+  <text x="200.0" y="258" text-anchor="middle" font-size="14" fill="#555">1</text>
+  <text x="34" y="245.0" text-anchor="end" font-size="14" fill="#555">-1</text>
+  <text x="34" y="165.0" text-anchor="end" font-size="14" fill="#555">0</text>
+  <text x="34" y="85.0" text-anchor="end" font-size="14" fill="#555">1</text>
+  <text x="120.0" y="70" text-anchor="middle" font-size="16" font-weight="600" fill="#333">no observations</text>
+  <ellipse clip-path="url(#w9clip4)" cx="120.0" cy="160.0" rx="113.1" ry="113.1" transform="rotate(-90.0 120.0 160.0)" fill="#DBCDF0" fill-opacity="0.75" stroke="#8457C7" stroke-width="1.6"/>
+  <ellipse clip-path="url(#w9clip4)" cx="120.0" cy="160.0" rx="56.6" ry="56.6" transform="rotate(-90.0 120.0 160.0)" fill="#DBCDF0" fill-opacity="0.9" stroke="#8457C7" stroke-width="1.6"/>
+  <path d="M90.0,114.0 L102.0,126.0 M90.0,126.0 L102.0,114.0" stroke="#333" stroke-width="2.4"/>
+  <clipPath id="w9clip5"><rect x="230" y="80" width="160" height="160"/></clipPath>
+  <rect x="230" y="80" width="160" height="160" fill="#fff" stroke="#888" stroke-width="1.2"/>
+  <text x="230.0" y="258" text-anchor="middle" font-size="14" fill="#555">-1</text>
+  <text x="310.0" y="258" text-anchor="middle" font-size="14" fill="#555">0</text>
+  <text x="390.0" y="258" text-anchor="middle" font-size="14" fill="#555">1</text>
+  <text x="310.0" y="70" text-anchor="middle" font-size="16" font-weight="600" fill="#333">one observation</text>
+  <polygon clip-path="url(#w9clip5)" points="414.0,240.0 286.0,80.0 222.0,80.0 350.0,240.0" fill="#FAEDCB" fill-opacity="0.8" stroke="#C7A857" stroke-width="1.2"/>
+  <ellipse clip-path="url(#w9clip5)" cx="314.7" cy="156.3" rx="113.1" ry="24.4" transform="rotate(-128.7 314.7 156.3)" fill="#DBCDF0" fill-opacity="0.75" stroke="#8457C7" stroke-width="1.6"/>
+  <ellipse clip-path="url(#w9clip5)" cx="314.7" cy="156.3" rx="56.6" ry="12.2" transform="rotate(-128.7 314.7 156.3)" fill="#DBCDF0" fill-opacity="0.9" stroke="#8457C7" stroke-width="1.6"/>
+  <path d="M280.0,114.0 L292.0,126.0 M280.0,126.0 L292.0,114.0" stroke="#333" stroke-width="2.4"/>
+  <clipPath id="w9clip6"><rect x="420" y="80" width="160" height="160"/></clipPath>
+  <rect x="420" y="80" width="160" height="160" fill="#fff" stroke="#888" stroke-width="1.2"/>
+  <text x="420.0" y="258" text-anchor="middle" font-size="14" fill="#555">-1</text>
+  <text x="500.0" y="258" text-anchor="middle" font-size="14" fill="#555">0</text>
+  <text x="580.0" y="258" text-anchor="middle" font-size="14" fill="#555">1</text>
+  <text x="500.0" y="70" text-anchor="middle" font-size="16" font-weight="600" fill="#333">two observations</text>
+  <polygon clip-path="url(#w9clip6)" points="440.0,240.0 536.0,80.0 472.0,80.0 376.0,240.0" fill="#FAEDCB" fill-opacity="0.8" stroke="#C7A857" stroke-width="1.2"/>
+  <ellipse clip-path="url(#w9clip6)" cx="479.4" cy="125.8" rx="31.4" ry="22.0" transform="rotate(-100.9 479.4 125.8)" fill="#DBCDF0" fill-opacity="0.75" stroke="#8457C7" stroke-width="1.6"/>
+  <ellipse clip-path="url(#w9clip6)" cx="479.4" cy="125.8" rx="15.7" ry="11.0" transform="rotate(-100.9 479.4 125.8)" fill="#DBCDF0" fill-opacity="0.9" stroke="#8457C7" stroke-width="1.6"/>
+  <path d="M470.0,114.0 L482.0,126.0 M470.0,126.0 L482.0,114.0" stroke="#333" stroke-width="2.4"/>
+  <text x="300" y="290" text-anchor="middle" font-size="15" fill="#555">w0 (horizontal) against w1 (vertical); cross: the true weights (-0.3, 0.5)</text>
+</svg>
+</div>
+```
+
+**Figure 3.** Weight space for the running example (same settings as Figure 2). Purple: one- and two-standard-deviation ellipses of the prior (left) and posterior (middle, right). Tan: the likelihood band of the newest observation, the weights whose line passes within two noise standard deviations of it. The posterior lies where the previous distribution and the band overlap. Two crossing bands leave a small ellipse around the true weights (the cross).
+
+In the slides' figure, the right column shows lines sampled from each posterior together with the data points, as in our Figure 2: the lines converge on the true line as data accumulates.
+
+::: {.callout-tip collapse="true" .clarification title="Recap: Sequential Bayesian learning"}
+What the symbols stand for:
+
+- $(w_0, w_1)$: one point in weight space, standing for the whole line $y = w_0 + w_1x$.
+- $\mathcal D_1$, $\mathcal D_2$: the first batch of data and the next one.
+- $p(w\mid\mathcal D_1)$: the posterior after the first batch, which now plays the role of the prior.
+
+Taking the equations apart:
+
+- $w_0 = y - w_1x$: all lines through one point form a line in weight space.
+- $p(\mathcal D_2\mid w)$: the likelihood of the new data, a band in weight space.
+- $p(w\mid\mathcal D_1)$: what we already believed.
+- Their product: keep only weights that were already plausible and also fit the new data.
+
+A teaching example, one weight, $\psi(x) = x$, noise $\sigma^2 = 1$, prior $w\sim\mathcal N(0, 1)$. In one dimension the posterior precision is the prior precision plus $x^2/\sigma^2$, and the posterior mean is the posterior variance times (prior precision times prior mean plus $xy/\sigma^2$).
+
+- First point $(x, y) = (1, 2)$: precision $1 + 1 = 2$, mean $\tfrac12(0 + 2) = 1$. Posterior $\mathcal N(1, 0.5)$.
+- Second point $(1, 0)$, using $\mathcal N(1, 0.5)$ as the prior: precision $2 + 1 = 3$, mean $\tfrac13(2\cdot1 + 0) \approx 0.667$.
+- Batch, both points at once from the original prior: precision $1 + 1 + 1 = 3$, mean $\tfrac13(0 + 2 + 0)\approx0.667$. Same answer.
+:::
+
+::: {.callout-note .section-takeaways}
+**Key takeaways.**
+
+- One observation rules out only the lines that miss it, which leaves a whole band of weight vectors. Each further observation cuts a band at a different angle, and the posterior shrinks to their intersection.
+- Today's posterior is tomorrow's prior. Updating one point at a time gives the same answer as using all the data at once.
+:::
+
+## Nonlinear features: radial basis functions {#sec-w9-rbf}
+
+Everything so far fitted straight lines. Can the same machinery fit curves?
+
+Yes: by choosing a nonlinear feature map $\psi$, the function $x\mapsto w^\top\psi(x)$ can be a nonlinear function of $x$, while staying linear in $w$. Every formula of @sec-w9-post still applies, with a different $\Psi$.
+
+The lecture's example uses **[radial basis function](https://en.wikipedia.org/wiki/Radial_basis_function)** (RBF) features: bell-shaped bumps placed at centres $\mu_j$,
+
+$$\psi_j(x) = \exp\Big(-\frac{(x-\mu_j)^2}{2s^2}\Big).$$
+
+Feature $j$ is close to 1 when $x$ is near its centre $\mu_j$ and close to 0 far from it; the width $s$ sets how far "near" reaches. A weighted sum of such bumps can trace out a curve. Here $\mu_j$ is a fixed feature centre, not the posterior mean $\mu$, and $s$ is a width, not the prior covariance $S$.
+
+The slides then show functions sampled from the posterior as data from a sine curve accumulates. Figure 4 redraws the setup.
+
+```{=html}
+<div style="overflow-x:auto; margin:1.5rem 0;">
+<svg viewBox="0 0 600 320" width="100%" style="max-width:600px;display:block;margin:auto;font-family:Helvetica,'Helvetica Neue',Arial,sans-serif;" role="img" aria-label="Left: nine bell-shaped feature curves, centred at evenly spaced points from 0 to 1. Right: a dashed sine curve, four blue data points, and five orange curves sampled from the posterior. The curves agree near the data points and spread apart between and beyond them.">
+  <text x="300" y="32" text-anchor="middle" font-size="24" font-weight="600" fill="#333">Radial basis features and curved fits</text>
+  <clipPath id="w9clip7"><rect x="55" y="80" width="230" height="170"/></clipPath>
+  <rect x="55" y="80" width="230" height="170" fill="#fff" stroke="#888" stroke-width="1.2"/>
+  <text x="55.0" y="268" text-anchor="middle" font-size="14" fill="#555">0</text>
+  <text x="170.0" y="268" text-anchor="middle" font-size="14" fill="#555">0.5</text>
+  <text x="285.0" y="268" text-anchor="middle" font-size="14" fill="#555">1</text>
+  <text x="49" y="240.8" text-anchor="end" font-size="14" fill="#555">0</text>
+  <text x="49" y="99.2" text-anchor="end" font-size="14" fill="#555">1</text>
+  <text x="170.0" y="288" text-anchor="middle" font-size="15" fill="#555">x</text>
+  <text x="170.0" y="70" text-anchor="middle" font-size="16" font-weight="600" fill="#333">nine RBF features</text>
+  <path clip-path="url(#w9clip7)" d="M55.0,94.2 L56.9,94.7 L58.9,96.2 L60.8,98.6 L62.7,101.9 L64.7,106.1 L66.6,111.1 L68.5,116.7 L70.5,122.8 L72.4,129.4 L74.3,136.3 L76.3,143.4 L78.2,150.6 L80.1,157.8 L82.1,164.9 L84.0,171.8 L85.9,178.5 L87.9,184.8 L89.8,190.7 L91.7,196.2 L93.7,201.3 L95.6,206.0 L97.5,210.2 L99.5,214.0 L101.4,217.3 L103.3,220.2 L105.3,222.8 L107.2,225.0 L109.1,226.9 L111.1,228.6 L113.0,229.9 L114.9,231.1 L116.8,232.0 L118.8,232.8 L120.7,233.4 L122.6,234.0 L124.6,234.4 L126.5,234.7 L128.4,235.0 L130.4,235.2 L132.3,235.3 L134.2,235.5 L136.2,235.6 L138.1,235.6 L140.0,235.7 L142.0,235.7 L143.9,235.8 L145.8,235.8 L147.8,235.8 L149.7,235.8 L151.6,235.8 L153.6,235.8 L155.5,235.8 L157.4,235.8 L159.4,235.8 L161.3,235.8 L163.2,235.8 L165.2,235.8 L167.1,235.8 L169.0,235.8 L171.0,235.8 L172.9,235.8 L174.8,235.8 L176.8,235.8 L178.7,235.8 L180.6,235.8 L182.6,235.8 L184.5,235.8 L186.4,235.8 L188.4,235.8 L190.3,235.8 L192.2,235.8 L194.2,235.8 L196.1,235.8 L198.0,235.8 L200.0,235.8 L201.9,235.8 L203.8,235.8 L205.8,235.8 L207.7,235.8 L209.6,235.8 L211.6,235.8 L213.5,235.8 L215.4,235.8 L217.4,235.8 L219.3,235.8 L221.2,235.8 L223.2,235.8 L225.1,235.8 L227.0,235.8 L228.9,235.8 L230.9,235.8 L232.8,235.8 L234.7,235.8 L236.7,235.8 L238.6,235.8 L240.5,235.8 L242.5,235.8 L244.4,235.8 L246.3,235.8 L248.3,235.8 L250.2,235.8 L252.1,235.8 L254.1,235.8 L256.0,235.8 L257.9,235.8 L259.9,235.8 L261.8,235.8 L263.7,235.8 L265.7,235.8 L267.6,235.8 L269.5,235.8 L271.5,235.8 L273.4,235.8 L275.3,235.8 L277.3,235.8 L279.2,235.8 L281.1,235.8 L283.1,235.8 L285.0,235.8" fill="none" stroke="#5795C7" stroke-width="1.8"/>
+  <path clip-path="url(#w9clip7)" d="M55.0,171.0 L56.9,164.0 L58.9,156.9 L60.8,149.7 L62.7,142.5 L64.7,135.4 L66.6,128.6 L68.5,122.0 L70.5,115.9 L72.4,110.4 L74.3,105.6 L76.3,101.5 L78.2,98.2 L80.1,95.9 L82.1,94.5 L84.0,94.2 L85.9,94.8 L87.9,96.4 L89.8,99.0 L91.7,102.4 L93.7,106.7 L95.6,111.7 L97.5,117.4 L99.5,123.6 L101.4,130.3 L103.3,137.2 L105.3,144.3 L107.2,151.5 L109.1,158.7 L111.1,165.8 L113.0,172.7 L114.9,179.3 L116.8,185.5 L118.8,191.4 L120.7,196.9 L122.6,201.9 L124.6,206.5 L126.5,210.7 L128.4,214.4 L130.4,217.7 L132.3,220.6 L134.2,223.1 L136.2,225.3 L138.1,227.2 L140.0,228.7 L142.0,230.1 L143.9,231.2 L145.8,232.1 L147.8,232.9 L149.7,233.5 L151.6,234.0 L153.6,234.4 L155.5,234.7 L157.4,235.0 L159.4,235.2 L161.3,235.4 L163.2,235.5 L165.2,235.6 L167.1,235.6 L169.0,235.7 L171.0,235.7 L172.9,235.8 L174.8,235.8 L176.8,235.8 L178.7,235.8 L180.6,235.8 L182.6,235.8 L184.5,235.8 L186.4,235.8 L188.4,235.8 L190.3,235.8 L192.2,235.8 L194.2,235.8 L196.1,235.8 L198.0,235.8 L200.0,235.8 L201.9,235.8 L203.8,235.8 L205.8,235.8 L207.7,235.8 L209.6,235.8 L211.6,235.8 L213.5,235.8 L215.4,235.8 L217.4,235.8 L219.3,235.8 L221.2,235.8 L223.2,235.8 L225.1,235.8 L227.0,235.8 L228.9,235.8 L230.9,235.8 L232.8,235.8 L234.7,235.8 L236.7,235.8 L238.6,235.8 L240.5,235.8 L242.5,235.8 L244.4,235.8 L246.3,235.8 L248.3,235.8 L250.2,235.8 L252.1,235.8 L254.1,235.8 L256.0,235.8 L257.9,235.8 L259.9,235.8 L261.8,235.8 L263.7,235.8 L265.7,235.8 L267.6,235.8 L269.5,235.8 L271.5,235.8 L273.4,235.8 L275.3,235.8 L277.3,235.8 L279.2,235.8 L281.1,235.8 L283.1,235.8 L285.0,235.8" fill="none" stroke="#57C7AE" stroke-width="1.8"/>
+  <path clip-path="url(#w9clip7)" d="M55.0,229.6 L56.9,228.2 L58.9,226.5 L60.8,224.5 L62.7,222.2 L64.7,219.5 L66.6,216.5 L68.5,213.0 L70.5,209.2 L72.4,204.9 L74.3,200.1 L76.3,194.9 L78.2,189.3 L80.1,183.2 L82.1,176.8 L84.0,170.1 L85.9,163.2 L87.9,156.0 L89.8,148.8 L91.7,141.6 L93.7,134.6 L95.6,127.7 L97.5,121.2 L99.5,115.2 L101.4,109.8 L103.3,105.0 L105.3,101.0 L107.2,97.9 L109.1,95.7 L111.1,94.4 L113.0,94.2 L114.9,94.9 L116.8,96.7 L118.8,99.4 L120.7,102.9 L122.6,107.3 L124.6,112.4 L126.5,118.2 L128.4,124.4 L130.4,131.1 L132.3,138.1 L134.2,145.2 L136.2,152.4 L138.1,159.6 L140.0,166.7 L142.0,173.5 L143.9,180.1 L145.8,186.3 L147.8,192.1 L149.7,197.5 L151.6,202.5 L153.6,207.1 L155.5,211.2 L157.4,214.8 L159.4,218.1 L161.3,220.9 L163.2,223.4 L165.2,225.5 L167.1,227.4 L169.0,228.9 L171.0,230.2 L172.9,231.3 L174.8,232.2 L176.8,233.0 L178.7,233.6 L180.6,234.1 L182.6,234.5 L184.5,234.8 L186.4,235.0 L188.4,235.2 L190.3,235.4 L192.2,235.5 L194.2,235.6 L196.1,235.6 L198.0,235.7 L200.0,235.7 L201.9,235.8 L203.8,235.8 L205.8,235.8 L207.7,235.8 L209.6,235.8 L211.6,235.8 L213.5,235.8 L215.4,235.8 L217.4,235.8 L219.3,235.8 L221.2,235.8 L223.2,235.8 L225.1,235.8 L227.0,235.8 L228.9,235.8 L230.9,235.8 L232.8,235.8 L234.7,235.8 L236.7,235.8 L238.6,235.8 L240.5,235.8 L242.5,235.8 L244.4,235.8 L246.3,235.8 L248.3,235.8 L250.2,235.8 L252.1,235.8 L254.1,235.8 L256.0,235.8 L257.9,235.8 L259.9,235.8 L261.8,235.8 L263.7,235.8 L265.7,235.8 L267.6,235.8 L269.5,235.8 L271.5,235.8 L273.4,235.8 L275.3,235.8 L277.3,235.8 L279.2,235.8 L281.1,235.8 L283.1,235.8 L285.0,235.8" fill="none" stroke="#C7A857" stroke-width="1.8"/>
+  <path clip-path="url(#w9clip7)" d="M55.0,235.7 L56.9,235.7 L58.9,235.6 L60.8,235.5 L62.7,235.4 L64.7,235.3 L66.6,235.1 L68.5,234.9 L70.5,234.6 L72.4,234.2 L74.3,233.8 L76.3,233.2 L78.2,232.5 L80.1,231.7 L82.1,230.7 L84.0,229.4 L85.9,228.0 L87.9,226.3 L89.8,224.2 L91.7,221.9 L93.7,219.2 L95.6,216.1 L97.5,212.6 L99.5,208.7 L101.4,204.3 L103.3,199.5 L105.3,194.2 L107.2,188.5 L109.1,182.4 L111.1,176.0 L113.0,169.3 L114.9,162.3 L116.8,155.1 L118.8,147.9 L120.7,140.7 L122.6,133.7 L124.6,126.9 L126.5,120.5 L128.4,114.5 L130.4,109.1 L132.3,104.5 L134.2,100.6 L136.2,97.6 L138.1,95.5 L140.0,94.4 L142.0,94.2 L143.9,95.1 L145.8,97.0 L147.8,99.8 L149.7,103.4 L151.6,107.9 L153.6,113.1 L155.5,118.9 L157.4,125.2 L159.4,132.0 L161.3,139.0 L163.2,146.1 L165.2,153.3 L167.1,160.5 L169.0,167.5 L171.0,174.3 L172.9,180.9 L174.8,187.0 L176.8,192.8 L178.7,198.2 L180.6,203.1 L182.6,207.6 L184.5,211.6 L186.4,215.3 L188.4,218.4 L190.3,221.2 L192.2,223.7 L194.2,225.8 L196.1,227.6 L198.0,229.1 L200.0,230.4 L201.9,231.5 L203.8,232.3 L205.8,233.1 L207.7,233.6 L209.6,234.1 L211.6,234.5 L213.5,234.8 L215.4,235.1 L217.4,235.2 L219.3,235.4 L221.2,235.5 L223.2,235.6 L225.1,235.6 L227.0,235.7 L228.9,235.7 L230.9,235.8 L232.8,235.8 L234.7,235.8 L236.7,235.8 L238.6,235.8 L240.5,235.8 L242.5,235.8 L244.4,235.8 L246.3,235.8 L248.3,235.8 L250.2,235.8 L252.1,235.8 L254.1,235.8 L256.0,235.8 L257.9,235.8 L259.9,235.8 L261.8,235.8 L263.7,235.8 L265.7,235.8 L267.6,235.8 L269.5,235.8 L271.5,235.8 L273.4,235.8 L275.3,235.8 L277.3,235.8 L279.2,235.8 L281.1,235.8 L283.1,235.8 L285.0,235.8" fill="none" stroke="#8457C7" stroke-width="1.8"/>
+  <path clip-path="url(#w9clip7)" d="M55.0,235.8 L56.9,235.8 L58.9,235.8 L60.8,235.8 L62.7,235.8 L64.7,235.8 L66.6,235.8 L68.5,235.8 L70.5,235.8 L72.4,235.8 L74.3,235.8 L76.3,235.8 L78.2,235.8 L80.1,235.8 L82.1,235.7 L84.0,235.7 L85.9,235.7 L87.9,235.6 L89.8,235.5 L91.7,235.4 L93.7,235.3 L95.6,235.1 L97.5,234.8 L99.5,234.5 L101.4,234.2 L103.3,233.7 L105.3,233.1 L107.2,232.4 L109.1,231.6 L111.1,230.5 L113.0,229.3 L114.9,227.8 L116.8,226.0 L118.8,224.0 L120.7,221.6 L122.6,218.8 L124.6,215.7 L126.5,212.1 L128.4,208.1 L130.4,203.7 L132.3,198.8 L134.2,193.5 L136.2,187.8 L138.1,181.7 L140.0,175.2 L142.0,168.4 L143.9,161.4 L145.8,154.2 L147.8,147.0 L149.7,139.8 L151.6,132.8 L153.6,126.1 L155.5,119.7 L157.4,113.8 L159.4,108.5 L161.3,103.9 L163.2,100.2 L165.2,97.3 L167.1,95.3 L169.0,94.3 L171.0,94.3 L172.9,95.3 L174.8,97.3 L176.8,100.2 L178.7,103.9 L180.6,108.5 L182.6,113.8 L184.5,119.7 L186.4,126.1 L188.4,132.8 L190.3,139.8 L192.2,147.0 L194.2,154.2 L196.1,161.4 L198.0,168.4 L200.0,175.2 L201.9,181.7 L203.8,187.8 L205.8,193.5 L207.7,198.8 L209.6,203.7 L211.6,208.1 L213.5,212.1 L215.4,215.7 L217.4,218.8 L219.3,221.6 L221.2,224.0 L223.2,226.0 L225.1,227.8 L227.0,229.3 L228.9,230.5 L230.9,231.6 L232.8,232.4 L234.7,233.1 L236.7,233.7 L238.6,234.2 L240.5,234.5 L242.5,234.8 L244.4,235.1 L246.3,235.3 L248.3,235.4 L250.2,235.5 L252.1,235.6 L254.1,235.7 L256.0,235.7 L257.9,235.7 L259.9,235.8 L261.8,235.8 L263.7,235.8 L265.7,235.8 L267.6,235.8 L269.5,235.8 L271.5,235.8 L273.4,235.8 L275.3,235.8 L277.3,235.8 L279.2,235.8 L281.1,235.8 L283.1,235.8 L285.0,235.8" fill="none" stroke="#C75794" stroke-width="1.8"/>
+  <path clip-path="url(#w9clip7)" d="M55.0,235.8 L56.9,235.8 L58.9,235.8 L60.8,235.8 L62.7,235.8 L64.7,235.8 L66.6,235.8 L68.5,235.8 L70.5,235.8 L72.4,235.8 L74.3,235.8 L76.3,235.8 L78.2,235.8 L80.1,235.8 L82.1,235.8 L84.0,235.8 L85.9,235.8 L87.9,235.8 L89.8,235.8 L91.7,235.8 L93.7,235.8 L95.6,235.8 L97.5,235.8 L99.5,235.8 L101.4,235.8 L103.3,235.8 L105.3,235.8 L107.2,235.8 L109.1,235.8 L111.1,235.7 L113.0,235.7 L114.9,235.6 L116.8,235.6 L118.8,235.5 L120.7,235.4 L122.6,235.2 L124.6,235.1 L126.5,234.8 L128.4,234.5 L130.4,234.1 L132.3,233.6 L134.2,233.1 L136.2,232.3 L138.1,231.5 L140.0,230.4 L142.0,229.1 L143.9,227.6 L145.8,225.8 L147.8,223.7 L149.7,221.2 L151.6,218.4 L153.6,215.3 L155.5,211.6 L157.4,207.6 L159.4,203.1 L161.3,198.2 L163.2,192.8 L165.2,187.0 L167.1,180.9 L169.0,174.3 L171.0,167.5 L172.9,160.5 L174.8,153.3 L176.8,146.1 L178.7,139.0 L180.6,132.0 L182.6,125.2 L184.5,118.9 L186.4,113.1 L188.4,107.9 L190.3,103.4 L192.2,99.8 L194.2,97.0 L196.1,95.1 L198.0,94.2 L200.0,94.4 L201.9,95.5 L203.8,97.6 L205.8,100.6 L207.7,104.5 L209.6,109.1 L211.6,114.5 L213.5,120.5 L215.4,126.9 L217.4,133.7 L219.3,140.7 L221.2,147.9 L223.2,155.1 L225.1,162.3 L227.0,169.3 L228.9,176.0 L230.9,182.4 L232.8,188.5 L234.7,194.2 L236.7,199.5 L238.6,204.3 L240.5,208.7 L242.5,212.6 L244.4,216.1 L246.3,219.2 L248.3,221.9 L250.2,224.2 L252.1,226.3 L254.1,228.0 L256.0,229.4 L257.9,230.7 L259.9,231.7 L261.8,232.5 L263.7,233.2 L265.7,233.8 L267.6,234.2 L269.5,234.6 L271.5,234.9 L273.4,235.1 L275.3,235.3 L277.3,235.4 L279.2,235.5 L281.1,235.6 L283.1,235.7 L285.0,235.7" fill="none" stroke="#C78557" stroke-width="1.8"/>
+  <path clip-path="url(#w9clip7)" d="M55.0,235.8 L56.9,235.8 L58.9,235.8 L60.8,235.8 L62.7,235.8 L64.7,235.8 L66.6,235.8 L68.5,235.8 L70.5,235.8 L72.4,235.8 L74.3,235.8 L76.3,235.8 L78.2,235.8 L80.1,235.8 L82.1,235.8 L84.0,235.8 L85.9,235.8 L87.9,235.8 L89.8,235.8 L91.7,235.8 L93.7,235.8 L95.6,235.8 L97.5,235.8 L99.5,235.8 L101.4,235.8 L103.3,235.8 L105.3,235.8 L107.2,235.8 L109.1,235.8 L111.1,235.8 L113.0,235.8 L114.9,235.8 L116.8,235.8 L118.8,235.8 L120.7,235.8 L122.6,235.8 L124.6,235.8 L126.5,235.8 L128.4,235.8 L130.4,235.8 L132.3,235.8 L134.2,235.8 L136.2,235.8 L138.1,235.8 L140.0,235.7 L142.0,235.7 L143.9,235.6 L145.8,235.6 L147.8,235.5 L149.7,235.4 L151.6,235.2 L153.6,235.0 L155.5,234.8 L157.4,234.5 L159.4,234.1 L161.3,233.6 L163.2,233.0 L165.2,232.2 L167.1,231.3 L169.0,230.2 L171.0,228.9 L172.9,227.4 L174.8,225.5 L176.8,223.4 L178.7,220.9 L180.6,218.1 L182.6,214.8 L184.5,211.2 L186.4,207.1 L188.4,202.5 L190.3,197.5 L192.2,192.1 L194.2,186.3 L196.1,180.1 L198.0,173.5 L200.0,166.7 L201.9,159.6 L203.8,152.4 L205.8,145.2 L207.7,138.1 L209.6,131.1 L211.6,124.4 L213.5,118.2 L215.4,112.4 L217.4,107.3 L219.3,102.9 L221.2,99.4 L223.2,96.7 L225.1,94.9 L227.0,94.2 L228.9,94.4 L230.9,95.7 L232.8,97.9 L234.7,101.0 L236.7,105.0 L238.6,109.8 L240.5,115.2 L242.5,121.2 L244.4,127.7 L246.3,134.6 L248.3,141.6 L250.2,148.8 L252.1,156.0 L254.1,163.2 L256.0,170.1 L257.9,176.8 L259.9,183.2 L261.8,189.3 L263.7,194.9 L265.7,200.1 L267.6,204.9 L269.5,209.2 L271.5,213.0 L273.4,216.5 L275.3,219.5 L277.3,222.2 L279.2,224.5 L281.1,226.5 L283.1,228.2 L285.0,229.6" fill="none" stroke="#5795C7" stroke-width="1.8"/>
+  <path clip-path="url(#w9clip7)" d="M55.0,235.8 L56.9,235.8 L58.9,235.8 L60.8,235.8 L62.7,235.8 L64.7,235.8 L66.6,235.8 L68.5,235.8 L70.5,235.8 L72.4,235.8 L74.3,235.8 L76.3,235.8 L78.2,235.8 L80.1,235.8 L82.1,235.8 L84.0,235.8 L85.9,235.8 L87.9,235.8 L89.8,235.8 L91.7,235.8 L93.7,235.8 L95.6,235.8 L97.5,235.8 L99.5,235.8 L101.4,235.8 L103.3,235.8 L105.3,235.8 L107.2,235.8 L109.1,235.8 L111.1,235.8 L113.0,235.8 L114.9,235.8 L116.8,235.8 L118.8,235.8 L120.7,235.8 L122.6,235.8 L124.6,235.8 L126.5,235.8 L128.4,235.8 L130.4,235.8 L132.3,235.8 L134.2,235.8 L136.2,235.8 L138.1,235.8 L140.0,235.8 L142.0,235.8 L143.9,235.8 L145.8,235.8 L147.8,235.8 L149.7,235.8 L151.6,235.8 L153.6,235.8 L155.5,235.8 L157.4,235.8 L159.4,235.8 L161.3,235.8 L163.2,235.8 L165.2,235.8 L167.1,235.8 L169.0,235.7 L171.0,235.7 L172.9,235.6 L174.8,235.6 L176.8,235.5 L178.7,235.4 L180.6,235.2 L182.6,235.0 L184.5,234.7 L186.4,234.4 L188.4,234.0 L190.3,233.5 L192.2,232.9 L194.2,232.1 L196.1,231.2 L198.0,230.1 L200.0,228.7 L201.9,227.2 L203.8,225.3 L205.8,223.1 L207.7,220.6 L209.6,217.7 L211.6,214.4 L213.5,210.7 L215.4,206.5 L217.4,201.9 L219.3,196.9 L221.2,191.4 L223.2,185.5 L225.1,179.3 L227.0,172.7 L228.9,165.8 L230.9,158.7 L232.8,151.5 L234.7,144.3 L236.7,137.2 L238.6,130.3 L240.5,123.6 L242.5,117.4 L244.4,111.7 L246.3,106.7 L248.3,102.4 L250.2,99.0 L252.1,96.4 L254.1,94.8 L256.0,94.2 L257.9,94.5 L259.9,95.9 L261.8,98.2 L263.7,101.5 L265.7,105.6 L267.6,110.4 L269.5,115.9 L271.5,122.0 L273.4,128.6 L275.3,135.4 L277.3,142.5 L279.2,149.7 L281.1,156.9 L283.1,164.0 L285.0,171.0" fill="none" stroke="#57C7AE" stroke-width="1.8"/>
+  <path clip-path="url(#w9clip7)" d="M55.0,235.8 L56.9,235.8 L58.9,235.8 L60.8,235.8 L62.7,235.8 L64.7,235.8 L66.6,235.8 L68.5,235.8 L70.5,235.8 L72.4,235.8 L74.3,235.8 L76.3,235.8 L78.2,235.8 L80.1,235.8 L82.1,235.8 L84.0,235.8 L85.9,235.8 L87.9,235.8 L89.8,235.8 L91.7,235.8 L93.7,235.8 L95.6,235.8 L97.5,235.8 L99.5,235.8 L101.4,235.8 L103.3,235.8 L105.3,235.8 L107.2,235.8 L109.1,235.8 L111.1,235.8 L113.0,235.8 L114.9,235.8 L116.8,235.8 L118.8,235.8 L120.7,235.8 L122.6,235.8 L124.6,235.8 L126.5,235.8 L128.4,235.8 L130.4,235.8 L132.3,235.8 L134.2,235.8 L136.2,235.8 L138.1,235.8 L140.0,235.8 L142.0,235.8 L143.9,235.8 L145.8,235.8 L147.8,235.8 L149.7,235.8 L151.6,235.8 L153.6,235.8 L155.5,235.8 L157.4,235.8 L159.4,235.8 L161.3,235.8 L163.2,235.8 L165.2,235.8 L167.1,235.8 L169.0,235.8 L171.0,235.8 L172.9,235.8 L174.8,235.8 L176.8,235.8 L178.7,235.8 L180.6,235.8 L182.6,235.8 L184.5,235.8 L186.4,235.8 L188.4,235.8 L190.3,235.8 L192.2,235.8 L194.2,235.8 L196.1,235.8 L198.0,235.7 L200.0,235.7 L201.9,235.6 L203.8,235.6 L205.8,235.5 L207.7,235.3 L209.6,235.2 L211.6,235.0 L213.5,234.7 L215.4,234.4 L217.4,234.0 L219.3,233.4 L221.2,232.8 L223.2,232.0 L225.1,231.1 L227.0,229.9 L228.9,228.6 L230.9,226.9 L232.8,225.0 L234.7,222.8 L236.7,220.2 L238.6,217.3 L240.5,214.0 L242.5,210.2 L244.4,206.0 L246.3,201.3 L248.3,196.2 L250.2,190.7 L252.1,184.8 L254.1,178.5 L256.0,171.8 L257.9,164.9 L259.9,157.8 L261.8,150.6 L263.7,143.4 L265.7,136.3 L267.6,129.4 L269.5,122.8 L271.5,116.7 L273.4,111.1 L275.3,106.1 L277.3,101.9 L279.2,98.6 L281.1,96.2 L283.1,94.7 L285.0,94.2" fill="none" stroke="#C7A857" stroke-width="1.8"/>
+  <clipPath id="w9clip8"><rect x="345" y="80" width="230" height="170"/></clipPath>
+  <rect x="345" y="80" width="230" height="170" fill="#fff" stroke="#888" stroke-width="1.2"/>
+  <text x="345.0" y="268" text-anchor="middle" font-size="14" fill="#555">0</text>
+  <text x="460.0" y="268" text-anchor="middle" font-size="14" fill="#555">0.5</text>
+  <text x="575.0" y="268" text-anchor="middle" font-size="14" fill="#555">1</text>
+  <text x="339" y="223.1" text-anchor="end" font-size="14" fill="#555">-1</text>
+  <text x="339" y="170.0" text-anchor="end" font-size="14" fill="#555">0</text>
+  <text x="339" y="116.9" text-anchor="end" font-size="14" fill="#555">1</text>
+  <text x="460.0" y="288" text-anchor="middle" font-size="15" fill="#555">x</text>
+  <text x="460.0" y="70" text-anchor="middle" font-size="16" font-weight="600" fill="#333">posterior samples, N = 4</text>
+  <path clip-path="url(#w9clip8)" d="M345.0,165.0 L346.9,162.2 L348.9,159.4 L350.8,156.6 L352.7,153.9 L354.7,151.1 L356.6,148.5 L358.5,145.8 L360.5,143.2 L362.4,140.7 L364.3,138.2 L366.3,135.9 L368.2,133.5 L370.1,131.3 L372.1,129.2 L374.0,127.2 L375.9,125.3 L377.9,123.5 L379.8,121.8 L381.7,120.2 L383.7,118.8 L385.6,117.4 L387.5,116.3 L389.5,115.2 L391.4,114.3 L393.3,113.5 L395.3,112.9 L397.2,112.4 L399.1,112.1 L401.1,111.9 L403.0,111.9 L404.9,112.0 L406.8,112.2 L408.8,112.7 L410.7,113.2 L412.6,113.9 L414.6,114.7 L416.5,115.7 L418.4,116.8 L420.4,118.1 L422.3,119.5 L424.2,121.0 L426.2,122.6 L428.1,124.4 L430.0,126.2 L432.0,128.2 L433.9,130.3 L435.8,132.4 L437.8,134.7 L439.7,137.0 L441.6,139.5 L443.6,141.9 L445.5,144.5 L447.4,147.1 L449.4,149.8 L451.3,152.5 L453.2,155.2 L455.2,158.0 L457.1,160.8 L459.0,163.6 L461.0,166.4 L462.9,169.2 L464.8,172.0 L466.8,174.8 L468.7,177.5 L470.6,180.2 L472.6,182.9 L474.5,185.5 L476.4,188.1 L478.4,190.5 L480.3,193.0 L482.2,195.3 L484.2,197.6 L486.1,199.7 L488.0,201.8 L490.0,203.8 L491.9,205.6 L493.8,207.4 L495.8,209.0 L497.7,210.5 L499.6,211.9 L501.6,213.2 L503.5,214.3 L505.4,215.3 L507.4,216.1 L509.3,216.8 L511.2,217.3 L513.2,217.8 L515.1,218.0 L517.0,218.1 L518.9,218.1 L520.9,217.9 L522.8,217.6 L524.7,217.1 L526.7,216.5 L528.6,215.7 L530.5,214.8 L532.5,213.7 L534.4,212.6 L536.3,211.2 L538.3,209.8 L540.2,208.2 L542.1,206.5 L544.1,204.7 L546.0,202.8 L547.9,200.8 L549.9,198.7 L551.8,196.5 L553.7,194.1 L555.7,191.8 L557.6,189.3 L559.5,186.8 L561.5,184.2 L563.4,181.5 L565.3,178.9 L567.3,176.1 L569.2,173.4 L571.1,170.6 L573.1,167.8 L575.0,165.0" fill="none" stroke="#57C7AE" stroke-width="2.5" stroke-dasharray="6 4"/>
+  <path clip-path="url(#w9clip8)" d="M345.0,150.4 L346.9,148.1 L348.9,145.8 L350.8,143.2 L352.7,140.5 L354.7,137.7 L356.6,134.8 L358.5,131.8 L360.5,128.7 L362.4,125.6 L364.3,122.4 L366.3,119.3 L368.2,116.2 L370.1,113.2 L372.1,110.3 L374.0,107.5 L375.9,104.9 L377.9,102.4 L379.8,100.2 L381.7,98.2 L383.7,96.4 L385.6,95.0 L387.5,93.8 L389.5,93.0 L391.4,92.5 L393.3,92.3 L395.3,92.5 L397.2,93.0 L399.1,93.9 L401.1,95.1 L403.0,96.7 L404.9,98.5 L406.8,100.6 L408.8,102.9 L410.7,105.5 L412.6,108.2 L414.6,111.0 L416.5,114.0 L418.4,116.9 L420.4,119.9 L422.3,122.8 L424.2,125.7 L426.2,128.5 L428.1,131.1 L430.0,133.6 L432.0,136.0 L433.9,138.2 L435.8,140.3 L437.8,142.3 L439.7,144.2 L441.6,146.0 L443.6,147.8 L445.5,149.6 L447.4,151.4 L449.4,153.2 L451.3,155.1 L453.2,157.2 L455.2,159.4 L457.1,161.7 L459.0,164.2 L461.0,166.9 L462.9,169.7 L464.8,172.7 L466.8,175.8 L468.7,179.0 L470.6,182.3 L472.6,185.6 L474.5,188.9 L476.4,192.1 L478.4,195.3 L480.3,198.3 L482.2,201.1 L484.2,203.7 L486.1,206.1 L488.0,208.2 L490.0,210.1 L491.9,211.6 L493.8,212.9 L495.8,214.0 L497.7,214.7 L499.6,215.3 L501.6,215.6 L503.5,215.8 L505.4,215.8 L507.4,215.8 L509.3,215.6 L511.2,215.4 L513.2,215.1 L515.1,214.8 L517.0,214.5 L518.9,214.2 L520.9,213.9 L522.8,213.5 L524.7,213.1 L526.7,212.7 L528.6,212.1 L530.5,211.4 L532.5,210.5 L534.4,209.4 L536.3,208.0 L538.3,206.4 L540.2,204.6 L542.1,202.4 L544.1,199.9 L546.0,197.1 L547.9,194.0 L549.9,190.6 L551.8,186.9 L553.7,183.1 L555.7,179.1 L557.6,175.0 L559.5,170.8 L561.5,166.6 L563.4,162.6 L565.3,158.6 L567.3,154.9 L569.2,151.4 L571.1,148.2 L573.1,145.4 L575.0,142.9" fill="none" stroke="#C78557" stroke-width="1.6" opacity="0.9"/>
+  <path clip-path="url(#w9clip8)" d="M345.0,152.9 L346.9,151.1 L348.9,149.2 L350.8,147.2 L352.7,145.1 L354.7,142.9 L356.6,140.6 L358.5,138.3 L360.5,135.9 L362.4,133.5 L364.3,131.2 L366.3,128.8 L368.2,126.5 L370.1,124.2 L372.1,122.0 L374.0,119.8 L375.9,117.8 L377.9,115.8 L379.8,114.0 L381.7,112.2 L383.7,110.5 L385.6,109.0 L387.5,107.5 L389.5,106.2 L391.4,104.9 L393.3,103.8 L395.3,102.7 L397.2,101.6 L399.1,100.7 L401.1,99.8 L403.0,99.0 L404.9,98.2 L406.8,97.4 L408.8,96.7 L410.7,96.0 L412.6,95.3 L414.6,94.7 L416.5,94.1 L418.4,93.5 L420.4,93.0 L422.3,92.5 L424.2,92.1 L426.2,91.7 L428.1,91.5 L430.0,91.3 L432.0,91.3 L433.9,91.4 L435.8,91.8 L437.8,92.4 L439.7,93.2 L441.6,94.3 L443.6,95.8 L445.5,97.6 L447.4,99.8 L449.4,102.4 L451.3,105.4 L453.2,108.9 L455.2,112.9 L457.1,117.3 L459.0,122.2 L461.0,127.5 L462.9,133.3 L464.8,139.4 L466.8,145.8 L468.7,152.5 L470.6,159.5 L472.6,166.6 L474.5,173.7 L476.4,180.9 L478.4,188.0 L480.3,195.0 L482.2,201.7 L484.2,208.2 L486.1,214.3 L488.0,220.0 L490.0,225.2 L491.9,229.9 L493.8,234.0 L495.8,237.6 L497.7,240.5 L499.6,242.8 L501.6,244.4 L503.5,245.4 L505.4,245.8 L507.4,245.5 L509.3,244.6 L511.2,243.1 L513.2,241.0 L515.1,238.4 L517.0,235.3 L518.9,231.7 L520.9,227.7 L522.8,223.3 L524.7,218.6 L526.7,213.6 L528.6,208.4 L530.5,203.1 L532.5,197.7 L534.4,192.2 L536.3,186.8 L538.3,181.4 L540.2,176.2 L542.1,171.2 L544.1,166.3 L546.0,161.7 L547.9,157.4 L549.9,153.4 L551.8,149.8 L553.7,146.5 L555.7,143.5 L557.6,140.9 L559.5,138.7 L561.5,136.9 L563.4,135.3 L565.3,134.2 L567.3,133.4 L569.2,132.9 L571.1,132.6 L573.1,132.7 L575.0,133.0" fill="none" stroke="#C78557" stroke-width="1.6" opacity="0.9"/>
+  <path clip-path="url(#w9clip8)" d="M345.0,145.5 L346.9,144.5 L348.9,143.4 L350.8,142.2 L352.7,141.0 L354.7,139.7 L356.6,138.3 L358.5,136.8 L360.5,135.1 L362.4,133.4 L364.3,131.5 L366.3,129.5 L368.2,127.3 L370.1,125.0 L372.1,122.7 L374.0,120.2 L375.9,117.8 L377.9,115.3 L379.8,112.9 L381.7,110.6 L383.7,108.4 L385.6,106.4 L387.5,104.7 L389.5,103.3 L391.4,102.3 L393.3,101.6 L395.3,101.4 L397.2,101.7 L399.1,102.5 L401.1,103.7 L403.0,105.5 L404.9,107.7 L406.8,110.3 L408.8,113.4 L410.7,116.7 L412.6,120.4 L414.6,124.2 L416.5,128.2 L418.4,132.2 L420.4,136.2 L422.3,140.1 L424.2,143.8 L426.2,147.2 L428.1,150.4 L430.0,153.2 L432.0,155.7 L433.9,157.7 L435.8,159.4 L437.8,160.7 L439.7,161.7 L441.6,162.3 L443.6,162.8 L445.5,163.0 L447.4,163.0 L449.4,163.0 L451.3,163.0 L453.2,163.0 L455.2,163.1 L457.1,163.4 L459.0,163.9 L461.0,164.6 L462.9,165.6 L464.8,166.9 L466.8,168.5 L468.7,170.4 L470.6,172.6 L472.6,175.1 L474.5,177.9 L476.4,180.8 L478.4,184.0 L480.3,187.3 L482.2,190.7 L484.2,194.2 L486.1,197.7 L488.0,201.2 L490.0,204.7 L491.9,208.1 L493.8,211.5 L495.8,214.6 L497.7,217.7 L499.6,220.5 L501.6,223.1 L503.5,225.6 L505.4,227.7 L507.4,229.7 L509.3,231.4 L511.2,232.9 L513.2,234.1 L515.1,235.1 L517.0,235.9 L518.9,236.4 L520.9,236.7 L522.8,236.9 L524.7,236.8 L526.7,236.6 L528.6,236.2 L530.5,235.7 L532.5,235.1 L534.4,234.4 L536.3,233.7 L538.3,232.9 L540.2,232.0 L542.1,231.1 L544.1,230.2 L546.0,229.3 L547.9,228.4 L549.9,227.5 L551.8,226.5 L553.7,225.6 L555.7,224.6 L557.6,223.6 L559.5,222.6 L561.5,221.5 L563.4,220.3 L565.3,219.1 L567.3,217.8 L569.2,216.4 L571.1,214.9 L573.1,213.4 L575.0,211.7" fill="none" stroke="#C78557" stroke-width="1.6" opacity="0.9"/>
+  <path clip-path="url(#w9clip8)" d="M345.0,151.6 L346.9,149.7 L348.9,147.7 L350.8,145.6 L352.7,143.4 L354.7,141.1 L356.6,138.7 L358.5,136.3 L360.5,134.0 L362.4,131.6 L364.3,129.2 L366.3,127.0 L368.2,124.7 L370.1,122.6 L372.1,120.6 L374.0,118.6 L375.9,116.8 L377.9,115.1 L379.8,113.6 L381.7,112.1 L383.7,110.8 L385.6,109.6 L387.5,108.5 L389.5,107.4 L391.4,106.5 L393.3,105.7 L395.3,105.0 L397.2,104.3 L399.1,103.8 L401.1,103.4 L403.0,103.0 L404.9,102.8 L406.8,102.7 L408.8,102.8 L410.7,103.1 L412.6,103.6 L414.6,104.3 L416.5,105.2 L418.4,106.4 L420.4,108.0 L422.3,109.8 L424.2,111.9 L426.2,114.4 L428.1,117.2 L430.0,120.2 L432.0,123.6 L433.9,127.3 L435.8,131.1 L437.8,135.2 L439.7,139.4 L441.6,143.7 L443.6,148.0 L445.5,152.3 L447.4,156.4 L449.4,160.5 L451.3,164.3 L453.2,167.9 L455.2,171.3 L457.1,174.3 L459.0,177.0 L461.0,179.4 L462.9,181.4 L464.8,183.1 L466.8,184.6 L468.7,185.8 L470.6,186.8 L472.6,187.6 L474.5,188.4 L476.4,189.1 L478.4,189.8 L480.3,190.6 L482.2,191.5 L484.2,192.5 L486.1,193.8 L488.0,195.2 L490.0,196.8 L491.9,198.6 L493.8,200.6 L495.8,202.7 L497.7,204.9 L499.6,207.2 L501.6,209.4 L503.5,211.6 L505.4,213.6 L507.4,215.4 L509.3,216.9 L511.2,218.1 L513.2,219.0 L515.1,219.4 L517.0,219.3 L518.9,218.8 L520.9,217.7 L522.8,216.3 L524.7,214.3 L526.7,211.9 L528.6,209.2 L530.5,206.1 L532.5,202.7 L534.4,199.1 L536.3,195.4 L538.3,191.6 L540.2,187.7 L542.1,183.9 L544.1,180.2 L546.0,176.6 L547.9,173.2 L549.9,170.0 L551.8,167.1 L553.7,164.4 L555.7,162.0 L557.6,159.9 L559.5,158.1 L561.5,156.6 L563.4,155.4 L565.3,154.4 L567.3,153.7 L569.2,153.1 L571.1,152.8 L573.1,152.7 L575.0,152.7" fill="none" stroke="#C78557" stroke-width="1.6" opacity="0.9"/>
+  <path clip-path="url(#w9clip8)" d="M345.0,152.0 L346.9,151.0 L348.9,149.8 L350.8,148.6 L352.7,147.2 L354.7,145.8 L356.6,144.2 L358.5,142.4 L360.5,140.5 L362.4,138.5 L364.3,136.4 L366.3,134.1 L368.2,131.6 L370.1,129.1 L372.1,126.4 L374.0,123.7 L375.9,120.9 L377.9,118.1 L379.8,115.3 L381.7,112.6 L383.7,110.0 L385.6,107.5 L387.5,105.3 L389.5,103.3 L391.4,101.6 L393.3,100.3 L395.3,99.3 L397.2,98.8 L399.1,98.6 L401.1,99.0 L403.0,99.7 L404.9,100.9 L406.8,102.5 L408.8,104.6 L410.7,106.9 L412.6,109.7 L414.6,112.6 L416.5,115.9 L418.4,119.3 L420.4,122.8 L422.3,126.4 L424.2,130.0 L426.2,133.6 L428.1,137.1 L430.0,140.5 L432.0,143.8 L433.9,147.0 L435.8,150.0 L437.8,152.9 L439.7,155.7 L441.6,158.3 L443.6,160.8 L445.5,163.3 L447.4,165.8 L449.4,168.2 L451.3,170.6 L453.2,173.1 L455.2,175.6 L457.1,178.2 L459.0,180.9 L461.0,183.7 L462.9,186.6 L464.8,189.6 L466.8,192.6 L468.7,195.6 L470.6,198.7 L472.6,201.7 L474.5,204.6 L476.4,207.5 L478.4,210.2 L480.3,212.7 L482.2,215.0 L484.2,217.1 L486.1,218.9 L488.0,220.4 L490.0,221.6 L491.9,222.6 L493.8,223.2 L495.8,223.6 L497.7,223.8 L499.6,223.7 L501.6,223.4 L503.5,223.0 L505.4,222.4 L507.4,221.8 L509.3,221.1 L511.2,220.4 L513.2,219.8 L515.1,219.2 L517.0,218.6 L518.9,218.2 L520.9,217.8 L522.8,217.6 L524.7,217.4 L526.7,217.4 L528.6,217.4 L530.5,217.5 L532.5,217.6 L534.4,217.8 L536.3,217.9 L538.3,218.0 L540.2,218.0 L542.1,218.0 L544.1,217.9 L546.0,217.6 L547.9,217.2 L549.9,216.7 L551.8,216.0 L553.7,215.2 L555.7,214.2 L557.6,213.0 L559.5,211.7 L561.5,210.3 L563.4,208.8 L565.3,207.1 L567.3,205.4 L569.2,203.5 L571.1,201.7 L573.1,199.7 L575.0,197.8" fill="none" stroke="#C78557" stroke-width="1.6" opacity="0.9"/>
+  <circle cx="364.7" cy="132.0" r="5" fill="#C6DEF1" stroke="#5795C7" stroke-width="2"/>
+  <circle cx="399.5" cy="91.5" r="5" fill="#C6DEF1" stroke="#5795C7" stroke-width="2"/>
+  <circle cx="529.3" cy="218.3" r="5" fill="#C6DEF1" stroke="#5795C7" stroke-width="2"/>
+  <circle cx="478.9" cy="193.8" r="5" fill="#C6DEF1" stroke="#5795C7" stroke-width="2"/>
+</svg>
+</div>
+```
+
+**Figure 4.** Left: nine RBF features with centres evenly spaced on $[0, 1]$ and width $s = 0.1$. Right: five functions $w^\top\psi(x)$ with $w$ sampled from the posterior after four noisy observations of $\sin(2\pi x)$ (dashed). Prior $S = 0.5I$, noise $\sigma^2 = 0.04$. The settings are ours, chosen to mirror the slide. The sampled functions agree near the data and spread apart where there is none.
+
+::: {.callout-tip collapse="true" .clarification title="Recap: Nonlinear features: radial basis functions"}
+What the symbols stand for:
+
+- $\psi_j(x)$: the $j$-th feature of input $x$, one bump.
+- $\mu_j$: the fixed centre of bump $j$ (chosen by us, not learned here).
+- $s$: the width of every bump.
+- $w_j$: the height given to bump $j$ (learned).
+
+Taking the equation apart:
+
+- $(x-\mu_j)^2$: squared distance from the input to the bump's centre.
+- $/\,2s^2$: measures that distance in units of the width.
+- $\exp(-\,\cdot)$: turns distance into closeness, $1$ at the centre and falling toward $0$.
+- $w^\top\psi(x) = \sum_j w_j\psi_j(x)$: add up bumps of chosen heights to make a curve.
+
+A teaching example, with three centres $\mu = (0, 0.5, 1)$, width $s = 0.25$ (so $2s^2 = 0.125$), weights $w = (1, -2, 0.5)$, at the input $x = 0.4$.
+
+- $\psi_1 = \exp(-0.16/0.125) = e^{-1.28}\approx0.278$.
+- $\psi_2 = \exp(-0.01/0.125) = e^{-0.08}\approx0.923$.
+- $\psi_3 = \exp(-0.36/0.125) = e^{-2.88}\approx0.056$.
+- $w^\top\psi = 0.278 - 2(0.923) + 0.5(0.056)\approx0.278 - 1.846 + 0.028 = -1.540$. The nearest centre (0.5) dominates.
+:::
+
+::: {.callout-note .section-takeaways}
+**Key takeaways.**
+
+- Swapping the features for bumps lets a model that is linear in its weights draw curves. Nothing in the Bayesian derivation changes.
+- The posterior over weights becomes a posterior over curves: they agree where there is data and fan out where there is none.
+:::
+
+## The posterior predictive distribution {#sec-w9-pred}
+
+The posterior gives a distribution over weights. What we actually want is a prediction for $y$ at a new input. What is the **[posterior predictive distribution](https://en.wikipedia.org/wiki/Posterior_predictive_distribution)** $p(y\mid x,\mathcal D)$ of @sec-w9-full, in closed form?
+
+Both factors in the integral are Gaussians we already know:
+
+$$
+\begin{aligned}
+p(y\mid x,\mathcal D) &= \int p(y\mid x, w)\ p(w\mid\mathcal D)\,dw,\\
+p(y\mid x, w) &= \mathcal N\big(y;\ w^\top\psi(x),\ \sigma^2\big),\\
+p(w\mid\mathcal D) &= \mathcal N\big(w;\ \mu,\ \Sigma\big).
+\end{aligned}
+$$
+
+Rather than doing this integral, the lecture uses another interpretation. Write the new target as
+$$y = w^\top\psi(x) + \varepsilon,\qquad \varepsilon\sim\mathcal N(0,\sigma^2)\ \text{independent of}\ w\mid\mathcal D\sim\mathcal N(\mu,\Sigma),$$
+with $\mu$ and $\Sigma$ from @sec-w9-post. With $x$ fixed, $\psi(x)$ is a fixed vector, so $w^\top\psi(x)$ is an affine transformation of a Gaussian vector and is Gaussian (as for PPCA in @sec-w8-ppca-lik in Week 8), with mean $\mu^\top\psi(x)$ and variance $\psi(x)^\top\Sigma\,\psi(x)$. Adding independent Gaussian noise adds the variances. So $y$ is Gaussian with
+
+::: {.boxed-eq}
+$$\mu_{\text{pred}} = \mu^\top\psi(x),\qquad \sigma^2_{\text{pred}} = \psi(x)^\top\Sigma\,\psi(x) + \sigma^2.$$
+:::
+
+The predictive variance has two parts. The noise $\sigma^2$ is the same everywhere and never goes away. The term $\psi(x)^\top\Sigma\,\psi(x)$ is our uncertainty about the weights, seen through the features of this particular input: it is small where the data has pinned the function down and large where it has not, and it shrinks toward zero as more data arrives.
+
+The slides visualize the predictive mean and a band of variance at each input as data from the sine curve accumulates. Figure 5 redraws it.
+
+```{=html}
+<div style="overflow-x:auto; margin:1.5rem 0;">
+<svg viewBox="0 0 600 320" width="100%" style="max-width:600px;display:block;margin:auto;font-family:Helvetica,'Helvetica Neue',Arial,sans-serif;" role="img" aria-label="Two panels. Each shows a dashed sine curve, blue data points, an orange predictive mean curve, and a shaded band of plus or minus two predictive standard deviations. With 2 points the band is narrow only near the data and wide elsewhere. With 25 points the mean follows the sine curve and the band is a narrow strip of roughly constant width.">
+  <text x="300" y="32" text-anchor="middle" font-size="24" font-weight="600" fill="#333">The posterior predictive distribution</text>
+  <clipPath id="w9clip9"><rect x="55" y="80" width="230" height="170"/></clipPath>
+  <rect x="55" y="80" width="230" height="170" fill="#fff" stroke="#888" stroke-width="1.2"/>
+  <text x="55.0" y="268" text-anchor="middle" font-size="14" fill="#555">0</text>
+  <text x="170.0" y="268" text-anchor="middle" font-size="14" fill="#555">0.5</text>
+  <text x="285.0" y="268" text-anchor="middle" font-size="14" fill="#555">1</text>
+  <text x="49" y="217.2" text-anchor="end" font-size="14" fill="#555">-1</text>
+  <text x="49" y="170.0" text-anchor="end" font-size="14" fill="#555">0</text>
+  <text x="49" y="122.8" text-anchor="end" font-size="14" fill="#555">1</text>
+  <text x="170.0" y="288" text-anchor="middle" font-size="15" fill="#555">x</text>
+  <text x="170.0" y="70" text-anchor="middle" font-size="16" font-weight="600" fill="#333">N = 2</text>
+  <path clip-path="url(#w9clip9)" d="M55.0,114.0 L56.9,113.9 L58.9,113.9 L60.8,114.0 L62.7,114.0 L64.7,114.0 L66.6,113.8 L68.5,113.3 L70.5,112.4 L72.4,111.2 L74.3,109.5 L76.3,107.3 L78.2,104.9 L80.1,102.2 L82.1,99.4 L84.0,96.6 L85.9,93.8 L87.9,91.3 L89.8,88.9 L91.7,86.8 L93.7,84.9 L95.6,83.3 L97.5,82.0 L99.5,80.8 L101.4,79.9 L103.3,79.2 L105.3,78.5 L107.2,77.9 L109.1,77.3 L111.1,76.6 L113.0,75.8 L114.9,74.9 L116.8,73.8 L118.8,72.6 L120.7,71.3 L122.6,69.9 L124.6,68.5 L126.5,67.1 L128.4,65.8 L130.4,64.7 L132.3,63.7 L134.2,62.8 L136.2,62.2 L138.1,61.8 L140.0,61.6 L142.0,61.6 L143.9,61.9 L145.8,62.3 L147.8,62.8 L149.7,63.5 L151.6,64.3 L153.6,65.1 L155.5,66.0 L157.4,66.9 L159.4,67.9 L161.3,68.8 L163.2,69.8 L165.2,70.7 L167.1,71.7 L169.0,72.6 L171.0,73.5 L172.9,74.5 L174.8,75.4 L176.8,76.2 L178.7,77.0 L180.6,77.8 L182.6,78.5 L184.5,79.1 L186.4,79.6 L188.4,80.0 L190.3,80.4 L192.2,80.8 L194.2,81.0 L196.1,81.3 L198.0,81.6 L200.0,81.8 L201.9,82.0 L203.8,82.2 L205.8,82.5 L207.7,82.6 L209.6,82.8 L211.6,82.9 L213.5,83.0 L215.4,83.1 L217.4,83.1 L219.3,83.1 L221.2,83.1 L223.2,83.0 L225.1,83.0 L227.0,83.0 L228.9,83.1 L230.9,83.1 L232.8,83.2 L234.7,83.2 L236.7,83.3 L238.6,83.3 L240.5,83.4 L242.5,83.4 L244.4,83.4 L246.3,83.3 L248.3,83.3 L250.2,83.2 L252.1,83.2 L254.1,83.2 L256.0,83.2 L257.9,83.2 L259.9,83.3 L261.8,83.4 L263.7,83.5 L265.7,83.7 L267.6,83.9 L269.5,84.1 L271.5,84.3 L273.4,84.7 L275.3,85.0 L277.3,85.5 L279.2,86.1 L281.1,86.9 L283.1,87.9 L285.0,89.1 L285.0,240.9 L283.1,242.1 L281.1,243.1 L279.2,243.9 L277.3,244.5 L275.3,245.0 L273.4,245.3 L271.5,245.7 L269.5,245.9 L267.6,246.1 L265.7,246.3 L263.7,246.5 L261.8,246.6 L259.9,246.7 L257.9,246.8 L256.0,246.8 L254.1,246.8 L252.1,246.8 L250.2,246.8 L248.3,246.7 L246.3,246.6 L244.4,246.6 L242.5,246.6 L240.5,246.6 L238.6,246.6 L236.7,246.6 L234.7,246.7 L232.8,246.7 L230.9,246.8 L228.9,246.8 L227.0,246.8 L225.1,246.7 L223.2,246.7 L221.2,246.6 L219.3,246.5 L217.4,246.4 L215.4,246.3 L213.5,246.2 L211.6,246.1 L209.6,246.1 L207.7,246.0 L205.8,245.9 L203.8,245.8 L201.9,245.7 L200.0,245.5 L198.0,245.2 L196.1,244.9 L194.2,244.6 L192.2,244.1 L190.3,243.6 L188.4,243.1 L186.4,242.5 L184.5,241.8 L182.6,241.1 L180.6,240.3 L178.7,239.4 L176.8,238.4 L174.8,237.3 L172.9,236.0 L171.0,234.6 L169.0,233.0 L167.1,231.2 L165.2,229.2 L163.2,227.1 L161.3,224.7 L159.4,222.2 L157.4,219.5 L155.5,216.5 L153.6,213.4 L151.6,210.2 L149.7,206.7 L147.8,203.0 L145.8,199.1 L143.9,195.0 L142.0,190.7 L140.0,186.3 L138.1,181.6 L136.2,176.8 L134.2,171.9 L132.3,167.0 L130.4,162.0 L128.4,157.2 L126.5,152.5 L124.6,148.0 L122.6,143.9 L120.7,140.2 L118.8,136.9 L116.8,134.2 L114.9,132.1 L113.0,130.7 L111.1,129.8 L109.1,129.6 L107.2,129.9 L105.3,130.7 L103.3,131.9 L101.4,133.4 L99.5,135.2 L97.5,137.1 L95.6,139.2 L93.7,141.3 L91.7,143.4 L89.8,145.5 L87.9,147.5 L85.9,149.4 L84.0,151.3 L82.1,153.2 L80.1,155.2 L78.2,157.2 L76.3,159.5 L74.3,162.0 L72.4,164.8 L70.5,168.0 L68.5,171.4 L66.6,175.0 L64.7,178.8 L62.7,182.5 L60.8,186.1 L58.9,189.5 L56.9,192.6 L55.0,195.4 Z" fill="#F7D9C4" fill-opacity="0.8" stroke="none"/>
+  <path clip-path="url(#w9clip9)" d="M55.0,165.0 L56.9,162.5 L58.9,160.0 L60.8,157.6 L62.7,155.1 L64.7,152.7 L66.6,150.3 L68.5,147.9 L70.5,145.6 L72.4,143.4 L74.3,141.2 L76.3,139.1 L78.2,137.0 L80.1,135.1 L82.1,133.2 L84.0,131.4 L85.9,129.7 L87.9,128.1 L89.8,126.6 L91.7,125.2 L93.7,123.9 L95.6,122.7 L97.5,121.7 L99.5,120.7 L101.4,119.9 L103.3,119.3 L105.3,118.7 L107.2,118.3 L109.1,118.0 L111.1,117.8 L113.0,117.8 L114.9,117.9 L116.8,118.1 L118.8,118.5 L120.7,119.0 L122.6,119.6 L124.6,120.3 L126.5,121.2 L128.4,122.2 L130.4,123.3 L132.3,124.5 L134.2,125.9 L136.2,127.3 L138.1,128.9 L140.0,130.5 L142.0,132.3 L143.9,134.1 L145.8,136.0 L147.8,138.1 L149.7,140.1 L151.6,142.3 L153.6,144.5 L155.5,146.8 L157.4,149.1 L159.4,151.5 L161.3,153.9 L163.2,156.3 L165.2,158.8 L167.1,161.3 L169.0,163.8 L171.0,166.2 L172.9,168.7 L174.8,171.2 L176.8,173.7 L178.7,176.1 L180.6,178.5 L182.6,180.9 L184.5,183.2 L186.4,185.5 L188.4,187.7 L190.3,189.9 L192.2,191.9 L194.2,194.0 L196.1,195.9 L198.0,197.7 L200.0,199.5 L201.9,201.1 L203.8,202.7 L205.8,204.1 L207.7,205.5 L209.6,206.7 L211.6,207.8 L213.5,208.8 L215.4,209.7 L217.4,210.4 L219.3,211.0 L221.2,211.5 L223.2,211.9 L225.1,212.1 L227.0,212.2 L228.9,212.2 L230.9,212.0 L232.8,211.7 L234.7,211.3 L236.7,210.7 L238.6,210.1 L240.5,209.3 L242.5,208.3 L244.4,207.3 L246.3,206.1 L248.3,204.8 L250.2,203.4 L252.1,201.9 L254.1,200.3 L256.0,198.6 L257.9,196.8 L259.9,194.9 L261.8,193.0 L263.7,190.9 L265.7,188.8 L267.6,186.6 L269.5,184.4 L271.5,182.1 L273.4,179.7 L275.3,177.3 L277.3,174.9 L279.2,172.4 L281.1,170.0 L283.1,167.5 L285.0,165.0" fill="none" stroke="#57C7AE" stroke-width="2.5" stroke-dasharray="6 4"/>
+  <path clip-path="url(#w9clip9)" d="M55.0,154.7 L56.9,153.3 L58.9,151.7 L60.8,150.0 L62.7,148.3 L64.7,146.4 L66.6,144.4 L68.5,142.4 L70.5,140.2 L72.4,138.0 L74.3,135.7 L76.3,133.4 L78.2,131.0 L80.1,128.7 L82.1,126.3 L84.0,124.0 L85.9,121.6 L87.9,119.4 L89.8,117.2 L91.7,115.1 L93.7,113.1 L95.6,111.2 L97.5,109.5 L99.5,108.0 L101.4,106.7 L103.3,105.5 L105.3,104.6 L107.2,103.9 L109.1,103.4 L111.1,103.2 L113.0,103.2 L114.9,103.5 L116.8,104.0 L118.8,104.7 L120.7,105.7 L122.6,106.9 L124.6,108.3 L126.5,109.8 L128.4,111.5 L130.4,113.4 L132.3,115.3 L134.2,117.4 L136.2,119.5 L138.1,121.7 L140.0,123.9 L142.0,126.2 L143.9,128.5 L145.8,130.7 L147.8,132.9 L149.7,135.1 L151.6,137.2 L153.6,139.3 L155.5,141.3 L157.4,143.2 L159.4,145.0 L161.3,146.8 L163.2,148.4 L165.2,150.0 L167.1,151.4 L169.0,152.8 L171.0,154.1 L172.9,155.2 L174.8,156.3 L176.8,157.3 L178.7,158.2 L180.6,159.0 L182.6,159.8 L184.5,160.4 L186.4,161.0 L188.4,161.6 L190.3,162.0 L192.2,162.4 L194.2,162.8 L196.1,163.1 L198.0,163.4 L200.0,163.6 L201.9,163.8 L203.8,164.0 L205.8,164.2 L207.7,164.3 L209.6,164.4 L211.6,164.5 L213.5,164.6 L215.4,164.7 L217.4,164.7 L219.3,164.8 L221.2,164.8 L223.2,164.9 L225.1,164.9 L227.0,164.9 L228.9,164.9 L230.9,164.9 L232.8,165.0 L234.7,165.0 L236.7,165.0 L238.6,165.0 L240.5,165.0 L242.5,165.0 L244.4,165.0 L246.3,165.0 L248.3,165.0 L250.2,165.0 L252.1,165.0 L254.1,165.0 L256.0,165.0 L257.9,165.0 L259.9,165.0 L261.8,165.0 L263.7,165.0 L265.7,165.0 L267.6,165.0 L269.5,165.0 L271.5,165.0 L273.4,165.0 L275.3,165.0 L277.3,165.0 L279.2,165.0 L281.1,165.0 L283.1,165.0 L285.0,165.0" fill="none" stroke="#C78557" stroke-width="2.6"/>
+  <circle cx="74.7" cy="135.7" r="4.5" fill="#C6DEF1" stroke="#5795C7" stroke-width="1.8"/>
+  <circle cx="109.5" cy="99.7" r="4.5" fill="#C6DEF1" stroke="#5795C7" stroke-width="1.8"/>
+  <clipPath id="w9clip10"><rect x="345" y="80" width="230" height="170"/></clipPath>
+  <rect x="345" y="80" width="230" height="170" fill="#fff" stroke="#888" stroke-width="1.2"/>
+  <text x="345.0" y="268" text-anchor="middle" font-size="14" fill="#555">0</text>
+  <text x="460.0" y="268" text-anchor="middle" font-size="14" fill="#555">0.5</text>
+  <text x="575.0" y="268" text-anchor="middle" font-size="14" fill="#555">1</text>
+  <text x="460.0" y="288" text-anchor="middle" font-size="15" fill="#555">x</text>
+  <text x="460.0" y="70" text-anchor="middle" font-size="16" font-weight="600" fill="#333">N = 25</text>
+  <path clip-path="url(#w9clip10)" d="M345.0,137.6 L346.9,136.1 L348.9,134.5 L350.8,132.7 L352.7,130.8 L354.7,128.7 L356.6,126.5 L358.5,124.1 L360.5,121.6 L362.4,119.0 L364.3,116.3 L366.3,113.6 L368.2,110.9 L370.1,108.2 L372.1,105.7 L374.0,103.3 L375.9,101.0 L377.9,98.9 L379.8,97.1 L381.7,95.4 L383.7,93.9 L385.6,92.6 L387.5,91.5 L389.5,90.6 L391.4,89.8 L393.3,89.2 L395.3,88.8 L397.2,88.5 L399.1,88.4 L401.1,88.5 L403.0,88.7 L404.9,89.1 L406.8,89.7 L408.8,90.3 L410.7,91.1 L412.6,91.9 L414.6,92.9 L416.5,93.9 L418.4,95.1 L420.4,96.4 L422.3,97.8 L424.2,99.4 L426.2,101.2 L428.1,103.1 L430.0,105.4 L432.0,107.8 L433.9,110.4 L435.8,113.2 L437.8,116.2 L439.7,119.3 L441.6,122.5 L443.6,125.8 L445.5,129.1 L447.4,132.3 L449.4,135.5 L451.3,138.7 L453.2,141.9 L455.2,144.9 L457.1,147.9 L459.0,150.9 L461.0,153.8 L462.9,156.6 L464.8,159.3 L466.8,162.0 L468.7,164.5 L470.6,167.0 L472.6,169.3 L474.5,171.4 L476.4,173.5 L478.4,175.4 L480.3,177.3 L482.2,179.0 L484.2,180.7 L486.1,182.3 L488.0,183.8 L490.0,185.3 L491.9,186.8 L493.8,188.2 L495.8,189.6 L497.7,190.8 L499.6,192.0 L501.6,193.1 L503.5,194.0 L505.4,194.7 L507.4,195.2 L509.3,195.6 L511.2,195.8 L513.2,195.8 L515.1,195.6 L517.0,195.2 L518.9,194.6 L520.9,193.8 L522.8,192.8 L524.7,191.6 L526.7,190.1 L528.6,188.5 L530.5,186.6 L532.5,184.6 L534.4,182.4 L536.3,180.1 L538.3,177.7 L540.2,175.3 L542.1,172.8 L544.1,170.4 L546.0,168.0 L547.9,165.7 L549.9,163.4 L551.8,161.3 L553.7,159.1 L555.7,157.0 L557.6,154.9 L559.5,152.8 L561.5,150.6 L563.4,148.5 L565.3,146.3 L567.3,144.2 L569.2,142.1 L571.1,140.1 L573.1,138.2 L575.0,136.6 L575.0,186.2 L573.1,186.8 L571.1,187.5 L569.2,188.5 L567.3,189.6 L565.3,191.0 L563.4,192.6 L561.5,194.5 L559.5,196.7 L557.6,199.1 L555.7,201.6 L553.7,204.3 L551.8,207.1 L549.9,209.9 L547.9,212.6 L546.0,215.3 L544.1,217.9 L542.1,220.3 L540.2,222.5 L538.3,224.6 L536.3,226.6 L534.4,228.4 L532.5,230.1 L530.5,231.6 L528.6,233.0 L526.7,234.2 L524.7,235.3 L522.8,236.3 L520.9,237.0 L518.9,237.6 L517.0,238.1 L515.1,238.3 L513.2,238.3 L511.2,238.2 L509.3,237.9 L507.4,237.5 L505.4,236.9 L503.5,236.2 L501.6,235.4 L499.6,234.6 L497.7,233.6 L495.8,232.5 L493.8,231.3 L491.9,230.0 L490.0,228.6 L488.0,227.1 L486.1,225.5 L484.2,223.8 L482.2,222.0 L480.3,220.1 L478.4,218.2 L476.4,216.2 L474.5,214.1 L472.6,211.9 L470.6,209.7 L468.7,207.3 L466.8,204.9 L464.8,202.3 L462.9,199.6 L461.0,196.8 L459.0,193.8 L457.1,190.7 L455.2,187.5 L453.2,184.2 L451.3,180.9 L449.4,177.6 L447.4,174.3 L445.5,171.0 L443.6,167.8 L441.6,164.8 L439.7,161.8 L437.8,158.9 L435.8,156.1 L433.9,153.5 L432.0,150.9 L430.0,148.4 L428.1,146.1 L426.2,143.9 L424.2,141.8 L422.3,139.9 L420.4,138.1 L418.4,136.6 L416.5,135.2 L414.6,134.1 L412.6,133.2 L410.7,132.5 L408.8,131.9 L406.8,131.6 L404.9,131.3 L403.0,131.2 L401.1,131.3 L399.1,131.4 L397.2,131.6 L395.3,132.0 L393.3,132.4 L391.4,133.1 L389.5,133.8 L387.5,134.8 L385.6,135.9 L383.7,137.1 L381.7,138.6 L379.8,140.2 L377.9,142.0 L375.9,143.9 L374.0,146.0 L372.1,148.2 L370.1,150.6 L368.2,153.1 L366.3,155.8 L364.3,158.5 L362.4,161.4 L360.5,164.4 L358.5,167.5 L356.6,170.6 L354.7,173.7 L352.7,176.7 L350.8,179.7 L348.9,182.5 L346.9,185.1 L345.0,187.4 Z" fill="#F7D9C4" fill-opacity="0.8" stroke="none"/>
+  <path clip-path="url(#w9clip10)" d="M345.0,165.0 L346.9,162.5 L348.9,160.0 L350.8,157.6 L352.7,155.1 L354.7,152.7 L356.6,150.3 L358.5,147.9 L360.5,145.6 L362.4,143.4 L364.3,141.2 L366.3,139.1 L368.2,137.0 L370.1,135.1 L372.1,133.2 L374.0,131.4 L375.9,129.7 L377.9,128.1 L379.8,126.6 L381.7,125.2 L383.7,123.9 L385.6,122.7 L387.5,121.7 L389.5,120.7 L391.4,119.9 L393.3,119.3 L395.3,118.7 L397.2,118.3 L399.1,118.0 L401.1,117.8 L403.0,117.8 L404.9,117.9 L406.8,118.1 L408.8,118.5 L410.7,119.0 L412.6,119.6 L414.6,120.3 L416.5,121.2 L418.4,122.2 L420.4,123.3 L422.3,124.5 L424.2,125.9 L426.2,127.3 L428.1,128.9 L430.0,130.5 L432.0,132.3 L433.9,134.1 L435.8,136.0 L437.8,138.1 L439.7,140.1 L441.6,142.3 L443.6,144.5 L445.5,146.8 L447.4,149.1 L449.4,151.5 L451.3,153.9 L453.2,156.3 L455.2,158.8 L457.1,161.3 L459.0,163.8 L461.0,166.2 L462.9,168.7 L464.8,171.2 L466.8,173.7 L468.7,176.1 L470.6,178.5 L472.6,180.9 L474.5,183.2 L476.4,185.5 L478.4,187.7 L480.3,189.9 L482.2,191.9 L484.2,194.0 L486.1,195.9 L488.0,197.7 L490.0,199.5 L491.9,201.1 L493.8,202.7 L495.8,204.1 L497.7,205.5 L499.6,206.7 L501.6,207.8 L503.5,208.8 L505.4,209.7 L507.4,210.4 L509.3,211.0 L511.2,211.5 L513.2,211.9 L515.1,212.1 L517.0,212.2 L518.9,212.2 L520.9,212.0 L522.8,211.7 L524.7,211.3 L526.7,210.7 L528.6,210.1 L530.5,209.3 L532.5,208.3 L534.4,207.3 L536.3,206.1 L538.3,204.8 L540.2,203.4 L542.1,201.9 L544.1,200.3 L546.0,198.6 L547.9,196.8 L549.9,194.9 L551.8,193.0 L553.7,190.9 L555.7,188.8 L557.6,186.6 L559.5,184.4 L561.5,182.1 L563.4,179.7 L565.3,177.3 L567.3,174.9 L569.2,172.4 L571.1,170.0 L573.1,167.5 L575.0,165.0" fill="none" stroke="#57C7AE" stroke-width="2.5" stroke-dasharray="6 4"/>
+  <path clip-path="url(#w9clip10)" d="M345.0,162.5 L346.9,160.6 L348.9,158.5 L350.8,156.2 L352.7,153.8 L354.7,151.2 L356.6,148.5 L358.5,145.8 L360.5,143.0 L362.4,140.2 L364.3,137.4 L366.3,134.7 L368.2,132.0 L370.1,129.4 L372.1,126.9 L374.0,124.6 L375.9,122.5 L377.9,120.5 L379.8,118.6 L381.7,117.0 L383.7,115.5 L385.6,114.2 L387.5,113.1 L389.5,112.2 L391.4,111.4 L393.3,110.8 L395.3,110.4 L397.2,110.1 L399.1,109.9 L401.1,109.9 L403.0,110.0 L404.9,110.2 L406.8,110.6 L408.8,111.1 L410.7,111.8 L412.6,112.6 L414.6,113.5 L416.5,114.6 L418.4,115.8 L420.4,117.2 L422.3,118.8 L424.2,120.6 L426.2,122.5 L428.1,124.6 L430.0,126.9 L432.0,129.3 L433.9,131.9 L435.8,134.7 L437.8,137.6 L439.7,140.6 L441.6,143.6 L443.6,146.8 L445.5,150.0 L447.4,153.3 L449.4,156.6 L451.3,159.8 L453.2,163.0 L455.2,166.2 L457.1,169.3 L459.0,172.3 L461.0,175.3 L462.9,178.1 L464.8,180.8 L466.8,183.4 L468.7,185.9 L470.6,188.3 L472.6,190.6 L474.5,192.8 L476.4,194.8 L478.4,196.8 L480.3,198.7 L482.2,200.5 L484.2,202.2 L486.1,203.9 L488.0,205.5 L490.0,207.0 L491.9,208.4 L493.8,209.8 L495.8,211.0 L497.7,212.2 L499.6,213.3 L501.6,214.2 L503.5,215.1 L505.4,215.8 L507.4,216.4 L509.3,216.8 L511.2,217.0 L513.2,217.1 L515.1,216.9 L517.0,216.6 L518.9,216.1 L520.9,215.4 L522.8,214.5 L524.7,213.4 L526.7,212.2 L528.6,210.7 L530.5,209.1 L532.5,207.3 L534.4,205.4 L536.3,203.3 L538.3,201.2 L540.2,198.9 L542.1,196.5 L544.1,194.1 L546.0,191.7 L547.9,189.2 L549.9,186.7 L551.8,184.2 L553.7,181.7 L555.7,179.3 L557.6,177.0 L559.5,174.7 L561.5,172.6 L563.4,170.5 L565.3,168.6 L567.3,166.9 L569.2,165.3 L571.1,163.8 L573.1,162.5 L575.0,161.4" fill="none" stroke="#C78557" stroke-width="2.6"/>
+  <circle cx="364.7" cy="135.7" r="4.5" fill="#C6DEF1" stroke="#5795C7" stroke-width="1.8"/>
+  <circle cx="399.5" cy="99.7" r="4.5" fill="#C6DEF1" stroke="#5795C7" stroke-width="1.8"/>
+  <circle cx="529.3" cy="212.3" r="4.5" fill="#C6DEF1" stroke="#5795C7" stroke-width="1.8"/>
+  <circle cx="478.9" cy="190.6" r="4.5" fill="#C6DEF1" stroke="#5795C7" stroke-width="1.8"/>
+  <circle cx="366.6" cy="129.2" r="4.5" fill="#C6DEF1" stroke="#5795C7" stroke-width="1.8"/>
+  <circle cx="444.6" cy="154.1" r="4.5" fill="#C6DEF1" stroke="#5795C7" stroke-width="1.8"/>
+  <circle cx="455.2" cy="161.6" r="4.5" fill="#C6DEF1" stroke="#5795C7" stroke-width="1.8"/>
+  <circle cx="381.7" cy="116.8" r="4.5" fill="#C6DEF1" stroke="#5795C7" stroke-width="1.8"/>
+  <circle cx="514.0" cy="206.5" r="4.5" fill="#C6DEF1" stroke="#5795C7" stroke-width="1.8"/>
+  <circle cx="371.1" cy="133.2" r="4.5" fill="#C6DEF1" stroke="#5795C7" stroke-width="1.8"/>
+  <circle cx="435.0" cy="128.9" r="4.5" fill="#C6DEF1" stroke="#5795C7" stroke-width="1.8"/>
+  <circle cx="463.9" cy="196.7" r="4.5" fill="#C6DEF1" stroke="#5795C7" stroke-width="1.8"/>
+  <circle cx="444.0" cy="135.4" r="4.5" fill="#C6DEF1" stroke="#5795C7" stroke-width="1.8"/>
+  <circle cx="480.0" cy="198.6" r="4.5" fill="#C6DEF1" stroke="#5795C7" stroke-width="1.8"/>
+  <circle cx="514.7" cy="227.8" r="4.5" fill="#C6DEF1" stroke="#5795C7" stroke-width="1.8"/>
+  <circle cx="564.9" cy="175.2" r="4.5" fill="#C6DEF1" stroke="#5795C7" stroke-width="1.8"/>
+  <circle cx="410.4" cy="112.2" r="4.5" fill="#C6DEF1" stroke="#5795C7" stroke-width="1.8"/>
+  <circle cx="494.2" cy="207.1" r="4.5" fill="#C6DEF1" stroke="#5795C7" stroke-width="1.8"/>
+  <circle cx="505.1" cy="219.7" r="4.5" fill="#C6DEF1" stroke="#5795C7" stroke-width="1.8"/>
+  <circle cx="412.3" cy="119.2" r="4.5" fill="#C6DEF1" stroke="#5795C7" stroke-width="1.8"/>
+  <circle cx="345.3" cy="165.1" r="4.5" fill="#C6DEF1" stroke="#5795C7" stroke-width="1.8"/>
+  <circle cx="568.9" cy="159.6" r="4.5" fill="#C6DEF1" stroke="#5795C7" stroke-width="1.8"/>
+  <circle cx="413.6" cy="112.9" r="4.5" fill="#C6DEF1" stroke="#5795C7" stroke-width="1.8"/>
+  <circle cx="417.2" cy="119.7" r="4.5" fill="#C6DEF1" stroke="#5795C7" stroke-width="1.8"/>
+  <circle cx="550.1" cy="184.2" r="4.5" fill="#C6DEF1" stroke="#5795C7" stroke-width="1.8"/>
+</svg>
+</div>
+```
+
+**Figure 5.** Posterior predictive mean (solid orange) and $\pm2\sigma_{\text{pred}}$ band (shaded) for the RBF model of Figure 4, after 2 and 25 observations of $\sin(2\pi x)$ (dashed) with noise. With little data the band is wide away from the points; with plenty it narrows to roughly $\pm2\sigma$ everywhere, the noise floor.
+
+::: {.callout-note}
+**Worked example: predictive variance near and far from the data.** Use the one-observation posterior from @sec-w9-post: $\mu\approx(0.058, 0.047)$, $\Sigma\approx\begin{pmatrix}0.209&-0.233\\-0.233&0.314\end{pmatrix}$, with $\sigma^2 = 0.04$ and $\psi(x) = (1, x)$.
+
+1. **At the data, $x = 0.8$.** Mean $0.058 + 0.047\cdot0.8\approx0.095$. Weight uncertainty $\psi^\top\Sigma\psi = 0.209 + 2(0.8)(-0.233) + 0.64(0.314)\approx0.038$. Predictive variance $0.038 + 0.04 = 0.078$.
+2. **Far from the data, $x = -1$.** Mean $0.058 - 0.047\approx0.012$. Weight uncertainty $0.209 + 2(-1)(-0.233) + 1(0.314)\approx0.988$. Predictive variance $0.988 + 0.04\approx1.028$.
+
+Near the observed point, the noise and the weight uncertainty are about equal. At $x = -1$, the weight uncertainty is 25 times the noise: the pivoting lines of Figure 2 spread far apart there.
+:::
+
+::: {.callout-tip collapse="true" .clarification title="Recap: The posterior predictive distribution"}
+What the symbols stand for:
+
+- $\varepsilon$: the noise on the new target, independent of everything else.
+- $\mu_{\text{pred}}$, $\sigma^2_{\text{pred}}$: the mean and variance of the predicted $y$ at input $x$.
+- $\psi(x)^\top\Sigma\,\psi(x)$: the variance of the noise-free function value $w^\top\psi(x)$ under the posterior.
+
+Taking the equations apart:
+
+- $\mathcal N(y;\ w^\top\psi(x),\ \sigma^2)$: for a given $w$, the target is the line's value plus noise.
+- $\mathcal N(w;\ \mu,\ \Sigma)$: but $w$ is uncertain.
+- $\mu^\top\psi(x)$: the prediction of the average weight vector.
+- $\psi(x)^\top\Sigma\,\psi(x)$: how much the plausible weight vectors disagree at this input.
+- $+\,\sigma^2$: the noise that remains even if $w$ were known exactly.
+
+A teaching example, one weight and no intercept ($\psi(x) = x$), with the posterior from the previous recap, $\mu\approx1.167$, $\Sigma\approx0.167$, and noise $\sigma^2 = 1$.
+
+- At $x = 1$: mean $1.167$, variance $0.167\cdot1^2 + 1 = 1.167$.
+- At $x = 3$: mean $3.5$, variance $0.167\cdot9 + 1 = 2.5$.
+- The weight-uncertainty term grows like $x^2$, because the plausible lines through the origin fan out as we move away from it.
+:::
+
+::: {.callout-note .section-takeaways}
+**Key takeaways.**
+
+- The prediction at a new input is Gaussian. Its mean comes from the average weights, and its variance adds two separate sources: the noise, which data cannot remove, and our uncertainty about the weights, which data does remove.
+- The second source is what makes the error bars grow away from the data. That is the "model knows what it doesn't know" promised in @sec-w9-why.
+:::
+
+## Part 1 summary {#sec-w9-summary1}
+
+The lecture's summary of the first hour:
+
+- The posterior over the weights can be computed by **completing the square**.
+- Predictions come from the **posterior predictive distribution**, which averages over the weights.
+- Both come with **uncertainty quantification**: error bars that reflect both noise and how much the data has pinned the model down.
+
+## Part 2: Gaussian processes {#sec-w9-part2}
+
+The second hour starts from Bayesian linear regression and asks whether we needed the weights at all.
+
+## From Bayesian regression to Gaussian processes {#sec-w9-to-gp}
+
+In Part 1, the prior on $w$ was a prior over functions in disguise: every $w$ is a function $x\mapsto w^\top\psi(x)$. What does that prior say about the function values directly?
+
+Take Bayesian linear regression with an isotropic prior of precision $\alpha$:
+$$y(x) = \hat y(x) + \mathcal N(0,\sigma^2),\qquad \hat y(x) = w^\top\psi(x),\qquad w\sim\mathcal N\big(0, \tfrac1\alpha I\big).$$
+Here $\hat y(x)$ is the noise-free function value and $y(x)$ the noisy target. The prior makes $\hat y(x)$ a random quantity, with mean $\mathbb E[\hat y(x)] = \psi(x)^\top\mathbb E[w] = 0$. Because the mean is zero, the covariance between two function values is the expected product:
+
+$$
+\begin{aligned}
+\operatorname{Cov}\big(\hat y(x),\hat y(x')\big) &= \mathbb E_w\big[\hat y(x)\,\hat y(x')\big]\\
+&= \psi(x)^\top\,\mathbb E_w[ww^\top]\,\psi(x')\\
+&= \tfrac1\alpha\,\psi(x)^\top\psi(x').
+\end{aligned}
+$$
+
+The middle step writes $\hat y(x)\hat y(x') = \psi(x)^\top w\,w^\top\psi(x')$, and the last uses $\mathbb E[ww^\top] = \operatorname{Cov}(w) = \frac1\alpha I$.
+
+::: {.definition-block}
+**Definition.** The **kernel function** of a feature map $\psi$ is
+$$k(x, x') = \psi(x)^\top\psi(x'),$$
+the inner product of the two inputs' feature vectors.
+:::
+
+So for any inputs $x^{(1)},\dots,x^{(N)}$, the vector of function values $\hat y = (\hat y(x^{(1)}),\dots,\hat y(x^{(N)}))$ is Gaussian (an affine map of the Gaussian $w$), with
+
+::: {.boxed-eq}
+$$\hat y\sim\mathcal N(0, K),\qquad K_{ij} = \tfrac1\alpha\,k(x^{(i)}, x^{(j)}).$$
+:::
+
+Following the slides, $K$ includes the factor $\frac1\alpha$. The feature map has disappeared from this statement: the prior on function values depends on $\psi$ only through the kernel. This raises the lecture's question: **can we work with a covariance directly, without choosing a feature map $\psi$?** That is what motivates Gaussian processes.
+
+::: {.callout-tip collapse="true" .clarification title="Recap: From Bayesian regression to Gaussian processes"}
+What the symbols stand for:
+
+- $\hat y(x) = w^\top\psi(x)$: the noise-free function value at $x$, random because $w$ is.
+- $y(x)$: the observed target, the function value plus noise.
+- $\alpha$: the prior precision of each weight, so $\frac1\alpha$ is its prior variance (the $\eta$ of @sec-w9-map).
+- $k(x, x')$: the kernel, the inner product of feature vectors.
+- $K$: the $N\times N$ matrix of prior covariances between function values at the training inputs.
+
+Taking the equations apart:
+
+- $\mathbb E_w[\hat y(x)\hat y(x')]$: how much the function values at $x$ and $x'$ move together across random draws of $w$.
+- $\psi(x)^\top\mathbb E[ww^\top]\psi(x')$: the randomness lives in $w$; the features just read it out.
+- $\frac1\alpha\psi(x)^\top\psi(x')$: two inputs with similar features have strongly correlated function values.
+- $\hat y\sim\mathcal N(0, K)$: the whole vector of function values is one Gaussian.
+
+A teaching example, with the running example's features $\psi(x) = (1, x)$, so $k(x,x') = 1 + xx'$, and $\alpha = 2$, at the inputs $0.8$ and $-0.6$.
+
+- $K_{11} = \tfrac12(1 + 0.64) = 0.82$, the prior variance of the line's height at $x = 0.8$.
+- $K_{22} = \tfrac12(1 + 0.36) = 0.68$.
+- $K_{12} = \tfrac12(1 - 0.48) = 0.26$, a weak positive correlation between the heights at the two inputs.
+- Check $K_{11}$ directly: $\operatorname{Var}(w_0 + 0.8w_1) = 0.5 + 0.64\cdot0.5 = 0.82$. It matches.
+:::
+
+::: {.callout-note .section-takeaways}
+**Key takeaways.**
+
+- A prior on weights is really a prior on functions, and for a Gaussian prior that prior is fully described by one thing: how strongly the function values at any two inputs are correlated.
+- That correlation depends on the features only through the kernel $k(x,x') = \psi(x)^\top\psi(x')$. So we could skip the features and choose the kernel directly.
+:::
+
+## Gaussian processes {#sec-w9-gp}
+
+If a prior over functions is determined by the covariances between function values, can we define one by specifying those covariances, with no weights at all?
+
+::: {.definition-block}
+**Definition.** A **[Gaussian process](https://en.wikipedia.org/wiki/Gaussian_process)** (GP) is a probability distribution over functions $\hat y(x)$ such that for any $M\ge1$ and any set of $M$ points $x^{(1)},\dots,x^{(M)}$ in $\mathbb R^D$, the vector $\big(\hat y(x^{(1)}),\dots,\hat y(x^{(M)})\big)$ is jointly Gaussian.
+:::
+
+In this definition (following the slides) $M$ counts points, not features, and $D$ is the dimension of the input. A GP is an example of a **[stochastic process](https://en.wikipedia.org/wiki/Stochastic_process)**: a collection of random variables, here one function value per input, with a joint distribution.
+
+A jointly Gaussian vector is determined by its mean and covariance, its **second-order statistics**. So a GP is completely specified by a **mean function** $m(x) = \mathbb E[\hat y(x)]$ and a **covariance function** $\operatorname{Cov}(\hat y(x), \hat y(x'))$. In most applications the mean function can be set to zero (for example, because the data is centred), and then the GP is completely specified by its covariance function, which the slides write as
+
+$$\mathbb E\big[\hat y(x)\,\hat y(x')\big] = \tfrac1\alpha\,k(x, x').$$
+
+Bayesian linear regression from @sec-w9-to-gp is one Gaussian process, the one with $k(x,x') = \psi(x)^\top\psi(x')$. A function drawn from a GP cannot be stored as a whole, but we never need that: to draw it at any finite set of inputs, we draw one sample from $\mathcal N(0, K)$ for the matrix $K$ those inputs induce.
+
+::: {.callout-tip collapse="true" .clarification title="Recap: Gaussian processes"}
+The key terms:
+
+- **Jointly Gaussian**: the vector of function values at any finite set of inputs has a multivariate Gaussian distribution.
+- **Mean function** $m(x)$: the average function value at each input, usually set to zero.
+- **Covariance function**: $\frac1\alpha k(x,x')$, how function values at two inputs move together.
+
+Taking the definition apart:
+
+- "a distribution over functions": one draw is an entire function.
+- "for any $M$ and any $M$ points": we only ever look at finitely many inputs at a time.
+- "jointly Gaussian": at those inputs, the values are one multivariate Gaussian, with mean $m(x^{(i)})$ and covariance matrix built from the covariance function.
+
+A teaching example, a small concrete case: drawing a GP at two inputs, using the matrix $K = \begin{pmatrix}0.82&0.26\\0.26&0.68\end{pmatrix}$ from the previous recap.
+
+- The two function values are drawn from $\mathcal N(0, K)$.
+- Each value has its own variance ($0.82$ and $0.68$), and their correlation is $0.26/\sqrt{0.82\cdot0.68}\approx0.35$: if one is above zero, the other tends to be too.
+- Adding a third input means using a $3\times3$ matrix whose top-left $2\times2$ block is the same $K$. The two old values keep the same joint distribution, which is what makes the collection a single consistent process.
+:::
+
+::: {.callout-note .section-takeaways}
+**Key takeaways.**
+
+- A Gaussian process is a prior over whole functions, defined by what it says at any finite set of inputs: those function values are jointly Gaussian.
+- With zero mean, a GP is nothing more than its covariance function. Bayesian linear regression is one special case.
+:::
+
+## Choosing a kernel {#sec-w9-kernel}
+
+If the kernel is all there is, which kernels can we use, and what do they mean?
+
+We can specify the GP kernel directly, without explicitly constructing a feature map. The lecture's examples, with a **length-scale** parameter $\ell > 0$:
+
+- **Gaussian kernel** (also called the squared exponential or [RBF kernel](https://en.wikipedia.org/wiki/Radial_basis_function_kernel)): $k(x,x') = \exp\big(-\lVert x-x'\rVert^2/\ell\big)$.
+- **Exponential kernel**: $k(x,x') = \exp\big(-\lVert x-x'\rVert/\ell\big)$, without the square. In one dimension it is the covariance of the [Ornstein-Uhlenbeck process](https://en.wikipedia.org/wiki/Ornstein%E2%80%93Uhlenbeck_process).
+
+Both depend only on the distance between the inputs, are 1 when $x = x'$, and decay toward 0 as the inputs move apart: nearby inputs have strongly correlated function values, distant ones nearly independent values. The slides write the Gaussian kernel without the usual factor of 2 in the denominator; we keep their form, so here $\ell$ plays the role of a squared length.
+
+**A technical condition.** The covariance matrix that $k$ induces on any finite set of inputs must be **positive semidefinite**: $v^\top Kv\ge0$ for every vector $v$. This is not an extra wish; it is required for $K$ to be a covariance matrix at all, because $v^\top Kv$ is the variance of the combination $\sum_i v_i\hat y(x^{(i)})$, and variances cannot be negative. A function satisfying it for every finite set of inputs is called a **[positive semidefinite kernel](https://en.wikipedia.org/wiki/Positive-definite_kernel)**. Every kernel of the form $\psi(x)^\top\psi(x')$ satisfies it, and so do the two above.
+
+The slides show samples from GPs with each kernel. Figure 6 redraws them.
+
+```{=html}
+<div style="overflow-x:auto; margin:1.5rem 0;">
+<svg viewBox="0 0 600 320" width="100%" style="max-width:600px;display:block;margin:auto;font-family:Helvetica,'Helvetica Neue',Arial,sans-serif;" role="img" aria-label="Two panels, each with three random functions on the interval from minus 1 to 1. Left, Gaussian kernel: smooth, gently wiggling curves. Right, exponential kernel: jagged curves that change direction at every scale.">
+  <text x="300" y="32" text-anchor="middle" font-size="24" font-weight="600" fill="#333">Functions drawn from two Gaussian processes</text>
+  <clipPath id="w9clip11"><rect x="55" y="80" width="230" height="170"/></clipPath>
+  <rect x="55" y="80" width="230" height="170" fill="#fff" stroke="#888" stroke-width="1.2"/>
+  <text x="55.0" y="268" text-anchor="middle" font-size="14" fill="#555">-1</text>
+  <text x="170.0" y="268" text-anchor="middle" font-size="14" fill="#555">0</text>
+  <text x="285.0" y="268" text-anchor="middle" font-size="14" fill="#555">1</text>
+  <text x="49" y="226.7" text-anchor="end" font-size="14" fill="#555">-2</text>
+  <text x="49" y="170.0" text-anchor="end" font-size="14" fill="#555">0</text>
+  <text x="49" y="113.3" text-anchor="end" font-size="14" fill="#555">2</text>
+  <text x="170.0" y="288" text-anchor="middle" font-size="15" fill="#555">x</text>
+  <text x="170.0" y="70" text-anchor="middle" font-size="16" font-weight="600" fill="#333">Gaussian kernel, l = 0.1</text>
+  <path clip-path="url(#w9clip11)" d="M55.0,187.7 L56.4,189.8 L57.9,191.8 L59.3,193.8 L60.8,195.6 L62.2,197.3 L63.7,198.8 L65.1,200.1 L66.6,201.2 L68.0,202.1 L69.5,202.7 L70.9,203.0 L72.4,203.1 L73.8,203.0 L75.3,202.5 L76.7,201.8 L78.1,200.9 L79.6,199.7 L81.0,198.3 L82.5,196.7 L83.9,195.0 L85.4,193.2 L86.8,191.3 L88.3,189.3 L89.7,187.3 L91.2,185.4 L92.6,183.5 L94.1,181.7 L95.5,180.1 L96.9,178.6 L98.4,177.3 L99.8,176.2 L101.3,175.3 L102.7,174.7 L104.2,174.4 L105.6,174.3 L107.1,174.5 L108.5,174.9 L110.0,175.6 L111.4,176.6 L112.9,177.8 L114.3,179.2 L115.8,180.9 L117.2,182.7 L118.6,184.7 L120.1,186.9 L121.5,189.2 L123.0,191.7 L124.4,194.2 L125.9,196.8 L127.3,199.4 L128.8,202.1 L130.2,204.8 L131.7,207.5 L133.1,210.1 L134.6,212.7 L136.0,215.3 L137.5,217.7 L138.9,220.0 L140.3,222.2 L141.8,224.2 L143.2,226.1 L144.7,227.8 L146.1,229.3 L147.6,230.5 L149.0,231.5 L150.5,232.2 L151.9,232.7 L153.4,232.8 L154.8,232.6 L156.3,232.1 L157.7,231.2 L159.2,230.0 L160.6,228.4 L162.0,226.5 L163.5,224.3 L164.9,221.7 L166.4,218.8 L167.8,215.7 L169.3,212.3 L170.7,208.7 L172.2,204.9 L173.6,201.0 L175.1,197.1 L176.5,193.2 L178.0,189.2 L179.4,185.4 L180.8,181.8 L182.3,178.3 L183.7,175.2 L185.2,172.3 L186.6,169.8 L188.1,167.6 L189.5,165.9 L191.0,164.6 L192.4,163.8 L193.9,163.4 L195.3,163.5 L196.8,164.0 L198.2,164.9 L199.7,166.3 L201.1,168.0 L202.5,170.1 L204.0,172.6 L205.4,175.2 L206.9,178.1 L208.3,181.2 L209.8,184.4 L211.2,187.7 L212.7,191.1 L214.1,194.4 L215.6,197.6 L217.0,200.8 L218.5,203.8 L219.9,206.6 L221.4,209.2 L222.8,211.6 L224.2,213.7 L225.7,215.5 L227.1,217.0 L228.6,218.2 L230.0,219.1 L231.5,219.6 L232.9,219.8 L234.4,219.7 L235.8,219.3 L237.3,218.6 L238.7,217.6 L240.2,216.3 L241.6,214.8 L243.1,213.2 L244.5,211.3 L245.9,209.3 L247.4,207.1 L248.8,204.9 L250.3,202.6 L251.7,200.3 L253.2,197.9 L254.6,195.6 L256.1,193.3 L257.5,190.9 L259.0,188.7 L260.4,186.4 L261.9,184.2 L263.3,182.1 L264.7,180.0 L266.2,177.9 L267.6,175.8 L269.1,173.7 L270.5,171.7 L272.0,169.6 L273.4,167.5 L274.9,165.3 L276.3,163.1 L277.8,160.9 L279.2,158.6 L280.7,156.3 L282.1,153.9 L283.6,151.6 L285.0,149.2" fill="none" stroke="#5795C7" stroke-width="1.7"/>
+  <path clip-path="url(#w9clip11)" d="M55.0,158.8 L56.4,157.1 L57.9,155.3 L59.3,153.6 L60.8,151.8 L62.2,150.1 L63.7,148.5 L65.1,147.1 L66.6,145.8 L68.0,144.6 L69.5,143.7 L70.9,143.1 L72.4,142.7 L73.8,142.5 L75.3,142.6 L76.7,143.0 L78.1,143.7 L79.6,144.6 L81.0,145.7 L82.5,147.1 L83.9,148.7 L85.4,150.4 L86.8,152.3 L88.3,154.3 L89.7,156.3 L91.2,158.4 L92.6,160.5 L94.1,162.5 L95.5,164.5 L96.9,166.3 L98.4,168.0 L99.8,169.5 L101.3,170.8 L102.7,171.8 L104.2,172.7 L105.6,173.2 L107.1,173.5 L108.5,173.5 L110.0,173.3 L111.4,172.7 L112.9,171.9 L114.3,170.9 L115.8,169.6 L117.2,168.1 L118.6,166.5 L120.1,164.8 L121.5,162.9 L123.0,160.9 L124.4,159.0 L125.9,157.0 L127.3,155.1 L128.8,153.2 L130.2,151.4 L131.7,149.8 L133.1,148.3 L134.6,146.9 L136.0,145.7 L137.5,144.7 L138.9,143.8 L140.3,143.1 L141.8,142.5 L143.2,142.1 L144.7,141.8 L146.1,141.6 L147.6,141.4 L149.0,141.2 L150.5,141.1 L151.9,140.9 L153.4,140.7 L154.8,140.3 L156.3,139.9 L157.7,139.4 L159.2,138.8 L160.6,138.0 L162.0,137.2 L163.5,136.2 L164.9,135.1 L166.4,134.0 L167.8,132.8 L169.3,131.6 L170.7,130.4 L172.2,129.2 L173.6,128.2 L175.1,127.2 L176.5,126.4 L178.0,125.8 L179.4,125.4 L180.8,125.2 L182.3,125.2 L183.7,125.5 L185.2,126.0 L186.6,126.9 L188.1,127.9 L189.5,129.3 L191.0,130.8 L192.4,132.6 L193.9,134.6 L195.3,136.7 L196.8,139.0 L198.2,141.5 L199.7,144.0 L201.1,146.5 L202.5,149.1 L204.0,151.7 L205.4,154.2 L206.9,156.7 L208.3,159.1 L209.8,161.4 L211.2,163.5 L212.7,165.4 L214.1,167.1 L215.6,168.7 L217.0,170.0 L218.5,171.1 L219.9,171.9 L221.4,172.5 L222.8,172.9 L224.2,172.9 L225.7,172.8 L227.1,172.4 L228.6,171.8 L230.0,171.0 L231.5,170.0 L232.9,168.8 L234.4,167.5 L235.8,166.1 L237.3,164.6 L238.7,163.1 L240.2,161.5 L241.6,159.9 L243.1,158.3 L244.5,156.8 L245.9,155.4 L247.4,154.1 L248.8,153.0 L250.3,152.0 L251.7,151.2 L253.2,150.5 L254.6,150.2 L256.1,150.0 L257.5,150.1 L259.0,150.4 L260.4,150.9 L261.9,151.7 L263.3,152.7 L264.7,153.9 L266.2,155.3 L267.6,156.9 L269.1,158.7 L270.5,160.6 L272.0,162.6 L273.4,164.7 L274.9,166.9 L276.3,169.0 L277.8,171.2 L279.2,173.4 L280.7,175.5 L282.1,177.5 L283.6,179.4 L285.0,181.2" fill="none" stroke="#C75794" stroke-width="1.7"/>
+  <path clip-path="url(#w9clip11)" d="M55.0,107.9 L56.4,106.3 L57.9,104.9 L59.3,103.6 L60.8,102.4 L62.2,101.3 L63.7,100.3 L65.1,99.5 L66.6,98.7 L68.0,98.0 L69.5,97.4 L70.9,97.0 L72.4,96.7 L73.8,96.5 L75.3,96.5 L76.7,96.7 L78.1,97.0 L79.6,97.5 L81.0,98.2 L82.5,99.1 L83.9,100.2 L85.4,101.6 L86.8,103.1 L88.3,104.8 L89.7,106.7 L91.2,108.7 L92.6,110.9 L94.1,113.2 L95.5,115.5 L96.9,118.0 L98.4,120.4 L99.8,122.9 L101.3,125.4 L102.7,127.9 L104.2,130.4 L105.6,132.8 L107.1,135.1 L108.5,137.5 L110.0,139.8 L111.4,142.0 L112.9,144.3 L114.3,146.5 L115.8,148.8 L117.2,151.0 L118.6,153.3 L120.1,155.7 L121.5,158.1 L123.0,160.6 L124.4,163.1 L125.9,165.7 L127.3,168.4 L128.8,171.2 L130.2,174.0 L131.7,176.9 L133.1,179.8 L134.6,182.7 L136.0,185.7 L137.5,188.6 L138.9,191.4 L140.3,194.2 L141.8,196.8 L143.2,199.3 L144.7,201.7 L146.1,203.9 L147.6,206.0 L149.0,207.8 L150.5,209.4 L151.9,210.7 L153.4,211.8 L154.8,212.7 L156.3,213.2 L157.7,213.6 L159.2,213.6 L160.6,213.3 L162.0,212.8 L163.5,212.1 L164.9,211.0 L166.4,209.7 L167.8,208.2 L169.3,206.4 L170.7,204.4 L172.2,202.2 L173.6,199.9 L175.1,197.3 L176.5,194.6 L178.0,191.8 L179.4,188.9 L180.8,185.9 L182.3,182.9 L183.7,179.8 L185.2,176.7 L186.6,173.6 L188.1,170.5 L189.5,167.5 L191.0,164.5 L192.4,161.6 L193.9,158.7 L195.3,156.0 L196.8,153.4 L198.2,150.9 L199.7,148.4 L201.1,146.1 L202.5,143.9 L204.0,141.8 L205.4,139.8 L206.9,137.9 L208.3,136.1 L209.8,134.4 L211.2,132.7 L212.7,131.2 L214.1,129.7 L215.6,128.3 L217.0,127.0 L218.5,125.8 L219.9,124.7 L221.4,123.8 L222.8,122.9 L224.2,122.2 L225.7,121.6 L227.1,121.1 L228.6,120.8 L230.0,120.7 L231.5,120.7 L232.9,120.8 L234.4,121.2 L235.8,121.6 L237.3,122.2 L238.7,122.9 L240.2,123.8 L241.6,124.7 L243.1,125.6 L244.5,126.6 L245.9,127.6 L247.4,128.6 L248.8,129.5 L250.3,130.4 L251.7,131.2 L253.2,131.9 L254.6,132.5 L256.1,133.0 L257.5,133.3 L259.0,133.5 L260.4,133.6 L261.9,133.6 L263.3,133.4 L264.7,133.2 L266.2,132.9 L267.6,132.6 L269.1,132.2 L270.5,131.7 L272.0,131.3 L273.4,130.9 L274.9,130.5 L276.3,130.2 L277.8,129.8 L279.2,129.6 L280.7,129.3 L282.1,129.2 L283.6,129.0 L285.0,128.9" fill="none" stroke="#57C7AE" stroke-width="1.7"/>
+  <clipPath id="w9clip12"><rect x="345" y="80" width="230" height="170"/></clipPath>
+  <rect x="345" y="80" width="230" height="170" fill="#fff" stroke="#888" stroke-width="1.2"/>
+  <text x="345.0" y="268" text-anchor="middle" font-size="14" fill="#555">-1</text>
+  <text x="460.0" y="268" text-anchor="middle" font-size="14" fill="#555">0</text>
+  <text x="575.0" y="268" text-anchor="middle" font-size="14" fill="#555">1</text>
+  <text x="460.0" y="288" text-anchor="middle" font-size="15" fill="#555">x</text>
+  <text x="460.0" y="70" text-anchor="middle" font-size="16" font-weight="600" fill="#333">exponential kernel, l = 1</text>
+  <path clip-path="url(#w9clip12)" d="M345.0,153.9 L346.4,157.2 L347.9,158.3 L349.3,156.4 L350.8,157.9 L352.2,155.1 L353.7,153.2 L355.1,151.7 L356.6,146.0 L358.0,152.8 L359.5,160.1 L360.9,157.4 L362.4,153.3 L363.8,144.5 L365.3,141.3 L366.7,137.9 L368.1,142.2 L369.6,139.1 L371.0,136.4 L372.5,141.5 L373.9,145.8 L375.4,146.6 L376.8,145.5 L378.3,158.9 L379.7,158.7 L381.2,157.7 L382.6,158.6 L384.1,157.5 L385.5,155.5 L386.9,160.2 L388.4,158.4 L389.8,159.6 L391.3,163.9 L392.7,162.9 L394.2,156.3 L395.6,163.0 L397.1,170.4 L398.5,177.7 L400.0,168.7 L401.4,169.8 L402.9,170.0 L404.3,173.4 L405.8,177.5 L407.2,186.4 L408.6,185.4 L410.1,184.0 L411.5,192.6 L413.0,196.9 L414.4,199.8 L415.9,199.5 L417.3,198.0 L418.8,192.5 L420.2,186.1 L421.7,181.0 L423.1,174.9 L424.6,179.9 L426.0,182.2 L427.5,176.9 L428.9,175.5 L430.3,175.3 L431.8,184.0 L433.2,192.0 L434.7,188.4 L436.1,186.6 L437.6,187.7 L439.0,189.2 L440.5,196.6 L441.9,194.6 L443.4,189.6 L444.8,181.9 L446.3,181.5 L447.7,182.2 L449.2,186.9 L450.6,181.2 L452.0,173.3 L453.5,176.0 L454.9,174.5 L456.4,174.0 L457.8,176.5 L459.3,187.5 L460.7,188.8 L462.2,185.8 L463.6,192.0 L465.1,195.4 L466.5,209.7 L468.0,203.4 L469.4,200.7 L470.8,200.0 L472.3,200.8 L473.7,203.2 L475.2,203.1 L476.6,204.0 L478.1,204.6 L479.5,204.3 L481.0,203.2 L482.4,195.8 L483.9,201.9 L485.3,200.3 L486.8,202.6 L488.2,207.2 L489.7,217.3 L491.1,213.9 L492.5,217.7 L494.0,220.5 L495.4,217.7 L496.9,221.9 L498.3,221.2 L499.8,220.8 L501.2,216.6 L502.7,211.5 L504.1,214.8 L505.6,210.2 L507.0,210.1 L508.5,209.0 L509.9,209.4 L511.4,205.5 L512.8,210.4 L514.2,208.7 L515.7,203.0 L517.1,203.8 L518.6,194.3 L520.0,197.3 L521.5,196.0 L522.9,197.8 L524.4,200.2 L525.8,204.8 L527.3,206.7 L528.7,206.5 L530.2,209.6 L531.6,205.1 L533.1,197.9 L534.5,204.4 L535.9,200.2 L537.4,199.0 L538.8,197.5 L540.3,186.1 L541.7,180.5 L543.2,178.9 L544.6,177.9 L546.1,187.5 L547.5,183.7 L549.0,186.8 L550.4,185.8 L551.9,185.1 L553.3,180.5 L554.7,171.3 L556.2,166.8 L557.6,161.1 L559.1,162.2 L560.5,160.2 L562.0,156.8 L563.4,163.4 L564.9,154.3 L566.3,157.6 L567.8,163.4 L569.2,156.1 L570.7,146.8 L572.1,150.1 L573.6,153.1 L575.0,139.3" fill="none" stroke="#5795C7" stroke-width="1.7"/>
+  <path clip-path="url(#w9clip12)" d="M345.0,161.8 L346.4,170.7 L347.9,173.4 L349.3,164.3 L350.8,161.4 L352.2,158.1 L353.7,152.7 L355.1,149.8 L356.6,151.5 L358.0,158.8 L359.5,156.9 L360.9,162.0 L362.4,162.3 L363.8,154.4 L365.3,152.2 L366.7,152.0 L368.1,151.9 L369.6,148.8 L371.0,144.9 L372.5,151.0 L373.9,150.4 L375.4,142.9 L376.8,139.8 L378.3,143.5 L379.7,146.8 L381.2,156.3 L382.6,159.9 L384.1,152.8 L385.5,153.3 L386.9,157.2 L388.4,159.9 L389.8,160.5 L391.3,161.0 L392.7,162.6 L394.2,166.1 L395.6,163.2 L397.1,156.4 L398.5,159.0 L400.0,161.5 L401.4,156.3 L402.9,162.9 L404.3,165.6 L405.8,167.3 L407.2,166.5 L408.6,167.7 L410.1,171.6 L411.5,170.1 L413.0,175.4 L414.4,183.0 L415.9,191.9 L417.3,188.2 L418.8,195.7 L420.2,193.3 L421.7,189.9 L423.1,186.0 L424.6,186.5 L426.0,188.7 L427.5,188.0 L428.9,190.4 L430.3,195.8 L431.8,189.8 L433.2,193.5 L434.7,185.1 L436.1,182.6 L437.6,184.4 L439.0,182.2 L440.5,176.5 L441.9,182.5 L443.4,186.4 L444.8,190.8 L446.3,189.8 L447.7,187.7 L449.2,187.3 L450.6,190.2 L452.0,192.3 L453.5,186.6 L454.9,181.4 L456.4,180.6 L457.8,186.2 L459.3,183.2 L460.7,181.7 L462.2,180.3 L463.6,172.4 L465.1,168.6 L466.5,173.0 L468.0,177.2 L469.4,170.8 L470.8,169.9 L472.3,165.8 L473.7,166.3 L475.2,170.5 L476.6,169.0 L478.1,161.7 L479.5,160.0 L481.0,164.8 L482.4,165.9 L483.9,167.8 L485.3,166.7 L486.8,161.7 L488.2,152.6 L489.7,151.4 L491.1,153.0 L492.5,152.4 L494.0,152.1 L495.4,153.7 L496.9,153.3 L498.3,153.0 L499.8,158.0 L501.2,155.2 L502.7,156.5 L504.1,160.6 L505.6,158.1 L507.0,159.9 L508.5,151.7 L509.9,149.4 L511.4,148.8 L512.8,152.0 L514.2,153.6 L515.7,149.5 L517.1,152.4 L518.6,148.8 L520.0,158.0 L521.5,156.8 L522.9,153.0 L524.4,151.2 L525.8,151.1 L527.3,146.4 L528.7,150.1 L530.2,154.4 L531.6,153.7 L533.1,148.1 L534.5,146.1 L535.9,146.8 L537.4,145.4 L538.8,143.3 L540.3,148.8 L541.7,161.3 L543.2,165.6 L544.6,171.9 L546.1,174.1 L547.5,179.0 L549.0,182.3 L550.4,179.8 L551.9,178.9 L553.3,178.5 L554.7,170.5 L556.2,172.2 L557.6,173.4 L559.1,167.3 L560.5,171.8 L562.0,178.6 L563.4,172.2 L564.9,170.2 L566.3,167.0 L567.8,163.7 L569.2,159.3 L570.7,161.0 L572.1,161.0 L573.6,165.5 L575.0,164.4" fill="none" stroke="#C75794" stroke-width="1.7"/>
+  <path clip-path="url(#w9clip12)" d="M345.0,155.4 L346.4,157.1 L347.9,153.7 L349.3,140.2 L350.8,145.1 L352.2,141.2 L353.7,136.7 L355.1,131.8 L356.6,135.2 L358.0,129.7 L359.5,126.7 L360.9,127.1 L362.4,128.5 L363.8,127.3 L365.3,123.0 L366.7,118.9 L368.1,108.6 L369.6,110.3 L371.0,107.5 L372.5,109.5 L373.9,106.0 L375.4,105.4 L376.8,108.2 L378.3,114.1 L379.7,117.5 L381.2,116.3 L382.6,109.6 L384.1,106.2 L385.5,111.6 L386.9,113.7 L388.4,113.5 L389.8,114.1 L391.3,113.9 L392.7,110.6 L394.2,109.9 L395.6,113.2 L397.1,122.1 L398.5,123.8 L400.0,131.6 L401.4,132.4 L402.9,131.2 L404.3,137.4 L405.8,138.3 L407.2,140.1 L408.6,131.9 L410.1,130.3 L411.5,139.2 L413.0,137.7 L414.4,136.3 L415.9,137.7 L417.3,139.9 L418.8,137.7 L420.2,135.3 L421.7,134.0 L423.1,139.1 L424.6,140.8 L426.0,148.4 L427.5,155.6 L428.9,158.5 L430.3,163.7 L431.8,165.9 L433.2,155.2 L434.7,153.5 L436.1,158.0 L437.6,168.2 L439.0,172.4 L440.5,179.2 L441.9,189.4 L443.4,186.3 L444.8,188.8 L446.3,187.1 L447.7,173.5 L449.2,172.8 L450.6,172.7 L452.0,171.6 L453.5,173.3 L454.9,177.4 L456.4,178.8 L457.8,174.1 L459.3,175.7 L460.7,182.2 L462.2,188.1 L463.6,193.0 L465.1,193.1 L466.5,191.1 L468.0,189.1 L469.4,184.0 L470.8,185.1 L472.3,181.6 L473.7,180.3 L475.2,177.3 L476.6,185.8 L478.1,180.2 L479.5,187.2 L481.0,192.2 L482.4,188.6 L483.9,190.2 L485.3,182.2 L486.8,181.4 L488.2,185.9 L489.7,185.1 L491.1,186.8 L492.5,179.7 L494.0,172.3 L495.4,169.0 L496.9,170.8 L498.3,170.4 L499.8,165.7 L501.2,169.4 L502.7,172.9 L504.1,169.1 L505.6,165.8 L507.0,166.8 L508.5,168.1 L509.9,176.8 L511.4,171.4 L512.8,171.9 L514.2,178.2 L515.7,183.1 L517.1,186.9 L518.6,179.1 L520.0,175.8 L521.5,181.7 L522.9,173.2 L524.4,167.1 L525.8,171.8 L527.3,183.6 L528.7,179.1 L530.2,181.6 L531.6,182.0 L533.1,184.2 L534.5,178.3 L535.9,171.5 L537.4,167.8 L538.8,168.5 L540.3,167.3 L541.7,164.5 L543.2,171.5 L544.6,165.9 L546.1,167.3 L547.5,166.1 L549.0,165.4 L550.4,161.4 L551.9,156.6 L553.3,146.8 L554.7,148.6 L556.2,152.8 L557.6,152.3 L559.1,155.4 L560.5,151.6 L562.0,155.3 L563.4,154.7 L564.9,150.6 L566.3,146.1 L567.8,145.4 L569.2,139.2 L570.7,133.7 L572.1,141.5 L573.6,140.1 L575.0,139.5" fill="none" stroke="#57C7AE" stroke-width="1.7"/>
+</svg>
+</div>
+```
+
+**Figure 6.** Three functions drawn from a zero-mean GP with the Gaussian kernel ($\ell = 0.1$, left) and the exponential kernel ($\ell = 1$, right), evaluated at 160 inputs on $[-1, 1]$. The Gaussian kernel gives smooth functions; the exponential kernel gives continuous but jagged ones. The choice of kernel is a choice of what kind of function we expect.
+
+::: {.callout-tip collapse="true" .clarification title="Recap: Choosing a kernel"}
+What the symbols stand for:
+
+- $\ell$: the length-scale, a positive number we choose. Larger $\ell$ means correlations reach further.
+- $\lVert x-x'\rVert$: the distance between two inputs.
+- $v^\top Kv$: the variance of a weighted sum of function values, with weights $v$.
+
+Taking the equations apart:
+
+- $\exp(-\lVert x-x'\rVert^2/\ell)$: correlation falls off with squared distance, so it stays near 1 for close inputs and then drops quickly.
+- $\exp(-\lVert x-x'\rVert/\ell)$: correlation falls off with distance itself, so it starts dropping immediately even for very close inputs. This is why its samples are rough.
+- $v^\top Kv\ge0$: no weighted sum of function values may have negative variance.
+
+A teaching example, comparing the kernels at $\ell = 0.1$ and checking a bad "kernel".
+
+- Inputs $0.1$ apart: Gaussian $e^{-0.01/0.1} = e^{-0.1}\approx0.905$; exponential $e^{-0.1/0.1} = e^{-1}\approx0.368$.
+- Inputs $0.5$ apart: Gaussian $e^{-2.5}\approx0.082$; exponential $e^{-5}\approx0.0067$.
+- A candidate that gives $K = \begin{pmatrix}1&2\\2&1\end{pmatrix}$ for some pair of inputs fails: with $v = (1, -1)$, $v^\top Kv = 1 - 2 - 2 + 1 = -2$, a negative variance. No GP has this covariance.
+:::
+
+::: {.callout-note .section-takeaways}
+**Key takeaways.**
+
+- Choosing a kernel is choosing what functions we believe in before seeing data: how smooth they are (the kernel's shape) and over what distances they vary (the length-scale).
+- Not every function of two inputs is allowed. It must produce covariance matrices that never assign a negative variance, which is the positive semidefinite condition.
+:::
+
+## A prerequisite: conditioning a multivariate Gaussian {#sec-w9-cond}
+
+*Inserted prerequisite.* GP regression will need the distribution of some coordinates of a Gaussian vector given the others. The slides call this "Gaussian conditioning formulas"; Week 5 derived only the two-dimensional, unit-variance case (@sec-gauss-cond in Week 5), and Week 8 used the general formula for PPCA without stating it. Here is the general statement.
+
+Split a Gaussian vector into two blocks $a$ and $b$, and split its mean and covariance to match:
+
+$$
+\begin{pmatrix}a\\ b\end{pmatrix}\sim\mathcal N\left(\begin{pmatrix}\mu_a\\ \mu_b\end{pmatrix},\ \begin{pmatrix}\Sigma_{aa}&\Sigma_{ab}\\ \Sigma_{ba}&\Sigma_{bb}\end{pmatrix}\right),
+$$
+
+where $\Sigma_{ab}$ holds the covariances between entries of $a$ and entries of $b$, and $\Sigma_{ba} = \Sigma_{ab}^\top$. Then the conditional of $a$ given an observed value of $b$ is Gaussian:
+
+::: {.boxed-eq}
+$$a\mid b\ \sim\ \mathcal N\Big(\mu_a + \Sigma_{ab}\Sigma_{bb}^{-1}(b-\mu_b),\ \ \Sigma_{aa} - \Sigma_{ab}\Sigma_{bb}^{-1}\Sigma_{ba}\Big).$$
+:::
+
+The mean starts at $a$'s own mean and moves by an amount proportional to how far $b$ landed from its mean. The covariance starts at $a$'s own covariance and loses the part explained by $b$; the result is called the **[Schur complement](https://en.wikipedia.org/wiki/Schur_complement)** of $\Sigma_{bb}$. The update to the mean depends on the observed $b$, but the update to the covariance does not.
+
+The derivation is the same completing-the-square argument as @sec-w9-cts, applied to the joint log-density as a function of $a$ with $b$ held fixed; it needs the formula for the inverse of a block matrix, and we take the result as given. Week 5's formula is the special case $\Sigma_{aa} = \Sigma_{bb} = 1$, $\Sigma_{ab} = \rho$: the mean becomes $\mu_1 + \rho(x_2 - \mu_2)$ and the variance $1-\rho^2$.
+
+::: {.callout-tip collapse="true" .clarification title="Recap: A prerequisite: conditioning a multivariate Gaussian"}
+What the symbols stand for:
+
+- $a$, $b$: two blocks of one Gaussian vector. $b$ is observed, $a$ is what we want to predict.
+- $\mu_a$, $\mu_b$: their means. $\Sigma_{aa}$, $\Sigma_{bb}$: their own covariances.
+- $\Sigma_{ab}$: how entries of $a$ co-vary with entries of $b$.
+
+Taking the equation apart:
+
+- $b - \mu_b$: how surprising the observation is.
+- $\Sigma_{bb}^{-1}(b - \mu_b)$: that surprise, measured in units of $b$'s own spread.
+- $\Sigma_{ab}\Sigma_{bb}^{-1}(b-\mu_b)$: carried over to $a$ through the cross-covariance. Uncorrelated blocks ($\Sigma_{ab} = 0$) learn nothing from each other.
+- $\Sigma_{aa} - \Sigma_{ab}\Sigma_{bb}^{-1}\Sigma_{ba}$: the variance left in $a$ after seeing $b$. Never larger than $\Sigma_{aa}$.
+
+A teaching example with scalar blocks: $\mu_a = \mu_b = 0$, $\Sigma_{aa} = 2$, $\Sigma_{bb} = 1$, $\Sigma_{ab} = 0.5$, and we observe $b = 2$.
+
+- Conditional mean: $0 + 0.5\cdot\tfrac11\cdot(2 - 0) = 1$.
+- Conditional variance: $2 - 0.5\cdot1\cdot0.5 = 1.75$.
+- Check against Week 5 by scaling $a$ to unit variance: $a/\sqrt2$ has correlation $\rho = 0.5/\sqrt2\approx0.354$ with $b$, so its conditional variance is $1-\rho^2 = 0.875$. Scaling back multiplies by 2: $1.75$. It matches.
+:::
+
+::: {.callout-note .section-takeaways}
+**Key takeaways.**
+
+- Observing part of a Gaussian vector leaves the rest Gaussian. Its mean shifts toward what the observation suggests, and its variance shrinks by the part the observation explains.
+- The shrinkage does not depend on the value observed, only on which variables were observed. GP regression is this one formula applied to function values.
+:::
+
+## Gaussian process regression {#sec-w9-gpr}
+
+We now have a prior over functions. How do we use it to predict a target at a new input from noisy data?
+
+As before, use a Gaussian observation model, $y\mid x\sim\mathcal N(\hat y(x), \sigma^2)$. For fixed inputs $x^{(1)},\dots,x^{(N)}$, the vector of function values and the vector of targets satisfy
+$$\hat y\sim\mathcal N(0, K),\qquad y\mid\hat y\sim\mathcal N(\hat y, \sigma^2I),$$
+so $y = \hat y + \varepsilon$ with independent noise, and the covariances add:
+
+$$y\sim\mathcal N(0, C),\qquad C = K + \sigma^2I,\qquad K_{ij} = \tfrac1\alpha\,k(x^{(i)}, x^{(j)}).$$
+
+Now suppose we have observed the targets $y_N = (y^{(1)},\dots,y^{(N)})$ and want to predict $y^{(N+1)}$ at a new input $x^{(N+1)}$. The idea is to treat the new target as one more entry of the vector, so that the old and new targets are jointly Gaussian:
+
+$$
+\begin{pmatrix}y_N\\ y^{(N+1)}\end{pmatrix}\sim\mathcal N\left(0,\ \begin{pmatrix}C & \mathbf k\\ \mathbf k^\top & c\end{pmatrix}\right),
+$$
+
+where $\mathbf k\in\mathbb R^N$ has entries $\mathbf k_i = \frac1\alpha k(x^{(i)}, x^{(N+1)})$ (the covariance between each old target and the new one) and $c = \frac1\alpha k(x^{(N+1)}, x^{(N+1)}) + \sigma^2$ (the new target's own variance). We write the vector in bold to tell it apart from the kernel function $k$. Applying @sec-w9-cond with $a = y^{(N+1)}$ and $b = y_N$ gives the key result for GP regression:
+
+::: {.boxed-eq}
+$$y^{(N+1)}\mid y_N\ \sim\ \mathcal N\big(\mathbf k^\top C^{-1}y_N,\ \ c - \mathbf k^\top C^{-1}\mathbf k\big).$$
+:::
+
+The predictive mean is a weighted combination of the observed targets, with more weight on targets whose inputs are strongly correlated with the new one. The predictive variance starts at the prior variance $c$ and is reduced by what the observations explain. Everything is computed from the kernel: there is no need to explicitly define or use a feature map $\psi$.
+
+**The same answer as Bayesian linear regression.** As the slides say, this is similar to Bayesian linear regression. When the kernel comes from a feature map, $k(x,x') = \psi(x)^\top\psi(x')$ with prior $w\sim\mathcal N(0,\frac1\alpha I)$, both describe the same prior over targets, so they give the same predictive distribution. The difference is in the size of the matrix inverted: Bayesian linear regression inverts an $M\times M$ matrix (one row per feature), GP regression an $N\times N$ matrix (one row per data point). A GP can therefore use kernels whose feature map is enormous, or has no finite form at all.
+
+::: {.callout-note}
+**Worked example: GP regression reproduces Bayesian linear regression.** Take the running example as a GP: $k(x,x') = 1 + xx'$ (the kernel of $\psi(x) = (1,x)$), $\alpha = 2$, $\sigma^2 = 0.04$. One observation $(0.8, 0.1)$; predict at $x^{(2)} = -1$.
+
+1. **$C$** (a $1\times1$ matrix): $\tfrac12(1 + 0.8^2) + 0.04 = 0.82 + 0.04 = 0.86$.
+2. **$\mathbf k$**: $\tfrac12(1 + 0.8\cdot(-1)) = \tfrac12(0.2) = 0.1$.
+3. **$c$**: $\tfrac12(1 + 1) + 0.04 = 1.04$.
+4. **Mean**: $\mathbf k^\top C^{-1}y_N = 0.1\cdot0.1/0.86\approx0.0116$.
+5. **Variance**: $c - \mathbf k^\top C^{-1}\mathbf k = 1.04 - 0.01/0.86\approx1.028$.
+
+These are the predictive mean $0.012$ and variance $1.028$ that the weight-space computation gave at $x = -1$ in @sec-w9-pred, here from a $1\times1$ inverse instead of a $2\times2$ one.
+:::
+
+The slides illustrate GP regression on data from a sine curve. Figure 7 redraws it.
+
+```{=html}
+<div style="overflow-x:auto; margin:1.5rem 0;">
+<svg viewBox="0 0 600 330" width="100%" style="max-width:600px;display:block;margin:auto;font-family:Helvetica,'Helvetica Neue',Arial,sans-serif;" role="img" aria-label="A dashed sine curve on 0 to 1, seven blue data points between 0 and 0.7, an orange predictive mean curve, and a shaded band of plus or minus two standard deviations. The band is narrow around the data and widens to the prior's width beyond x = 0.7, where the mean returns toward zero.">
+  <text x="300" y="32" text-anchor="middle" font-size="24" font-weight="600" fill="#333">Gaussian process regression on a sinusoid</text>
+  <clipPath id="w9clip13"><rect x="70" y="70" width="470" height="210"/></clipPath>
+  <rect x="70" y="70" width="470" height="210" fill="#fff" stroke="#888" stroke-width="1.2"/>
+  <text x="70.0" y="298" text-anchor="middle" font-size="14" fill="#555">0</text>
+  <text x="164.0" y="298" text-anchor="middle" font-size="14" fill="#555">0.2</text>
+  <text x="258.0" y="298" text-anchor="middle" font-size="14" fill="#555">0.4</text>
+  <text x="352.0" y="298" text-anchor="middle" font-size="14" fill="#555">0.6</text>
+  <text x="446.0" y="298" text-anchor="middle" font-size="14" fill="#555">0.8</text>
+  <text x="540.0" y="298" text-anchor="middle" font-size="14" fill="#555">1</text>
+  <text x="64" y="267.5" text-anchor="end" font-size="14" fill="#555">-2</text>
+  <text x="64" y="223.8" text-anchor="end" font-size="14" fill="#555">-1</text>
+  <text x="64" y="180.0" text-anchor="end" font-size="14" fill="#555">0</text>
+  <text x="64" y="136.2" text-anchor="end" font-size="14" fill="#555">1</text>
+  <text x="64" y="92.5" text-anchor="end" font-size="14" fill="#555">2</text>
+  <text x="305.0" y="318" text-anchor="middle" font-size="15" fill="#555">x</text>
+  <path clip-path="url(#w9clip13)" d="M70.0,159.0 L73.2,158.2 L76.3,157.3 L79.5,156.2 L82.6,155.1 L85.8,153.8 L88.9,152.4 L92.1,150.9 L95.2,149.4 L98.4,147.9 L101.5,146.4 L104.7,144.8 L107.9,143.3 L111.0,141.8 L114.2,140.3 L117.3,138.9 L120.5,137.6 L123.6,136.2 L126.8,135.0 L129.9,133.8 L133.1,132.7 L136.2,131.7 L139.4,130.7 L142.6,129.8 L145.7,129.0 L148.9,128.3 L152.0,127.7 L155.2,127.1 L158.3,126.6 L161.5,126.2 L164.6,125.9 L167.8,125.6 L170.9,125.5 L174.1,125.3 L177.2,125.3 L180.4,125.3 L183.6,125.4 L186.7,125.5 L189.9,125.8 L193.0,126.0 L196.2,126.3 L199.3,126.7 L202.5,127.1 L205.6,127.6 L208.8,128.1 L211.9,128.6 L215.1,129.2 L218.3,129.8 L221.4,130.5 L224.6,131.2 L227.7,131.9 L230.9,132.6 L234.0,133.3 L237.2,134.1 L240.3,134.9 L243.5,135.7 L246.6,136.6 L249.8,137.4 L253.0,138.3 L256.1,139.2 L259.3,140.2 L262.4,141.1 L265.6,142.1 L268.7,143.1 L271.9,144.2 L275.0,145.2 L278.2,146.4 L281.3,147.5 L284.5,148.7 L287.7,149.9 L290.8,151.2 L294.0,152.5 L297.1,153.9 L300.3,155.3 L303.4,156.7 L306.6,158.2 L309.7,159.8 L312.9,161.4 L316.0,163.0 L319.2,164.7 L322.3,166.4 L325.5,168.2 L328.7,170.0 L331.8,171.8 L335.0,173.7 L338.1,175.5 L341.3,177.5 L344.4,179.4 L347.6,181.3 L350.7,183.3 L353.9,185.2 L357.0,187.1 L360.2,189.0 L363.4,190.9 L366.5,192.8 L369.7,194.5 L372.8,196.2 L376.0,197.8 L379.1,199.4 L382.3,200.7 L385.4,202.0 L388.6,203.1 L391.7,204.0 L394.9,204.7 L398.1,205.3 L401.2,205.6 L404.4,205.7 L407.5,205.7 L410.7,205.4 L413.8,204.9 L417.0,204.2 L420.1,203.4 L423.3,202.3 L426.4,201.1 L429.6,199.7 L432.8,198.2 L435.9,196.5 L439.1,194.6 L442.2,192.7 L445.4,190.6 L448.5,188.3 L451.7,186.0 L454.8,183.6 L458.0,181.1 L461.1,178.5 L464.3,175.9 L467.4,173.2 L470.6,170.5 L473.8,167.7 L476.9,164.9 L480.1,162.1 L483.2,159.3 L486.4,156.5 L489.5,153.7 L492.7,150.9 L495.8,148.2 L499.0,145.5 L502.1,142.8 L505.3,140.2 L508.5,137.6 L511.6,135.1 L514.8,132.6 L517.9,130.2 L521.1,127.9 L524.2,125.7 L527.4,123.5 L530.5,121.4 L533.7,119.4 L536.8,117.5 L540.0,115.6 L540.0,274.3 L536.8,274.5 L533.7,274.8 L530.5,274.9 L527.4,275.1 L524.2,275.2 L521.1,275.3 L517.9,275.3 L514.8,275.3 L511.6,275.2 L508.5,275.1 L505.3,274.9 L502.1,274.7 L499.0,274.4 L495.8,274.0 L492.7,273.6 L489.5,273.1 L486.4,272.5 L483.2,271.9 L480.1,271.2 L476.9,270.4 L473.8,269.5 L470.6,268.6 L467.4,267.6 L464.3,266.6 L461.1,265.4 L458.0,264.2 L454.8,262.9 L451.7,261.6 L448.5,260.2 L445.4,258.7 L442.2,257.2 L439.1,255.6 L435.9,253.9 L432.8,252.3 L429.6,250.5 L426.4,248.8 L423.3,247.0 L420.1,245.2 L417.0,243.3 L413.8,241.5 L410.7,239.6 L407.5,237.8 L404.4,235.9 L401.2,234.1 L398.1,232.3 L394.9,230.5 L391.7,228.8 L388.6,227.0 L385.4,225.3 L382.3,223.6 L379.1,221.9 L376.0,220.3 L372.8,218.6 L369.7,216.8 L366.5,215.1 L363.4,213.4 L360.2,211.6 L357.0,209.8 L353.9,208.0 L350.7,206.2 L347.6,204.3 L344.4,202.5 L341.3,200.6 L338.1,198.7 L335.0,196.9 L331.8,195.0 L328.7,193.2 L325.5,191.4 L322.3,189.6 L319.2,187.8 L316.0,186.1 L312.9,184.4 L309.7,182.8 L306.6,181.1 L303.4,179.6 L300.3,178.0 L297.1,176.5 L294.0,175.1 L290.8,173.7 L287.7,172.3 L284.5,171.0 L281.3,169.7 L278.2,168.5 L275.0,167.3 L271.9,166.2 L268.7,165.1 L265.6,164.0 L262.4,163.0 L259.3,162.0 L256.1,161.1 L253.0,160.1 L249.8,159.3 L246.6,158.4 L243.5,157.6 L240.3,156.8 L237.2,156.0 L234.0,155.3 L230.9,154.6 L227.7,153.9 L224.6,153.2 L221.4,152.6 L218.3,152.0 L215.1,151.5 L211.9,150.9 L208.8,150.4 L205.6,150.0 L202.5,149.6 L199.3,149.2 L196.2,148.9 L193.0,148.6 L189.9,148.4 L186.7,148.2 L183.6,148.1 L180.4,148.1 L177.2,148.1 L174.1,148.2 L170.9,148.3 L167.8,148.5 L164.6,148.8 L161.5,149.2 L158.3,149.7 L155.2,150.2 L152.0,150.8 L148.9,151.5 L145.7,152.2 L142.6,153.0 L139.4,153.9 L136.2,154.9 L133.1,155.9 L129.9,157.0 L126.8,158.1 L123.6,159.3 L120.5,160.5 L117.3,161.8 L114.2,163.1 L111.0,164.5 L107.9,165.8 L104.7,167.3 L101.5,168.7 L98.4,170.2 L95.2,171.8 L92.1,173.4 L88.9,175.1 L85.8,176.8 L82.6,178.6 L79.5,180.4 L76.3,182.4 L73.2,184.4 L70.0,186.5 Z" fill="#F7D9C4" fill-opacity="0.8" stroke="none"/>
+  <path clip-path="url(#w9clip13)" d="M70.0,175.0 L73.2,173.2 L76.3,171.3 L79.5,169.5 L82.6,167.7 L85.8,165.8 L88.9,164.0 L92.1,162.3 L95.2,160.5 L98.4,158.8 L101.5,157.1 L104.7,155.4 L107.9,153.8 L111.0,152.2 L114.2,150.6 L117.3,149.1 L120.5,147.7 L123.6,146.3 L126.8,144.9 L129.9,143.6 L133.1,142.3 L136.2,141.1 L139.4,140.0 L142.6,138.9 L145.7,137.9 L148.9,137.0 L152.0,136.1 L155.2,135.3 L158.3,134.5 L161.5,133.9 L164.6,133.3 L167.8,132.8 L170.9,132.3 L174.1,132.0 L177.2,131.7 L180.4,131.4 L183.6,131.3 L186.7,131.3 L189.9,131.3 L193.0,131.4 L196.2,131.5 L199.3,131.8 L202.5,132.1 L205.6,132.5 L208.8,133.0 L211.9,133.6 L215.1,134.2 L218.3,134.9 L221.4,135.7 L224.6,136.5 L227.7,137.4 L230.9,138.4 L234.0,139.4 L237.2,140.5 L240.3,141.7 L243.5,142.9 L246.6,144.2 L249.8,145.6 L253.0,147.0 L256.1,148.4 L259.3,149.9 L262.4,151.4 L265.6,153.0 L268.7,154.6 L271.9,156.3 L275.0,157.9 L278.2,159.7 L281.3,161.4 L284.5,163.2 L287.7,164.9 L290.8,166.7 L294.0,168.6 L297.1,170.4 L300.3,172.2 L303.4,174.1 L306.6,175.9 L309.7,177.8 L312.9,179.6 L316.0,181.4 L319.2,183.3 L322.3,185.1 L325.5,186.8 L328.7,188.6 L331.8,190.3 L335.0,192.1 L338.1,193.7 L341.3,195.4 L344.4,197.0 L347.6,198.6 L350.7,200.1 L353.9,201.6 L357.0,203.0 L360.2,204.4 L363.4,205.8 L366.5,207.1 L369.7,208.3 L372.8,209.5 L376.0,210.6 L379.1,211.6 L382.3,212.6 L385.4,213.5 L388.6,214.3 L391.7,215.1 L394.9,215.8 L398.1,216.4 L401.2,217.0 L404.4,217.5 L407.5,217.9 L410.7,218.2 L413.8,218.5 L417.0,218.6 L420.1,218.7 L423.3,218.7 L426.4,218.7 L429.6,218.6 L432.8,218.3 L435.9,218.0 L439.1,217.7 L442.2,217.2 L445.4,216.7 L448.5,216.1 L451.7,215.5 L454.8,214.7 L458.0,213.9 L461.1,213.0 L464.3,212.1 L467.4,211.1 L470.6,210.0 L473.8,208.9 L476.9,207.7 L480.1,206.4 L483.2,205.1 L486.4,203.7 L489.5,202.3 L492.7,200.9 L495.8,199.4 L499.0,197.8 L502.1,196.2 L505.3,194.6 L508.5,192.9 L511.6,191.2 L514.8,189.5 L517.9,187.7 L521.1,186.0 L524.2,184.2 L527.4,182.3 L530.5,180.5 L533.7,178.7 L536.8,176.8 L540.0,175.0" fill="none" stroke="#57C7AE" stroke-width="2.5" stroke-dasharray="6 4"/>
+  <path clip-path="url(#w9clip13)" d="M70.0,172.8 L73.2,171.3 L76.3,169.8 L79.5,168.3 L82.6,166.8 L85.8,165.3 L88.9,163.7 L92.1,162.2 L95.2,160.6 L98.4,159.1 L101.5,157.6 L104.7,156.1 L107.9,154.6 L111.0,153.1 L114.2,151.7 L117.3,150.4 L120.5,149.0 L123.6,147.8 L126.8,146.6 L129.9,145.4 L133.1,144.3 L136.2,143.3 L139.4,142.3 L142.6,141.4 L145.7,140.6 L148.9,139.9 L152.0,139.2 L155.2,138.7 L158.3,138.2 L161.5,137.7 L164.6,137.4 L167.8,137.1 L170.9,136.9 L174.1,136.8 L177.2,136.7 L180.4,136.7 L183.6,136.8 L186.7,136.9 L189.9,137.1 L193.0,137.3 L196.2,137.6 L199.3,138.0 L202.5,138.4 L205.6,138.8 L208.8,139.3 L211.9,139.8 L215.1,140.3 L218.3,140.9 L221.4,141.5 L224.6,142.2 L227.7,142.9 L230.9,143.6 L234.0,144.3 L237.2,145.1 L240.3,145.8 L243.5,146.7 L246.6,147.5 L249.8,148.3 L253.0,149.2 L256.1,150.1 L259.3,151.1 L262.4,152.1 L265.6,153.1 L268.7,154.1 L271.9,155.2 L275.0,156.3 L278.2,157.4 L281.3,158.6 L284.5,159.9 L287.7,161.1 L290.8,162.4 L294.0,163.8 L297.1,165.2 L300.3,166.7 L303.4,168.1 L306.6,169.7 L309.7,171.3 L312.9,172.9 L316.0,174.6 L319.2,176.3 L322.3,178.0 L325.5,179.8 L328.7,181.6 L331.8,183.4 L335.0,185.3 L338.1,187.1 L341.3,189.0 L344.4,190.9 L347.6,192.8 L350.7,194.7 L353.9,196.6 L357.0,198.5 L360.2,200.3 L363.4,202.1 L366.5,203.9 L369.7,205.7 L372.8,207.4 L376.0,209.1 L379.1,210.7 L382.3,212.2 L385.4,213.7 L388.6,215.1 L391.7,216.4 L394.9,217.6 L398.1,218.8 L401.2,219.9 L404.4,220.8 L407.5,221.7 L410.7,222.5 L413.8,223.2 L417.0,223.8 L420.1,224.3 L423.3,224.7 L426.4,224.9 L429.6,225.1 L432.8,225.2 L435.9,225.2 L439.1,225.1 L442.2,224.9 L445.4,224.6 L448.5,224.3 L451.7,223.8 L454.8,223.3 L458.0,222.7 L461.1,222.0 L464.3,221.2 L467.4,220.4 L470.6,219.6 L473.8,218.6 L476.9,217.7 L480.1,216.6 L483.2,215.6 L486.4,214.5 L489.5,213.4 L492.7,212.2 L495.8,211.1 L499.0,209.9 L502.1,208.7 L505.3,207.5 L508.5,206.3 L511.6,205.1 L514.8,203.9 L517.9,202.8 L521.1,201.6 L524.2,200.4 L527.4,199.3 L530.5,198.2 L533.7,197.1 L536.8,196.0 L540.0,195.0" fill="none" stroke="#C78557" stroke-width="2.8"/>
+  <circle cx="79.4" cy="168.7" r="5" fill="#C6DEF1" stroke="#5795C7" stroke-width="2"/>
+  <circle cx="126.4" cy="147.3" r="5" fill="#C6DEF1" stroke="#5795C7" stroke-width="2"/>
+  <circle cx="187.5" cy="133.1" r="5" fill="#C6DEF1" stroke="#5795C7" stroke-width="2"/>
+  <circle cx="239.2" cy="152.0" r="5" fill="#C6DEF1" stroke="#5795C7" stroke-width="2"/>
+  <circle cx="281.5" cy="153.6" r="5" fill="#C6DEF1" stroke="#5795C7" stroke-width="2"/>
+  <circle cx="342.6" cy="191.1" r="5" fill="#C6DEF1" stroke="#5795C7" stroke-width="2"/>
+  <circle cx="389.6" cy="216.0" r="5" fill="#C6DEF1" stroke="#5795C7" stroke-width="2"/>
+  <text x="474.2" y="89.7" text-anchor="middle" font-size="15" fill="#794520">no data here</text>
+</svg>
+</div>
+```
+
+**Figure 7.** GP regression with the Gaussian kernel ($\ell = 0.08$, $\frac1\alpha = 1$, $\sigma^2 = 0.01$) on seven noisy observations of $\sin(2\pi x)$ (dashed). Solid orange: the predictive mean; shaded: $\pm2$ predictive standard deviations. Settings are ours. Between the data points the band is narrow; beyond $x\approx0.7$ there is no data, so the mean relaxes toward the prior mean 0 and the band widens to the prior's width.
+
+::: {.callout-tip collapse="true" .clarification title="Recap: Gaussian process regression"}
+What the symbols stand for:
+
+- $y_N$: the vector of observed targets. $y^{(N+1)}$: the target we want to predict.
+- $C = K + \sigma^2I$: the $N\times N$ covariance of the observed targets, function covariance plus noise.
+- $\mathbf k$: covariances between each observed target and the new one.
+- $c$: the prior variance of the new target, including noise.
+
+Taking the equations apart:
+
+- $y\sim\mathcal N(0, K + \sigma^2I)$: targets are function values plus independent noise, so the covariances add.
+- $C^{-1}y_N$: the observed targets, re-weighted to account for how they co-vary with one another.
+- $\mathbf k^\top C^{-1}y_N$: blend those re-weighted targets according to how related each is to the new input.
+- $c - \mathbf k^\top C^{-1}\mathbf k$: prior variance minus what the data explains.
+
+A teaching example with the Gaussian kernel, $\ell = 0.1$, $\frac1\alpha = 1$, $\sigma^2 = 0.01$, observations $(0.1, 0.6)$ and $(0.3, 0.9)$ from the sine-curve domain.
+
+- $C = \begin{pmatrix}1.01 & e^{-0.4}\\ e^{-0.4} & 1.01\end{pmatrix}\approx\begin{pmatrix}1.01&0.670\\0.670&1.01\end{pmatrix}$.
+- Predict at $x = 0.2$, between the points: $\mathbf k = (e^{-0.1}, e^{-0.1})\approx(0.905, 0.905)$, $c = 1.01$.
+- Solving $C^{-1}y_N\approx(0.005, 0.888)$, so the mean is $0.905(0.005 + 0.888)\approx0.808$, between the two observed targets.
+- Variance $\approx0.036$: barely more than the noise $0.01$.
+- Predict at $x = 0.9$, far away: $\mathbf k\approx(e^{-6.4}, e^{-3.6})\approx(0.002, 0.027)$, so the mean is $\approx0.024$ and the variance $\approx1.009$, essentially the prior.
+:::
+
+::: {.callout-note .section-takeaways}
+**Key takeaways.**
+
+- Prediction with a GP is Gaussian conditioning: put the new target in the same Gaussian vector as the observed ones and condition on what we saw. Every quantity needed comes from the kernel.
+- With a kernel built from features, this gives exactly the Bayesian linear regression answer. The GP view just lets us skip the features, at the cost of inverting an $N\times N$ matrix.
+:::
+
+## Gaussian process classification {#sec-w9-gpc}
+
+GP regression worked in closed form because everything was Gaussian. What happens when the targets are class labels?
+
+Consider a [classification](https://en.wikipedia.org/wiki/Statistical_classification) problem with targets $y\in\{0, 1\}$. A Gaussian function value can be any real number, so it cannot be a probability directly. The lecture defines a GP over a **latent function** $a(x)$ and transforms it into a probability with the **[sigmoid](https://en.wikipedia.org/wiki/Logistic_function)** (the logistic sigmoid of Week 1),
+$$\hat y(x) = \sigma\big(a(x)\big),\qquad \sigma(a) = \frac{1}{1+e^{-a}}.$$
+**In this section only, $\sigma(\cdot)$ is the sigmoid, not a noise standard deviation.** The result is a non-Gaussian stochastic process over functions $\hat y(x)\in(0,1)$.
+
+```{=html}
+<div style="overflow-x:auto; margin:1.5rem 0;">
+<svg viewBox="0 0 600 320" width="100%" style="max-width:600px;display:block;margin:auto;font-family:Helvetica,'Helvetica Neue',Arial,sans-serif;" role="img" aria-label="Left: a purple random function a of x between about minus 10 and 10. Right: the same function passed through the sigmoid, an orange curve squeezed between 0 and 1 that sits near 0 or near 1 wherever a is far from zero and crosses 0.5 where a crosses zero.">
+  <text x="300" y="32" text-anchor="middle" font-size="24" font-weight="600" fill="#333">From a latent function to class probabilities</text>
+  <clipPath id="w9clip14"><rect x="55" y="80" width="230" height="170"/></clipPath>
+  <rect x="55" y="80" width="230" height="170" fill="#fff" stroke="#888" stroke-width="1.2"/>
+  <text x="55.0" y="268" text-anchor="middle" font-size="14" fill="#555">-1</text>
+  <text x="170.0" y="268" text-anchor="middle" font-size="14" fill="#555">0</text>
+  <text x="285.0" y="268" text-anchor="middle" font-size="14" fill="#555">1</text>
+  <text x="49" y="240.8" text-anchor="end" font-size="14" fill="#555">-10</text>
+  <text x="49" y="170.0" text-anchor="end" font-size="14" fill="#555">0</text>
+  <text x="49" y="99.2" text-anchor="end" font-size="14" fill="#555">10</text>
+  <text x="170.0" y="288" text-anchor="middle" font-size="15" fill="#555">x</text>
+  <text x="170.0" y="70" text-anchor="middle" font-size="16" font-weight="600" fill="#333">a(x): a GP sample</text>
+  <line x1="55" y1="165.0" x2="285" y2="165.0" stroke="#bbb" stroke-dasharray="3 3"/>
+  <path clip-path="url(#w9clip14)" d="M55.0,193.4 L55.8,192.8 L56.5,192.4 L57.3,192.2 L58.1,192.2 L58.8,192.4 L59.6,192.7 L60.4,193.0 L61.2,193.4 L61.9,193.7 L62.7,194.0 L63.5,194.2 L64.2,194.3 L65.0,194.2 L65.8,194.0 L66.5,193.6 L67.3,193.1 L68.1,192.3 L68.8,191.3 L69.6,190.0 L70.4,188.5 L71.2,186.7 L71.9,184.7 L72.7,182.4 L73.5,179.9 L74.2,177.1 L75.0,174.1 L75.8,170.9 L76.5,167.5 L77.3,164.0 L78.1,160.4 L78.8,156.8 L79.6,153.2 L80.4,149.7 L81.2,146.3 L81.9,143.1 L82.7,140.2 L83.5,137.6 L84.2,135.5 L85.0,133.8 L85.8,132.6 L86.5,131.9 L87.3,131.8 L88.1,132.2 L88.8,133.2 L89.6,134.8 L90.4,136.9 L91.2,139.4 L91.9,142.3 L92.7,145.6 L93.5,149.2 L94.2,153.0 L95.0,157.0 L95.8,161.1 L96.5,165.2 L97.3,169.3 L98.1,173.2 L98.8,177.1 L99.6,180.7 L100.4,184.2 L101.2,187.5 L101.9,190.5 L102.7,193.3 L103.5,195.8 L104.2,198.1 L105.0,200.2 L105.8,202.0 L106.5,203.6 L107.3,205.0 L108.1,206.2 L108.8,207.2 L109.6,208.0 L110.4,208.6 L111.2,209.0 L111.9,209.2 L112.7,209.2 L113.5,209.1 L114.2,208.8 L115.0,208.4 L115.8,207.9 L116.5,207.2 L117.3,206.5 L118.1,205.7 L118.8,205.0 L119.6,204.2 L120.4,203.3 L121.2,202.6 L121.9,201.8 L122.7,201.1 L123.5,200.5 L124.2,199.8 L125.0,199.2 L125.8,198.5 L126.5,197.8 L127.3,197.0 L128.1,196.1 L128.8,195.1 L129.6,193.9 L130.4,192.4 L131.2,190.7 L131.9,188.7 L132.7,186.3 L133.5,183.7 L134.2,180.6 L135.0,177.3 L135.8,173.5 L136.5,169.5 L137.3,165.1 L138.1,160.5 L138.8,155.6 L139.6,150.6 L140.4,145.4 L141.2,140.1 L141.9,134.8 L142.7,129.6 L143.5,124.4 L144.2,119.4 L145.0,114.7 L145.8,110.1 L146.5,105.9 L147.3,102.1 L148.1,98.7 L148.8,95.7 L149.6,93.2 L150.4,91.3 L151.2,89.8 L151.9,89.0 L152.7,88.7 L153.5,88.9 L154.2,89.8 L155.0,91.1 L155.8,93.0 L156.5,95.4 L157.3,98.2 L158.1,101.4 L158.8,105.0 L159.6,108.8 L160.4,112.8 L161.2,116.9 L161.9,121.1 L162.7,125.2 L163.5,129.2 L164.2,133.0 L165.0,136.6 L165.8,139.8 L166.5,142.7 L167.3,145.2 L168.1,147.4 L168.8,149.1 L169.6,150.3 L170.4,151.3 L171.2,151.8 L171.9,152.0 L172.7,152.0 L173.5,151.7 L174.2,151.1 L175.0,150.4 L175.8,149.6 L176.5,148.8 L177.3,147.8 L178.1,146.9 L178.8,145.9 L179.6,144.9 L180.4,143.9 L181.2,143.0 L181.9,142.1 L182.7,141.1 L183.5,140.2 L184.2,139.3 L185.0,138.4 L185.8,137.4 L186.5,136.5 L187.3,135.5 L188.1,134.5 L188.8,133.6 L189.6,132.7 L190.4,131.8 L191.2,131.0 L191.9,130.3 L192.7,129.8 L193.5,129.4 L194.2,129.2 L195.0,129.2 L195.8,129.5 L196.5,130.1 L197.3,131.0 L198.1,132.2 L198.8,133.8 L199.6,135.8 L200.4,138.1 L201.2,140.9 L201.9,143.9 L202.7,147.3 L203.5,151.0 L204.2,154.9 L205.0,159.0 L205.8,163.3 L206.5,167.6 L207.3,171.9 L208.1,176.1 L208.8,180.2 L209.6,184.0 L210.4,187.5 L211.2,190.6 L211.9,193.3 L212.7,195.5 L213.5,197.2 L214.2,198.3 L215.0,198.9 L215.8,199.0 L216.5,198.5 L217.3,197.5 L218.1,196.1 L218.8,194.2 L219.6,192.0 L220.4,189.5 L221.2,186.7 L221.9,183.8 L222.7,180.7 L223.5,177.6 L224.2,174.5 L225.0,171.5 L225.8,168.5 L226.5,165.6 L227.3,162.9 L228.1,160.3 L228.8,157.9 L229.6,155.6 L230.4,153.6 L231.2,151.7 L231.9,149.9 L232.7,148.4 L233.5,147.1 L234.2,146.0 L235.0,145.1 L235.8,144.3 L236.5,143.9 L237.3,143.6 L238.1,143.7 L238.8,144.0 L239.6,144.7 L240.4,145.6 L241.2,146.9 L241.9,148.5 L242.7,150.4 L243.5,152.7 L244.2,155.2 L245.0,158.0 L245.8,161.1 L246.5,164.3 L247.3,167.6 L248.1,171.0 L248.8,174.5 L249.6,177.9 L250.4,181.3 L251.2,184.6 L251.9,187.7 L252.7,190.7 L253.5,193.5 L254.2,196.1 L255.0,198.5 L255.8,200.7 L256.5,202.7 L257.3,204.6 L258.1,206.2 L258.8,207.7 L259.6,208.9 L260.4,210.0 L261.2,210.8 L261.9,211.3 L262.7,211.5 L263.5,211.3 L264.2,210.7 L265.0,209.6 L265.8,208.1 L266.5,205.9 L267.3,203.2 L268.1,199.9 L268.8,196.0 L269.6,191.5 L270.4,186.5 L271.2,181.0 L271.9,175.1 L272.7,169.0 L273.5,162.6 L274.2,156.2 L275.0,149.8 L275.8,143.7 L276.5,137.8 L277.3,132.5 L278.1,127.7 L278.8,123.5 L279.6,120.2 L280.4,117.7 L281.2,116.0 L281.9,115.2 L282.7,115.4 L283.5,116.4 L284.2,118.2 L285.0,120.9" fill="none" stroke="#8457C7" stroke-width="2"/>
+  <clipPath id="w9clip15"><rect x="345" y="80" width="230" height="170"/></clipPath>
+  <rect x="345" y="80" width="230" height="170" fill="#fff" stroke="#888" stroke-width="1.2"/>
+  <text x="345.0" y="268" text-anchor="middle" font-size="14" fill="#555">-1</text>
+  <text x="460.0" y="268" text-anchor="middle" font-size="14" fill="#555">0</text>
+  <text x="575.0" y="268" text-anchor="middle" font-size="14" fill="#555">1</text>
+  <text x="339" y="255.0" text-anchor="end" font-size="14" fill="#555">0</text>
+  <text x="339" y="170.0" text-anchor="end" font-size="14" fill="#555">0.5</text>
+  <text x="339" y="85.0" text-anchor="end" font-size="14" fill="#555">1</text>
+  <text x="460.0" y="288" text-anchor="middle" font-size="15" fill="#555">x</text>
+  <text x="460.0" y="70" text-anchor="middle" font-size="16" font-weight="600" fill="#333">sigmoid of a(x)</text>
+  <line x1="345" y1="165.0" x2="575" y2="165.0" stroke="#bbb" stroke-dasharray="3 3"/>
+  <path clip-path="url(#w9clip15)" d="M345.0,247.0 L345.8,246.7 L346.5,246.5 L347.3,246.4 L348.1,246.4 L348.8,246.5 L349.6,246.7 L350.4,246.8 L351.2,246.9 L351.9,247.1 L352.7,247.2 L353.5,247.3 L354.2,247.3 L355.0,247.3 L355.8,247.2 L356.5,247.1 L357.3,246.8 L358.1,246.5 L358.8,245.9 L359.6,245.1 L360.4,244.0 L361.2,242.4 L361.9,240.1 L362.7,236.5 L363.5,231.4 L364.2,223.9 L365.0,213.1 L365.8,198.5 L366.5,179.9 L367.3,159.2 L368.1,138.5 L368.8,120.6 L369.6,107.0 L370.4,97.5 L371.2,91.3 L371.9,87.4 L372.7,85.0 L373.5,83.5 L374.2,82.6 L375.0,82.0 L375.8,81.7 L376.5,81.6 L377.3,81.5 L378.1,81.6 L378.8,81.9 L379.6,82.4 L380.4,83.1 L381.2,84.4 L381.9,86.6 L382.7,90.4 L383.5,96.6 L384.2,106.5 L385.0,121.7 L385.8,142.2 L386.5,166.2 L387.3,189.9 L388.1,209.5 L388.8,223.8 L389.6,233.4 L390.4,239.4 L391.2,243.2 L391.9,245.5 L392.7,246.9 L393.5,247.8 L394.2,248.4 L395.0,248.8 L395.8,249.1 L396.5,249.3 L397.3,249.4 L398.1,249.5 L398.8,249.6 L399.6,249.6 L400.4,249.6 L401.2,249.7 L401.9,249.7 L402.7,249.7 L403.5,249.7 L404.2,249.7 L405.0,249.6 L405.8,249.6 L406.5,249.6 L407.3,249.5 L408.1,249.5 L408.8,249.4 L409.6,249.3 L410.4,249.2 L411.2,249.2 L411.9,249.1 L412.7,249.0 L413.5,248.9 L414.2,248.8 L415.0,248.6 L415.8,248.5 L416.5,248.4 L417.3,248.2 L418.1,247.9 L418.8,247.6 L419.6,247.2 L420.4,246.5 L421.2,245.6 L421.9,244.2 L422.7,242.0 L423.5,238.6 L424.2,233.1 L425.0,224.4 L425.8,210.7 L426.5,190.9 L427.3,165.5 L428.1,138.7 L428.8,115.6 L429.6,99.6 L430.4,90.0 L431.2,84.9 L431.9,82.4 L432.7,81.1 L433.5,80.6 L434.2,80.3 L435.0,80.1 L435.8,80.1 L436.5,80.0 L437.3,80.0 L438.1,80.0 L438.8,80.0 L439.6,80.0 L440.4,80.0 L441.2,80.0 L441.9,80.0 L442.7,80.0 L443.5,80.0 L444.2,80.0 L445.0,80.0 L445.8,80.0 L446.5,80.0 L447.3,80.0 L448.1,80.0 L448.8,80.0 L449.6,80.1 L450.4,80.1 L451.2,80.2 L451.9,80.3 L452.7,80.6 L453.5,81.1 L454.2,81.8 L455.0,83.0 L455.8,84.7 L456.5,87.0 L457.3,89.8 L458.1,93.0 L458.8,96.2 L459.6,99.1 L460.4,101.4 L461.2,102.8 L461.9,103.5 L462.7,103.3 L463.5,102.4 L464.2,101.0 L465.0,99.3 L465.8,97.4 L466.5,95.6 L467.3,93.8 L468.1,92.2 L468.8,90.7 L469.6,89.4 L470.4,88.3 L471.2,87.3 L471.9,86.4 L472.7,85.7 L473.5,85.0 L474.2,84.4 L475.0,83.9 L475.8,83.4 L476.5,83.0 L477.3,82.6 L478.1,82.3 L478.8,82.0 L479.6,81.8 L480.4,81.6 L481.2,81.4 L481.9,81.3 L482.7,81.2 L483.5,81.1 L484.2,81.1 L485.0,81.1 L485.8,81.1 L486.5,81.2 L487.3,81.4 L488.1,81.6 L488.8,82.1 L489.6,82.7 L490.4,83.7 L491.2,85.4 L491.9,88.2 L492.7,92.9 L493.5,100.6 L494.2,112.9 L495.0,131.1 L495.8,154.7 L496.5,180.3 L497.3,203.4 L498.1,220.7 L498.8,232.1 L499.6,239.1 L500.4,243.2 L501.2,245.5 L501.9,246.9 L502.7,247.7 L503.5,248.2 L504.2,248.5 L505.0,248.6 L505.8,248.6 L506.5,248.5 L507.3,248.3 L508.1,247.9 L508.8,247.3 L509.6,246.3 L510.4,244.8 L511.2,242.4 L511.9,238.8 L512.7,233.4 L513.5,225.6 L514.2,214.9 L515.0,201.4 L515.8,185.5 L516.5,168.7 L517.3,152.3 L518.1,137.7 L518.8,125.5 L519.6,115.7 L520.4,108.2 L521.2,102.4 L521.9,98.1 L522.7,94.9 L523.5,92.6 L524.2,90.9 L525.0,89.6 L525.8,88.7 L526.5,88.2 L527.3,88.0 L528.1,88.0 L528.8,88.4 L529.6,89.1 L530.4,90.4 L531.2,92.3 L531.9,95.1 L532.7,99.3 L533.5,105.4 L534.2,114.2 L535.0,126.3 L535.8,142.0 L536.5,160.6 L537.3,180.4 L538.1,199.1 L538.8,214.6 L539.6,226.3 L540.4,234.5 L541.2,239.9 L541.9,243.4 L542.7,245.6 L543.5,247.0 L544.2,247.9 L545.0,248.5 L545.8,248.9 L546.5,249.2 L547.3,249.4 L548.1,249.5 L548.8,249.6 L549.6,249.7 L550.4,249.7 L551.2,249.7 L551.9,249.8 L552.7,249.8 L553.5,249.8 L554.2,249.7 L555.0,249.7 L555.8,249.6 L556.5,249.5 L557.3,249.2 L558.1,248.8 L558.8,247.9 L559.6,246.1 L560.4,242.2 L561.2,233.9 L561.9,217.2 L562.7,188.2 L563.5,150.7 L564.2,117.9 L565.0,97.8 L565.8,88.0 L566.5,83.6 L567.3,81.7 L568.1,80.9 L568.8,80.5 L569.6,80.3 L570.4,80.2 L571.2,80.2 L571.9,80.2 L572.7,80.2 L573.5,80.2 L574.2,80.2 L575.0,80.3" fill="none" stroke="#C78557" stroke-width="2"/>
+</svg>
+</div>
+```
+
+**Figure 8.** Left: a function $a(x)$ drawn from a GP with a Gaussian kernel and large prior variance ($\frac1\alpha = 25$). Right: the same function after the sigmoid, $\sigma(a(x))$, a curve of probabilities that sits near 0 or 1 wherever $a$ is large in magnitude.
+
+The probability of a label given the latent value is Bernoulli:
+$$p(y\mid a) = \sigma(a)^y\,\big(1-\sigma(a)\big)^{1-y},\qquad y\in\{0,1\}.$$
+
+We need $p(y^{(N+1)}\mid y_N)$. As before, the latent values at all $N+1$ inputs are jointly Gaussian, $a_{N+1}\sim\mathcal N(0, K_{N+1})$, for the $(N+1)\times(N+1)$ kernel matrix $K_{N+1}$. But $a(x)$ is a Gaussian process and $\hat y(x)$ is not, and the latent values are **not observed**: we only see labels. So we must integrate them out:
+
+$$p(y^{(N+1)}\mid y_N) = \int p\big(y^{(N+1)}\mid a_{N+1}\big)\ p\big(a_{N+1}\mid y_N\big)\,da_{N+1}.$$
+
+This is intractable. The posterior $p(a_{N+1}\mid y_N)$ combines a Gaussian prior with a product of sigmoids, which is not Gaussian, and the integral of a sigmoid against it has no closed form. The lecture's remedy is approximation: **MCMC** methods (Week 5) or numerical integration. The variational methods of Week 7 are another family that is used for this.
+
+::: {.callout-tip collapse="true" .clarification title="Recap: Gaussian process classification"}
+What the symbols stand for:
+
+- $a(x)$: the latent function, a GP. Never observed.
+- $\sigma(a) = 1/(1+e^{-a})$: the sigmoid, squeezing any real number into $(0, 1)$.
+- $\hat y(x) = \sigma(a(x))$: the probability that the label at $x$ is 1.
+- $a_{N+1}$: the latent values at the $N$ training inputs and the new input. $K_{N+1}$: their prior covariance.
+
+Taking the equations apart:
+
+- $\sigma(a)^y(1-\sigma(a))^{1-y}$: equals $\sigma(a)$ when $y = 1$ and $1-\sigma(a)$ when $y = 0$.
+- $p(a_{N+1}\mid y_N)$: what the observed labels say about the latent values. Not Gaussian, because the labels enter through sigmoids.
+- $\int p(y^{(N+1)}\mid a_{N+1})\,p(a_{N+1}\mid y_N)\,da_{N+1}$: average the label probability over the uncertain latent values.
+
+A teaching example showing why the Gaussian shortcut no longer works. Suppose the latent value at a new input were known to be distributed as $a\sim\mathcal N(m, 1)$.
+
+- $\sigma(0) = 0.5$ and $\sigma(2) = 1/(1+e^{-2})\approx0.881$.
+- If $m = 0$, the average of $\sigma(a)$ is exactly $0.5$, by the symmetry $\sigma(-a) = 1-\sigma(a)$.
+- If $m = 1$, plugging in the mean gives $\sigma(1)\approx0.731$, but the true average of $\sigma(a)$, found numerically, is about $0.697$. Pushing a Gaussian through a sigmoid does not give a Gaussian, and the mean does not pass through either. There is no formula for this average, so we must approximate it.
+:::
+
+::: {.callout-note .section-takeaways}
+**Key takeaways.**
+
+- For labels we put the GP on a hidden function and squash it through a sigmoid. That one nonlinear step breaks the Gaussian algebra that made regression exact.
+- The prediction becomes an integral with no closed form, so GP classification needs the approximate inference tools of earlier weeks (sampling, numerical integration, or variational methods).
+:::
+
+## Learning the hyperparameters {#sec-w9-hyper}
+
+So far the kernel was fixed in advance. But Figure 6 showed that the length-scale changes the functions completely. Can the data choose it?
+
+Instead of a single kernel, use a parametric family $k_\theta(x,x')$ indexed by **[hyperparameters](https://en.wikipedia.org/wiki/Hyperparameter_(machine_learning))** $\theta$, for example the length-scale $\ell$ and the prior variance $\frac1\alpha$, and infer $\theta$ from the data. Let $C_\theta$ be the covariance matrix that $k_\theta$ induces on the dataset (including the noise term). For GP regression the model says $y\sim\mathcal N(0, C_\theta)$, so we can simply maximize the data likelihood over $\theta$:
+
+::: {.boxed-eq}
+$$\log p(y\mid\theta) = -\tfrac12\log|C_\theta| - \tfrac12\,y^\top C_\theta^{-1}y + \text{const}.$$
+:::
+
+The constant is $-\frac N2\log2\pi$, and $|C_\theta|$ is the determinant. This is the Gaussian log-density of the observed targets, with the function values already integrated out: in the language of Week 7 it is the log **evidence**, also called the **[marginal likelihood](https://en.wikipedia.org/wiki/Marginal_likelihood)**. The slides say to maximize it over $\theta$ using any favourite approach, such as gradient methods or grid search.
+
+The two terms pull in opposite directions. The term $-\frac12y^\top C_\theta^{-1}y$ rewards a covariance large enough to explain the observed targets. The term $-\frac12\log|C_\theta|$ penalizes a covariance that is large in general, because a prior spread over too many possible datasets assigns little density to any one of them. Maximizing their sum picks a kernel that fits the data without being needlessly flexible.
+
+::: {.callout-tip collapse="true" .clarification title="Recap: Learning the hyperparameters"}
+What the symbols stand for:
+
+- $\theta$: the hyperparameters of the kernel, such as $\ell$ and $\frac1\alpha$ (and possibly $\sigma^2$).
+- $k_\theta$: the kernel with those settings. $C_\theta$: the covariance of the observed targets it induces.
+- $|C_\theta|$: the determinant, a measure of the total spread of the Gaussian.
+- $\log p(y\mid\theta)$: how probable the observed targets are under the GP with these settings.
+
+Taking the equation apart:
+
+- $-\tfrac12y^\top C_\theta^{-1}y$: the data-fit term. Targets that are large relative to the covariance are penalized.
+- $-\tfrac12\log|C_\theta|$: the complexity term. A large, spread-out covariance is penalized.
+- Their sum: the log of the Gaussian density of $y$, up to a constant.
+
+A teaching example, a single target $y = 1$ whose GP variance is a hyperparameter $v$ (so $C_\theta = v$).
+
+- $v = 0.25$: $-\tfrac12\log0.25 - \tfrac{1}{2(0.25)} = 0.693 - 2 = -1.307$. Too narrow: the observation is surprising.
+- $v = 1$: $0 - 0.5 = -0.5$.
+- $v = 4$: $-\tfrac12\log4 - \tfrac18 = -0.693 - 0.125 = -0.818$. Too wide: the density is spread thin.
+- The best value is $v = 1 = y^2$ (setting the derivative $-\tfrac{1}{2v} + \tfrac{1}{2v^2}$ to zero), the variance that matches the data.
+:::
+
+::: {.callout-note .section-takeaways}
+**Key takeaways.**
+
+- The kernel's settings can be learned by asking which settings make the observed targets most probable, with the function itself integrated out.
+- That objective balances fit against flexibility automatically. A kernel that can explain anything spreads its probability thin and loses to one that explains the data we actually have.
+:::
+
+## Summary {#sec-summary9}
+
+::: {.callout-note}
+**Key takeaways from Week 9:**
+
+- **Completing the square.** If $\log p(w) = -\tfrac12w^\top Aw + w^\top b + \text{const}$, then $w\sim\mathcal N(A^{-1}b, A^{-1})$. This finds every Gaussian posterior this week without integrating.
+- **Regression, probabilistically.** Least squares is maximum likelihood under Gaussian noise. Ridge regression is MAP with a Gaussian prior, with $\lambda = \sigma^2/\eta$.
+- **Bayesian linear regression.** The posterior is $w\mid\mathcal D\sim\mathcal N(\mu,\Sigma)$ with $\mu = (\Psi^\top\Psi + \sigma^2S^{-1})^{-1}\Psi^\top y$ (the ridge solution) and $\Sigma = \sigma^2(\Psi^\top\Psi + \sigma^2S^{-1})^{-1}$. Updating one point at a time gives the same answer.
+- **Posterior predictive.** $y\sim\mathcal N\big(\mu^\top\psi(x),\ \psi(x)^\top\Sigma\psi(x) + \sigma^2\big)$: noise plus weight uncertainty, the latter growing away from the data. Nonlinear features such as RBFs give the same results for curves.
+- **Gaussian processes.** A prior on weights induces covariances $\frac1\alpha\psi(x)^\top\psi(x')$ between function values. A GP specifies that covariance directly through a positive semidefinite kernel, such as the Gaussian or exponential kernel.
+- **GP regression and beyond.** Conditioning the joint Gaussian of old and new targets gives $y^{(N+1)}\mid y_N\sim\mathcal N(\mathbf k^\top C^{-1}y_N,\ c - \mathbf k^\top C^{-1}\mathbf k)$ in closed form. Classification, through a sigmoid, needs approximate inference. Kernel hyperparameters can be learned by maximizing $\log p(y\mid\theta)$.
+:::
+
+**Next week:** not yet in these notes.
+
+## Quick self-check
+
+If you can explain, using only "prior," "penalty," and "peak," why ridge regression is MAP estimation; using only "noise," "weights," and "far from the data," why the predictive variance has two parts and where it is large; and using only "kernel," "jointly Gaussian," and "condition," how a Gaussian process makes a prediction, you have understood the core of Week 9.
+
+## High-level overview {#sec-overview9}
+
+This section retells each part of the week in plain language and without formulas, using the lecture's own examples. Read it before the chapter for orientation, or after it as a review.
+
+**Completing the square (@sec-w9-cts).** A bell curve's log is a downward bowl. If we can write some log-density as a bowl in the unknowns, we can read off where its centre is and how wide it is, and that is the whole distribution.
+
+**Regression three ways (@sec-w9-why to @sec-w9-full).** Fitting a line by least squares is the same as assuming the points scatter around the line with bell-shaped noise and picking the most likely line. Adding ridge's preference for small weights is the same as adding a prior belief that weights are small, and picking the most probable line. Going fully Bayesian means not picking at all: keep every line, weighted by how plausible it is, and average their predictions.
+
+**The posterior and sequential learning (@sec-w9-post, @sec-w9-seq).** For the line $y = -0.3 + 0.5x$, one data point is consistent with a whole family of lines pivoting around it. Each new point rules out more of that family, and after a few points only lines close to the truth remain. Feeding in points one at a time or all at once gives the same result. The centre of the surviving family is exactly the ridge regression line.
+
+**Curves and error bars (@sec-w9-rbf, @sec-w9-pred).** Replacing the input by a set of bumps lets the same method fit a sine curve. Its predictions come with error bars made of two parts: the noise in the measurements, which never goes away, and disagreement among the plausible curves, which is large where there is no data and shrinks as data arrives.
+
+**From weights to kernels (@sec-w9-to-gp, @sec-w9-gp, @sec-w9-kernel).** Random weights make the function values at any two inputs correlated, and that correlation is all the prior really says. A Gaussian process skips the weights and states the correlation directly, as a kernel. Smooth kernels give smooth random functions; rough kernels give jagged ones.
+
+**GP regression and classification (@sec-w9-cond, @sec-w9-gpr, @sec-w9-gpc).** To predict at a new input, treat its unknown value as one more coordinate of a big bell curve together with the observed values, and ask what the bell curve says about it given what we saw. For a sine curve, the predictions are confident between the data points and revert to the prior beyond them. For yes/no labels, the hidden function is squashed into a probability, the bell-curve shortcut breaks, and the prediction has to be approximated.
+
+**Learning the kernel (@sec-w9-hyper).** The kernel's settings, like how quickly correlations fade, can be tuned by asking which settings make the observed data most probable. That choice balances fitting the data against being so flexible that any data would look plausible.

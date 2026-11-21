@@ -286,6 +286,11 @@ window.Quarto = {
 </li>
         <li class="sidebar-item">
   <div class="sidebar-item-container"> 
+  <a href="../lectures/week09.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Week 9: Bayesian Linear Regression and Gaussian Processes</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
   <a href="../glossary.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Glossary</span></a>
   </div>
 </li>
@@ -2618,6 +2623,38 @@ Note
 </table>
 <p><code>eps</code> is created as fresh random numbers with no connection to the network’s weights, so it is the “noise from outside the gradient path”. Gradients flow into <code>mu</code> and <code>std</code>, and through <code>std</code> into <code>logvar</code>.</p>
 <p><code>self.training</code> is a flag PyTorch sets with <code>vae.train()</code> and clears with <code>vae.eval()</code>. In evaluation mode, <code>latent_sample</code> skips the noise and returns <span class="math inline">\mu</span>, the mean of <span class="math inline">q(z\mid x)</span>, so evaluation is deterministic: the same image always gets the same code and the same reconstruction.</p>
+<div class="clarification callout callout-style-default callout-tip callout-titled" title="Question: Where do $\mu$ and $\log\sigma^2$ come from at the start, and how is $z$ sampled from them?">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-51-contents" aria-controls="callout-51" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Question: Where do <span class="math inline">\mu</span> and <span class="math inline">\log\sigma^2</span> come from at the start, and how is <span class="math inline">z</span> sampled from them?
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-51" class="callout-51-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>The encoder does not compute <span class="math inline">\mu</span> and <span class="math inline">\log\sigma^2</span> from statistics of the data. For each image <span class="math inline">x</span>, the encoder runs <span class="math inline">x</span> through its layers, and the last two layers output <span class="math inline">\mu = g_\mu(x,\phi)</span> and <span class="math inline">\log\sigma^2 = g_{\log\sigma^2}(x,\phi)</span>. The data enters only through this forward pass.</p>
+<p><strong>At the start, these values are arbitrary.</strong> The encoder weights <span class="math inline">\phi</span> are random, so the outputs are essentially random functions of <span class="math inline">x</span>. With small random weights, the outputs are typically near zero, which puts <span class="math inline">\log\sigma^2</span> near 0 and <span class="math inline">\sigma</span> near 1. That is a side effect of the initialization, not a rule. Nothing in the notebook fits <span class="math inline">\mu</span> or <span class="math inline">\sigma</span> to the images beforehand. Training adjusts <span class="math inline">\phi</span> until the outputs are useful. This differs from the mixture model, where the starting centres could be drawn from the data.</p>
+<p><strong><span class="math inline">q</span> is a density, and its output is a number.</strong> For <span class="math inline">M</span> latent dimensions, <span class="math inline">q(z\mid x,\phi) = \prod_{m=1}^{M}\mathcal N(z_m;\,\mu_m,\sigma_m^2)</span>. You give it a vector <span class="math inline">z</span> and it returns one density value. The vectors are the input <span class="math inline">z</span> and the parameters <span class="math inline">(\mu, \log\sigma^2)</span>.</p>
+<p><strong>Sampling from <span class="math inline">q</span>.</strong> The encoder does not output <span class="math inline">z</span>. To draw one sample for an image:</p>
+<ol type="1">
+<li>Compute <span class="math inline">\sigma = \exp\big(\tfrac12\log\sigma^2\big)</span> from the encoder output.</li>
+<li>Draw <span class="math inline">e\sim\mathcal N(0, I)</span>. This noise does not depend on <span class="math inline">x</span> or <span class="math inline">\phi</span>.</li>
+<li>Compute <span class="math inline">z = \mu + \sigma\odot e</span>.</li>
+</ol>
+<p>Each <span class="math inline">z</span> is a draw from <span class="math inline">q(z\mid x,\phi)</span>, because a shifted and scaled Gaussian is still Gaussian with mean <span class="math inline">\mu</span> and standard deviation <span class="math inline">\sigma</span>. The noise <span class="math inline">e</span> does not model noise in the image. It is the randomness that makes <span class="math inline">z</span> a sample, moved outside the parameters so that gradients can reach <span class="math inline">\mu</span> and <span class="math inline">\sigma</span>. The spread of <span class="math inline">z</span> comes from <span class="math inline">\sigma</span>, which the encoder learns.</p>
+<p><strong>Worked example</strong> with <span class="math inline">M=2</span>, <span class="math inline">\mu = (0.3,\ -1.2)</span>, and <span class="math inline">\log\sigma^2 = (0,\ -2)</span>:</p>
+<ul>
+<li><span class="math inline">\sigma = (1,\ 0.368)</span>.</li>
+<li>Draw <span class="math inline">e = (0.5,\ -1)</span>.</li>
+<li><span class="math inline">z = \mu + \sigma\odot e = (0.3 + 0.5,\ -1.2 - 0.368) = (0.8,\ -1.568)</span>.</li>
+</ul>
+<p>A different draw of <span class="math inline">e</span> gives a different <span class="math inline">z</span> for the same image. Evaluating the density at that <span class="math inline">z</span> gives <span class="math inline">q(z\mid x)\approx 0.352 \times 0.658 \approx 0.232</span>.</p>
+</div>
+</div>
+</div>
 </section>
 <section id="sec-w7-code-loss" class="level3">
 <h3 class="anchored" data-anchor-id="sec-w7-code-loss">The loss</h3>
@@ -2803,7 +2840,7 @@ Note
 <li><code>iter(test_dataloader).next()</code> in the reconstruction cell needs to be written <code>next(iter(test_dataloader))</code>.</li>
 </ul>
 <div class="clarification callout callout-style-default callout-tip callout-titled" title="Recap: The VAE notebook">
-<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-51-contents" aria-controls="callout-51" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-52-contents" aria-controls="callout-52" aria-expanded="false" aria-label="Toggle callout">
 <div class="callout-icon-container">
 <i class="callout-icon"></i>
 </div>
@@ -2812,7 +2849,7 @@ Note
 </div>
 <div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
 </div>
-<div id="callout-51" class="callout-51-contents callout-collapse collapse">
+<div id="callout-52" class="callout-52-contents callout-collapse collapse">
 <div class="callout-body-container callout-body">
 <p>What the symbols and variables stand for:</p>
 <ul>

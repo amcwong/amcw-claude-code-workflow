@@ -92,6 +92,14 @@ A teaching example in one dimension with $K=2$: $\pi = (0.3, 0.7)$, $\mu = (0, 3
 - At $x=3$: the heights are $0.3989\,e^{-4.5}\approx0.0044$ and $0.3989$, so $p(3)\approx0.0013 + 0.2792 = 0.2806$.
 
 The density is highest near the mean of the heavier component, and the lighter component still adds its own bump near 0.
+
+**What $x_n$ is.** The observed value for one crab: its forehead-width-to-body-length ratio. It is a single number, the data, not a distribution. The crab example uses the ratio, not forehead width alone.
+
+**What $p(x_n)$ is.** The mixture density evaluated at that number. It is a height, not a probability. For the crab with ratio $x = 0.640$ in Figure 1, the two weighted component heights are $\pi_1\,\mathcal N(0.640\mid\mu_1,\sigma^2)\approx14.08$ and $\pi_2\,\mathcal N(0.640\mid\mu_2,\sigma^2)\approx7.77$, so $p(x_n) = 14.08 + 7.77 = 21.85$ (the worked example in @sec-w8-resp). The sum runs over the $K$ components at one point, not over observations.
+
+**The generative story.** A crab is not a sum of distributions. It comes from exactly one sub-species, the hidden label $z_n$, which is picked with probability $\pi_k$. Its ratio is then drawn from that sub-species' Gaussian. Averaging over the unknown label gives $p(x)$, which describes the population's distribution of ratios. It does not describe a single observation as a blend.
+
+**Reading the sum in @sec-w8-why-diff.** The bottom panel of Figure 3 shows $p(x_n)$ with three terms because the label is unknown: the density of one observation is written as a sum over the possible labels. It does not mean one crab is three distributions added together.
 :::
 
 ::: {.callout-note .section-takeaways}
@@ -281,26 +289,109 @@ Inside $\log0.1228$, the two components' contributions $0.1197$ and $0.0031$ are
 - The log sits on top of a sum over components, so it cannot be split into pieces that each involve one Gaussian. That is what stops the easy single-Gaussian answer (sample mean and sample covariance) from carrying over directly.
 :::
 
+## Why we can differentiate here but could not in Week 7 {#sec-w8-why-diff}
+
+Week 7 hit a wall before any calculus. The evidence $p(x)=\int p(x,z)\,dz$ ([Week 7 recap](week07.qmd#sec-w7-recap)) sums over every value of the latent variables, and with many latent variables that sum has exponentially many terms. Without the evidence we cannot evaluate the log-likelihood, so there is no function to differentiate, and maximum likelihood was out of reach. The ELBO was the workaround: it avoids the evidence by optimizing a lower bound.
+
+Here the latent variable is one label per point, $z_n\in\{1,\dots,K\}$, so the evidence of one point is a sum of only $K$ terms, $p(x_n)=\sum_{k=1}^K \pi_k\,\mathcal N_D(x_n\mid\mu_k,\Sigma_k)$. The log-likelihood is therefore a finite, computable function of the parameters, and it can be differentiated term by term. Figure 3 puts the two sums side by side, and the next section differentiates this log-likelihood.
+
+```{=html}
+<div style="overflow-x:auto; margin:1.5rem 0;">
+<svg viewBox="0 0 600 450" width="100%" style="max-width:600px;display:block;margin:auto;font-family:Helvetica,'Helvetica Neue',Arial,sans-serif;" role="img" aria-label="Two sum trees. Top, Week 7: a root with branches to a leaf for every full setting of M latent variables, giving 2 to the power M terms. Bottom, Week 8: one root with three leaves, one per label value k equal to 1, 2, 3, giving K terms.">
+  <text x="300" y="32" text-anchor="middle" font-size="24" font-weight="600" fill="#333">Week 7: one term per configuration</text>
+  <line x1="300" y1="95" x2="165" y2="111" stroke="#888" stroke-width="1.8"/>
+  <line x1="300" y1="95" x2="435" y2="111" stroke="#888" stroke-width="1.8"/>
+  <line x1="165" y1="159" x2="110" y2="181" stroke="#888" stroke-width="1.8"/>
+  <line x1="165" y1="159" x2="220" y2="181" stroke="#888" stroke-width="1.8"/>
+  <line x1="435" y1="159" x2="380" y2="181" stroke="#888" stroke-width="1.8"/>
+  <line x1="435" y1="159" x2="490" y2="181" stroke="#888" stroke-width="1.8"/>
+  <circle cx="300" cy="75" r="20" fill="#F7D9C4" stroke="#C78557" stroke-width="2"/>
+  <text x="300" y="81" text-anchor="middle" font-size="15" fill="#794520">p(x)</text>
+  <circle cx="165" cy="135" r="24" fill="#FAEDCB" stroke="#C7A857" stroke-width="2"/>
+  <text x="165" y="140" text-anchor="middle" font-size="13" fill="#796020">z1=0</text>
+  <circle cx="435" cy="135" r="24" fill="#FAEDCB" stroke="#C7A857" stroke-width="2"/>
+  <text x="435" y="140" text-anchor="middle" font-size="13" fill="#796020">z1=1</text>
+  <circle cx="110" cy="195" r="14" fill="#C9E4DE" stroke="#57C7AE" stroke-width="2"/>
+  <circle cx="220" cy="195" r="14" fill="#C9E4DE" stroke="#57C7AE" stroke-width="2"/>
+  <circle cx="380" cy="195" r="14" fill="#C9E4DE" stroke="#57C7AE" stroke-width="2"/>
+  <circle cx="490" cy="195" r="14" fill="#C9E4DE" stroke="#57C7AE" stroke-width="2"/>
+  <text x="300" y="203" text-anchor="middle" font-size="24" fill="#555">…</text>
+  <text x="300" y="238" text-anchor="middle" font-size="14" fill="#555">Each leaf is one full setting of the latents: 2^M leaves.</text>
+  <line x1="40" y1="256" x2="560" y2="256" stroke="#ccc" stroke-width="1.5" stroke-dasharray="6,5"/>
+  <text x="300" y="292" text-anchor="middle" font-size="24" font-weight="600" fill="#333">Week 8: one term per label value</text>
+  <line x1="300" y1="350" x2="170" y2="378" stroke="#888" stroke-width="1.8"/>
+  <line x1="300" y1="350" x2="300" y2="378" stroke="#888" stroke-width="1.8"/>
+  <line x1="300" y1="350" x2="430" y2="378" stroke="#888" stroke-width="1.8"/>
+  <circle cx="300" cy="330" r="20" fill="#F7D9C4" stroke="#C78557" stroke-width="2"/>
+  <text x="300" y="336" text-anchor="middle" font-size="15" fill="#794520">p(x_n)</text>
+  <circle cx="170" cy="400" r="22" fill="#C9E4DE" stroke="#57C7AE" stroke-width="2"/>
+  <text x="170" y="405" text-anchor="middle" font-size="13" fill="#207965">k=1</text>
+  <circle cx="300" cy="400" r="22" fill="#C9E4DE" stroke="#57C7AE" stroke-width="2"/>
+  <text x="300" y="405" text-anchor="middle" font-size="13" fill="#207965">k=2</text>
+  <circle cx="430" cy="400" r="22" fill="#C9E4DE" stroke="#57C7AE" stroke-width="2"/>
+  <text x="430" y="405" text-anchor="middle" font-size="13" fill="#207965">k=3</text>
+  <text x="300" y="442" text-anchor="middle" font-size="14" fill="#555">K = 3 terms, however many latent configurations there are</text>
+</svg>
+</div>
+```
+
+**Figure 3.** The evidence as a sum over latent values, drawn two ways. Top: in Week 7 each full setting of the $M$ latent variables is a leaf, so the sum has $2^M$ terms and grows exponentially. Bottom: in Week 8 each point has one label that takes one of $K$ values, so the sum of its evidence has only $K$ terms.
+
+Being differentiable does not make the problem solvable. The derivatives involve the responsibilities $\gamma_{nk}=p(z_n=k\mid x_n)$, which depend on all the parameters. Setting the derivatives to zero gives equations the parameters must satisfy, but they cannot be solved for the parameters directly. EM, below, is the way around that.
+
+::: {.callout-note .section-takeaways}
+**Key takeaways.**
+
+- In Week 7 the evidence was a sum over exponentially many latent configurations, so the log-likelihood could not be computed and maximum likelihood was out of reach.
+- With one label per point, the evidence is a sum of K terms, so the log-likelihood is computable and can be differentiated.
+- Differentiable is not solvable: the stationarity equations contain the responsibilities, which depend on the parameters, which is why EM is needed.
+:::
+
 ## Maximum likelihood {#sec-w8-mle}
 
 Even without a closed form, we can still differentiate the log-likelihood and set the derivatives to zero. This gives equations that the MLE must satisfy, and they have a clean interpretation.
 
 ### The means {#sec-w8-mle-mu}
 
-Two facts do the work. First, for a symmetric matrix $A$, the **[gradient](https://en.wikipedia.org/wiki/Gradient)** of a quadratic form is $\nabla_\mu\,(x-\mu)^\top A(x-\mu) = -2A(x-\mu)$, so
+Throughout this subsection, $A$ stands for the **inverse covariance** $\Sigma_k^{-1}$ of component $k$. It is symmetric because $\Sigma_k$ is, and the steps below use that symmetry.
 
-$$\nabla_{\mu_k}\,\mathcal N_D(x_n\mid\mu_k,\Sigma_k) = \mathcal N_D(x_n\mid\mu_k,\Sigma_k)\,\Sigma_k^{-1}(x_n-\mu_k).$$
+::: {style="background:#C6DEF1; border-left:4px solid #5795C7; color:#205279; padding:0.75em 1em; border-radius:6px; margin:1em 0;"}
+**Reminder: why $\Sigma$ is a matrix.** Week 1 treated a single Gaussian as one-dimensional, so its spread was one number, the variance $\sigma^2$. Week 3 introduced the multivariate normal for a vector $x\in\mathbb R^D$. Its spread is a $D\times D$ covariance matrix $\Sigma$: the diagonal holds each coordinate's variance, and the off-diagonal entries hold the covariances between pairs of coordinates. $\Sigma$ is symmetric (the covariance of $x_i$ with $x_j$ equals that of $x_j$ with $x_i$) and positive definite, which makes the density well defined and $\Sigma^{-1}$ exist. The earlier weeks did not need a matrix because their observations were single numbers. In the crab example $D=1$, so $\Sigma_k$ is just $\sigma_k^2$ and every formula reduces to the one-dimensional case.
+:::
 
-Second, the derivative of $\log f$ is $f'/f$. Only the $k$-th term of the inner sum depends on $\mu_k$, so
+**Step 1: the gradient of the quadratic form.** Let $q(\mu) = (x-\mu)^\top A(x-\mu)$. Expanding gives $q = x^\top A x - 2\mu^\top A x + \mu^\top A\mu$. The two cross terms are equal only because $A$ is symmetric, which is how they combine into $-2\mu^\top A x$. The first term does not depend on $\mu$. The second has gradient $-2Ax$. The third has gradient $(A+A^\top)\mu = 2A\mu$. Adding these,
+
+$$\nabla_\mu\,q = -2Ax + 2A\mu = -2A(x-\mu).$$
+
+Symmetry is what makes the simple $-2A(x-\mu)$ form hold. For a non-symmetric matrix the gradient would be $-(A+A^\top)(x-\mu)$.
+
+**Step 2: the density.** Write $\mathcal N_D(x_n\mid\mu_k,\Sigma_k) = c_k\,\exp(-\tfrac12 q)$, where $c_k = 1/\big((2\pi)^{D/2}|\Sigma_k|^{1/2}\big)$ does not depend on $\mu_k$. The chain rule gives
 
 $$
 \begin{aligned}
-0 &= \sum_{n=1}^N\frac{\pi_k\,\mathcal N(x_n\mid\mu_k,\Sigma_k)}{\sum_j\pi_j\,\mathcal N(x_n\mid\mu_j,\Sigma_j)}\,\Sigma_k^{-1}(x_n-\mu_k)\\
-&= \Sigma_k^{-1}\sum_{n=1}^N p(z_n=k\mid x_n)\,(x_n-\mu_k).
+\nabla_{\mu_k}\,\mathcal N_D(x_n\mid\mu_k,\Sigma_k) &= c_k\,\exp(-\tfrac12 q)\cdot\big(-\tfrac12\big)\nabla_{\mu_k}q\\
+&= \mathcal N_D(x_n\mid\mu_k,\Sigma_k)\cdot\big(-\tfrac12\big)\cdot\big(-2\,\Sigma_k^{-1}(x_n-\mu_k)\big)\\
+&= \mathcal N_D(x_n\mid\mu_k,\Sigma_k)\,\Sigma_k^{-1}(x_n-\mu_k).
 \end{aligned}
 $$
 
-The fraction that appeared is exactly the responsibility. Because $\Sigma_k$ is positive definite, $\Sigma_k^{-1}$ is invertible and we can multiply it away, leaving $\sum_n\gamma_{nk}(x_n-\mu_k) = 0$. Solving for $\mu_k$:
+**Step 3: the log of the mixture.** The derivative of $\log f$ is $f'/f$. Only the $k$-th term of the inner sum depends on $\mu_k$, so the derivative of the log-density of one point is
+
+$$
+\nabla_{\mu_k}\log\sum_{j}\pi_j\,\mathcal N_D(x_n\mid\mu_j,\Sigma_j) = \frac{\pi_k\,\mathcal N_D(x_n\mid\mu_k,\Sigma_k)}{\sum_j\pi_j\,\mathcal N_D(x_n\mid\mu_j,\Sigma_j)}\,\Sigma_k^{-1}(x_n-\mu_k) = \gamma_{nk}\,\Sigma_k^{-1}(x_n-\mu_k).
+$$
+
+**Step 4: sum over the data.** Setting the derivative of the full log-likelihood to zero, and pulling out $\Sigma_k^{-1}$, which does not depend on $n$:
+
+$$
+0 = \sum_{n=1}^N\gamma_{nk}\,\Sigma_k^{-1}(x_n-\mu_k) = \Sigma_k^{-1}\sum_{n=1}^N\gamma_{nk}\,(x_n-\mu_k).
+$$
+
+**Step 5: solve.** $\Sigma_k$ is positive definite, so $\Sigma_k^{-1}$ is invertible and we can multiply it away, leaving $\sum_n\gamma_{nk}(x_n-\mu_k) = 0$. Split the sum and write $N_k = \sum_n\gamma_{nk}$:
+
+$$\sum_n\gamma_{nk}\,x_n = \mu_k\sum_n\gamma_{nk} = N_k\,\mu_k.$$
+
+Solving for $\mu_k$ gives:
 
 ::: {.boxed-eq}
 $$\mu_k = \frac{1}{N_k}\sum_{n=1}^N p(z_n=k\mid x_n)\,x_n,\qquad N_k = \sum_{n=1}^N p(z_n=k\mid x_n).$$
@@ -373,6 +464,16 @@ With hard labels, component 1 would have mean 0.5. The point at 4, with only 0.2
 - These are conditions the answer must satisfy, not the answer itself: the responsibilities on the right depend on the parameters on the left.
 :::
 
+::: {.callout-tip collapse="true" .clarification title="Question: Why did earlier MLEs give the answer directly, and why must this one be iterated?"}
+In Week 1 and Week 3 the stationarity equations could be rearranged into the form "parameter = formula in the data": the sample mean, the sample covariance, and $K^{-1} = S_n$. Each equation says that the model's expected sufficient statistic equals its empirical average. For a single Gaussian those statistics are the data's first and second moments, so the solution comes out in one step.
+
+Here the equations look just as familiar, but the right-hand side contains the responsibilities $\gamma_{nk}$, and those depend on every parameter. The label that would make the sufficient statistics computable from the data, namely which component each point came from, is hidden. Each equation is therefore a fixed-point condition: the parameters appear on both sides, and no rearrangement isolates them.
+
+Iteration is the standard response. EM alternates between fixing the parameters to compute the responsibilities, and fixing the responsibilities to solve the closed-form update. Each pass does not decrease the likelihood. Gradient ascent on the log-likelihood would also work.
+
+Iteration is not new to the course. Week 6 minimized a reverse KL by gradient descent when its stationarity equations had no closed form, and Week 7 maximized the ELBO by gradient ascent. What is new here is that an MLE for a model as simple-looking as a Gaussian mixture needs it.
+:::
+
 ## Motivating the EM algorithm {#sec-w8-why-em}
 
 The three boxed equations look like a solution, but they are not one. Each right-hand side contains the responsibilities $p(z_n=k\mid x_n)$, and the responsibilities themselves depend on the parameters:
@@ -433,6 +534,35 @@ $$\Sigma_k^{\text{new}} = \frac{1}{N_k}\sum_{n=1}^N p(z_n=k\mid x_n)\,(x_n-\mu_k
 
 The covariance update uses the **new** means, which is what the stationarity condition for $\Sigma_k$ asks for.
 
+::: {.callout-tip collapse="true" .clarification title="Question: How are $\pi$, $\mu$, and $\Sigma$ set before the first E-step?"}
+The algorithm says "initialize $\pi,\mu,\Sigma$" but not how. EM needs starting parameters, because the first E-step computes the responsibilities from them. It never needs starting responsibilities. Different starting rules give different instances of the same algorithm. The worked example below uses one of them.
+
+**Worked example: a one-dimensional start.** Four customers spend $x = (0.5,\ 1,\ 4,\ 5)$, and we fit $K=2$ components. The data are one-dimensional, so $\Sigma_k$ reduces to a scalar $\sigma^2$ shared by both components.
+
+1. **Means.** Pick two customers at random, one low and one high: $\mu^{(0)} = (0.5,\ 5)$. Two centres at the same point would make the components identical, and EM would never separate them.
+2. **Weights.** With no information, $\pi^{(0)} = (0.5,\ 0.5)$.
+3. **Spread.** Use the spread of the whole data set. Its mean is $\bar x = 2.625$, the squared deviations sum to $14.69$, so $\sigma^{2(0)} = 14.69/4 \approx 3.67$.
+
+**E-step.** Compute each score $\pi_k\,\mathcal N(x_n\mid\mu_k,\sigma^2)$ and divide by the total across $k$. For $x = 0.5$, the scores are $1.000$ for segment 1 and $0.064$ for segment 2, so the responsibilities are $\approx(0.94,\ 0.06)$. Doing the same for every customer gives the rows $(0.94, 0.06)$, $(0.90, 0.10)$, $(0.18, 0.82)$, and $(0.06, 0.94)$. Low spenders lean toward the low centre and high spenders toward the high one.
+
+**M-step.** The effective counts are $N_1 \approx 2.07$ and $N_2 \approx 1.93$, so $\pi^{(1)} \approx (0.52,\ 0.48)$. The new centres are $\mu^{(1)} \approx (1.15,\ 4.22)$, and the new spread is $\sigma^{(1)} \approx 1.15$. The spread fell from $1.92$ to $1.15$. The start measured spread across the whole data set, while the update measures spread within each component, so it shrinks once customers are assigned.
+
+**Other instances.** The same three parameters can be set in different ways:
+
+| Start rule | $\pi^{(0)}$ | $\mu^{(0)}$ | $\Sigma^{(0)}$ | Notes |
+|---|---|---|---|---|
+| Random data points (the example) | $1/K$ each | $K$ distinct customers picked at random | overall sample covariance | Simple, but sensitive to the draw, so use restarts |
+| k-means++ seeding | $1/K$ each | chosen one at a time, each far from the existing centres | overall sample covariance | Spreads the centres out; usually more reliable |
+| k-means hard assignments | cluster sizes divided by $N$ | cluster means | cluster sample covariances | The usual choice in practice; each component starts from its own cluster |
+| Random responsibilities | $1/K$ each | from one M-step on random row-normalized $\gamma$ | from the same M-step | Valid, but less common |
+| Previous fit (warm start) | last fit's values | last fit's values | last fit's values | Useful when new data arrives |
+| Prior hyperparameters (Bayesian) | prior mean of $\pi$ | prior mean of $\mu_k$ | prior scale | Not a point-estimate start: the prior is a belief that the data then updates |
+
+Whatever the rule, the centres must differ. If every $\mu_k$ starts at the same point, the E-step gives equal responsibilities, the M-step gives identical components again, and EM never moves.
+
+**The crab example.** The worked example later in this section starts from responsibilities that an E-step has already produced, so it skips initialization. The Old Faithful run in the tutorial uses its own starting components, shown in the figures.
+:::
+
 ```{=html}
 <div style="overflow-x:auto; margin:1.5rem 0;">
 <svg viewBox="0 0 620 260" width="100%" style="max-width:620px;display:block;margin:auto;font-family:Helvetica,'Helvetica Neue',Arial,sans-serif;" role="img" aria-label="A loop. Initialize parameters leads to an E-step box (compute responsibilities with parameters fixed), which leads to an M-step box (refit pi, mu, Sigma with responsibilities fixed), which leads to a convergence check. If not converged, an arrow returns to the E-step; if converged, stop.">
@@ -465,15 +595,17 @@ The covariance update uses the **new** means, which is what the stationarity con
 </div>
 ```
 
-**Figure 3.** EM alternates two easy problems: inferring the labels softly with the parameters fixed, and refitting the parameters with the soft labels fixed.
+**Figure 4.** EM alternates two easy problems: inferring the labels softly with the parameters fixed, and refitting the parameters with the soft labels fixed.
 
 ::: {.callout-note}
 **Worked example: one M-step in one dimension.** Three crabs have ratios $x = (0.630,\ 0.640,\ 0.660)$, and suppose an E-step has just produced the responsibilities of component 1, $\gamma_{\cdot1} = (0.9,\ 0.6,\ 0.1)$, so those of component 2 are $\gamma_{\cdot2} = (0.1,\ 0.4,\ 0.9)$.
 
-1. **Effective counts.** $N_1 = 0.9+0.6+0.1 = 1.6$ and $N_2 = 0.1+0.4+0.9 = 1.4$. They add up to $N=3$.
-2. **Mixing coefficients.** $\pi_1 = 1.6/3\approx0.533$ and $\pi_2 = 1.4/3\approx0.467$.
-3. **Means.** $\mu_1 = (0.9\cdot0.630 + 0.6\cdot0.640 + 0.1\cdot0.660)/1.6 = 1.017/1.6\approx0.6356$. Similarly $\mu_2 = 0.913/1.4\approx0.6521$. Each mean is pulled toward the points its component is most responsible for.
-4. **Variances.** $\sigma_1^2 = \frac{1}{1.6}\big[0.9(0.630-0.6356)^2 + 0.6(0.640-0.6356)^2 + 0.1(0.660-0.6356)^2\big]\approx6.2\times10^{-5}$, a standard deviation of about $0.0079$. The same recipe for component 2 gives about $0.0108$.
+Each component is the Gaussian for one value of the hidden label $z$: component 1 is $z=1$ and component 2 is $z=2$. So $\gamma_{n1} = p(z_n=1 \mid x_n)$ is the probability that crab $n$ belongs to class $z=1$, and the two responsibilities for a crab sum to 1 because every crab belongs to exactly one class. The M-step below refits each component using its own column of responsibilities as weights.
+
+1. **Effective counts.** Each component's count is the sum of its responsibilities, $N_k = \sum_n \gamma_{nk}$. So $N_1 = 0.9+0.6+0.1 = 1.6$ and $N_2 = 0.1+0.4+0.9 = 1.4$. They add up to $N=3$, the number of crabs. Read $N_k$ as the soft number of crabs that component $k$ is responsible for.
+2. **Mixing coefficients.** $\pi_k = N_k / N$, the share of the data that component $k$ is responsible for. So $\pi_1 = 1.6/3\approx0.533$ and $\pi_2 = 1.4/3\approx0.467$.
+3. **Means.** $\mu_k = \frac{1}{N_k}\sum_n \gamma_{nk}\, x_n$, a responsibility-weighted average of the data. For component 1, $\mu_1 = (0.9\cdot0.630 + 0.6\cdot0.640 + 0.1\cdot0.660)/1.6 = 1.017/1.6\approx0.6356$. Similarly $\mu_2 = 0.913/1.4\approx0.6521$. Each mean is pulled toward the points its component is most responsible for.
+4. **Variances.** $\sigma_k^2 = \frac{1}{N_k}\sum_n \gamma_{nk}(x_n-\mu_k)^2$, a responsibility-weighted average squared distance from the mean. For component 1, $\sigma_1^2 = \frac{1}{1.6}\big[0.9(0.630-0.6356)^2 + 0.6(0.640-0.6356)^2 + 0.1(0.660-0.6356)^2\big]\approx6.2\times10^{-5}$, a standard deviation of about $0.0079$. The same recipe for component 2 gives about $0.0108$.
 
 The next E-step would recompute the responsibilities from these new parameters, and so on.
 :::
@@ -482,7 +614,7 @@ The next E-step would recompute the responsibilities from these new parameters, 
 **Homework.** Assignment 3, Question 3 asks you to implement the E-step and M-step yourself in numpy, implement k-means, and compare the two. This chapter explains the method and works small invented examples; the implementation and the comparison on the assignment's data are left to the assignment.
 :::
 
-The slides illustrate EM on a two-dimensional dataset with two clusters (it is the Old Faithful geyser data that the tutorial uses; Figure 6 in @sec-w8-code-em shows the tutorial's own run). The two components start as round circles placed away from the data. After one iteration ($L=1$), they have moved onto the data, stretched along it, and the points between them are coloured purple (shared responsibility). By $L=5$ the components have separated, and by $L=20$ each has settled on one cluster, with almost every point a pure colour.
+The slides illustrate EM on a two-dimensional dataset with two clusters (it is the Old Faithful geyser data that the tutorial uses; Figure 7 in @sec-w8-code-em shows the tutorial's own run). The two components start as round circles placed away from the data. After one iteration ($L=1$), they have moved onto the data, stretched along it, and the points between them are coloured purple (shared responsibility). By $L=5$ the components have separated, and by $L=20$ each has settled on one cluster, with almost every point a pure colour.
 
 Two practical caveats, standard for EM though not on the slides. EM climbs to a **local** maximum of the likelihood, so the result can depend on the initialization; the illustration deliberately starts from a poor one to show that it can recover. And a component can collapse onto a single data point (its covariance shrinking toward zero), which sends the likelihood to infinity; implementations guard against this, for example by adding a small multiple of the identity to each $\Sigma_k$.
 
@@ -491,6 +623,10 @@ What the symbols stand for:
 
 - $\mu_k^{\text{new}}$, $\Sigma_k^{\text{new}}$, $\pi_k^{\text{new}}$: the parameters after one M-step.
 - Tolerance: the small change in log-likelihood below which we stop.
+- Effective counts: $N_k = \sum_n \gamma_{nk}$, read as the soft number of crabs component $k$ is responsible for.
+- Mixing coefficients: $\pi_k = N_k / N$, the share of the data that component $k$ is responsible for.
+- Means: $\mu_k = \frac{1}{N_k}\sum_n \gamma_{nk}\, x_n$, a responsibility-weighted average of the data.
+- Variances: $\sigma_k^2 = \frac{1}{N_k}\sum_n \gamma_{nk}(x_n-\mu_k)^2$, a responsibility-weighted average squared distance from the mean.
 
 Taking the algorithm apart:
 
@@ -679,6 +815,49 @@ As the blobs shrink, the soft assignment hardens into "nearest centre", the k-me
 
 ## VI vs EM {#sec-w8-vi-em}
 
+::: {.callout-tip collapse="true" .clarification title="Question: When does $p(Z\mid X)$ have a closed form, and when does it not?"}
+EM needs the posterior $p(Z\mid X,\theta)$ in closed form, or at least computable exactly. VI is for when it is not. Whether that holds depends on whether the latent variables factorize once the parameters $\theta$ are fixed.
+
+**Closed form: clustering customer spending.** A retailer records spending $x_i$ for each of $N$ customers. Each customer belongs to one of $K=3$ hidden segments, $z_i \in \{1,2,3\}$, and each segment $k$ has mean $\mu_k$ and variance $\sigma^2$. Given $\theta$, each customer's segment depends only on that customer's own spending, so the posterior splits into one small problem per customer:
+
+$$
+p(z_i = k \mid x_i, \theta) = \frac{\pi_k\, \mathcal{N}(x_i \mid \mu_k, \sigma^2)}{\sum_{j=1}^{3} \pi_j\, \mathcal{N}(x_i \mid \mu_j, \sigma^2)}.
+$$
+
+That is three numbers per customer, so the E-step is exact. Here is the calculation for one customer, with three segments, $\mu_1 = 0$, $\mu_2 = 3$, $\mu_3 = 6$, $\sigma = 1$, equal weights $\pi_1 = \pi_2 = \pi_3 = \tfrac{1}{3}$, and a customer who spent $x = 1.2$.
+
+1. **What we want.** The probability that this customer is in segment 1, given their spending: $p(z = 1 \mid x = 1.2)$. Steps 2 and 3 repeat the calculation for segments 2 and 3.
+2. **Score each segment by how well it explains the spending.** The Gaussian density for segment $k$ is proportional to $\exp\!\big(-(x-\mu_k)^2 / 2\sigma^2\big)$. The factor $1/\sqrt{2\pi\sigma^2}$ is the same for both segments because they share $\sigma$, so it cancels and we drop it. The score is larger when $x$ is closer to $\mu_k$.
+   - Segment 1: the distance from its mean is $x - \mu_1 = 1.2 - 0 = 1.2$. The score is $\exp(-1.2^2/2) = \exp(-0.72) \approx 0.487$.
+   - Segment 2: the distance from its mean is $x - \mu_2 = 1.2 - 3 = -1.8$. The score is $\exp(-1.8^2/2) = \exp(-1.62) \approx 0.198$.
+   - Segment 3: the distance from its mean is $x - \mu_3 = 1.2 - 6 = -4.8$. The score is $\exp(-4.8^2/2) = \exp(-11.52) \approx 0.00001$. The customer is far from segment 3's mean, so the score is almost zero.
+3. **Weight each score by the prior.** Multiply by $\pi_k$, the share of customers in segment $k$:
+   - Segment 1: $\tfrac{1}{3} \times 0.487 \approx 0.162$
+   - Segment 2: $\tfrac{1}{3} \times 0.198 \approx 0.066$
+   - Segment 3: $\tfrac{1}{3} \times 0.00001 \approx 0.000003$
+4. **Normalize so the two probabilities sum to one.** The total $0.162 + 0.066 + 0.000003 \approx 0.228$ is the probability of this spending value across all segments, $p(x \mid \theta)$. Divide each weighted score by it:
+   - $p(z = 1 \mid x = 1.2) = 0.162 / 0.228 \approx 0.71$
+   - $p(z = 2 \mid x = 1.2) = 0.066 / 0.228 \approx 0.29$
+   - $p(z = 3 \mid x = 1.2) \approx 0.00001$
+
+   The three values sum to 1, as they must. Segment 3 gets almost no probability because its mean is far from the customer's spending.
+
+Step 4's denominator is exactly the sum over $j$ in the general formula: it runs over the three segments for one customer, which is why each customer's posterior is cheap. A topic model's denominator instead sums over every way of assigning every word to a topic, as explained below.
+
+Factor analysis on survey responses works the same way. The latent factors are Gaussian and the observations are linear-Gaussian in the factors, so the posterior is Gaussian with a closed-form mean and covariance. Hidden Markov models also fit: the chain structure lets forward-backward compute the posterior exactly in time linear in the sequence length.
+
+**No closed form: topic models.** A corpus has $D$ documents. Each document $d$ has its own topic mixture $\theta_d$. There are $K$ shared topics, each a distribution $\beta_k$ over words. Each word $w_{dn}$ has a hidden topic label $z_{dn}$. The labels depend on their document's mixture, and the mixtures and topics are shared across documents. Computing the posterior requires the normalizer $p(X)$, which sums over every way of assigning every word to a topic. With thousands of words, that is astronomically many terms. A mean-field family with one factor per $\theta_d$, $\beta_k$, and $z_{dn}$, updated by CAVI, is the standard approach.
+
+**No closed form: Bayesian logistic regression.** A bank predicts loan default from applicant features. The weights $w$ get a Gaussian prior, and the Bernoulli likelihood uses a sigmoid link. The sigmoid is not conjugate to the Gaussian prior, so $p(w \mid \text{data})$ has no closed form. Here the latent variable is the parameter itself. EM would give only a point estimate of $w$, while VI gives an approximate posterior over $w$, which is what you need when you want uncertainty on the default probabilities.
+
+**A quick test.** Ask two questions:
+
+1. Given $\theta$, do the latents factorize over data points or along a chain? If so, the E-step is exact and EM applies.
+2. Is there shared structure that couples the latents, such as shared topics, shared parameters, a graph or grid, or a non-conjugate likelihood? If so, the posterior is intractable and VI applies.
+
+"Closed form" and "computable exactly" are not quite the same. The HMM posterior has no simple formula, but an algorithm computes it exactly. VI is needed when no such exact algorithm exists in reasonable time.
+:::
+
 Both EM and variational inference maximize something built from the expected complete-data log-likelihood. The slide puts them side by side.
 
 **Variational inference** (Week 7) maximizes the ELBO
@@ -864,9 +1043,9 @@ What sort of data does this model produce? Matrix-vector multiplication gives th
 </div>
 ```
 
-**Figure 4.** PPCA as a generative process. The latent $z$ has only $K$ coordinates; $W$ places it on a plane in $D$ dimensions; isotropic noise then moves it off the plane in every direction.
+**Figure 5.** PPCA as a generative process. The latent $z$ has only $K$ coordinates; $W$ places it on a plane in $D$ dimensions; isotropic noise then moves it off the plane in every direction.
 
-The slides draw this in 2 dimensions with $K=1$: a one-dimensional standard normal $p(z)$; a sampled value $\hat z$ placed at $\mu + \hat z\,w$ along the line through $\mu$ in direction $w$, with a small round Gaussian $p(x\mid\hat z)$ around it; and the resulting marginal $p(x)$, an ellipse elongated along $w$. The column span of $W$ plays the role of the **principal subspace** in PCA. Figure 7 in @sec-w8-code-data shows the same picture in 3 dimensions with $K=2$.
+The slides draw this in 2 dimensions with $K=1$: a one-dimensional standard normal $p(z)$; a sampled value $\hat z$ placed at $\mu + \hat z\,w$ along the line through $\mu$ in direction $w$, with a small round Gaussian $p(x\mid\hat z)$ around it; and the resulting marginal $p(x)$, an ellipse elongated along $w$. The column span of $W$ plays the role of the **principal subspace** in PCA. Figure 8 in @sec-w8-code-data shows the same picture in 3 dimensions with $K=2$.
 
 Unlike PCA, which compresses $x\mapsto z$, the model is written in the direction $z\mapsto x$: it describes how low-dimensional causes generate high-dimensional data.
 
@@ -1068,7 +1247,7 @@ The model captures the variance along the principal axes **exactly**, and approx
 </div>
 ```
 
-**Figure 5.** An invented spectrum with $D=6$: eigenvalues $5, 3, 0.6, 0.5, 0.4, 0.3$. PPCA with $K=2$ keeps variance 5 and 3 along $u_1,u_2$, and models the other four directions with $\hat\sigma^2 = (0.6+0.5+0.4+0.3)/4 = 0.45$. The columns of $\hat W$ then have lengths $\sqrt{5-0.45}\approx2.13$ and $\sqrt{3-0.45}\approx1.60$.
+**Figure 6.** An invented spectrum with $D=6$: eigenvalues $5, 3, 0.6, 0.5, 0.4, 0.3$. PPCA with $K=2$ keeps variance 5 and 3 along $u_1,u_2$, and models the other four directions with $\hat\sigma^2 = (0.6+0.5+0.4+0.3)/4 = 0.45$. The columns of $\hat W$ then have lengths $\sqrt{5-0.45}\approx2.13$ and $\sqrt{3-0.45}\approx1.60$.
 
 ::: {.callout-tip collapse="true" .clarification title="Recap: Interpreting the MLE"}
 What the symbols stand for:
@@ -1270,9 +1449,9 @@ log-likelihood never decreases: True
 fitted mixing weights: [0.356 0.644]
 ```
 
-![**Figure 6.** The tutorial's EM run on the standardized Old Faithful data. From left: the initialization (two unit circles off the data), the fit after 1, 5, and 20 iterations, and the total log-likelihood over 25 iterations. Point colour is the responsibility of the blue component, from red (0) through pale and purple-ish shades (shared) to blue (1).](figures/week08/em-old-faithful.png){fig-alt="Five panels. The first shows grey points in two clusters, lower left and upper right, with a blue circle at the top left and a red circle at the bottom right, both away from the data. After 1 iteration both components are long thin ellipses lying along the whole diagonal of the data, and points in the middle are pale. After 5 iterations the blue ellipse covers the lower-left cluster and the red ellipse the upper-right one. After 20 iterations each ellipse fits its cluster tightly and nearly every point is clearly red or blue. The last panel shows the log-likelihood rising from about minus 535 to about minus 386 and flattening after about 11 iterations."}
+![**Figure 7.** The tutorial's EM run on the standardized Old Faithful data. From left: the initialization (two unit circles off the data), the fit after 1, 5, and 20 iterations, and the total log-likelihood over 25 iterations. Point colour is the responsibility of the blue component, from red (0) through pale and purple-ish shades (shared) to blue (1).](figures/week08/em-old-faithful.png){fig-alt="Five panels. The first shows grey points in two clusters, lower left and upper right, with a blue circle at the top left and a red circle at the bottom right, both away from the data. After 1 iteration both components are long thin ellipses lying along the whole diagonal of the data, and points in the middle are pale. After 5 iterations the blue ellipse covers the lower-left cluster and the red ellipse the upper-right one. After 20 iterations each ellipse fits its cluster tightly and nearly every point is clearly red or blue. The last panel shows the log-likelihood rising from about minus 535 to about minus 386 and flattening after about 11 iterations."}
 
-What to read off Figure 6, following the notebook's comments:
+What to read off Figure 7, following the notebook's comments:
 
 - **Soft assignments.** After one iteration, the points between the two ellipses are pale: they are shared between the clusters. EM does not force a choice until the data does.
 - **Monotone likelihood.** The log-likelihood goes up at every iteration (the printed check confirms no decrease, up to a tolerance of $10^{-6}$ for rounding), as proved in @sec-w8-em-monotone, and is flat after about 11 iterations, once the two components have settled on which cluster each owns.
@@ -1304,12 +1483,12 @@ def make_data(N, sigmasq, rng):
 ```
 
 - **The true parameters.** `U_true` has two orthonormal columns, $(1,1,0)/\sqrt2$ and $(-1,1,1)/\sqrt3$ (each has length 1, and their dot product is $(-1+1+0)/\sqrt6 = 0$). `W_true` scales them by 2 and 1, so $w_1$ has length 2 and $w_2$ length 1. Then $W W^\top = U\,\mathrm{diag}(4,1)\,U^\top$: the true variance along the plane is 4 in direction $u_1$ and 1 in direction $u_2$.
-- **`make_data`** is the generative process of Figure 4, row by row. `rng.standard_normal((N, K))` draws $N$ latent vectors $z\sim\mathcal N(0,I_2)$, stacked as rows of `Z`. With data points as rows, $Wz$ for every point at once is `Z @ W_true.T` ($N\times K$ times $K\times D$). Adding `mu_true` gives the noise-free `signal`, which lies exactly on the plane. Adding `np.sqrt(sigmasq)` times standard normals gives noise with variance $\sigma^2$ in each of the 3 coordinates.
+- **`make_data`** is the generative process of Figure 5, row by row. `rng.standard_normal((N, K))` draws $N$ latent vectors $z\sim\mathcal N(0,I_2)$, stacked as rows of `Z`. With data points as rows, $Wz$ for every point at once is `Z @ W_true.T` ($N\times K$ times $K\times D$). Adding `mu_true` gives the noise-free `signal`, which lies exactly on the plane. Adding `np.sqrt(sigmasq)` times standard normals gives noise with variance $\sigma^2$ in each of the 3 coordinates.
 - It returns the latent `Z` and the clean `signal` too, which a real dataset would never provide; the notebook uses them later to measure how well each method recovers the truth.
 
 The next cell (omitted here) draws the plane $\mu + \mathrm{span}(W)$ in orange, the two columns of $W$ as red arrows, and 400 samples.
 
-![**Figure 7.** 400 samples from the tutorial's PPCA model, viewed almost edge-on to the plane. Left: the noise-free $Wz+\mu$, all on the orange plane. Middle: after adding noise with $\sigma^2 = 0.1$. Right: the same with $\sigma^2 = 2$.](figures/week08/ppca-generative.png){fig-alt="Three 3D scatter plots of blue points with a translucent orange plane seen nearly edge-on and two short red arrows at its centre. In the left plot every point lies on the plane. In the middle plot the points form a thin layer around the plane. In the right plot the points form a ball and the plane is hard to see."}
+![**Figure 8.** 400 samples from the tutorial's PPCA model, viewed almost edge-on to the plane. Left: the noise-free $Wz+\mu$, all on the orange plane. Middle: after adding noise with $\sigma^2 = 0.1$. Right: the same with $\sigma^2 = 2$.](figures/week08/ppca-generative.png){fig-alt="Three 3D scatter plots of blue points with a translucent orange plane seen nearly edge-on and two short red arrows at its centre. In the left plot every point lies on the plane. In the middle plot the points form a thin layer around the plane. In the right plot the points form a ball and the plane is hard to see."}
 
 With small $\sigma^2$ the data is a thin pancake around the plane; with large $\sigma^2$ the pancake becomes a ball and the plane is hard to see. In practice we only see the blue points $x^{(i)}$ and must estimate $W$, $\mu$, $\sigma^2$.
 
@@ -1411,7 +1590,7 @@ u_i^T C_hat u_i: [4.065 1.083 0.104]   = (lambda_1, lambda_2, sigma_hat^2)
 
 The next cell fits PPCA for four combinations of sample size and noise, and draws the principal axes of the true $C$ and the fitted $\hat C$ (one standard deviation along each eigenvector).
 
-![**Figure 8.** PPCA fits for $N\in\{20, 1000\}$ and $\sigma^2\in\{0.1, 2\}$. Orange: principal axes of the true covariance $C$. Purple: those of the fitted $\hat C$. The panel titles report $\hat\sigma^2$ and the angle between the fitted and true subspaces.](figures/week08/ppca-fits.png){fig-alt="Four 3D scatter plots with orange and purple crosses of axes at the centre. Titles: N=20, sigma squared 0.1, estimate 0.05, subspace angle 4.2 degrees; N=1000, sigma squared 0.1, estimate 0.10, angle 1.1 degrees; N=20, sigma squared 2.0, estimate 0.58, angle 10.6 degrees; N=1000, sigma squared 2.0, estimate 2.01, angle 4.1 degrees. The purple axes nearly coincide with the orange ones except in the third panel, where they are visibly tilted and the short axes differ."}
+![**Figure 9.** PPCA fits for $N\in\{20, 1000\}$ and $\sigma^2\in\{0.1, 2\}$. Orange: principal axes of the true covariance $C$. Purple: those of the fitted $\hat C$. The panel titles report $\hat\sigma^2$ and the angle between the fitted and true subspaces.](figures/week08/ppca-fits.png){fig-alt="Four 3D scatter plots with orange and purple crosses of axes at the centre. Titles: N=20, sigma squared 0.1, estimate 0.05, subspace angle 4.2 degrees; N=1000, sigma squared 0.1, estimate 0.10, angle 1.1 degrees; N=20, sigma squared 2.0, estimate 0.58, angle 10.6 degrees; N=1000, sigma squared 2.0, estimate 2.01, angle 4.1 degrees. The purple axes nearly coincide with the orange ones except in the third panel, where they are visibly tilted and the short axes differ."}
 
 More data helps (compare left and right within each noise level), and more noise hurts (compare the two $N=20$ panels). With 20 points and $\sigma^2=2$, the noise estimate is far too small ($0.58$ against $2$) and the plane is off by about $10.6°$. With 1,000 points both are estimated well even at high noise.
 
@@ -1562,7 +1741,7 @@ print(f"full Gaussian: {D * (D + 1) // 2 + D:>2} parameters, held-out log-likeli
 - **Generation** is `make_data` with the fitted parameters in place of the true ones.
 - **Held-out log-likelihood.** `stats.multivariate_normal.logpdf(Xte, mean, cov)` evaluates $\log\mathcal N(x\mid\text{mean},\text{cov})$ at each of the 5,000 test points; `.mean()` averages them. For PPCA the covariance is $\hat W\hat W^\top + \hat\sigma^2I$; for the full Gaussian it is the empirical covariance of the training data. Higher is better, and because the test points were not used for fitting, a model cannot score well just by having more parameters.
 
-![**Figure 9.** 300 training points (blue) and 300 new points sampled from the PPCA model fitted to them (purple).](figures/week08/ppca-samples.png){fig-alt="A 3D scatter plot in which blue training points and purple sampled points overlap, both forming the same flat tilted cloud."}
+![**Figure 10.** 300 training points (blue) and 300 new points sampled from the PPCA model fitted to them (purple).](figures/week08/ppca-samples.png){fig-alt="A 3D scatter plot in which blue training points and purple sampled points overlap, both forming the same flat tilted cloud."}
 
 ```
 PPCA K=1:  7 parameters, held-out log-likelihood per point = -4.440
@@ -1570,7 +1749,7 @@ PPCA K=2: 10 parameters, held-out log-likelihood per point = -3.845
 full Gaussian:  9 parameters, held-out log-likelihood per point = -3.845
 ```
 
-The samples in Figure 9 fill the same pancake as the training data. $K=1$ scores clearly worse: it has to explain a two-dimensional pancake with a line plus isotropic noise. $K=2$ matches the full Gaussian. With $D=3$ PPCA saves nothing in parameters (the printed count $DK+D+1$ does not subtract the rotation redundancy, which is why it even exceeds the full Gaussian's 9); with $D = 10^4$, the saving is the difference between a model we can fit and one we cannot.
+The samples in Figure 10 fill the same pancake as the training data. $K=1$ scores clearly worse: it has to explain a two-dimensional pancake with a line plus isotropic noise. $K=2$ matches the full Gaussian. With $D=3$ PPCA saves nothing in parameters (the printed count $DK+D+1$ does not subtract the rotation redundancy, which is why it even exceeds the full Gaussian's 9); with $D = 10^4$, the saving is the difference between a model we can fit and one we cannot.
 
 ### Appendix: the Woodbury identity and the posterior {#sec-w8-code-woodbury}
 
