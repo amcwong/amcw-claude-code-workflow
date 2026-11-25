@@ -1,0 +1,1487 @@
+---
+title: "Week 8 practice: EM Algorithm and Probabilistic PCA"
+---
+
+```{=html}
+<style>#title-block-header { display: none; }</style>
+<div class="lecture-header">
+  <h1>Week 8 practice: EM Algorithm and Probabilistic PCA</h1>
+</div>
+```
+
+**Overview.** These problems drill [Week 8](week08.qmd) section by section. The chapter opens with an aid sheet: every equation the problems below need, in the week chapter's notation. After that, each heading matches a section (or a group of sections) of the week chapter, in the same order, and its problems test only that material and what came before it. Try each stem before opening the worked solution; under each solution, a second dropdown shows which equations the problem uses and how its parts map onto them.
+
+Every mixture, data set, spectrum and code variant here is invented for practice. None reuses the week's worked examples (the crab mixture with $x=0.640$, the recap mixture with $\pi=(0.3,0.7)$ and $\mu=(0,3)$, the data $(0,1,4,5)$, the customer-spending examples, the eigenvalue spectra in Figure 6 and the recaps, or the tutorial's printed outputs). None is a homework item either: writing the E-step, the M-step and k-means in code, and comparing them on real data, is Assignment 3, Question 3, and is left to the assignment. Logarithms are natural.
+
+## Aid sheet: the equations these problems use {#sec-w8p-aid}
+
+The blocks below follow the order of the week chapter. Each gives the equation, then one line per symbol. The reasoning behind each one is in the week section it points to.
+
+### General math
+
+**Gaussian density (one dimension)**
+
+$$\mathcal N(x\mid\mu,\sigma^2) = \frac{1}{\sigma\sqrt{2\pi}}\exp\left(-\frac{(x-\mu)^2}{2\sigma^2}\right)$$
+
+- The constant $\frac{1}{\sigma\sqrt{2\pi}}$ is the peak height. It is larger for a narrower curve, and it can exceed 1.
+- $\frac{x-\mu}{\sigma}$ is the standardized distance: how many standard deviations $x$ is from the mean.
+
+**Multivariate Gaussian** (@sec-w8-mog)
+
+$$\mathcal N_D(x\mid\mu,\Sigma) = \frac{1}{(2\pi)^{D/2}|\Sigma|^{1/2}}\exp\left(-\tfrac12(x-\mu)^\top\Sigma^{-1}(x-\mu)\right)$$
+
+**Logs, exponentials and the sigmoid**
+
+- $\log(ab)=\log a+\log b$, but $\log(a+b)$ has no such split.
+- **[Jensen's inequality](https://en.wikipedia.org/wiki/Jensen%27s_inequality)** for the concave $\log$: $\log\sum_k\pi_k a_k\ \ge\ \sum_k\pi_k\log a_k$ when the $\pi_k$ are nonnegative and sum to 1.
+- Sigmoid: $\sigma(a)=\frac{1}{1+e^{-a}}$. A two-way normalization $\frac{A}{A+B}$ equals $\sigma(\log A-\log B)$.
+- Values for working by hand: $\frac{1}{\sqrt{2\pi}}\approx0.3989$, $e^{-0.125}\approx0.8825$, $e^{-0.5}\approx0.6065$, $e^{-1.125}\approx0.3247$, $e^{-2}\approx0.1353$, $e^{-4.5}\approx0.0111$, $e^{-8}\approx0.000335$, $\ln2\approx0.693$, $\ln10\approx2.303$.
+
+**Outer product.** For a column vector $v=(a,b)$, $vv^\top=\begin{pmatrix}a^2&ab\\ab&b^2\end{pmatrix}$.
+
+### Mixtures and responsibilities (@sec-w8-mog, @sec-w8-latent, @sec-w8-resp)
+
+**[Mixture of Gaussians](https://en.wikipedia.org/wiki/Mixture_model#Gaussian_mixture_model)**
+
+$$p(x)=\sum_{k=1}^K\pi_k\,\mathcal N_D(x\mid\mu_k,\Sigma_k),\qquad \pi_k\ge0,\quad\sum_k\pi_k=1$$
+
+- $\pi_k$: mixing coefficient, also the prior $p(z=k)$ of the hidden label $z$.
+- Generative story: draw $z=k$ with probability $\pi_k$, then draw $x\sim\mathcal N_D(\mu_k,\Sigma_k)$.
+
+**Responsibility**
+
+$$\gamma_{nk}=p(z_n=k\mid x_n)=\frac{\pi_k\,\mathcal N_D(x_n\mid\mu_k,\Sigma_k)}{\sum_{j=1}^K\pi_j\,\mathcal N_D(x_n\mid\mu_j,\Sigma_j)}$$
+
+- The denominator is the evidence $p(x_n)$. For each $n$, $\sum_k\gamma_{nk}=1$.
+
+### Likelihood and maximum likelihood (@sec-w8-lik, @sec-w8-mle)
+
+**Log-likelihood**
+
+$$\log p(X\mid\pi,\mu,\Sigma)=\sum_{n=1}^N\log\Bigg(\sum_{k=1}^K\pi_k\,\mathcal N_D(x_n\mid\mu_k,\Sigma_k)\Bigg)$$
+
+**Stationarity conditions (also the M-step)**
+
+$$N_k=\sum_{n}\gamma_{nk},\qquad \mu_k=\frac{1}{N_k}\sum_n\gamma_{nk}\,x_n,\qquad \pi_k=\frac{N_k}{N}$$
+
+$$\Sigma_k=\frac{1}{N_k}\sum_n\gamma_{nk}\,(x_n-\mu_k)(x_n-\mu_k)^\top$$
+
+**[Lagrange multipliers](https://en.wikipedia.org/wiki/Lagrange_multiplier).** To maximize $f(\pi)$ subject to $g(\pi)=0$, find stationary points of $f(\pi)+\lambda\,g(\pi)$ in $\pi$ and $\lambda$.
+
+### EM (@sec-w8-em-gmm, @sec-w8-general-em, @sec-w8-em-monotone)
+
+**[EM](https://en.wikipedia.org/wiki/Expectation%E2%80%93maximization_algorithm) for a mixture.** E-step: compute every $\gamma_{nk}$ with the parameters fixed. M-step: apply the stationarity formulas with the $\gamma_{nk}$ fixed. Repeat.
+
+**Expected complete-data log-likelihood**
+
+$$Q(\theta,\theta^{\text{old}})=\sum_Z p(Z\mid X,\theta^{\text{old}})\,\log p(X,Z\mid\theta)$$
+
+- For the mixture: $Q=\sum_n\sum_k\gamma_{nk}\log\big(\pi_k\,\mathcal N(x_n\mid\mu_k,\Sigma_k)\big)$, with $\gamma_{nk}$ computed at $\theta^{\text{old}}$.
+
+**ELBO identity and the monotonicity chain**
+
+$$\log p(X\mid\theta)=\mathcal L(q,\theta)+\mathrm{KL}\big(q(Z)\,\|\,p(Z\mid X,\theta)\big),\qquad \mathcal L(q,\theta)=\mathbb E_q[\log p(X,Z\mid\theta)]+H(q)$$
+
+$$\log p(X\mid\theta^{\text{new}})\ \ge\ \mathcal L(q,\theta^{\text{new}})\ \ge\ \mathcal L(q,\theta^{\text{old}})\ =\ \log p(X\mid\theta^{\text{old}})$$
+
+- $q$ is set to the exact posterior at $\theta^{\text{old}}$ in the E-step. $H(q)=-\mathbb E_q[\log q(Z)]$ is its entropy.
+
+### k-means and VI (@sec-w8-kmeans, @sec-w8-vi-em)
+
+**Shared round covariance $\Sigma_k=\epsilon I$**
+
+$$p(z_n=k\mid x_n)=\frac{\pi_k\exp\big(-\lVert x_n-\mu_k\rVert^2/2\epsilon\big)}{\sum_j\pi_j\exp\big(-\lVert x_n-\mu_j\rVert^2/2\epsilon\big)}$$
+
+- As $\epsilon\to0$ this tends to $r_{nk}$, with $r_{nk}=1$ for the nearest centre and 0 otherwise: the **[k-means](https://en.wikipedia.org/wiki/K-means_clustering)** assignment.
+
+**EM or VI.** EM needs the exact posterior $p(Z\mid X,\theta)$. When the latents do not factorize given $\theta$, or the model is not conjugate, the posterior is intractable and variational inference is used instead.
+
+### PCA and PPCA (@sec-w8-pca-recap to @sec-w8-why-ppca)
+
+**[PCA](https://en.wikipedia.org/wiki/Principal_component_analysis)**
+
+$$\hat\Sigma=\frac1N\sum_i(x^{(i)}-\bar x)(x^{(i)}-\bar x)^\top,\qquad z^{(i)}=U^\top(x^{(i)}-\bar x),\qquad \tilde x^{(i)}=\bar x+Uz^{(i)}$$
+
+- The columns of $U$ are the top $K$ unit **[eigenvectors](https://en.wikipedia.org/wiki/Eigenvalues_and_eigenvectors)** of $\hat\Sigma$. For each centred point, $\lVert x-\bar x\rVert^2=\lVert z\rVert^2+\lVert x-\tilde x\rVert^2$.
+
+**PPCA model and marginal**
+
+$$z\sim\mathcal N_K(0,I_K),\qquad x=Wz+\mu+\epsilon,\quad \epsilon\sim\mathcal N_D(0,\sigma^2I_D)$$
+
+$$x\sim\mathcal N_D\big(\mu,\ C\big),\qquad C=WW^\top+\sigma^2I_D$$
+
+- For any orthogonal $R$ ($RR^\top=I$), $WR$ gives the same $C$.
+
+**Closed-form MLE** (eigenvalues of $\hat\Sigma$ sorted $\lambda_1\ge\dots\ge\lambda_D$)
+
+$$\hat\mu=\bar x,\qquad \hat\sigma^2=\frac{1}{D-K}\sum_{i=K+1}^D\lambda_i,\qquad \hat W=\hat U\big(\hat L-\hat\sigma^2I_K\big)^{1/2}R$$
+
+- Fitted variance: $\lambda_i$ along $u_i$ for $i\le K$, and $\hat\sigma^2$ along every direction orthogonal to them.
+
+**Posterior, shrinkage and the error floor**
+
+$$M=W^\top W+\sigma^2I_K,\qquad p(z\mid x)=\mathcal N\big(M^{-1}W^\top(x-\mu),\ \sigma^2M^{-1}\big)$$
+
+- At the MLE, PPCA's reconstruction multiplies PCA coordinate $i$ by $(\lambda_i-\hat\sigma^2)/\lambda_i$.
+- A $K$-dimensional reconstruction of noisy points cannot have expected squared error below $(D-K)\sigma^2$.
+
+**[Woodbury identity](https://en.wikipedia.org/wiki/Woodbury_matrix_identity) for PPCA**
+
+$$C^{-1}=\sigma^{-2}\big(I_D-WM^{-1}W^\top\big)$$
+
+## Mixture of Gaussians as a latent variable model {#sec-w8p-mog}
+
+### Problem 1: Evaluating a mixture with unequal spreads {#prb-1}
+
+A one-dimensional mixture has $K=2$ components with $\pi=(0.25,\ 0.75)$, $\mu=(-1,\ 2)$ and standard deviations $\sigma=(1,\ 0.5)$.
+
+1. Evaluate $p(x)$ at $x=0$ and at $x=2$. At each point, which component contributes most?
+2. A classmate writes the weights as $(0.5,\ 0.6)$ instead. What does the resulting function integrate to, and why does that disqualify it as a density?
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+This uses [Week 8, Mixture of Gaussians](week08.qmd#sec-w8-mog).
+
+**Part 1.** Evaluate each component's density, weight it, and add.
+
+- The peak heights are $\frac{1}{1\cdot\sqrt{2\pi}}\approx0.3989$ for component 1 and $\frac{1}{0.5\sqrt{2\pi}}\approx0.7979$ for component 2. The narrower component has the taller peak.
+- At $x=0$: component 1 is 1 standard deviation away, so its density is $0.3989\,e^{-0.5}\approx0.2420$. Component 2 is $(0-2)/0.5=-4$ standard deviations away, so its density is $0.7979\,e^{-8}\approx0.000268$. Weighted: $0.25(0.2420)\approx0.0605$ and $0.75(0.000268)\approx0.0002$. So $p(0)\approx0.0607$, almost all from component 1.
+- At $x=2$: component 1 is 3 standard deviations away, $0.3989\,e^{-4.5}\approx0.00443$. Component 2 sits at its own mean, $0.7979$. Weighted: $0.0011$ and $0.5984$. So $p(2)\approx0.5995$, almost all from component 2.
+
+**Part 2.** Each component integrates to 1, so the weighted sum integrates to $0.5+0.6=1.1$. A density must integrate to 1, because the probability of "$x$ is somewhere" is 1. With these weights every probability computed from the function would be inflated by 10%, and the generative story breaks too: there is no way to pick one component with probabilities $0.5$ and $0.6$.
+
+**Answer.** (1) $p(0)\approx0.0607$, dominated by component 1; $p(2)\approx0.5995$, dominated by component 2. (2) It integrates to $1.1$, so it is not a valid density.
+
+**Key takeaways.**
+
+- A mixture density is "evaluate every component at the point, weight, add". Far from a component's mean its contribution is negligible, so near a cluster the mixture looks like that cluster's Gaussian.
+- A narrow component has a tall peak, so a density value above 1 or a large gap between components' heights is normal.
+- The weights must be nonnegative and sum to 1; that is exactly what keeps the total area at 1.
+:::
+
+::: {.callout-tip collapse="true" .clarification title="Question: Which equations does this problem use, and how does it map onto them?"}
+**Key equations.**
+
+$$p(x)=\sum_{k=1}^2\pi_k\,\mathcal N(x\mid\mu_k,\sigma_k^2)$$
+
+$$\mathcal N(x\mid\mu,\sigma^2)=\frac{1}{\sigma\sqrt{2\pi}}\exp\left(-\frac{(x-\mu)^2}{2\sigma^2}\right)$$
+
+$$\int p(x)\,dx=\sum_k\pi_k\int\mathcal N(x\mid\mu_k,\sigma_k^2)\,dx=\sum_k\pi_k$$
+
+**Variables.**
+
+- $\pi_k$: the weights, $(0.25,\ 0.75)$ in part 1 and $(0.5,\ 0.6)$ in part 2.
+- $\mu_k$, $\sigma_k$: the centres $(-1,\ 2)$ and spreads $(1,\ 0.5)$.
+- $x$: the two evaluation points, 0 and 2.
+
+**How the problem maps onto them.**
+
+1. "Evaluate $p(x)$" is the first equation: one Gaussian density per component, then the weighted sum.
+2. "Which component contributes most" compares the two weighted terms $\pi_k\,\mathcal N(x\mid\mu_k,\sigma_k^2)$ inside that sum.
+3. Part 2 uses the integral line: the total area is the sum of the weights, so it equals 1 only when the weights sum to 1.
+:::
+
+### Problem 2: Sampling from a mixture, and what the weights mean {#prb-2}
+
+A mixture has $\pi=(0.6,\ 0.4)$, component 1 $\mathcal N(-2,\ 1)$ and component 2 $\mathcal N(3,\ 1.5^2)$. To draw a sample we take a uniform number $u$ on $[0,1]$ and set $z=1$ if $u<\pi_1$, otherwise $z=2$; then we take standard normal noise $\eta$ and set $x=\mu_z+\sigma_z\,\eta$.
+
+1. Draw two samples using $(u,\eta)=(0.35,\ 0.4)$ and $(0.82,\ -1.2)$. Record each sample's label and value.
+2. Someone who sees only the two $x$ values, not the labels, says: "since $\pi_2=0.4$, the second point is 40% component 2". What is $0.4$ actually the probability of, and which quantity from the week would answer "how strongly do we believe this point came from component 2"?
+3. In the graphical model of the mixture, which of $z_n$, $x_n$, $\pi$, $\mu_k$, $\sigma_k$ are hidden, observed, or parameters?
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+This uses [Week 8, The mixture of Gaussians as a latent variable model](week08.qmd#sec-w8-latent).
+
+**Part 1.**
+
+- First draw: $u=0.35<0.6$, so $z=1$, and $x=-2+1\cdot0.4=-1.6$.
+- Second draw: $u=0.82\ge0.6$, so $z=2$, and $x=3+1.5\cdot(-1.2)=1.2$.
+
+Each sample comes from exactly one component. The label is chosen first; the value is then an ordinary Gaussian draw from that component.
+
+**Part 2.** $\pi_2=0.4$ is the **prior** probability $p(z=2)$: the chance that a point comes from component 2 *before we look at its value*. It is the same for every point. Once we see $x=1.2$, the belief should change according to how well each component explains $1.2$. That updated belief is the **responsibility** $p(z=2\mid x=1.2)$ from @sec-w8-resp, and it depends on $x$. Here $1.2$ is 3.2 standard deviations from component 1's mean and 1.2 from component 2's, so the responsibility will be far above $0.4$. The phrase "40% component 2" also misreads the model: the point is not a blend, it came from one component, and we are uncertain which.
+
+**Part 3.** $z_n$ is hidden (the label is never recorded), $x_n$ is observed, and $\pi$, $\mu_k$, $\sigma_k$ are parameters shared by all points.
+
+**Answer.** (1) $(z=1,\ x=-1.6)$ and $(z=2,\ x=1.2)$. (2) $0.4$ is the prior $p(z=2)$; the right quantity is the responsibility $p(z=2\mid x)$. (3) Hidden: $z_n$; observed: $x_n$; parameters: $\pi,\mu_k,\sigma_k$.
+
+**Key takeaways.**
+
+- Sampling from a mixture is two steps: pick a label with probabilities $\pi$, then sample from that label's Gaussian. Every point has exactly one true label.
+- $\pi_k$ is what we believe before seeing a point. After seeing it, the belief is the responsibility, which is different for every point.
+:::
+
+::: {.callout-tip collapse="true" .clarification title="Question: Which equations does this problem use, and how does it map onto them?"}
+**Key equations.**
+
+$$p(z=k)=\pi_k,\qquad p(x\mid z=k)=\mathcal N(x\mid\mu_k,\sigma_k^2),\qquad x=\mu_z+\sigma_z\,\eta,\quad \eta\sim\mathcal N(0,1)$$
+
+$$p(z=k\mid x)=\frac{\pi_k\,\mathcal N(x\mid\mu_k,\sigma_k^2)}{\sum_j\pi_j\,\mathcal N(x\mid\mu_j,\sigma_j^2)}$$
+
+**Variables.**
+
+- $u$: a uniform number that selects the label; $u<\pi_1$ happens with probability $\pi_1=0.6$.
+- $\eta$: standard normal noise, shifted and scaled into a draw from the chosen component.
+- $p(z=k)$: the prior on the label. $p(z=k\mid x)$: the posterior, which needs the observed $x$.
+
+**How the problem maps onto them.**
+
+1. Part 1 applies the first line twice per sample: $u$ realizes $p(z=k)=\pi_k$, and $\eta$ realizes $p(x\mid z=k)$ through $x=\mu_z+\sigma_z\eta$.
+2. Part 2 contrasts the left equation of the first line (the prior) with the second line (the posterior), which is the quantity the question is really about.
+3. Part 3 reads the same two conditionals as a graph: the prior's input $\pi$ and the likelihood's inputs $\mu_k,\sigma_k$ are parameters, $z$ is the hidden node, and $x$ is the observed node.
+:::
+
+### Problem 3: One bump or two? {#prb-3}
+
+Take an equal-weight mixture, $\pi=(0.5,\ 0.5)$, of two Gaussians with standard deviation 1 and means $-d/2$ and $d/2$, so the means are $d$ apart.
+
+1. For $d=1$, evaluate $p(x)$ at the midpoint $x=0$ and at the mean $x=0.5$.
+2. Repeat for $d=4$ (midpoint 0, mean 2).
+3. In which case does the density dip between the means? What does the other case say about Weldon's skewed crab data?
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+This uses [Week 8, Mixture of Gaussians](week08.qmd#sec-w8-mog) and [The crabs of Naples bay](week08.qmd#sec-w8-crabs).
+
+**Part 1 ($d=1$, means $\pm0.5$).**
+
+- At $x=0$ both components are 0.5 standard deviations away, so $p(0)=0.5(0.3989\,e^{-0.125})+0.5(0.3989\,e^{-0.125})=0.3989\,e^{-0.125}\approx0.3521$.
+- At $x=0.5$, one component is at its mean ($0.3989$) and the other is 1 away ($0.3989\,e^{-0.5}\approx0.2420$). So $p(0.5)=0.5(0.3989)+0.5(0.2420)\approx0.3205$.
+
+The midpoint is **higher** than either mean. There is no dip.
+
+**Part 2 ($d=4$, means $\pm2$).**
+
+- At $x=0$ both are 2 away: $p(0)=0.3989\,e^{-2}\approx0.0540$.
+- At $x=2$: $0.5(0.3989)+0.5(0.3989\,e^{-8})\approx0.1995$.
+
+Now the midpoint is far **lower** than the means: a clear dip, so the density has two peaks.
+
+**Part 3.** The dip appears for $d=4$. For $d=1$ the two components overlap so much that their sum is a single, flattened bump. (A known result for equal weights and equal spreads: the mixture has two peaks exactly when the means are more than $2\sigma$ apart. Two point evaluations cannot prove that, but they are consistent with it.) This is Weldon's situation: two sub-populations whose means are close relative to their spread can produce one bump, and with unequal weights that one bump is lopsided rather than symmetric, as in Figure 1 of the week.
+
+**Answer.** $d=1$: $p(0)\approx0.352>p(0.5)\approx0.321$, no dip. $d=4$: $p(0)\approx0.054<p(2)\approx0.200$, a dip and two peaks.
+
+**Key takeaways.**
+
+- A mixture of two Gaussians does not always look like two bumps. When the components overlap heavily, the sum has one peak.
+- So "the histogram has one peak" is not evidence that the data comes from a single Gaussian; a skewed or flat-topped single peak is exactly what two close components produce.
+:::
+
+::: {.callout-tip collapse="true" .clarification title="Question: Which equations does this problem use, and how does it map onto them?"}
+**Key equations.**
+
+$$p(x)=0.5\,\mathcal N(x\mid -d/2,1)+0.5\,\mathcal N(x\mid d/2,1),\qquad \mathcal N(x\mid\mu,1)=0.3989\,e^{-(x-\mu)^2/2}$$
+
+**Variables.**
+
+- $d$: the gap between the two means, 1 or 4.
+- $x$: the evaluation points, the midpoint 0 and the right-hand mean $d/2$.
+
+**How the problem maps onto them.**
+
+1. Each part evaluates the first equation at two points; with standard deviation 1, each component's term only needs the distance $x-\mu$.
+2. "Does the density dip?" compares the two evaluations: a midpoint value below the value at a mean means the curve goes down between the peaks.
+3. Part 3 reads the comparison back into the generative story of the week: overlapping components summing to one bump.
+:::
+
+## Responsibilities {#sec-w8p-resp}
+
+### Problem 4: A wide component takes over the tails {#prb-4}
+
+A one-dimensional mixture has three components:
+
+| $k$ | $\pi_k$ | $\mu_k$ | $\sigma_k$ |
+|---|---|---|---|
+| 1 | 0.5 | 0 | 1 |
+| 2 | 0.3 | 4 | 1 |
+| 3 | 0.2 | 0 | 3 |
+
+Components 1 and 3 share a centre; component 3 is three times wider and has the smallest weight.
+
+1. Compute the three responsibilities at $x=2.5$.
+2. Compute them at $x=-3$.
+3. Explain why component 3, the lightest and lowest-peaked component, can take most of the responsibility for a point.
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+This uses [Week 8, Inference: responsibilities](week08.qmd#sec-w8-resp).
+
+The recipe: evaluate each component's density at the point, multiply by its weight, and divide by the total. The peak heights are $0.3989$ for $\sigma=1$ and $0.3989/3\approx0.1330$ for $\sigma=3$.
+
+**Part 1 ($x=2.5$).**
+
+| $k$ | standardized distance | density | $\pi_k\times$ density |
+|---|---|---|---|
+| 1 | 2.5 | $0.3989\,e^{-3.125}\approx0.0175$ | $0.0088$ |
+| 2 | $-1.5$ | $0.3989\,e^{-1.125}\approx0.1295$ | $0.0389$ |
+| 3 | $0.833$ | $0.1330\,e^{-0.347}\approx0.0940$ | $0.0188$ |
+
+The total is $0.0664$, so $\gamma\approx(0.132,\ 0.585,\ 0.283)$. Component 2, the closest, wins, but component 3 takes more than component 1 even though they share a centre.
+
+**Part 2 ($x=-3$).**
+
+| $k$ | standardized distance | density | $\pi_k\times$ density |
+|---|---|---|---|
+| 1 | $-3$ | $0.3989\,e^{-4.5}\approx0.00443$ | $0.00222$ |
+| 2 | $-7$ | $0.3989\,e^{-24.5}\approx9\times10^{-12}$ | $\approx3\times10^{-12}$ |
+| 3 | $-1$ | $0.1330\,e^{-0.5}\approx0.0807$ | $0.0161$ |
+
+The total is $0.0183$, so $\gamma\approx(0.121,\ 0.000,\ 0.879)$.
+
+**Part 3.** A narrow Gaussian falls off fast: three of its standard deviations away, its density has dropped by a factor $e^{-4.5}\approx0.011$. The wide component is only one of *its* standard deviations away at the same point, so its density has dropped by just $e^{-0.5}\approx0.61$. Far enough from the shared centre, that slow decay beats both a lower peak and a smaller weight. Responsibilities compare the components' weighted densities **at the point**, not their weights or peaks.
+
+**Answer.** (1) $\gamma\approx(0.132,\ 0.585,\ 0.283)$. (2) $\gamma\approx(0.121,\ 0.000,\ 0.879)$. (3) The wide component's density decays slowly, so in the tails its weighted density is the largest.
+
+**Key takeaways.**
+
+- A responsibility weighs prior times fit at the point. A small $\pi_k$ can be outweighed by a much better fit.
+- With unequal spreads, the component with the nearest mean need not win: a wide component claims points in the tails that a narrow one at the same centre cannot explain.
+:::
+
+::: {.callout-tip collapse="true" .clarification title="Question: Which equations does this problem use, and how does it map onto them?"}
+**Key equations.**
+
+$$\gamma_k(x)=\frac{\pi_k\,\mathcal N(x\mid\mu_k,\sigma_k^2)}{\sum_{j=1}^3\pi_j\,\mathcal N(x\mid\mu_j,\sigma_j^2)}$$
+
+$$\mathcal N(x\mid\mu,\sigma^2)=\frac{1}{\sigma\sqrt{2\pi}}\,e^{-\frac12\left(\frac{x-\mu}{\sigma}\right)^2}$$
+
+**Variables.**
+
+- $\gamma_k(x)$: the posterior probability that component $k$ produced $x$.
+- $\pi_k$, $\mu_k$, $\sigma_k$: the table's values.
+- $\frac{x-\mu_k}{\sigma_k}$: the standardized distance, the only part of the exponent that changes from component to component.
+
+**How the problem maps onto them.**
+
+1. Parts 1 and 2 evaluate the second equation three times per point (one per row of the table), weight by $\pi_k$, and normalize with the first equation.
+2. Part 3 compares the second equation's two factors across components: the peak height $\frac{1}{\sigma\sqrt{2\pi}}$ favours the narrow component, the exponential favours the wide one once the standardized distances differ enough.
+:::
+
+### Problem 5: Where the responsibility flips {#prb-5}
+
+A two-component mixture in one dimension has $\pi=(0.2,\ 0.8)$, $\mu=(0,\ 2)$, and both standard deviations 1.
+
+1. Show that $\gamma_1(x)=p(z=1\mid x)$ can be written as a sigmoid $\sigma(a(x))$ of a linear function $a(x)$. Find $a(x)$.
+2. Find the point $x^\ast$ where $\gamma_1=\gamma_2=0.5$. Where would it be with equal weights?
+3. What is $\gamma_1$ at $x=0$, the centre of component 1 itself?
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+This uses [Week 8, Inference: responsibilities](week08.qmd#sec-w8-resp).
+
+**Part 1.** With two components, $\gamma_1=\frac{A}{A+B}$ where $A=\pi_1\mathcal N(x\mid0,1)$ and $B=\pi_2\mathcal N(x\mid2,1)$. Dividing through by $A$ gives $\gamma_1=\frac{1}{1+B/A}=\sigma(\log A-\log B)$. The peak heights are equal and cancel, so
+
+$$a(x)=\log\frac{\pi_1}{\pi_2}-\frac{x^2}{2}+\frac{(x-2)^2}{2}=\log\frac{\pi_1}{\pi_2}+2-2x.$$
+
+The $x^2$ terms cancel because the spreads are equal, which is why $a$ is linear.
+
+**Part 2.** $\gamma_1=0.5$ exactly when $a(x)=0$, that is $x^\ast=1+\tfrac12\log\frac{\pi_1}{\pi_2}=1+\tfrac12\log0.25\approx1-0.693=0.307$. With equal weights $\log1=0$ and $x^\ast=1$, the midpoint. The smaller weight of component 1 pushes the boundary toward component 1's own centre: component 1 must explain a point clearly better before it can claim it. Check: $0.2\,\mathcal N(0.307\mid0,1)\approx0.0761$ and $0.8\,\mathcal N(0.307\mid2,1)\approx0.0761$.
+
+**Part 3.** $a(0)=\log0.25+2\approx0.614$, so $\gamma_1(0)=\frac{1}{1+e^{-0.614}}\approx0.649$. Even at its own mean, component 1 gets only about 65% of the responsibility, because the prior favours component 2 four to one and component 2's density at 0 is not negligible ($e^{-2}$ of its peak).
+
+**Answer.** (1) $a(x)=\log0.25+2-2x$. (2) $x^\ast\approx0.307$; with equal weights $x^\ast=1$. (3) $\gamma_1(0)\approx0.649$.
+
+**Key takeaways.**
+
+- With two components of equal spread, the responsibility is a sigmoid of a linear function of $x$, so the switch from one component to the other is smooth and happens around a single boundary point.
+- Unequal weights shift that boundary toward the lighter component. A point at a component's own mean can still be shared when the components overlap.
+:::
+
+::: {.callout-tip collapse="true" .clarification title="Question: Which equations does this problem use, and how does it map onto them?"}
+**Key equations.**
+
+$$\gamma_1(x)=\frac{\pi_1\,\mathcal N(x\mid\mu_1,1)}{\pi_1\,\mathcal N(x\mid\mu_1,1)+\pi_2\,\mathcal N(x\mid\mu_2,1)},\qquad \frac{A}{A+B}=\sigma(\log A-\log B)$$
+
+**Variables.**
+
+- $A$, $B$: the weighted densities of components 1 and 2 at $x$.
+- $a(x)=\log A-\log B$: the log-odds in favour of component 1.
+- $x^\ast$: the boundary point, where $a(x^\ast)=0$.
+
+**How the problem maps onto them.**
+
+1. Part 1 rewrites the responsibility with the sigmoid identity and expands $\log A-\log B$ using the Gaussian exponent.
+2. Part 2 solves $a(x)=0$; setting $\pi_1=\pi_2$ in the same equation gives the equal-weight boundary.
+3. Part 3 evaluates the sigmoid at $x=0$.
+:::
+
+## The likelihood function {#sec-w8p-lik}
+
+### Problem 6: Comparing parameters by likelihood, and the log of a sum {#prb-6}
+
+Three points $X=(-1,\ 0,\ 4)$ are modelled by an equal-weight mixture, $\pi=(0.5,\ 0.5)$, of two Gaussians with standard deviation 1. Two candidate settings of the means are proposed: **A** $\mu=(-0.5,\ 4)$ and **B** $\mu=(0,\ 2)$.
+
+1. Compute the log-likelihood $\log p(X\mid\pi,\mu,\sigma)$ under A and under B. Which setting fits better?
+2. For the single point $x=0$ under B, compare $\log p(x)$ with $\sum_k\pi_k\log\mathcal N(x\mid\mu_k,1)$, the expression we would get by wrongly pushing the log inside the sum. Which is larger, and is that always so?
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+This uses [Week 8, The likelihood function](week08.qmd#sec-w8-lik).
+
+**Part 1.** Each point contributes the log of its mixture density.
+
+| $x$ | $p(x)$ under A | $\log$ | $p(x)$ under B | $\log$ |
+|---|---|---|---|---|
+| $-1$ | $0.5(0.3520+0.0000)\approx0.1760$ | $-1.737$ | $0.5(0.2420+0.0044)\approx0.1232$ | $-2.094$ |
+| $0$ | $0.5(0.3520+0.0001)\approx0.1761$ | $-1.737$ | $0.5(0.3989+0.0540)\approx0.2265$ | $-1.485$ |
+| $4$ | $0.5(0.0000+0.3989)\approx0.1995$ | $-1.612$ | $0.5(0.0001+0.0540)\approx0.0271$ | $-3.610$ |
+
+So $\log p(X)\approx-5.086$ under A and $\approx-7.189$ under B. A fits better. B is slightly better at $x=0$, but it explains the point at 4 badly (2 standard deviations from the nearest mean), and that one point costs it about 2 nats.
+
+**Part 2.** Under B, $\log p(0)=\log0.2265\approx-1.485$. Pushing the log inside gives $0.5\log0.3989+0.5\log0.0540\approx0.5(-0.919)+0.5(-2.919)=-1.919$. The true value is larger. This always holds: by Jensen's inequality, the log of a weighted average is at least the weighted average of the logs. The two agree only when every component has the same density at the point.
+
+**Answer.** (1) A: $\approx-5.086$, B: $\approx-7.189$; A fits better. (2) $\log p(0)\approx-1.485>-1.919$; the log of the sum is always at least the weighted sum of logs.
+
+**Key takeaways.**
+
+- The log-likelihood adds one log-density per point, so one badly explained point can decide a comparison between parameter settings.
+- We cannot move the log inside the sum over components. Doing so gives a lower bound, not the log-likelihood, and EM's $Q$ and the ELBO are lower bounds of exactly this kind, made tight by choosing the weights well.
+:::
+
+::: {.callout-tip collapse="true" .clarification title="Question: Which equations does this problem use, and how does it map onto them?"}
+**Key equations.**
+
+$$\log p(X\mid\pi,\mu,\sigma)=\sum_{n=1}^3\log\Big(\sum_{k=1}^2\pi_k\,\mathcal N(x_n\mid\mu_k,1)\Big),\qquad \log\sum_k\pi_k a_k\ \ge\ \sum_k\pi_k\log a_k$$
+
+**Variables.**
+
+- $x_n$: the three data points.
+- $\mu$: the candidate means, A or B; $\pi=(0.5,\ 0.5)$ and the spread 1 stay fixed.
+- $a_k=\mathcal N(0\mid\mu_k,1)$: the component densities at the point $x=0$ under B.
+
+**How the problem maps onto them.**
+
+1. Part 1 evaluates the first equation twice, once per candidate: inner sum per point, log, then the outer sum.
+2. Part 2 is Jensen's inequality with $\pi_k=0.5$ and the two component densities at $x=0$ as the $a_k$.
+:::
+
+### Problem 7: How many terms does the evidence really have? {#prb-7}
+
+A mixture with $K=4$ components is fitted to $N=100$ points in one dimension.
+
+1. How many Gaussian density evaluations does one computation of the log-likelihood need?
+2. The likelihood $p(X)=\prod_{n=1}^{100}\sum_{k=1}^4\pi_k\,\mathcal N(x_n\mid\mu_k,\sigma_k^2)$ could be multiplied out into one sum over complete label vectors $(z_1,\dots,z_{100})$. How many terms would that sum have?
+3. Why do we never need that expanded sum here, when in Week 7 the corresponding sum was the obstacle?
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+This uses [Week 8, Why we can differentiate here but could not in Week 7](week08.qmd#sec-w8-why-diff).
+
+**Part 1.** Each of the 100 points needs its 4 component densities: $100\times4=400$ evaluations, then 100 logs and one sum.
+
+**Part 2.** Multiplying out 100 factors, each a sum of 4 terms, gives one term for every way of picking one $k$ from each factor: $4^{100}=2^{200}\approx1.6\times10^{60}$ terms. Each term is $\prod_n\pi_{z_n}\mathcal N(x_n\mid\mu_{z_n},\sigma_{z_n}^2)=p(X,z)$ for one complete labelling $z$.
+
+**Part 3.** The labels of different points are independent, and each point's density involves only its own label. So the huge sum factorizes into a product of 100 small sums, and we compute the product directly. In Week 7, the latent variables of a single data point were coupled inside the model (for example, $M$ binary latents feeding a decoder together), so no such factorization was available and the sum over their $2^M$ joint settings could not be broken into small pieces.
+
+**Answer.** (1) 400. (2) $4^{100}\approx1.6\times10^{60}$. (3) Independence across points turns the sum over labellings into a product of $K$-term sums; Week 7's latents were coupled within a point, so its sum did not factorize.
+
+**Key takeaways.**
+
+- "Sum over all latent configurations" can be astronomically large on paper and still cheap in practice, when it factorizes into one small sum per point.
+- What makes the mixture's evidence tractable is one label per point with $K$ values and independence across points, not a small number of data points.
+:::
+
+::: {.callout-tip collapse="true" .clarification title="Question: Which equations does this problem use, and how does it map onto them?"}
+**Key equations.**
+
+$$
+\begin{aligned}
+p(X)&=\prod_{n=1}^N\sum_{k=1}^K\pi_k\,\mathcal N(x_n\mid\mu_k,\sigma_k^2)\\
+&=\sum_{z_1=1}^K\cdots\sum_{z_N=1}^K\ \prod_{n=1}^N\pi_{z_n}\,\mathcal N(x_n\mid\mu_{z_n},\sigma_{z_n}^2)
+\end{aligned}
+$$
+
+**Variables.**
+
+- $N=100$, $K=4$.
+- $(z_1,\dots,z_N)$: one complete labelling of all points; there are $K^N$ of them.
+
+**How the problem maps onto them.**
+
+1. Part 1 counts the evaluations on the left: $N$ factors, each a sum of $K$ densities.
+2. Part 2 counts the terms on the right: one per complete labelling.
+3. Part 3 is the equality itself: read from right to left, it is the factorization that independence across points allows.
+:::
+
+## Maximum likelihood {#sec-w8p-mle}
+
+### Problem 8: A weighted fit in two dimensions {#prb-8}
+
+Four points in the plane, $x_1=(0,0)$, $x_2=(2,0)$, $x_3=(0,2)$, $x_4=(2,2)$, have responsibilities for component 1 of $\gamma_{\cdot1}=(0.8,\ 0.6,\ 0.2,\ 0.4)$.
+
+1. Compute $N_1$, $\pi_1$, and $\mu_1$.
+2. Compute the $2\times2$ covariance $\Sigma_1$ from the weighted outer products.
+3. What does the sign of the off-diagonal entry say about component 1?
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+This uses [Week 8, Maximum likelihood](week08.qmd#sec-w8-mle), the means and covariances.
+
+**Part 1.** $N_1=0.8+0.6+0.2+0.4=2$, so $\pi_1=N_1/N=2/4=0.5$. The weighted sum of the points is $0.6(2,0)+0.2(0,2)+0.4(2,2)=(2,\ 1.2)$ (the point at the origin adds nothing), so $\mu_1=(2,\ 1.2)/2=(1,\ 0.6)$. The mean sits low because the points at the bottom carry most of the weight.
+
+**Part 2.** Centre each point at $\mu_1$, form the outer product, and weight it:
+
+| $n$ | $x_n-\mu_1$ | $\gamma_{n1}(x_n-\mu_1)(x_n-\mu_1)^\top$ |
+|---|---|---|
+| 1 | $(-1,\ -0.6)$ | $0.8\begin{pmatrix}1&0.6\\0.6&0.36\end{pmatrix}=\begin{pmatrix}0.8&0.48\\0.48&0.288\end{pmatrix}$ |
+| 2 | $(1,\ -0.6)$ | $0.6\begin{pmatrix}1&-0.6\\-0.6&0.36\end{pmatrix}=\begin{pmatrix}0.6&-0.36\\-0.36&0.216\end{pmatrix}$ |
+| 3 | $(-1,\ 1.4)$ | $0.2\begin{pmatrix}1&-1.4\\-1.4&1.96\end{pmatrix}=\begin{pmatrix}0.2&-0.28\\-0.28&0.392\end{pmatrix}$ |
+| 4 | $(1,\ 1.4)$ | $0.4\begin{pmatrix}1&1.4\\1.4&1.96\end{pmatrix}=\begin{pmatrix}0.4&0.56\\0.56&0.784\end{pmatrix}$ |
+
+Adding gives $\begin{pmatrix}2&0.4\\0.4&1.68\end{pmatrix}$, and dividing by $N_1=2$:
+
+$$\Sigma_1=\begin{pmatrix}1&0.2\\0.2&0.84\end{pmatrix}.$$
+
+**Part 3.** The off-diagonal entry is positive, so under component 1 the two coordinates tend to move together. The heavily weighted points $(0,0)$ and $(2,2)$ lie on the rising diagonal; the points on the falling diagonal carry less weight. With all four weights equal, the four corners would give an off-diagonal of exactly 0.
+
+**Answer.** (1) $N_1=2$, $\pi_1=0.5$, $\mu_1=(1,\ 0.6)$. (2) $\Sigma_1=\begin{pmatrix}1&0.2\\0.2&0.84\end{pmatrix}$. (3) A slight positive correlation, driven by the weights.
+
+**Key takeaways.**
+
+- Each M-step formula is the familiar single-Gaussian estimate with every point's contribution multiplied by its responsibility, and with $N_k$ in place of the count.
+- The responsibilities shape everything: the same four points give a different mean, different variances, and a different correlation for each component.
+:::
+
+::: {.callout-tip collapse="true" .clarification title="Question: Which equations does this problem use, and how does it map onto them?"}
+**Key equations.**
+
+$$N_1=\sum_n\gamma_{n1},\qquad \pi_1=\frac{N_1}{N},\qquad \mu_1=\frac{1}{N_1}\sum_n\gamma_{n1}x_n$$
+
+$$\Sigma_1=\frac{1}{N_1}\sum_n\gamma_{n1}(x_n-\mu_1)(x_n-\mu_1)^\top$$
+
+**Variables.**
+
+- $\gamma_{n1}$: the given responsibilities $(0.8,\ 0.6,\ 0.2,\ 0.4)$.
+- $x_n$: the four corner points; $N=4$.
+- $(x_n-\mu_1)(x_n-\mu_1)^\top$: a $2\times2$ outer product, with squared coordinates on the diagonal and their product off it.
+
+**How the problem maps onto them.**
+
+1. Part 1 uses the first three formulas in order: $N_1$ is needed for both $\pi_1$ and $\mu_1$.
+2. Part 2 is the fourth formula, which needs $\mu_1$ from part 1 because each point is centred first.
+3. Part 3 reads the off-diagonal entry of $\Sigma_1$ as a weighted covariance between the two coordinates.
+:::
+
+### Problem 9: The mixing weights by Lagrange, including an empty component (stretch) {#prb-9}
+
+At a fixed set of responsibilities, the part of the M-step objective that depends on the mixing weights is $f(\pi)=\sum_{k=1}^K N_k\log\pi_k$. Take $K=4$ with $N_k=(6,\ 3,\ 0,\ 1)$, so $N=10$.
+
+1. Show that $f$ has no maximum if we ignore the constraint $\sum_k\pi_k=1$.
+2. Use a Lagrange multiplier to find the constrained maximizer.
+3. Component 3 has $N_3=0$. What does the stationarity equation say for it, and what is the best $\pi_3$?
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+This uses [Week 8, A prerequisite: maximizing under a constraint](week08.qmd#sec-w8-lagrange) and [The mixing coefficients](week08.qmd#sec-w8-mle-pi). The objective $f$ is the $\pi$-part of $Q$ from [The Gaussian mixture as an instance](week08.qmd#sec-w8-em-gmm-instance).
+
+**Part 1.** $\partial f/\partial\pi_k=N_k/\pi_k>0$ whenever $N_k>0$. Raising any such $\pi_k$ raises $f$, without limit: $f\to\infty$ as $\pi_1\to\infty$. Without the constraint the derivative is never zero, and the weights would grow forever. The constraint is what makes the problem well posed.
+
+**Part 2.** Set the derivatives of $f(\pi)+\lambda(\sum_k\pi_k-1)$ to zero:
+
+$$\frac{N_k}{\pi_k}+\lambda=0\quad\Longrightarrow\quad N_k+\lambda\pi_k=0.$$
+
+Summing the right-hand form over $k$ gives $N+\lambda=0$, so $\lambda=-N=-10$ and $\pi_k=N_k/N$: $\pi=(0.6,\ 0.3,\ 0,\ 0.1)$.
+
+**Part 3.** For $k=3$, the form $\frac{N_3}{\pi_3}+\lambda=0$ would read $0+\lambda=0$, forcing $\lambda=0$ and contradicting $\lambda=-10$. So there is no interior stationary point in $\pi_3$. The multiplied form $N_3+\lambda\pi_3=0$ gives $\pi_3=0$, which is the right answer: $f$ does not depend on $\pi_3$ at all (its term is $0\cdot\log\pi_3$), so any weight given to component 3 is weight taken from components that do contribute, which lowers $f$. The best choice puts zero weight on it. In an EM run this happens when a component ends up responsible for no points: its weight drops to 0 and, with $N_k=0$, its mean and covariance updates divide by zero, so implementations remove or re-initialize such a component.
+
+**Answer.** (1) $\partial f/\partial\pi_k=N_k/\pi_k>0$, so $f$ increases without bound. (2) $\lambda=-10$, $\pi=(0.6,\ 0.3,\ 0,\ 0.1)$. (3) No interior stationary point; the maximum is at the boundary, $\pi_3=0$.
+
+**Key takeaways.**
+
+- The constraint is not a detail: without it the likelihood rewards inflating every weight. The multiplier is fixed by summing the stationarity equations and using the constraint.
+- The answer $\pi_k=N_k/N$ also covers the boundary case, as long as we use the form $N_k+\lambda\pi_k=0$ rather than dividing by $\pi_k$.
+:::
+
+::: {.callout-tip collapse="true" .clarification title="Question: Which equations does this problem use, and how does it map onto them?"}
+**Key equations.**
+
+$$f(\pi)=\sum_k N_k\log\pi_k,\qquad \mathcal F(\pi,\lambda)=f(\pi)+\lambda\Big(\sum_k\pi_k-1\Big)$$
+
+$$\frac{\partial\mathcal F}{\partial\pi_k}=\frac{N_k}{\pi_k}+\lambda$$
+
+**Variables.**
+
+- $N_k$: the effective counts $(6,\ 3,\ 0,\ 1)$, held fixed.
+- $\pi_k$: the weights we optimize.
+- $\lambda$: the multiplier enforcing $\sum_k\pi_k=1$.
+
+**How the problem maps onto them.**
+
+1. Part 1 uses only $\partial f/\partial\pi_k$, without $\lambda$, and checks its sign.
+2. Part 2 sets $\partial\mathcal F/\partial\pi_k=0$, multiplies by $\pi_k$, sums over $k$, and uses the constraint to fix $\lambda$.
+3. Part 3 asks what the same equation says when $N_k=0$, and compares the divided and multiplied forms.
+:::
+
+## The EM algorithm for Gaussian mixtures {#sec-w8p-em}
+
+### Problem 10: Are these parameters a solution? {#prb-10}
+
+Data $X=(-1,\ 1,\ 2,\ 6)$ is modelled by a two-component mixture with both standard deviations fixed at 1. Someone proposes $\pi=(0.5,\ 0.5)$ and $\mu=(0,\ 5)$ as the maximum likelihood estimate.
+
+1. Compute the responsibilities $\gamma_{n1}$ at these parameters.
+2. Plug them into the right-hand sides of the stationarity conditions for $\mu_k$ and $\pi_k$.
+3. Are the proposed parameters stationary? What is the relationship between what you just computed and EM?
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+This uses [Week 8, Motivating the EM algorithm](week08.qmd#sec-w8-why-em).
+
+**Part 1.** With equal weights and spreads, $\gamma_{n1}=\frac{e^{-(x_n-0)^2/2}}{e^{-(x_n-0)^2/2}+e^{-(x_n-5)^2/2}}$.
+
+| $x_n$ | $e^{-x_n^2/2}$ | $e^{-(x_n-5)^2/2}$ | $\gamma_{n1}$ |
+|---|---|---|---|
+| $-1$ | $0.6065$ | $e^{-18}\approx0$ | $1.000$ |
+| 1 | $0.6065$ | $e^{-8}\approx0.0003$ | $0.999$ |
+| 2 | $0.1353$ | $e^{-4.5}\approx0.0111$ | $0.924$ |
+| 6 | $e^{-18}\approx0$ | $0.6065$ | $0.000$ |
+
+**Part 2.** $N_1\approx1+0.999+0.924+0=2.924$ and $N_2\approx1.076$. Then
+
+- $\mu_1\leftarrow\frac{1(-1)+0.999(1)+0.924(2)}{2.924}\approx\frac{1.848}{2.924}\approx0.632$,
+- $\mu_2\leftarrow\frac{0.001(1)+0.076(2)+1(6)}{1.076}\approx5.716$,
+- $\pi\leftarrow(2.924/4,\ 1.076/4)\approx(0.731,\ 0.269)$.
+
+**Part 3.** No. A stationary point would reproduce itself: the right-hand sides would give back $\mu=(0,\ 5)$ and $\pi=(0.5,\ 0.5)$. Instead every parameter moves. The point at 2 is mostly claimed by component 1, which pulls $\mu_1$ up and gives component 1 most of the weight. What we just did is one EM iteration: part 1 is the E-step and part 2 is the M-step. A true MLE is a **fixed point** of that map, and EM looks for one by applying the map repeatedly.
+
+**Answer.** (1) $\gamma_{\cdot1}\approx(1.000,\ 0.999,\ 0.924,\ 0.000)$. (2) $\mu\approx(0.632,\ 5.716)$, $\pi\approx(0.731,\ 0.269)$. (3) Not stationary; plugging in once is exactly one EM step.
+
+**Key takeaways.**
+
+- The stationarity conditions are a test, not a recipe: a candidate passes only if the responsibilities it produces give back the same parameters.
+- "Compute the responsibilities, then the right-hand sides" is one EM iteration, so EM is a fixed-point iteration on the stationarity equations.
+:::
+
+::: {.callout-tip collapse="true" .clarification title="Question: Which equations does this problem use, and how does it map onto them?"}
+**Key equations.**
+
+$$\gamma_{n1}=\frac{\pi_1\,\mathcal N(x_n\mid\mu_1,1)}{\sum_j\pi_j\,\mathcal N(x_n\mid\mu_j,1)},\qquad \mu_k=\frac{1}{N_k}\sum_n\gamma_{nk}x_n$$
+
+$$\pi_k=\frac{N_k}{N}$$
+
+**Variables.**
+
+- $\mu=(0,\ 5)$, $\pi=(0.5,\ 0.5)$: the proposed parameters, used on the right of the responsibility formula.
+- $\gamma_{nk}$: the responsibilities they produce, used on the right of the other two formulas.
+- $N_k=\sum_n\gamma_{nk}$.
+
+**How the problem maps onto them.**
+
+1. Part 1 is the responsibility formula with the proposed parameters plugged in.
+2. Part 2 is the mean and weight formulas with those responsibilities plugged in.
+3. Part 3 compares the outputs of part 2 with the inputs of part 1; a stationary point would make them equal.
+:::
+
+### Problem 11: Two rounds of EM by hand {#prb-11}
+
+Data $X=(-1,\ 0,\ 3,\ 5)$ is fitted by a two-component mixture in which both standard deviations stay fixed at 1, so EM updates only $\pi$ and $\mu$. The start is $\pi=(0.5,\ 0.5)$ and $\mu=(0,\ 1)$, a poor start with both centres on the left.
+
+1. Run one E-step and one M-step. Report $\gamma_{\cdot1}$, $N_k$, the new $\mu$ and $\pi$.
+2. Run a second round.
+3. The log-likelihood at the start, after round 1, and after round 2 is $-16.18$, $-8.73$ and $-7.70$. Check the first value, and say what the sequence shows.
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+This uses [Week 8, EM for Gaussian mixtures](week08.qmd#sec-w8-em-gmm).
+
+With fixed spreads of 1, the responsibility of component 1 is $\gamma_{n1}=\frac{\pi_1e^{-(x_n-\mu_1)^2/2}}{\pi_1e^{-(x_n-\mu_1)^2/2}+\pi_2e^{-(x_n-\mu_2)^2/2}}$; the constant $1/\sqrt{2\pi}$ cancels.
+
+**Part 1 (round 1).**
+
+- E-step at $\mu=(0,1)$, $\pi=(0.5,0.5)$: $\gamma_{\cdot1}\approx(0.818,\ 0.622,\ 0.076,\ 0.011)$. For example at $x=-1$: $e^{-0.5}=0.6065$ against $e^{-2}=0.1353$, so $\gamma=0.6065/0.7418\approx0.818$.
+- M-step: $N_1\approx1.527$, $N_2\approx2.473$. So $\pi\approx(0.382,\ 0.618)$, $\mu_1\approx\frac{0.818(-1)+0.622(0)+0.076(3)+0.011(5)}{1.527}\approx-0.350$ and $\mu_2\approx\frac{0.182(-1)+0.378(0)+0.924(3)+0.989(5)}{2.473}\approx3.047$.
+
+Component 2 has jumped right, toward the points at 3 and 5, because it was the one more responsible for them.
+
+**Part 2 (round 2).**
+
+- E-step at $\mu\approx(-0.350,\ 3.047)$, $\pi\approx(0.382,\ 0.618)$: $\gamma_{\cdot1}\approx(0.999,\ 0.984,\ 0.002,\ 0.000)$. The assignments are now nearly hard.
+- M-step: $N_1\approx1.985$, $N_2\approx2.015$, so $\pi\approx(0.496,\ 0.504)$ and $\mu\approx(-0.500,\ 3.967)$.
+
+The means are close to the averages of the two groups, $-0.5$ for $\{-1,0\}$ and $4$ for $\{3,5\}$.
+
+**Part 3.** At the start, the mixture densities are $p(-1)=0.3989\,(0.5e^{-0.5}+0.5e^{-2})\approx0.1480$, $p(0)=0.3989(0.5+0.5e^{-0.5})\approx0.3204$, $p(3)=0.3989(0.5e^{-4.5}+0.5e^{-2})\approx0.0292$ and $p(5)=0.3989(0.5e^{-12.5}+0.5e^{-8})\approx0.00007$. Their logs sum to about $-1.911-1.138-3.533-9.602\approx-16.18$; nearly all the damage comes from the point at 5, which neither centre explains. The sequence $-16.18$, $-8.73$, $-7.70$ only goes up, as the theory promises, and the second gain is much smaller than the first: EM makes big moves while the components sort out which points they own, then slows down.
+
+**Answer.** Round 1: $\gamma_{\cdot1}\approx(0.818,0.622,0.076,0.011)$, $\mu\approx(-0.350,\ 3.047)$, $\pi\approx(0.382,\ 0.618)$. Round 2: $\gamma_{\cdot1}\approx(0.999,0.984,0.002,0.000)$, $\mu\approx(-0.500,\ 3.967)$, $\pi\approx(0.496,\ 0.504)$. The log-likelihood rises at every step and the gains shrink.
+
+**Key takeaways.**
+
+- Each EM round is mechanical: responsibilities from the current parameters, then weighted averages from the responsibilities.
+- A poor start is often repaired within a round or two, because a component that is somewhat more responsible for a far group gets pulled toward it.
+- Watching the log-likelihood is a check on the implementation: a decrease means a bug.
+:::
+
+::: {.callout-tip collapse="true" .clarification title="Question: Which equations does this problem use, and how does it map onto them?"}
+**Key equations.**
+
+$$\gamma_{n1}=\frac{\pi_1e^{-(x_n-\mu_1)^2/2}}{\pi_1e^{-(x_n-\mu_1)^2/2}+\pi_2e^{-(x_n-\mu_2)^2/2}}$$
+
+$$\mu_k^{\text{new}}=\frac{\sum_n\gamma_{nk}x_n}{N_k},\qquad \pi_k^{\text{new}}=\frac{N_k}{N}$$
+
+$$\log p(X)=\sum_n\log\Big(\frac{1}{\sqrt{2\pi}}\sum_k\pi_ke^{-(x_n-\mu_k)^2/2}\Big)$$
+
+**Variables.**
+
+- $x_n$: the four data points.
+- $\pi$, $\mu$: the current parameters, updated each round; the standard deviations stay 1.
+- $\gamma_{n2}=1-\gamma_{n1}$, and $N_k=\sum_n\gamma_{nk}$.
+
+**How the problem maps onto them.**
+
+1. Parts 1 and 2 each apply the first line once from left to right: the responsibility formula (E-step), then the two updates (M-step).
+2. Part 3 evaluates the second line at the starting parameters; the other two values in the stem are the same formula at the parameters after each round.
+:::
+
+### Problem 12: Symmetric starts {#prb-12}
+
+Data $X=(0,\ 1,\ 2,\ 8)$ is fitted by a two-component mixture with $\pi=(0.5,\ 0.5)$ and **both means started at 2**.
+
+1. **Case A:** both standard deviations start at 1. Predict what EM does, without computing.
+2. **Case B:** the standard deviations start at $(1,\ 3)$. Compute the responsibilities of component 1 and the new means after one round.
+3. What general rule do the two cases illustrate?
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+This uses [Week 8, EM for Gaussian mixtures](week08.qmd#sec-w8-em-gmm) and the initialization dropdown in that section.
+
+**Part 1.** The two components are identical, so at every point they have the same weighted density, and every responsibility is $0.5$. The M-step then gives both components the same weighted mean (the data mean, $2.75$), the same covariance, and the same weight $0.5$. They are identical again, so the next round repeats the same thing. EM never separates them: identical components are a fixed point.
+
+**Part 2.** The narrow component has peak $0.3989$, the wide one $0.1330$.
+
+| $x_n$ | $0.5\,\mathcal N(x_n\mid2,1)$ | $0.5\,\mathcal N(x_n\mid2,3^2)$ | $\gamma_{n1}$ |
+|---|---|---|---|
+| 0 | $0.5(0.3989e^{-2})\approx0.0270$ | $0.5(0.1330e^{-0.222})\approx0.0532$ | $0.336$ |
+| 1 | $0.5(0.3989e^{-0.5})\approx0.1210$ | $0.5(0.1330e^{-0.056})\approx0.0629$ | $0.658$ |
+| 2 | $0.1995$ | $0.0665$ | $0.750$ |
+| 8 | $0.5(0.3989e^{-18})\approx0$ | $0.5(0.1330e^{-2})\approx0.0090$ | $0.000$ |
+
+$N_1\approx1.744$ and $N_2\approx2.256$. The new means are $\mu_1\approx\frac{0.658+1.500}{1.744}\approx1.237$ and $\mu_2\approx\frac{0.342+0.500+8}{2.256}\approx3.920$. The components have separated: the narrow one moves toward the cluster near 1, and the wide one is pulled toward the outlier at 8, which only it can explain.
+
+**Part 3.** EM can only separate components that differ somewhere. If every parameter is equal, nothing in the E-step can tell them apart, and the symmetry is preserved forever. Any difference (in means, spreads, or weights) breaks the tie, because the components then explain the points differently and receive different responsibilities.
+
+**Answer.** (1) Case A stays stuck: both components stay identical, at mean $2.75$. (2) Case B: $\gamma_{\cdot1}\approx(0.336,\ 0.658,\ 0.750,\ 0.000)$, new means $\approx(1.237,\ 3.920)$. (3) Identical components are a fixed point of EM; any asymmetry lets it separate them.
+
+**Key takeaways.**
+
+- Never start EM with identical components. Random distinct centres, k-means seeding, or any other asymmetric start avoids the trap.
+- Different spreads alone can break the symmetry: the wide component claims the far points and moves toward them.
+:::
+
+::: {.callout-tip collapse="true" .clarification title="Question: Which equations does this problem use, and how does it map onto them?"}
+**Key equations.**
+
+$$\gamma_{n1}=\frac{\pi_1\,\mathcal N(x_n\mid\mu_1,\sigma_1^2)}{\pi_1\,\mathcal N(x_n\mid\mu_1,\sigma_1^2)+\pi_2\,\mathcal N(x_n\mid\mu_2,\sigma_2^2)}$$
+
+$$\mu_k^{\text{new}}=\frac{1}{N_k}\sum_n\gamma_{nk}x_n$$
+
+**Variables.**
+
+- $\mu_1=\mu_2=2$: the shared starting mean.
+- $\sigma=(1,\ 1)$ in case A and $(1,\ 3)$ in case B.
+- $\gamma_{n1}$: the responsibilities, which are all $0.5$ when the two weighted densities are equal.
+
+**How the problem maps onto them.**
+
+1. Case A: identical parameters make numerator and the other term equal, so the responsibility formula returns $0.5$, and the mean formula returns the same value for both $k$.
+2. Case B: the spreads differ, so the two weighted densities differ point by point; compute them, normalize, then apply the mean formula.
+3. Part 3 generalizes: the responsibility formula can only produce unequal values if the components differ.
+:::
+
+### Problem 13: A component collapses onto a point {#prb-13}
+
+Data $X=(0,\ 1,\ 3)$ is modelled by a two-component mixture with $\pi=(0.5,\ 0.5)$. Component 2 is held at $\mathcal N(4/3,\ 1.25^2)$, a rough fit to all three points. Component 1 has its mean placed exactly on the data point 0, and standard deviation $s$.
+
+1. Compute the log-likelihood for $s=1$, $0.1$ and $0.01$. (Component 2's weighted densities at the three points are about $0.0904$, $0.1540$ and $0.0656$.)
+2. What happens as $s\to0$? Is the resulting model a good description of the data?
+3. What do practical implementations do about it?
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+This uses [Week 8, EM for Gaussian mixtures](week08.qmd#sec-w8-em-gmm), the practical caveats.
+
+**Part 1.** Component 1's weighted density at $x$ is $\frac{0.5}{s\sqrt{2\pi}}e^{-x^2/2s^2}$.
+
+- $s=1$: component 1 gives $0.1995$, $0.1210$, $0.0022$ at the three points. The mixture densities are $0.2898$, $0.2750$, $0.0678$, and the log-likelihood is about $-1.239-1.291-2.691=-5.220$.
+- $s=0.1$: at $x=0$ component 1 gives $\frac{0.5}{0.1\sqrt{2\pi}}\approx1.995$; at $x=1$ and $x=3$ it is 10 and 30 of its standard deviations away, so essentially 0. The mixture densities are $2.085$, $0.154$, $0.0656$, and the log-likelihood is about $0.735-1.871-2.724=-3.860$.
+- $s=0.01$: component 1 gives $19.95$ at $x=0$, and the log-likelihood is about $3.000-1.871-2.724\approx-1.597$.
+
+**Part 2.** Each tenfold shrink of $s$ multiplies the density at $x=0$ by about 10 while the other two points are unaffected (component 2 still covers them), so the log-likelihood rises by about $\ln10\approx2.3$ each time, without bound. The maximum likelihood "solution" is a spike of zero width on one data point. It is useless as a model: it puts a spike of unbounded height at the single value 0, predicts that new data will pile up at exactly that value, and says nothing about the data beyond the one point it sits on.
+
+**Part 3.** Implementations keep each covariance away from zero, for example by adding a small multiple of the identity, $\Sigma_k+\epsilon I$, after each M-step (scikit-learn's `reg_covar`). They also watch for a component whose $N_k$ becomes tiny and re-initialize it.
+
+**Answer.** (1) About $-5.220$, $-3.860$, $-1.597$. (2) The log-likelihood grows without bound, by about 2.3 per tenfold shrink; the limit is a degenerate spike, not a good model. (3) Add a small multiple of the identity to every covariance (or bound the variances from below).
+
+**Key takeaways.**
+
+- The mixture likelihood has no global maximum: a component sitting on one point with shrinking spread sends it to infinity. "Maximize the likelihood" is only meaningful for the local maxima EM finds in sensible regions.
+- This is why EM implementations regularize covariances; a log-likelihood that keeps climbing by roughly $\ln10$ per step while one $\sigma_k$ shrinks is the signature of a collapse.
+:::
+
+::: {.callout-tip collapse="true" .clarification title="Question: Which equations does this problem use, and how does it map onto them?"}
+**Key equations.**
+
+$$\log p(X)=\sum_{n=1}^3\log\Big(0.5\,\mathcal N(x_n\mid0,s^2)+0.5\,\mathcal N(x_n\mid\tfrac43,1.25^2)\Big),\qquad \mathcal N(0\mid0,s^2)=\frac{1}{s\sqrt{2\pi}}$$
+
+**Variables.**
+
+- $s$: the standard deviation of component 1, shrinking from 1 to 0.01.
+- $x_n$: the three points; component 1's mean is exactly $x_1=0$.
+- Component 2's parameters stay fixed, so its terms are the given constants.
+
+**How the problem maps onto them.**
+
+1. Part 1 evaluates the log-likelihood for three values of $s$.
+2. Part 2 uses the second equation: at the point where the mean sits, the density is $\frac{1}{s\sqrt{2\pi}}$, which grows without bound as $s\to0$, while the other points keep a positive density from component 2.
+:::
+
+## The general EM algorithm {#sec-w8p-general}
+
+### Problem 14: EM for a mixture of two coins (stretch) {#prb-14}
+
+EM is not specific to Gaussians. Two coins have heads probabilities $p_1$ and $p_2$. For each trial, a coin is picked at random (coin $k$ with probability $\pi_k$) and flipped $n=5$ times; we record only the number of heads $h$, not which coin was used. So each trial follows a **[binomial distribution](https://en.wikipedia.org/wiki/Binomial_distribution)** given its hidden label: $p(h\mid z=k)=\binom{5}{h}p_k^h(1-p_k)^{5-h}$. Four trials give $h=(5,\ 4,\ 1,\ 0)$.
+
+1. Write the complete-data log-likelihood and $Q(\theta,\theta^{\text{old}})$ for $\theta=(\pi,p_1,p_2)$.
+2. Derive the M-step update for $p_k$.
+3. Starting from $p=(0.6,\ 0.3)$ and $\pi=(0.5,\ 0.5)$, run one E-step and one M-step. The log-likelihood is $-9.094$ before and $-6.381$ after; does that fit the theory?
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+This uses [Week 8, The general EM algorithm](week08.qmd#sec-w8-general-em) and [The Gaussian mixture as an instance](week08.qmd#sec-w8-em-gmm-instance).
+
+**Part 1.** With indicators $\mathbb 1[z_n=k]$, the complete-data log-likelihood is
+
+$$\log p(h,z\mid\theta)=\sum_n\sum_k\mathbb 1[z_n=k]\Big(\log\pi_k+\log\tbinom{5}{h_n}+h_n\log p_k+(5-h_n)\log(1-p_k)\Big).$$
+
+The expectation of each indicator under the posterior at $\theta^{\text{old}}$ is the responsibility $\gamma_{nk}$, so $Q$ is the same sum with $\mathbb 1[z_n=k]$ replaced by $\gamma_{nk}$. As for the Gaussian mixture, there is no log of a sum any more.
+
+**Part 2.** Only the last two terms involve $p_k$. Setting $\partial Q/\partial p_k=\sum_n\gamma_{nk}\big(\frac{h_n}{p_k}-\frac{5-h_n}{1-p_k}\big)=0$ and solving:
+
+$$p_k=\frac{\sum_n\gamma_{nk}h_n}{5\sum_n\gamma_{nk}}=\frac{\text{expected heads assigned to coin }k}{\text{expected flips assigned to coin }k}.$$
+
+The weights come out as $\pi_k=N_k/N$, by the same Lagrange argument as for the Gaussian mixture.
+
+**Part 3.** E-step: the binomial coefficient is the same for both coins and cancels, so compare $\pi_kp_k^h(1-p_k)^{5-h}$.
+
+| $h$ | coin 1: $0.5(0.6)^h(0.4)^{5-h}$ | coin 2: $0.5(0.3)^h(0.7)^{5-h}$ | $\gamma_{n1}$ |
+|---|---|---|---|
+| 5 | $0.03888$ | $0.00122$ | $0.970$ |
+| 4 | $0.02592$ | $0.00284$ | $0.901$ |
+| 1 | $0.00768$ | $0.03602$ | $0.176$ |
+| 0 | $0.00512$ | $0.08404$ | $0.057$ |
+
+M-step: $N_1\approx2.104$ and $N_2\approx1.896$, so $\pi\approx(0.526,\ 0.474)$. Coin 1's expected heads are $0.970(5)+0.901(4)+0.176(1)\approx8.63$ out of $5(2.104)\approx10.52$ expected flips, so $p_1\approx0.820$. Coin 2's are $0.030(5)+0.099(4)+0.824(1)\approx1.37$ out of $5(1.896)\approx9.48$, so $p_2\approx0.145$. The coins have moved apart, toward "mostly heads" and "mostly tails". The log-likelihood rising from $-9.094$ to $-6.381$ is what monotonicity guarantees.
+
+**Answer.** (1) $Q=\sum_n\sum_k\gamma_{nk}\big(\log\pi_k+h_n\log p_k+(5-h_n)\log(1-p_k)\big)+\text{const}$. (2) $p_k=\frac{\sum_n\gamma_{nk}h_n}{5\sum_n\gamma_{nk}}$. (3) $\gamma_{\cdot1}\approx(0.970,0.901,0.176,0.057)$, $p\approx(0.820,\ 0.145)$, $\pi\approx(0.526,\ 0.474)$; the log-likelihood increased, as it must.
+
+**Key takeaways.**
+
+- The general EM recipe carries over unchanged: replace each hidden indicator by its posterior probability, then maximize as if the data were complete.
+- The M-step is always the complete-data MLE with soft counts. For coins, that is "heads over flips", with each trial's heads and flips split between the coins by responsibility.
+:::
+
+::: {.callout-tip collapse="true" .clarification title="Question: Which equations does this problem use, and how does it map onto them?"}
+**Key equations.**
+
+$$Q(\theta,\theta^{\text{old}})=\sum_n\sum_k\gamma_{nk}\log p(h_n,z_n=k\mid\theta)$$
+
+$$\gamma_{nk}=\frac{\pi_kp_k^{h_n}(1-p_k)^{5-h_n}}{\sum_j\pi_jp_j^{h_n}(1-p_j)^{5-h_n}}$$
+
+$$p(h,z=k\mid\theta)=\pi_k\tbinom{5}{h}p_k^h(1-p_k)^{5-h}$$
+
+**Variables.**
+
+- $h_n$: heads in trial $n$, out of 5 flips.
+- $z_n$: the hidden coin; $\gamma_{nk}$ its posterior at the old parameters.
+- $\theta=(\pi,p_1,p_2)$: the weights and the heads probabilities.
+
+**How the problem maps onto them.**
+
+1. Part 1 takes the log of the second line, multiplies by the indicator, and replaces the indicator by $\gamma_{nk}$ to get $Q$.
+2. Part 2 differentiates $Q$ in $p_k$; only the $h_n\log p_k$ and $(5-h_n)\log(1-p_k)$ terms survive.
+3. Part 3 computes $\gamma_{nk}$ with the second formula of the first line (the binomial coefficient cancels), then applies the update from part 2 and $\pi_k=N_k/N$.
+:::
+
+### Problem 15: Watching the ELBO chain with numbers (stretch) {#prb-15}
+
+Data $X=(0,\ 1,\ 4)$ is modelled by a two-component mixture with standard deviations 1 and means **fixed** at $\mu=(0,\ 4)$. Only the weight $\pi_1$ is learned ($\pi_2=1-\pi_1$). It starts at $\pi_1^{\text{old}}=0.2$.
+
+1. Compute $\log p(X\mid\pi^{\text{old}})$ and the responsibilities $\gamma_{n1}$.
+2. With $q$ set to these responsibilities, the expected complete-data log-likelihood is $\mathbb E_q[\log p(X,Z\mid\pi^{\text{old}})]\approx-6.887$ and the entropy is $H(q)\approx0.260$. Check that the ELBO equals the log-likelihood.
+3. Run the M-step for $\pi_1$. Compute the new ELBO $\mathcal L(q,\pi^{\text{new}})$ (only the $\pi$-dependent part of $Q$ changes), and compare it with $\log p(X\mid\pi^{\text{new}})\approx-5.159$. Write out the monotonicity chain with numbers.
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+This uses [Week 8, Why EM never decreases the likelihood](week08.qmd#sec-w8-em-monotone).
+
+**Part 1.** With $\pi=(0.2,\ 0.8)$ the weighted densities are:
+
+| $x_n$ | $0.2\,\mathcal N(x_n\mid0,1)$ | $0.8\,\mathcal N(x_n\mid4,1)$ | $p(x_n)$ | $\gamma_{n1}$ |
+|---|---|---|---|---|
+| 0 | $0.07979$ | $0.00011$ | $0.07990$ | $0.9987$ |
+| 1 | $0.04839$ | $0.00355$ | $0.05194$ | $0.9317$ |
+| 4 | $0.00003$ | $0.31915$ | $0.31918$ | $0.0001$ |
+
+So $\log p(X\mid\pi^{\text{old}})\approx-2.527-2.958-1.142=-6.627$.
+
+**Part 2.** $\mathcal L(q,\pi^{\text{old}})=-6.887+0.260=-6.627$, the log-likelihood exactly. That is what the E-step buys: with $q$ equal to the exact posterior, the KL term in the identity is 0, so the bound touches the curve.
+
+**Part 3.** The M-step gives $\pi_1^{\text{new}}=N_1/N$ with $N_1\approx0.9987+0.9317+0.0001=1.9305$, so $\pi_1^{\text{new}}\approx0.6435$. Only the $\pi$-part of $Q$, $N_1\log\pi_1+N_2\log(1-\pi_1)$ with $N_2\approx1.0695$, depends on $\pi$, and $H(q)$ does not change because $q$ is held fixed:
+
+- old: $1.9305\log0.2+1.0695\log0.8\approx-3.107-0.239=-3.346$,
+- new: $1.9305\log0.6435+1.0695\log0.3565\approx-0.851-1.103=-1.954$.
+
+The ELBO rises by $1.392$, to $\mathcal L(q,\pi^{\text{new}})\approx-6.627+1.392=-5.235$. The chain is
+
+$$
+\begin{aligned}
+\log p(X\mid\pi^{\text{new}})\approx-5.159\ &\ge\ \mathcal L(q,\pi^{\text{new}})\approx-5.235\\
+&\ge\ \mathcal L(q,\pi^{\text{old}})\approx-6.627\ =\ \log p(X\mid\pi^{\text{old}}).
+\end{aligned}
+$$
+
+The first gap, $0.076$, is $\mathrm{KL}\big(q\,\|\,p(Z\mid X,\pi^{\text{new}})\big)$: $q$ is the posterior at the *old* weights, so at the new weights the bound is no longer tight. The next E-step closes that gap again.
+
+**Answer.** (1) $\log p\approx-6.627$; $\gamma_{\cdot1}\approx(0.9987,\ 0.9317,\ 0.0001)$. (2) $-6.887+0.260=-6.627$, equal. (3) $\pi_1^{\text{new}}\approx0.6435$; $-5.159\ge-5.235\ge-6.627=-6.627$.
+
+**Key takeaways.**
+
+- The E-step makes the ELBO equal to the log-likelihood; the M-step raises the ELBO; the log-likelihood is always at least the ELBO. Together these force the log-likelihood up.
+- After the M-step the bound is loose by a KL term, which the next E-step removes. EM alternates between tightening the bound and pushing it up.
+:::
+
+::: {.callout-tip collapse="true" .clarification title="Question: Which equations does this problem use, and how does it map onto them?"}
+**Key equations.**
+
+$$\log p(X\mid\theta)=\mathcal L(q,\theta)+\mathrm{KL}\big(q\,\|\,p(Z\mid X,\theta)\big),\qquad \mathcal L(q,\theta)=\mathbb E_q[\log p(X,Z\mid\theta)]+H(q)$$
+
+$$\mathbb E_q[\log p(X,Z\mid\pi)]=N_1\log\pi_1+N_2\log(1-\pi_1)+\text{terms without }\pi$$
+
+**Variables.**
+
+- $q$: the posterior over labels at $\pi^{\text{old}}$, held fixed through the M-step; its entries are the $\gamma_{nk}$.
+- $N_1=\sum_n\gamma_{n1}$, $N_2=\sum_n\gamma_{n2}$.
+- $H(q)$: the entropy of $q$, a constant once $q$ is fixed.
+
+**How the problem maps onto them.**
+
+1. Part 1 computes the left side of the identity at $\pi^{\text{old}}$, and the posterior that will become $q$.
+2. Part 2 evaluates $\mathcal L$ with the given pieces; the identity with KL $=0$ says it must equal part 1's value.
+3. Part 3 maximizes the second line over $\pi_1$ (giving $N_1/N$), recomputes only that line's $\pi$-part, and adds the change to the old ELBO; the identity at $\pi^{\text{new}}$ explains the remaining gap.
+:::
+
+## k-means and VI {#sec-w8p-kmeans}
+
+### Problem 16: When the nearest centre loses {#prb-16}
+
+A one-dimensional mixture has two components with shared variance $\epsilon$, centres $\mu_1=0$ and $\mu_2=2$, and weights $\pi=(0.1,\ 0.9)$. Consider the point $x=0.8$.
+
+1. Compute $\gamma_1=p(z=1\mid x)$ for $\epsilon=1$, $0.1$ and $0.01$.
+2. Find the value of $\epsilon$ at which $\gamma_1=0.5$.
+3. Which component would k-means assign the point to, and when does EM agree?
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+This uses [Week 8, Relationship to k-means](week08.qmd#sec-w8-kmeans).
+
+The squared distances are $d_1^2=0.64$ and $d_2^2=1.44$, so component 1 is nearer. With shared variance the normalizing constants cancel and $\gamma_1=\frac{0.1\,e^{-0.64/2\epsilon}}{0.1\,e^{-0.64/2\epsilon}+0.9\,e^{-1.44/2\epsilon}}$.
+
+**Part 1.**
+
+- $\epsilon=1$: $0.1e^{-0.32}\approx0.0726$ and $0.9e^{-0.72}\approx0.4381$, so $\gamma_1\approx0.142$. The nearer component **loses**: the prior favours component 2 nine to one, and with wide components the distance difference is not decisive.
+- $\epsilon=0.1$: $0.1e^{-3.2}\approx0.00408$ and $0.9e^{-7.2}\approx0.00067$, so $\gamma_1\approx0.858$.
+- $\epsilon=0.01$: $0.1e^{-32}$ against $0.9e^{-72}$, so $\gamma_1\approx1$ (the other share is about $10^{-17}$).
+
+**Part 2.** $\gamma_1=0.5$ when the two weighted terms are equal: $\log0.1-\frac{0.64}{2\epsilon}=\log0.9-\frac{1.44}{2\epsilon}$, so $\frac{0.8}{2\epsilon}=\log9\approx2.197$ and $\epsilon\approx0.182$.
+
+**Part 3.** k-means assigns each point to its nearest centre, so it assigns $x=0.8$ to component 1 regardless of the weights. EM agrees once $\epsilon<0.182$; for wider components EM gives the point mostly to the heavier component 2. As $\epsilon\to0$ the distance term, scaled by $1/2\epsilon$, overwhelms the fixed $\log(\pi_1/\pi_2)$, which is why the weights drop out of k-means.
+
+**Answer.** (1) $\gamma_1\approx0.142$, $0.858$, $\approx1$. (2) $\epsilon\approx0.182$. (3) k-means: component 1 always; EM agrees only when $\epsilon<0.182$.
+
+**Key takeaways.**
+
+- In EM the weights and the distances trade off; in k-means only the distances count. The $\epsilon\to0$ limit is what removes the weights.
+- So k-means is EM with very small, equal, round clusters; with real spreads, the cluster sizes (the $\pi_k$) legitimately change which cluster a point belongs to.
+:::
+
+::: {.callout-tip collapse="true" .clarification title="Question: Which equations does this problem use, and how does it map onto them?"}
+**Key equations.**
+
+$$\gamma_1=\frac{\pi_1\exp\big(-d_1^2/2\epsilon\big)}{\pi_1\exp\big(-d_1^2/2\epsilon\big)+\pi_2\exp\big(-d_2^2/2\epsilon\big)}$$
+
+$$\gamma_1\ \xrightarrow{\ \epsilon\to0\ }\ r_{1}=\begin{cases}1&d_1<d_2\\0&\text{otherwise}\end{cases}$$
+
+**Variables.**
+
+- $d_k^2=(x-\mu_k)^2$: squared distances, $0.64$ and $1.44$.
+- $\pi=(0.1,\ 0.9)$: the weights.
+- $\epsilon$: the shared variance; $r_1$: the k-means assignment.
+
+**How the problem maps onto them.**
+
+1. Part 1 evaluates the softmax at three values of $\epsilon$.
+2. Part 2 sets the two terms of the denominator equal and solves for $\epsilon$.
+3. Part 3 is the limit on the right: the hard assignment depends only on which distance is smaller.
+:::
+
+### Problem 17: A tight cluster and a wide one {#prb-17}
+
+A one-dimensional data set has a tight cluster around 0 (spread about $0.3$) and a wide cluster around 6 (spread about 3). Suppose both methods have already found these centres: k-means has centres 0 and 6, and EM has equal weights, means 0 and 6, and standard deviations $0.3$ and 3.
+
+1. Where is the boundary between the two clusters for k-means?
+2. For EM, compute the responsibility of the tight cluster at $x=1.5$.
+3. Find the point where EM's responsibilities are equal. Compare with part 1.
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+This uses [Week 8, Relationship to k-means](week08.qmd#sec-w8-kmeans), the lecture's verdict on flexibility.
+
+**Part 1.** k-means assigns a point to the nearer centre, so the boundary is the midpoint, $x=3$. The point $1.5$ (distance $1.5$ against $4.5$) goes to the tight cluster.
+
+**Part 2.** The standardized distances are $1.5/0.3=5$ and $(1.5-6)/3=-1.5$.
+
+- Tight: $\frac{1}{0.3\sqrt{2\pi}}e^{-12.5}\approx1.330\times3.73\times10^{-6}\approx4.96\times10^{-6}$.
+- Wide: $\frac{1}{3\sqrt{2\pi}}e^{-1.125}\approx0.1330\times0.3247\approx0.0432$.
+
+With equal weights, $\gamma_{\text{tight}}\approx\frac{4.96\times10^{-6}}{0.0432}\approx0.0001$. EM gives the point to the wide cluster almost entirely: it is 5 tight-cluster standard deviations out, but only 1.5 wide-cluster standard deviations out.
+
+**Part 3.** Set the log-densities equal: $-\log0.3-\frac{x^2}{0.18}=-\log3-\frac{(x-6)^2}{18}$. Multiplying by 18 and collecting terms gives $99x^2+12x-(36+18\ln10)=0$, so $99x^2+12x-77.45=0$ and $x\approx0.826$. EM's boundary sits less than 1 unit from the tight centre, against k-means' 3. Between $0.83$ and $3$, the two methods disagree about every point.
+
+**Answer.** (1) $x=3$. (2) $\gamma_{\text{tight}}(1.5)\approx0.0001$. (3) $x\approx0.83$, far closer to the tight cluster than k-means' midpoint.
+
+**Key takeaways.**
+
+- k-means measures plain distance, so it implicitly assumes clusters of equal, round spread. When the spreads differ, its midpoint boundary hands the wide cluster's near points to the tight cluster.
+- EM measures distance in each cluster's own units, so the wide cluster claims points far from its centre. This is the flexibility the lecture credits to EM.
+:::
+
+::: {.callout-tip collapse="true" .clarification title="Question: Which equations does this problem use, and how does it map onto them?"}
+**Key equations.**
+
+$$r_{nk}=1\ \text{for}\ k=\arg\min_j\lvert x_n-\mu_j\rvert$$
+
+$$\gamma_k(x)=\frac{\pi_k\,\mathcal N(x\mid\mu_k,\sigma_k^2)}{\sum_j\pi_j\,\mathcal N(x\mid\mu_j,\sigma_j^2)}$$
+
+**Variables.**
+
+- $\mu=(0,\ 6)$: the shared centres.
+- $\sigma=(0.3,\ 3)$: EM's per-cluster spreads; k-means has none.
+- $\pi=(0.5,\ 0.5)$: equal weights, which cancel.
+
+**How the problem maps onto them.**
+
+1. Part 1 uses the k-means rule: the boundary is where the two distances are equal.
+2. Part 2 is the responsibility at one point.
+3. Part 3 sets the two weighted densities equal (equivalently, their logs) and solves the resulting quadratic.
+:::
+
+### Problem 18: EM or VI? {#prb-18}
+
+For each model, say whether the E-step posterior $p(Z\mid X,\theta)$ can be computed exactly (so EM applies), or whether we need variational inference. Give the reason in one or two sentences.
+
+1. A mixture of $K$ **[Poisson](https://en.wikipedia.org/wiki/Poisson_distribution)** distributions for counts: each count $x_n$ has a hidden label $z_n$, and $x_n\mid z_n=k$ is Poisson with rate $r_k$.
+2. Probabilistic PCA, with $z_n\sim\mathcal N(0,I_K)$ and $x_n=Wz_n+\mu+\epsilon_n$.
+3. A Gaussian mixture in which the means $\mu_k$ get a Gaussian prior and we want the posterior over **both** the labels $z_1,\dots,z_N$ and the means.
+4. A model with $z\sim\mathcal N(0,I_K)$ and $x\mid z\sim\mathcal N(f(z),\sigma^2I)$, where $f$ is a neural network.
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+This uses [Week 8, VI vs EM](week08.qmd#sec-w8-vi-em) and the dropdown on when $p(Z\mid X)$ has a closed form.
+
+1. **Exact (EM).** Given the rates and weights, the labels are independent across points and each has $K$ values. The responsibility is a $K$-term Bayes' rule, exactly as for the Gaussian mixture, with a Poisson probability in place of the Gaussian density.
+2. **Exact (EM).** $z$ and $x$ are jointly Gaussian, so $p(z\mid x)$ is Gaussian with the closed-form mean $M^{-1}W^\top(x-\mu)$ and covariance $\sigma^2M^{-1}$. Each point's posterior is separate.
+3. **Not exact (VI).** The means are now latent and shared by all points, so the labels are no longer independent given the data: what we believe about $z_1$ depends on where $\mu_k$ is, which depends on all the other labels. The normalizer sums over all $K^N$ labellings jointly with an integral over the means, and does not factorize. A mean-field family with separate factors for the labels and the means is the standard approach.
+4. **Not exact (VI).** The likelihood is Gaussian in $f(z)$ but $f$ is nonlinear, so $p(x)=\int p(x\mid z)p(z)\,dz$ has no closed form and neither does $p(z\mid x)$. This is the VAE of Week 7.
+
+**Answer.** 1 and 2 have exact posteriors (EM); 3 and 4 need VI.
+
+**Key takeaways.**
+
+- EM is available when, with the parameters fixed, the posterior splits into small independent pieces (one label per point) or stays inside a conjugate family (Gaussian with linear structure).
+- Treating shared quantities as latent, or making the link nonlinear, couples the latents or breaks conjugacy; then only an approximate posterior is available.
+:::
+
+::: {.callout-tip collapse="true" .clarification title="Question: Which equations does this problem use, and how does it map onto them?"}
+**Key equations.** The facts used are definitions rather than formulas:
+
+- EM's E-step needs $p(Z\mid X,\theta)=\frac{p(X,Z\mid\theta)}{\sum_Z p(X,Z\mid\theta)}$, computed exactly.
+- If $p(X,Z\mid\theta)=\prod_n p(x_n,z_n\mid\theta)$, the posterior factorizes, $p(Z\mid X,\theta)=\prod_n p(z_n\mid x_n,\theta)$, and each factor is a small problem.
+- Linear-Gaussian models have Gaussian posteriors in closed form.
+
+**Variables.**
+
+- $Z$: everything treated as hidden; in model 3 it includes the means.
+- $\theta$: what is treated as a fixed parameter during the E-step.
+
+**How the problem maps onto them.**
+
+1. Models 1 and 2: check that the joint factorizes over points (model 1) or is linear-Gaussian (model 2).
+2. Model 3: the shared means sit inside $Z$, so the joint does not factorize over points.
+3. Model 4: the joint is not linear-Gaussian, so the normalizing integral has no closed form.
+:::
+
+## PCA and the PPCA model {#sec-w8p-ppca}
+
+### Problem 19: PCA by hand in two dimensions {#prb-19}
+
+Four centred points in the plane: $(-3,-3)$, $(-2,2)$, $(2,0)$, $(3,1)$.
+
+1. Compute the empirical covariance $\hat\Sigma$, its eigenvalues, and its top unit eigenvector $u_1$.
+2. With $K=1$, compute each point's code $z=u_1^\top x$ and its squared reconstruction error.
+3. Check that the total squared length of the points splits into $\sum z^2$ plus the total error, and relate both pieces to the eigenvalues. Which point is reconstructed worst, and why?
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+This uses [Week 8, Recap: principal component analysis](week08.qmd#sec-w8-pca-recap).
+
+**Part 1.** The mean is $(0,0)$, so $\hat\Sigma=\frac14\sum xx^\top$. The sums of $x_1^2$, $x_2^2$ and $x_1x_2$ are $9+4+4+9=26$, $9+4+0+1=14$ and $9-4+0+3=8$, so
+
+$$\hat\Sigma=\begin{pmatrix}6.5&2\\2&3.5\end{pmatrix}.$$
+
+Its trace is 10 and its determinant $22.75-4=18.75$, so the eigenvalues solve $\lambda^2-10\lambda+18.75=0$: $\lambda=5\pm2.5$, that is $7.5$ and $2.5$. For $\lambda=7.5$, the first row gives $-a+2b=0$, so $u_1=(2,1)/\sqrt5\approx(0.894,\ 0.447)$.
+
+**Part 2.** $z=(2x_1+x_2)/\sqrt5$, and the error is $\lVert x\rVert^2-z^2$ by Pythagoras.
+
+| point | $\lVert x\rVert^2$ | $z$ | $z^2$ | error |
+|---|---|---|---|---|
+| $(-3,-3)$ | 18 | $-9/\sqrt5\approx-4.025$ | 16.2 | 1.8 |
+| $(-2,2)$ | 8 | $-2/\sqrt5\approx-0.894$ | 0.8 | 7.2 |
+| $(2,0)$ | 4 | $4/\sqrt5\approx1.789$ | 3.2 | 0.8 |
+| $(3,1)$ | 10 | $7/\sqrt5\approx3.130$ | 9.8 | 0.2 |
+
+**Part 3.** The squared lengths total 40, $\sum z^2=30$, and the errors total 10: $40=30+10$. Each piece is $N$ times an eigenvalue: $30=4\times7.5$ (the variance kept along $u_1$) and $10=4\times2.5$ (the variance in the discarded direction). The worst point is $(-2,2)$, error $7.2$, because it points almost perpendicular to $u_1$ (its direction $(-1,1)$ is nearly orthogonal to $(2,1)$), so the one-dimensional code captures little of it.
+
+**Answer.** (1) $\hat\Sigma=\begin{pmatrix}6.5&2\\2&3.5\end{pmatrix}$, eigenvalues $7.5$ and $2.5$, $u_1=(2,1)/\sqrt5$. (2) Codes $\approx-4.025,\ -0.894,\ 1.789,\ 3.130$; errors $1.8,\ 7.2,\ 0.8,\ 0.2$. (3) $40=30+10=4(7.5)+4(2.5)$; $(-2,2)$ is worst.
+
+**Key takeaways.**
+
+- For centred data, the kept squared length totals $N\lambda_1$ and the lost squared length totals $N$ times the discarded eigenvalues; maximizing one is minimizing the other.
+- Individual errors vary a lot: a point at a large angle to the principal direction loses most of itself, even when the average loss is modest.
+:::
+
+::: {.callout-tip collapse="true" .clarification title="Question: Which equations does this problem use, and how does it map onto them?"}
+**Key equations.**
+
+$$\hat\Sigma=\frac1N\sum_i x^{(i)}x^{(i)\top},\qquad \hat\Sigma u=\lambda u,\qquad z^{(i)}=u_1^\top x^{(i)},\qquad \lVert x\rVert^2=z^2+\lVert x-z\,u_1\rVert^2$$
+
+**Variables.**
+
+- $x^{(i)}$: the four points, already centred ($\bar x=0$).
+- $\lambda_1\ge\lambda_2$, $u_1$: the eigenvalues and the top unit eigenvector of $\hat\Sigma$.
+- $z^{(i)}$: the one-dimensional code of each point.
+
+**How the problem maps onto them.**
+
+1. Part 1 uses the first two equations: build $\hat\Sigma$, then solve for its eigenvalues and top eigenvector.
+2. Part 2 uses the third (the code) and the fourth (the error is what remains of the squared length).
+3. Part 3 sums the fourth equation over the points and recognizes $\sum_i z^{(i)2}=N\,u_1^\top\hat\Sigma u_1=N\lambda_1$.
+:::
+
+### Problem 20: The covariance a PPCA model implies {#prb-20}
+
+A PPCA model has $D=3$, $K=1$, $\mu=0$, $w=(1,\ 2,\ 2)$ (the single column of $W$), and $\sigma^2=0.5$.
+
+1. Write out $C=ww^\top+\sigma^2I$.
+2. Find the eigenvalues of $C$ and the corresponding eigenvectors. What is the rank of $ww^\top$?
+3. What is the model's variance along the first coordinate axis $e_1$, and along $u=(2,-1,0)/\sqrt5$?
+4. Show that the reflected column $-w$ gives the same $C$. Which orthogonal $R$ is this?
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+This uses [Week 8, The PPCA likelihood](week08.qmd#sec-w8-ppca-lik) and [PPCA is not identifiable](week08.qmd#sec-w8-ident).
+
+**Part 1.** $ww^\top$ has entries $w_iw_j$, so
+
+$$C=\begin{pmatrix}1&2&2\\2&4&4\\2&4&4\end{pmatrix}+0.5I=\begin{pmatrix}1.5&2&2\\2&4.5&4\\2&4&4.5\end{pmatrix}.$$
+
+**Part 2.** $ww^\top$ has rank 1: every column is a multiple of $w$. It maps $w$ to $w(w^\top w)=9w$ and sends every vector orthogonal to $w$ to 0. Adding $0.5I$ adds $0.5$ to every eigenvalue. So $C$ has eigenvalue $9.5$ along $w/\lVert w\rVert=(1,2,2)/3$, and eigenvalue $0.5$ (twice) on the plane orthogonal to $w$. The determinant is $9.5\times0.5\times0.5=2.375$.
+
+**Part 3.** The variance along a unit vector $v$ is $v^\top Cv$. Along $e_1$ it is $C_{11}=1.5$: $w_1^2=1$ from the signal plus $0.5$ noise. The vector $u$ is orthogonal to $w$ (check: $2-2+0=0$), so along $u$ the variance is $0.5$, noise only.
+
+**Part 4.** $(-w)(-w)^\top=ww^\top$, so $C$ is unchanged. With $K=1$, the orthogonal $1\times1$ matrices are $R=1$ and $R=-1$; this is $R=-1$, a reflection of the one-dimensional latent space. Flipping the sign of $z$ and of $w$ together produces exactly the same data.
+
+**Answer.** (1) $C=\begin{pmatrix}1.5&2&2\\2&4.5&4\\2&4&4.5\end{pmatrix}$. (2) $9.5$ along $(1,2,2)/3$, and $0.5$ twice on the orthogonal plane; $ww^\top$ has rank 1. (3) $1.5$ along $e_1$, $0.5$ along $u$. (4) $R=-1$.
+
+**Key takeaways.**
+
+- A PPCA covariance is a low-rank "signal" part plus the same noise in every direction. Its eigenvalues are the signal variances plus $\sigma^2$ along the columns' span, and exactly $\sigma^2$ everywhere else.
+- The data distribution determines $WW^\top$, not $W$: sign flips and rotations of the latent space are invisible.
+:::
+
+::: {.callout-tip collapse="true" .clarification title="Question: Which equations does this problem use, and how does it map onto them?"}
+**Key equations.**
+
+$$C=WW^\top+\sigma^2I_D,\qquad \mathrm{Var}[v^\top x]=v^\top Cv\ \ (\lVert v\rVert=1),\qquad (WR)(WR)^\top=WW^\top\ \ \text{when}\ RR^\top=I$$
+
+**Variables.**
+
+- $W=w=(1,2,2)^\top$, a $3\times1$ matrix; $\sigma^2=0.5$.
+- $v$: a unit direction, $e_1$ or $u$.
+- $R$: a $1\times1$ orthogonal matrix, $\pm1$.
+
+**How the problem maps onto them.**
+
+1. Part 1 is the first equation with the given $w$ and $\sigma^2$.
+2. Part 2 reads the eigenstructure off the first equation: $ww^\top$ acts only along $w$, and $\sigma^2I$ shifts everything.
+3. Part 3 is the second equation for two choices of $v$.
+4. Part 4 is the third equation with $R=-1$.
+:::
+
+## The PPCA fit {#sec-w8p-ppca-mle}
+
+### Problem 21: Fitting PPCA from a spectrum {#prb-21}
+
+A data set in $D=5$ dimensions has empirical covariance eigenvalues $(8,\ 3,\ 1.0,\ 0.6,\ 0.4)$ with unit eigenvectors $u_1,\dots,u_5$.
+
+1. Fit PPCA with $K=1$: give $\hat\sigma^2$, the length of the column of $\hat W$, and the fitted variance along $u_2$ and along $u_3$.
+2. Repeat with $K=2$.
+3. Check in both cases that the fitted model's total variance equals the data's. What happens to $\hat\sigma^2$ as $K$ grows?
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+This uses [Week 8, The maximum likelihood estimates](week08.qmd#sec-w8-ppca-mle) and [Interpreting the MLE](week08.qmd#sec-w8-ppca-interp).
+
+**Part 1 ($K=1$).** $\hat\sigma^2$ is the average of the four discarded eigenvalues: $(3+1+0.6+0.4)/4=1.25$. The column of $\hat W$ points along $u_1$ with length $\sqrt{8-1.25}=\sqrt{6.75}\approx2.598$. Along $u_2$ and $u_3$ the fitted variance is $\hat\sigma^2=1.25$, against the data's $3$ and $1$: the model understates $u_2$ and overstates $u_3$.
+
+**Part 2 ($K=2$).** Now three eigenvalues are discarded: $\hat\sigma^2=(1+0.6+0.4)/3\approx0.667$. The columns point along $u_1$ and $u_2$ with lengths $\sqrt{8-0.667}\approx2.708$ and $\sqrt{3-0.667}\approx1.528$. The fitted variance along $u_2$ is now exactly $3$, and along $u_3$ it is $0.667$ against the data's $1$.
+
+**Part 3.** The data's total variance is $8+3+1+0.6+0.4=13$. With $K=1$ the model has $8+4(1.25)=13$; with $K=2$, $8+3+3(0.667)=13$. Averaging the discarded eigenvalues preserves their sum, so the total always matches. As $K$ grows, the largest of the remaining eigenvalues moves out of the average, so $\hat\sigma^2$ decreases (or stays the same): $1.25$, then $0.667$, and with $K=3$ it would be $0.5$.
+
+**Answer.** (1) $\hat\sigma^2=1.25$, length $\approx2.598$; variance $1.25$ along $u_2$ and $u_3$. (2) $\hat\sigma^2\approx0.667$, lengths $\approx2.708$ and $1.528$; variance $3$ along $u_2$, $0.667$ along $u_3$. (3) Total 13 in both; $\hat\sigma^2$ falls as $K$ grows.
+
+**Key takeaways.**
+
+- The PPCA fit reproduces the top $K$ eigenvalues exactly and flattens the rest to their average, so total variance is preserved.
+- What counts as "noise" depends on $K$: a direction with variance 3 is noise at $K=1$ and signal at $K=2$. Choosing $K$ needs an outside criterion, such as held-out likelihood.
+:::
+
+::: {.callout-tip collapse="true" .clarification title="Question: Which equations does this problem use, and how does it map onto them?"}
+**Key equations.**
+
+$$\hat\sigma^2=\frac{1}{D-K}\sum_{i=K+1}^D\lambda_i,\qquad \lVert\hat w_i\rVert=\sqrt{\lambda_i-\hat\sigma^2}\ \ (i\le K)$$
+
+$$u_i^\top\hat Cu_i=\begin{cases}\lambda_i&i\le K\\\hat\sigma^2&i>K\end{cases}$$
+
+**Variables.**
+
+- $\lambda_i$: the given eigenvalues, sorted in decreasing order.
+- $D=5$; $K=1$ or $2$.
+- $\hat w_i$: column $i$ of $\hat W$ (with $R=I$), which points along $u_i$.
+
+**How the problem maps onto them.**
+
+1. Parts 1 and 2 apply the first two equations for each $K$, then the third for the requested directions.
+2. Part 3 sums the third equation over all $i$: $\sum_{i\le K}\lambda_i+(D-K)\hat\sigma^2$, which equals $\sum_i\lambda_i$ by the first equation.
+:::
+
+### Problem 22: Two bugs in a PPCA fit {#prb-22}
+
+The week's closed-form fit is
+
+```python
+def ppca_mle(X, K):
+    N, D = X.shape
+    mu_hat = X.mean(axis=0)
+    S = np.cov(X.T, bias=True)
+    lam, U = np.linalg.eigh(S)
+    lam, U = lam[::-1], U[:, ::-1]
+    sigmasq_hat = lam[K:].mean()
+    W_hat = U[:, :K] @ np.diag(np.sqrt(lam[:K] - sigmasq_hat))
+    return mu_hat, W_hat, sigmasq_hat, lam
+```
+
+It is run with $K=2$ on $N=5$ points in $D=3$ dimensions whose covariance `S` (computed with $1/N$) has eigenvalues $6.0$, $1.5$ and $0.2$.
+
+1. **Variant A** deletes the line `lam, U = lam[::-1], U[:, ::-1]`. Predict `sigmasq_hat` and `W_hat`.
+2. **Variant B** keeps the sort but writes `S = np.cov(X.T)` without `bias=True`. Predict `sigmasq_hat` and the lengths of the two columns of `W_hat`, and compare with the correct values.
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+This uses [Week 8, Fitting PPCA in closed form](week08.qmd#sec-w8-code-mle).
+
+**Correct output, for reference.** Sorted descending, `lam` is $(6.0,\ 1.5,\ 0.2)$, so `sigmasq_hat` $=0.2$, and the columns of `W_hat` have lengths $\sqrt{5.8}\approx2.408$ and $\sqrt{1.3}\approx1.140$.
+
+**Part 1 (no sort).** `np.linalg.eigh` returns eigenvalues in **ascending** order, so `lam` is $(0.2,\ 1.5,\ 6.0)$.
+
+- `lam[K:]` is `lam[2:]`, just $6.0$, so `sigmasq_hat` $=6.0$: the largest eigenvalue is treated as noise.
+- `lam[:K] - sigmasq_hat` is $(0.2-6.0,\ 1.5-6.0)=(-5.8,\ -4.5)$. `np.sqrt` of a negative float returns `nan` (with a `RuntimeWarning: invalid value encountered in sqrt`), so `W_hat` is all `nan`.
+- Even the directions are wrong: `U[:, :K]` picks the eigenvectors of the two **smallest** eigenvalues.
+
+**Part 2 (unbiased covariance).** Without `bias=True`, `np.cov` divides by $N-1=4$ instead of $N=5$, so every eigenvalue is multiplied by $5/4$: $(7.5,\ 1.875,\ 0.25)$. Then `sigmasq_hat` $=0.25$ instead of $0.2$, and the column lengths are $\sqrt{7.5-0.25}\approx2.693$ and $\sqrt{1.875-0.25}\approx1.275$ instead of $2.408$ and $1.140$. The directions are unchanged (scaling a matrix does not change its eigenvectors). Variant B no longer computes the MLE, which uses $1/N$; with only 5 points the difference is 25%, while with thousands of points it is negligible.
+
+**Answer.** (1) `sigmasq_hat` $=6.0$, `W_hat` all `nan`, with a runtime warning. (2) `sigmasq_hat` $=0.25$; column lengths $\approx2.693$ and $1.275$ instead of $2.408$ and $1.140$; same directions.
+
+**Key takeaways.**
+
+- The formula assumes eigenvalues sorted largest first. An ascending order silently swaps signal and noise, and a `nan` from a negative square root is the visible symptom.
+- The MLE uses the $1/N$ covariance. The $1/(N-1)$ version inflates every eigenvalue by $N/(N-1)$, which matters only for small $N$.
+:::
+
+::: {.callout-tip collapse="true" .clarification title="Question: Which equations does this problem use, and how does it map onto them?"}
+**Key equations.**
+
+$$\hat\sigma^2=\frac{1}{D-K}\sum_{i=K+1}^D\lambda_i,\qquad \hat W=\hat U(\hat L-\hat\sigma^2I_K)^{1/2}$$
+
+$$\hat\Sigma=\frac1N\sum_i(x^{(i)}-\bar x)(x^{(i)}-\bar x)^\top$$
+
+**Variables.**
+
+- `lam`: the eigenvalues $\lambda_i$, which the formula needs in decreasing order.
+- `U[:, :K]`: $\hat U$, the eigenvectors of the top $K$ eigenvalues.
+- `bias=True`: the $1/N$ normalization in $\hat\Sigma$; the default is $1/(N-1)$.
+
+**How the problem maps onto them.**
+
+1. Variant A breaks the ordering assumption behind the first two equations: `lam[K:]` and `U[:, :K]` pick the wrong eigenvalues and eigenvectors.
+2. Variant B changes the third equation's normalization, which rescales every $\lambda_i$ and therefore $\hat\sigma^2$ and $\hat L-\hat\sigma^2I$.
+:::
+
+## PPCA against PCA {#sec-w8p-ppca-pca}
+
+### Problem 23: The posterior and the shrink factor by hand {#prb-23}
+
+A PPCA fit with $D=2$ and $K=1$ has $\hat\mu=(0,0)$, top eigenvector $u_1=(0.6,\ 0.8)$, and eigenvalues $\lambda=(5,\ 1)$. Take the point $x=(2,\ 1.5)$.
+
+1. Compute $\hat\sigma^2$ and $\hat w$ (with $R=1$).
+2. Compute $M$, the posterior mean $\mathbb E[z\mid x]$, and the posterior variance.
+3. Compute the PPCA reconstruction $\hat w\,\mathbb E[z\mid x]$ and PCA's projection $(u_1^\top x)u_1$. What is the ratio between them, and where does it come from?
+4. Keep $\hat w$ fixed and send the $\sigma^2$ used in the posterior to 0. What does the reconstruction become?
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+This uses [Week 8, How does PPCA relate to PCA?](week08.qmd#sec-w8-ppca-pca) and [The posterior and PCA as a limit](week08.qmd#sec-w8-code-post).
+
+**Part 1.** With $K=1$, $D-K=1$ eigenvalue is discarded, so $\hat\sigma^2=1$. The column is $\hat w=\sqrt{5-1}\,u_1=2(0.6,\ 0.8)=(1.2,\ 1.6)$.
+
+**Part 2.** $M=\hat w^\top\hat w+\hat\sigma^2=4+1=5$, which equals $\lambda_1$ as it must at the MLE. $\hat w^\top x=1.2(2)+1.6(1.5)=4.8$, so $\mathbb E[z\mid x]=4.8/5=0.96$, and the posterior variance is $\hat\sigma^2/M=1/5=0.2$.
+
+**Part 3.** PPCA: $0.96\,(1.2,\ 1.6)=(1.152,\ 1.536)$. PCA: $u_1^\top x=0.6(2)+0.8(1.5)=2.4$, so the projection is $2.4\,(0.6,\ 0.8)=(1.44,\ 1.92)$. Both lie on the line spanned by $u_1$, and PPCA's is $1.152/1.44=0.8$ of PCA's. That is the shrink factor $(\lambda_1-\hat\sigma^2)/\lambda_1=4/5$: of the variance $5$ along $u_1$, $4$ is signal and $1$ is noise, so PPCA keeps only the signal share of the observed coordinate.
+
+**Part 4.** With $\sigma^2\to0$, $M\to\hat w^\top\hat w=4$ and $\mathbb E[z\mid x]\to4.8/4=1.2$, so the reconstruction becomes $1.2\,(1.2,\ 1.6)=(1.44,\ 1.92)$, exactly PCA's projection.
+
+**Answer.** (1) $\hat\sigma^2=1$, $\hat w=(1.2,\ 1.6)$. (2) $M=5$, $\mathbb E[z\mid x]=0.96$, variance $0.2$. (3) $(1.152,\ 1.536)$ against $(1.44,\ 1.92)$; ratio $0.8=(5-1)/5$. (4) It becomes PCA's $(1.44,\ 1.92)$.
+
+**Key takeaways.**
+
+- PPCA and PCA reconstruct along the same direction; PPCA pulls the coordinate toward the mean by the signal-to-total variance ratio.
+- The posterior variance $\hat\sigma^2/\lambda_1$ does not depend on $x$: every point's latent coordinate is uncertain by the same amount.
+- Removing the noise from the posterior recovers PCA exactly, which is the sense in which PCA is the noise-free limit of PPCA.
+:::
+
+::: {.callout-tip collapse="true" .clarification title="Question: Which equations does this problem use, and how does it map onto them?"}
+**Key equations.**
+
+$$\hat\sigma^2=\lambda_2,\qquad \hat w=\sqrt{\lambda_1-\hat\sigma^2}\,u_1,\qquad M=\hat w^\top\hat w+\sigma^2$$
+
+$$\mathbb E[z\mid x]=\frac{\hat w^\top(x-\hat\mu)}{M},\qquad \mathrm{Var}[z\mid x]=\frac{\sigma^2}{M}$$
+
+$$\hat w\,\mathbb E[z\mid x]=\frac{\lambda_1-\hat\sigma^2}{\lambda_1}\,(u_1^\top x)\,u_1\quad\text{at the MLE}$$
+
+**Variables.**
+
+- $\lambda=(5,\ 1)$, $u_1=(0.6,\ 0.8)$: the spectrum and top eigenvector.
+- $x=(2,\ 1.5)$, with $\hat\mu=0$.
+- $\sigma^2$: equal to $\hat\sigma^2=1$ in parts 2 and 3, sent to 0 in part 4.
+
+**How the problem maps onto them.**
+
+1. Part 1 uses the first two equations of the first line.
+2. Part 2 uses the last three, which are the $K=1$ versions of the matrix formulas.
+3. Part 3 compares $\hat w\,\mathbb E[z\mid x]$ with $(u_1^\top x)u_1$; the second line explains the ratio.
+4. Part 4 reruns the posterior mean with $\sigma^2=0$ inside $M$ while keeping $\hat w$.
+:::
+
+### Problem 24: Predicting the reconstruction errors {#prb-24}
+
+The tutorial's reconstruction functions are
+
+```python
+def reconstruct_ppca(X, mu, W, sigmasq):
+    return mu + posterior_z(X, mu, W, sigmasq)[0] @ W.T
+
+def reconstruct_pca(X, mu, W):
+    U = np.linalg.qr(W)[0]
+    return mu + (X - mu) @ U @ U.T
+```
+
+They are applied to a new synthetic PPCA model with $D=10$, $K=3$, $\sigma^2=0.2$, and $W$ with three orthogonal columns of lengths 3, 2 and 1. The model is fitted on a very large training set, and the errors are mean squared Euclidean distances on fresh test points, measured both to the noisy $x$ and to the clean signal $Wz+\mu$.
+
+1. Predict PCA's error to the noisy $x$, and PCA's error to the clean signal.
+2. Predict the three shrink factors of PPCA.
+3. For each target, say whether PPCA's error is above or below PCA's, and why.
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+This uses [Week 8, Which reconstruction is better?](week08.qmd#sec-w8-code-recon) and [An error floor](week08.qmd#sec-w8-code-floor).
+
+With a very large training set, the fitted plane is essentially the true one, so we can reason with the true parameters. Write each test point as $x=s+\epsilon$, with $s=Wz+\mu$ on the plane and noise $\epsilon$ of variance $0.2$ in each of the 10 coordinates.
+
+**Part 1.** `reconstruct_pca` projects $x$ orthogonally onto the plane. Since $s$ already lies on it, the projection is $s+P\epsilon$, where $P\epsilon$ is the part of the noise inside the plane.
+
+- **To the noisy $x$:** the error is the noise off the plane, $(I-P)\epsilon$. It has $D-K=7$ directions of variance $0.2$, so the error is about $7\times0.2=1.4$, the error floor.
+- **To the clean signal:** the error is the noise inside the plane, $P\epsilon$: $K=3$ directions of variance $0.2$, about $0.6$. PCA keeps that noise, because it cannot tell it apart from signal.
+
+**Part 2.** Along each column, the data's variance is the signal variance (the squared length) plus noise: $\lambda\approx9.2$, $4.2$ and $1.2$. The shrink factors $(\lambda_i-\sigma^2)/\lambda_i$ are about $0.978$, $0.952$ and $0.833$. The weakest direction is shrunk most, because a larger share of its variance is noise.
+
+**Part 3.**
+
+- **To the noisy $x$: PPCA's error is higher.** Both reconstructions lie on the plane, and the orthogonal projection is the closest point of the plane to $x$. Any shrinking moves away from it.
+- **To the clean signal: PPCA's error is lower.** $\mu+W\,\mathbb E[z\mid x]$ is the posterior mean of the signal, the best guess in squared error. Shrinking each in-plane coordinate removes part of the noise that PCA keeps. With $\sigma^2=0.2$ the gain is modest (the shrink factors are near 1); it grows with the noise, as in the tutorial's table.
+
+**Answer.** (1) About $1.4$ to the noisy $x$, $0.6$ to the clean signal. (2) About $0.978$, $0.952$, $0.833$. (3) PPCA is worse against the noisy $x$ and better against the clean signal.
+
+**Key takeaways.**
+
+- PCA's error to the observation is $(D-K)\sigma^2$, the noise off the plane; its error to the signal is $K\sigma^2$, the noise inside the plane.
+- "Best reconstruction" depends on the target: projection is optimal for reproducing what was observed, the posterior mean for recovering what generated it.
+:::
+
+::: {.callout-tip collapse="true" .clarification title="Question: Which equations does this problem use, and how does it map onto them?"}
+**Key equations.**
+
+$$x=s+\epsilon,\quad s=Wz+\mu,\qquad \mathbb E\lVert(I-P)\epsilon\rVert^2=(D-K)\sigma^2,\qquad \mathbb E\lVert P\epsilon\rVert^2=K\sigma^2$$
+
+$$\text{shrink}_i=\frac{\lambda_i-\sigma^2}{\lambda_i},\qquad \lambda_i=\lVert w_i\rVert^2+\sigma^2$$
+
+**Variables.**
+
+- $P$: the orthogonal projection onto the plane spanned by $W$'s columns; `reconstruct_pca` applies it.
+- $\epsilon$: the noise, variance $\sigma^2=0.2$ per coordinate; $D=10$, $K=3$.
+- $\lambda_i$: the data variance along column $i$, signal plus noise.
+
+**How the problem maps onto them.**
+
+1. Part 1 splits the noise into the off-plane part (error to $x$) and the in-plane part (error to $s$), using the two expectations in the first line.
+2. Part 2 uses the second line with $\lVert w_i\rVert^2=9,\ 4,\ 1$.
+3. Part 3 compares: shrinking can only move a point on the plane further from the orthogonal projection of $x$, but closer, on average, to $s$.
+:::
+
+### Problem 25: Inverting $C$ with the Woodbury identity {#prb-25}
+
+Return to the model of Problem 20: $D=3$, $K=1$, $w=(1,\ 2,\ 2)$, $\sigma^2=0.5$.
+
+1. Compute $M$ and use the Woodbury form to write $C^{-1}$. Give its entries.
+2. Check the result by computing $C^{-1}(Ce_1)$, where $e_1=(1,0,0)$.
+3. For $D=10{,}000$ and $K=20$, compare the cost of inverting $C$ directly with inverting $M$.
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+This uses [Week 8, Appendix: the Woodbury identity and the posterior](week08.qmd#sec-w8-code-woodbury) and [Why probabilistic PCA?](week08.qmd#sec-w8-why-ppca).
+
+**Part 1.** $M=w^\top w+\sigma^2=9+0.5=9.5$, a $1\times1$ matrix. Then
+
+$$C^{-1}=\frac{1}{0.5}\Big(I-\frac{ww^\top}{9.5}\Big)=2I-\frac{2}{9.5}\begin{pmatrix}1&2&2\\2&4&4\\2&4&4\end{pmatrix}$$
+
+$$C^{-1}\approx\begin{pmatrix}1.789&-0.421&-0.421\\-0.421&1.158&-0.842\\-0.421&-0.842&1.158\end{pmatrix}.$$
+
+The only inversion was dividing by $9.5$.
+
+**Part 2.** $Ce_1$ is $C$'s first column, $(1.5,\ 2,\ 2)$. Multiplying by $C^{-1}$:
+
+- first entry: $1.789(1.5)-0.421(2)-0.421(2)\approx2.684-1.684=1.000$,
+- second: $-0.421(1.5)+1.158(2)-0.842(2)\approx-0.632+2.316-1.684=0.000$,
+- third: the same as the second by symmetry, $0.000$.
+
+So $C^{-1}Ce_1=e_1$, as it should. The structure also checks out: $C^{-1}$ has eigenvalue $1/9.5$ along $w$ and $1/0.5=2$ on the orthogonal plane, the reciprocals of Problem 20's eigenvalues.
+
+**Part 3.** Inverting a $D\times D$ matrix costs on the order of $D^3=10^{12}$ operations. Inverting the $K\times K$ matrix $M$ costs about $K^3=8{,}000$. The Woodbury route still forms $WM^{-1}W^\top$, about $D^2K=2\times10^9$ operations if we build the full $D\times D$ result, which is why the speedup in practice is large but not $(D/K)^3$.
+
+**Answer.** (1) $M=9.5$, $C^{-1}=2\big(I-ww^\top/9.5\big)$ with the entries above. (2) $C^{-1}Ce_1=(1,0,0)$. (3) About $10^{12}$ against $8{,}000$ for the inversion itself.
+
+**Key takeaways.**
+
+- A PPCA covariance is "simple plus low rank", so its inverse only requires inverting the small $K\times K$ matrix $M$, the same $M$ that appears in the posterior.
+- This is what makes the PPCA likelihood and posterior affordable when $D$ is large and $K$ is small.
+:::
+
+::: {.callout-tip collapse="true" .clarification title="Question: Which equations does this problem use, and how does it map onto them?"}
+**Key equations.**
+
+$$M=W^\top W+\sigma^2I_K,\qquad C^{-1}=\sigma^{-2}\big(I_D-WM^{-1}W^\top\big)$$
+
+**Variables.**
+
+- $W=w=(1,2,2)^\top$; $\sigma^2=0.5$; $M$ is $1\times1$ here.
+- $C=ww^\top+\sigma^2I$: the matrix from Problem 20.
+- $e_1$: the first standard basis vector, used for the check.
+
+**How the problem maps onto them.**
+
+1. Part 1 plugs $w$ and $\sigma^2$ into both equations.
+2. Part 2 multiplies $C$ by $e_1$ and then by the result of part 1; getting $e_1$ back confirms the inverse.
+3. Part 3 compares the size of the matrix inverted in the second equation, $K\times K$, with the $D\times D$ matrix $C$.
+:::

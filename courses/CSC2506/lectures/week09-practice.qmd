@@ -1,0 +1,1270 @@
+---
+title: "Week 9 practice: Bayesian Linear Regression and Gaussian Processes"
+---
+
+```{=html}
+<style>#title-block-header { display: none; }</style>
+<div class="lecture-header">
+  <h1>Week 9 practice: Bayesian Linear Regression and Gaussian Processes</h1>
+</div>
+```
+
+**Overview.** These problems drill [Week 9](week09.qmd) section by section. The chapter opens with an aid sheet: every equation the problems below need, in the week chapter's notation. After that, each heading matches a section (or a group of sections) of the week chapter, in the same order. Try each stem before opening the worked solution; under each solution, a second dropdown shows which equations the problem uses and how its parts map onto them.
+
+Every data set, kernel, prior and code variant here is invented for practice. None reuses the week's worked examples (the running line $y=-0.3+0.5x$ with its points $(0.8,0.1)$ and $(-0.6,-0.55)$, the one-weight example with $x=(1,2)$, the recap examples, or the GP regression example on the sine curve). No homework item covers this week's material in the course sources. Logarithms are natural.
+
+## Aid sheet: the equations these problems use {#sec-w9p-aid}
+
+The blocks below follow the order of the week chapter. Each gives the equation, then one line per symbol.
+
+### Completing the square (@sec-w9-cts)
+
+**[Completing the square](https://en.wikipedia.org/wiki/Completing_the_square) for Gaussians**
+
+$$\log p(w)=-\tfrac12w^\top Aw+w^\top b+\text{const}\quad\Longrightarrow\quad w\sim\mathcal N\big(A^{-1}b,\ A^{-1}\big)$$
+
+- $A$: the precision (inverse covariance), read off the quadratic term. $b$: precision times mean, read off the linear term.
+- In one dimension, multiplying Gaussians adds precisions, and the new mean is the precision-weighted average of the old means.
+- $2\times2$ inverse: $\begin{pmatrix}p&q\\r&s\end{pmatrix}^{-1}=\frac{1}{ps-qr}\begin{pmatrix}s&-q\\-r&p\end{pmatrix}$.
+
+### Ridge, maximum likelihood and MAP (@sec-w9-ridge to @sec-w9-map)
+
+**[Ridge regression](https://en.wikipedia.org/wiki/Ridge_regression)**
+
+$$\tfrac12\lVert y-\Psi w\rVert^2+\tfrac\lambda2\lVert w\rVert^2,\qquad w=(\Psi^\top\Psi+\lambda I)^{-1}\Psi^\top y$$
+
+$$w\leftarrow(1-\alpha\lambda)\,w-\alpha\,\Psi^\top(\Psi w-y)\qquad(\alpha\text{ is the learning rate here})$$
+
+**Gaussian noise and the Gaussian prior**
+
+$$\log p(\mathcal D\mid w)=\text{const}-\frac{1}{2\sigma^2}\lVert y-\Psi w\rVert^2$$
+
+$$w\sim\mathcal N(0,\eta I)\ \Longrightarrow\ \lambda=\frac{\sigma^2}{\eta}$$
+
+### Bayesian linear regression (@sec-w9-full to @sec-w9-pred)
+
+**Posterior** with prior $w\sim\mathcal N(0,S)$ and noise variance $\sigma^2$
+
+$$\mu=\big(\Psi^\top\Psi+\sigma^2S^{-1}\big)^{-1}\Psi^\top y,\qquad \Sigma=\sigma^2\big(\Psi^\top\Psi+\sigma^2S^{-1}\big)^{-1}$$
+
+- One weight, $\psi(x)=x$: posterior precision $=$ prior precision $+\,x^2/\sigma^2$ per point, and posterior mean $=$ posterior variance $\times$ (prior precision $\times$ prior mean $+\,xy/\sigma^2$).
+
+**[Posterior predictive](https://en.wikipedia.org/wiki/Posterior_predictive_distribution)**
+
+$$\mu_{\text{pred}}=\mu^\top\psi(x),\qquad \sigma^2_{\text{pred}}=\psi(x)^\top\Sigma\,\psi(x)+\sigma^2$$
+
+- Averaging over a discrete set of weight vectors: predictive variance $=$ noise $+$ the variance of the per-$w$ predictions.
+
+**RBF features:** $\psi_j(x)=\exp\big(-(x-\mu_j)^2/2s^2\big)$.
+
+### Gaussian processes and kernels (@sec-w9-to-gp to @sec-w9-kernel)
+
+$$k(x,x')=\psi(x)^\top\psi(x'),\qquad \hat y\sim\mathcal N(0,K),\qquad K_{ij}=\tfrac1\alpha\,k(x^{(i)},x^{(j)})$$
+
+- **Gaussian kernel:** $\exp(-\lVert x-x'\rVert^2/\ell)$. **Exponential kernel:** $\exp(-\lVert x-x'\rVert/\ell)$.
+- A valid kernel makes every $K$ **positive semidefinite**: $v^\top Kv\ge0$ for every $v$.
+
+### Conditioning and GP regression (@sec-w9-cond, @sec-w9-gpr)
+
+**Gaussian conditioning**
+
+$$a\mid b\sim\mathcal N\Big(\mu_a+\Sigma_{ab}\Sigma_{bb}^{-1}(b-\mu_b),\ \ \Sigma_{aa}-\Sigma_{ab}\Sigma_{bb}^{-1}\Sigma_{ba}\Big)$$
+
+**GP regression**
+
+$$C=K+\sigma^2I,\qquad \mathbf k_i=\tfrac1\alpha k(x^{(i)},x^{(N+1)}),\qquad c=\tfrac1\alpha k(x^{(N+1)},x^{(N+1)})+\sigma^2$$
+
+$$y^{(N+1)}\mid y_N\sim\mathcal N\big(\mathbf k^\top C^{-1}y_N,\ \ c-\mathbf k^\top C^{-1}\mathbf k\big)$$
+
+### Classification and hyperparameters (@sec-w9-gpc, @sec-w9-hyper)
+
+- Sigmoid: $\sigma(a)=\frac{1}{1+e^{-a}}$, with $\sigma(-a)=1-\sigma(a)$. Label model: $p(y\mid a)=\sigma(a)^y(1-\sigma(a))^{1-y}$.
+
+**[Marginal likelihood](https://en.wikipedia.org/wiki/Marginal_likelihood)**
+
+$$\log p(y\mid\theta)=-\tfrac12\log|C_\theta|-\tfrac12\,y^\top C_\theta^{-1}y-\tfrac N2\log2\pi$$
+
+## Completing the square {#sec-w9p-cts}
+
+### Problem 1: Reading off a Gaussian, and multiplying two {#prb-1}
+
+1. A density satisfies $\log p(w)=-2.5w^2+4w+\text{const}$. Find its mean and variance.
+2. Multiply the densities $\mathcal N(w;1,0.5)$ and $\mathcal N(w;3,2)$ and normalize. Use completing the square to find the mean and variance of the result, and say which of the two factors it sits closer to.
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+This uses [Week 9, Completing the square for Gaussians](week09.qmd#sec-w9-cts).
+
+**Part 1.** Match $-2.5w^2=-\tfrac12\cdot5\cdot w^2$, so $A=5$, and $4w=w\cdot b$, so $b=4$. The mean is $b/A=0.8$ and the variance $1/A=0.2$.
+
+**Part 2.** Each log-density is $-\frac{(w-m)^2}{2v}+\text{const}=-\tfrac12\frac1v w^2+\frac mv w+\text{const}$. Adding the two:
+
+- quadratic coefficients: $A=\frac{1}{0.5}+\frac12=2+0.5=2.5$,
+- linear coefficients: $b=\frac{1}{0.5}+\frac{3}{2}=2+1.5=3.5$.
+
+So the product is Gaussian with variance $1/2.5=0.4$ and mean $3.5/2.5=1.4$. The precisions (2 and 0.5) add, and the mean $\frac{2\cdot1+0.5\cdot3}{2.5}$ is a precision-weighted average. The result sits much closer to the first factor's mean of 1, because that factor is four times as precise. The variance $0.4$ is smaller than either factor's.
+
+**Answer.** (1) Mean $0.8$, variance $0.2$. (2) Mean $1.4$, variance $0.4$, closer to the more precise factor.
+
+**Key takeaways.**
+
+- Covariance is "one over the quadratic coefficient" and the mean is "linear coefficient over quadratic coefficient". No integration is needed.
+- Multiplying Gaussians adds precisions. This is exactly what happens when a prior meets a likelihood: the result is narrower than both and leans toward the more confident one.
+:::
+
+::: {.callout-tip collapse="true" .clarification title="Question: Which equations does this problem use, and how does it map onto them?"}
+**Key equations.**
+
+$$\log p(w)=-\tfrac12Aw^2+bw+\text{const}\ \Longrightarrow\ w\sim\mathcal N\big(b/A,\ 1/A\big)$$
+
+$$\log\mathcal N(w;m,v)=-\tfrac12\cdot\tfrac1v\,w^2+\tfrac mv\,w+\text{const}$$
+
+**Variables.**
+
+- $A$: the precision; $b$: precision times mean.
+- $m$, $v$: a factor's mean and variance: $(1,\ 0.5)$ and $(3,\ 2)$ in part 2.
+
+**How the problem maps onto them.**
+
+1. Part 1 matches the given quadratic against the first equation directly.
+2. Part 2 expands each factor with the second equation, adds the logs (a product of densities is a sum of log-densities), and then applies the first equation.
+:::
+
+### Problem 2: A cross term, and a quadratic that is not a Gaussian {#prb-2}
+
+1. A two-dimensional density satisfies $\log p(w)=-w_1^2-w_1w_2-w_2^2+3w_1+\text{const}$. Find $A$, $b$, the mean, and the covariance.
+2. What sign does the correlation between $w_1$ and $w_2$ have, and which term of the log-density causes it?
+3. Explain why $\log p(w)=-w_1^2+w_2^2+\text{const}$ cannot be the log-density of a Gaussian.
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+This uses [Week 9, Completing the square for Gaussians](week09.qmd#sec-w9-cts).
+
+**Part 1.** Write the quadratic as $-\tfrac12w^\top Aw$. The diagonal terms $-w_1^2$ and $-w_2^2$ give $A_{11}=A_{22}=2$. The cross term $-w_1w_2$ is $-\tfrac12(A_{12}+A_{21})w_1w_2$, so $A_{12}=A_{21}=1$. The linear term gives $b=(3,\ 0)$.
+
+$$A=\begin{pmatrix}2&1\\1&2\end{pmatrix}$$
+
+$$A^{-1}=\frac13\begin{pmatrix}2&-1\\-1&2\end{pmatrix}$$
+
+$$A^{-1}b=\frac13\begin{pmatrix}6\\-3\end{pmatrix}=\begin{pmatrix}2\\-1\end{pmatrix}.$$
+
+So the mean is $(2,\ -1)$ and the covariance is $\begin{pmatrix}2/3&-1/3\\-1/3&2/3\end{pmatrix}$.
+
+**Part 2.** The covariance $-1/3$ is negative. The cause is the term $-w_1w_2$: it penalizes $w_1$ and $w_2$ having the same sign, so likely values have opposite signs. This also explains why the mean of $w_2$ is $-1$ even though the linear term has no $w_2$ part: $w_1$ is pulled toward positive values by $3w_1$, and the coupling drags $w_2$ the other way.
+
+**Part 3.** Here $A=\begin{pmatrix}2&0\\0&-2\end{pmatrix}$, which is not positive definite. Along $w_2$ the log-density goes **up** without limit, so the density cannot integrate to 1. Completing the square only produces a Gaussian when $A$ is positive definite.
+
+**Answer.** (1) $A=\begin{pmatrix}2&1\\1&2\end{pmatrix}$, $b=(3,0)$, mean $(2,-1)$, covariance $\frac13\begin{pmatrix}2&-1\\-1&2\end{pmatrix}$. (2) Negative, from the $-w_1w_2$ term. (3) The quadratic part is not negative definite, so the function is not normalizable.
+
+**Key takeaways.**
+
+- A cross term $w_1w_2$ appears as an off-diagonal entry of $A$, with a factor of $\tfrac12$ from each side. Off-diagonal precision creates correlation, and correlation moves means that have no linear term of their own.
+- The read-off recipe has a precondition: the quadratic part must curve down in every direction.
+:::
+
+::: {.callout-tip collapse="true" .clarification title="Question: Which equations does this problem use, and how does it map onto them?"}
+**Key equations.**
+
+$$-\tfrac12w^\top Aw=-\tfrac12\big(A_{11}w_1^2+2A_{12}w_1w_2+A_{22}w_2^2\big),\qquad w\sim\mathcal N\big(A^{-1}b,\ A^{-1}\big)$$
+
+**Variables.**
+
+- $A$: a symmetric $2\times2$ precision matrix, which must be positive definite.
+- $b$: the coefficient vector of the linear terms.
+
+**How the problem maps onto them.**
+
+1. Part 1 matches each term of the given log-density to the first expansion, then inverts $A$ with the $2\times2$ formula.
+2. Part 2 reads the off-diagonal entry of $A^{-1}$.
+3. Part 3 checks the precondition: $A$ must be positive definite for the second equation to describe a density.
+:::
+
+## Ridge, maximum likelihood and MAP {#sec-w9p-ridge}
+
+### Problem 3: Ridge with an intercept {#prb-3}
+
+Four points $(x,y)$: $(-1,0)$, $(0,1)$, $(1,1)$, $(2,3)$. Use $\psi(x)=(1,x)$.
+
+1. Compute $\Psi^\top\Psi$ and $\Psi^\top y$.
+2. Find the least-squares weights ($\lambda=0$) and the ridge weights with $\lambda=1$.
+3. Which weights did the penalty shrink? Is shrinking the intercept a sensible thing to do?
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+This uses [Week 9, Linear regression and feature maps](week09.qmd#sec-w9-linreg) and [Ridge regression](week09.qmd#sec-w9-ridge).
+
+**Part 1.** The rows of $\Psi$ are $(1,x)$. Summing:
+
+$$\Psi^\top\Psi=\begin{pmatrix}N&\sum x\\\sum x&\sum x^2\end{pmatrix}=\begin{pmatrix}4&2\\2&6\end{pmatrix}$$
+
+$$\Psi^\top y=\begin{pmatrix}\sum y\\\sum xy\end{pmatrix}=\begin{pmatrix}5\\7\end{pmatrix}.$$
+
+**Part 2.** Least squares: the determinant is $24-4=20$, so $w=\frac{1}{20}\begin{pmatrix}6&-2\\-2&4\end{pmatrix}\begin{pmatrix}5\\7\end{pmatrix}=\frac{1}{20}\begin{pmatrix}16\\18\end{pmatrix}=(0.8,\ 0.9)$.
+
+Ridge with $\lambda=1$: the matrix becomes $\begin{pmatrix}5&2\\2&7\end{pmatrix}$, with determinant $31$, so $w=\frac{1}{31}\begin{pmatrix}7&-2\\-2&5\end{pmatrix}\begin{pmatrix}5\\7\end{pmatrix}=\frac{1}{31}\begin{pmatrix}21\\25\end{pmatrix}\approx(0.677,\ 0.806)$.
+
+**Part 3.** Both weights shrank, the intercept by more ($0.8\to0.677$, against $0.9\to0.806$ for the slope). The penalty $\lVert w\rVert^2$ treats the intercept like any other weight. That is often undesirable: shifting every target by a constant should shift the intercept by that constant, but with a penalty on the intercept it does not. A common practical fix is to centre the targets or leave the intercept unpenalized. The lecture's formula penalizes all weights, which matches a prior with the same variance on every weight.
+
+**Answer.** (1) $\Psi^\top\Psi=\begin{pmatrix}4&2\\2&6\end{pmatrix}$, $\Psi^\top y=(5,7)$. (2) Least squares $(0.8,\ 0.9)$; ridge $\approx(0.677,\ 0.806)$. (3) Both shrank; penalizing the intercept is a modelling choice, often avoided in practice.
+
+**Key takeaways.**
+
+- With features $(1,x)$, $\Psi^\top\Psi$ and $\Psi^\top y$ are just sums: the count, $\sum x$, $\sum x^2$, $\sum y$, $\sum xy$.
+- Ridge adds $\lambda$ to the diagonal, which pulls every penalized weight toward zero, including the intercept unless we exclude it.
+:::
+
+::: {.callout-tip collapse="true" .clarification title="Question: Which equations does this problem use, and how does it map onto them?"}
+**Key equations.**
+
+$$w=(\Psi^\top\Psi+\lambda I)^{-1}\Psi^\top y,\qquad \Psi^\top\Psi=\sum_i\psi(x^{(i)})\psi(x^{(i)})^\top,\qquad \Psi^\top y=\sum_i y^{(i)}\psi(x^{(i)})$$
+
+**Variables.**
+
+- $\psi(x)=(1,x)$: an intercept feature and a slope feature; $w=(w_0,w_1)$.
+- $\lambda$: 0 for least squares, 1 for ridge.
+
+**How the problem maps onto them.**
+
+1. Part 1 uses the two sums on the right.
+2. Part 2 plugs them into the first equation twice, with $\lambda=0$ and $\lambda=1$.
+3. Part 3 compares the two solutions entry by entry.
+:::
+
+### Problem 4: Weight decay at the least-squares point {#prb-4}
+
+Continue Problem 3 with $\lambda=1$, and run gradient descent on the ridge objective with learning rate $\alpha=0.1$, starting from the least-squares weights $(0.8,\ 0.9)$.
+
+1. Compute one update. Why is it a pure shrinkage?
+2. Where does gradient descent end up after many steps?
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+This uses [Week 9, Ridge regression](week09.qmd#sec-w9-ridge), Solution 2.
+
+**Part 1.** The update is $w\leftarrow(1-\alpha\lambda)w-\alpha\Psi^\top(\Psi w-y)$. At the least-squares solution the squared-error gradient $\Psi^\top(\Psi w-y)$ is zero, because that is the condition that defines least squares. Only the decay term acts:
+
+$$w\leftarrow(1-0.1)\,(0.8,\ 0.9)=(0.72,\ 0.81).$$
+
+Every weight is multiplied by $0.9$.
+
+**Part 2.** After the first step the squared-error gradient is no longer zero, and it pushes back toward the data. The iteration settles where the full gradient $(\Psi^\top\Psi+\lambda I)w-\Psi^\top y$ is zero, which is the ridge solution of Problem 3, about $(0.677,\ 0.806)$. The first step overshot in the intercept ($0.72$ is above $0.677$ but closer than $0.8$) and in the slope ($0.81$ is just above $0.806$); later steps settle the balance.
+
+**Answer.** (1) $(0.72,\ 0.81)$: at the least-squares point the data term's gradient is zero, so only the factor $1-\alpha\lambda=0.9$ acts. (2) At the ridge solution $\approx(0.677,\ 0.806)$.
+
+**Key takeaways.**
+
+- "Weight decay" is literal: each step multiplies the weights by $1-\alpha\lambda$ before correcting toward the data.
+- Gradient descent on the ridge objective and the closed form reach the same point, which is where the decay and the data term balance.
+:::
+
+::: {.callout-tip collapse="true" .clarification title="Question: Which equations does this problem use, and how does it map onto them?"}
+**Key equations.**
+
+$$w\leftarrow(1-\alpha\lambda)\,w-\alpha\,\Psi^\top(\Psi w-y),\qquad \Psi^\top(\Psi w_{\text{LS}}-y)=0$$
+
+$$(\Psi^\top\Psi+\lambda I)\,w_{\text{ridge}}=\Psi^\top y$$
+
+**Variables.**
+
+- $\alpha=0.1$: the learning rate (not a prior precision here). $\lambda=1$.
+- $w_{\text{LS}}=(0.8,\ 0.9)$, from Problem 3.
+
+**How the problem maps onto them.**
+
+1. Part 1 applies the update once, using the second equation to drop the data term.
+2. Part 2 sets the update's change to zero, which gives the third equation, the ridge condition.
+:::
+
+### Problem 5: Which noise model, which line? {#prb-5}
+
+Use the data of Problem 3 and compare two lines: **A** $w=(0.8,\ 0.9)$ (the least-squares line) and **B** $w=(1,\ 1)$, which passes exactly through three of the four points.
+
+1. Under Gaussian noise with $\sigma^2=0.25$, compute each line's log-likelihood up to the shared constant. Which is preferred?
+2. Does the preference change if $\sigma^2$ is changed?
+3. Suppose instead the noise had the **[Laplace distribution](https://en.wikipedia.org/wiki/Laplace_distribution)**, $p(\epsilon)\propto\exp(-\lvert\epsilon\rvert/\beta)$. What would maximum likelihood minimize, and which line would it prefer?
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+This uses [Week 9, Linear regression as maximum likelihood](week09.qmd#sec-w9-ml).
+
+**Part 1.** Residuals $y-w^\top\psi(x)$ at $x=-1,0,1,2$:
+
+- A: predictions $-0.1,\ 0.8,\ 1.7,\ 2.6$; residuals $0.1,\ 0.2,\ -0.7,\ 0.4$; squared error $0.01+0.04+0.49+0.16=0.70$.
+- B: predictions $0,\ 1,\ 2,\ 3$; residuals $0,\ 0,\ -1,\ 0$; squared error $1.00$.
+
+The log-likelihoods are $\text{const}-\frac{0.70}{0.5}=\text{const}-1.4$ and $\text{const}-\frac{1.00}{0.5}=\text{const}-2.0$. A is preferred.
+
+**Part 2.** No. $\sigma^2$ only scales the squared error by $\frac{1}{2\sigma^2}$, which changes the size of the gap but not which line has the smaller squared error. (It would matter if $\sigma^2$ were also being estimated, but the ranking of lines would still be by squared error.)
+
+**Part 3.** The log-likelihood becomes $\text{const}-\frac1\beta\sum_i\lvert y^{(i)}-w^\top\psi(x^{(i)})\rvert$, so maximum likelihood minimizes the **sum of absolute residuals**. A has $0.1+0.2+0.7+0.4=1.4$; B has $1.0$. Under Laplace noise **B** wins. Absolute error tolerates one large miss more than squared error does, so it prefers a line that fits three points exactly and gives up on the fourth.
+
+**Answer.** (1) A: $\text{const}-1.4$, B: $\text{const}-2.0$; A wins. (2) No. (3) Minimize $\sum\lvert\text{residual}\rvert$; B wins ($1.0$ against $1.4$).
+
+**Key takeaways.**
+
+- The noise model decides the loss: Gaussian noise gives squared error, Laplace noise gives absolute error. Each loss is a claim about how the targets scatter.
+- Squared error punishes large misses heavily, so a single outlier can pull the least-squares line; absolute error is more robust to it.
+:::
+
+::: {.callout-tip collapse="true" .clarification title="Question: Which equations does this problem use, and how does it map onto them?"}
+**Key equations.**
+
+$$\log p(\mathcal D\mid w)=\text{const}-\frac{1}{2\sigma^2}\sum_i\big(y^{(i)}-w^\top\psi(x^{(i)})\big)^2\quad\text{(Gaussian noise)}$$
+
+$$\log p(\mathcal D\mid w)=\text{const}-\frac1\beta\sum_i\big\lvert y^{(i)}-w^\top\psi(x^{(i)})\big\rvert\quad\text{(Laplace noise)}$$
+
+**Variables.**
+
+- $w$: the two candidate lines A and B.
+- $\sigma^2=0.25$: the Gaussian noise variance; $\beta$: the Laplace scale, whose value does not matter for the ranking.
+
+**How the problem maps onto them.**
+
+1. Part 1 evaluates the first equation for both lines.
+2. Part 2 notes that $\sigma^2$ enters only as a positive factor in front of the sum.
+3. Part 3 takes the log of the Laplace density at each residual and sums, which gives the second equation.
+:::
+
+### Problem 6: Converting between λ, the noise and the prior {#prb-6}
+
+1. Problem 3 used $\lambda=1$. If the noise variance is $\sigma^2=0.25$, which prior variance $\eta$ in $w\sim\mathcal N(0,\eta I)$ makes Problem 3's ridge weights the MAP estimate?
+2. Keeping $\sigma^2=0.25$, what happens to the MAP weights as $\eta\to\infty$ and as $\eta\to0$? Use Problem 3's numbers.
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+This uses [Week 9, Ridge regression as MAP estimation](week09.qmd#sec-w9-map).
+
+**Part 1.** $\lambda=\sigma^2/\eta$, so $\eta=\sigma^2/\lambda=0.25/1=0.25$. A prior standard deviation of $0.5$ on each weight, combined with noise standard deviation $0.5$, gives exactly the ridge answer $(0.677,\ 0.806)$.
+
+**Part 2.** As $\eta\to\infty$, $\lambda\to0$: the prior becomes flat and the MAP weights become the least-squares weights $(0.8,\ 0.9)$. As $\eta\to0$, $\lambda\to\infty$: the prior insists on $w=0$, and $(\Psi^\top\Psi+\lambda I)^{-1}\Psi^\top y\approx\Psi^\top y/\lambda\to0$, so the MAP weights collapse to $(0,\ 0)$, whatever the data says.
+
+**Answer.** (1) $\eta=0.25$. (2) $\eta\to\infty$: least squares $(0.8,0.9)$; $\eta\to0$: $(0,0)$.
+
+**Key takeaways.**
+
+- $\lambda$ is a ratio: how noisy we think the data is, divided by how large we think the weights are. The same $\lambda$ can come from many pairs $(\sigma^2,\eta)$.
+- The two extremes are "trust only the data" (least squares) and "trust only the prior" (all weights zero); ridge interpolates between them.
+:::
+
+::: {.callout-tip collapse="true" .clarification title="Question: Which equations does this problem use, and how does it map onto them?"}
+**Key equations.**
+
+$$\lambda=\frac{\sigma^2}{\eta},\qquad w_{\text{MAP}}=(\Psi^\top\Psi+\lambda I)^{-1}\Psi^\top y$$
+
+**Variables.**
+
+- $\sigma^2=0.25$: the noise variance.
+- $\eta$: the prior variance of each weight, the unknown in part 1.
+- $\lambda$: the ridge strength, $1$ in Problem 3.
+
+**How the problem maps onto them.**
+
+1. Part 1 solves the first equation for $\eta$.
+2. Part 2 sends $\eta$ to each limit in the first equation, then reads off the second.
+:::
+
+## Full Bayesian inference and the posterior {#sec-w9p-post}
+
+### Problem 7: Averaging over three lines {#prb-7}
+
+Suppose (as a discrete stand-in for a posterior) only three lines are plausible, with posterior probabilities $0.5$, $0.3$ and $0.2$. At a new input they predict $1.0$, $1.4$ and $0.4$. The noise variance is $\sigma^2=0.1$.
+
+1. Compute the predictive mean.
+2. Compute the predictive variance, split into the noise and the disagreement between the lines.
+3. What would a report based only on the most probable line say, and what does it miss?
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+This uses [Week 9, Full Bayesian inference](week09.qmd#sec-w9-full).
+
+**Part 1.** $0.5(1.0)+0.3(1.4)+0.2(0.4)=0.5+0.42+0.08=1.0$.
+
+**Part 2.** For each line, the target is that line's prediction plus noise of variance $0.1$. The total variance is the average noise variance plus the variance of the line predictions around the mean:
+
+- disagreement: $0.5(1.0-1.0)^2+0.3(1.4-1.0)^2+0.2(0.4-1.0)^2=0+0.048+0.072=0.12$,
+- total: $0.1+0.12=0.22$.
+
+**Part 3.** The most probable line predicts $1.0$ with variance $0.1$, noise only. Here the mean happens to agree, but the variance is less than half the true predictive variance: it ignores the $0.12$ that comes from not knowing which line is right.
+
+**Answer.** (1) $1.0$. (2) $0.1$ (noise) $+\,0.12$ (disagreement) $=0.22$. (3) Mean $1.0$, variance $0.1$; it misses the weight uncertainty.
+
+**Key takeaways.**
+
+- Averaging over the posterior gives a predictive variance with two parts: noise and disagreement among plausible models.
+- A single best model, MAP or least squares, reports only the first part, so it is systematically overconfident wherever the plausible models disagree.
+:::
+
+::: {.callout-tip collapse="true" .clarification title="Question: Which equations does this problem use, and how does it map onto them?"}
+**Key equations.**
+
+$$\mathbb E[y]=\sum_j p_j\,f_j,\qquad \operatorname{Var}[y]=\sigma^2+\sum_j p_j\,\big(f_j-\mathbb E[y]\big)^2$$
+
+**Variables.**
+
+- $p_j$: the posterior probability of line $j$, $(0.5,\ 0.3,\ 0.2)$.
+- $f_j$: line $j$'s prediction at the new input, $(1.0,\ 1.4,\ 0.4)$.
+- $\sigma^2=0.1$: the noise variance, the same for every line.
+
+**How the problem maps onto them.**
+
+1. Part 1 is the first equation, a discrete version of $\int p(y\mid x,w)\,p(w\mid\mathcal D)\,dw$.
+2. Part 2 is the second equation, the two-part variance.
+3. Part 3 keeps only the most probable $f_j$ and the $\sigma^2$ term.
+:::
+
+### Problem 8: The posterior after two points {#prb-8}
+
+Use $\psi(x)=(1,x)$, prior $S=I$, noise variance $\sigma^2=0.5$, and two observations $(x,y)=(0,1)$ and $(2,2)$.
+
+1. Compute $\Psi^\top\Psi+\sigma^2S^{-1}$ and $\Psi^\top y$.
+2. Compute the posterior mean $\mu$ and covariance $\Sigma$.
+3. Compare $\mu$ with the least-squares line through the two points, and interpret the sign of $\Sigma_{12}$.
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+This uses [Week 9, The posterior over the weights](week09.qmd#sec-w9-post).
+
+**Part 1.** $\Psi=\begin{pmatrix}1&0\\1&2\end{pmatrix}$, so $\Psi^\top\Psi=\begin{pmatrix}2&2\\2&4\end{pmatrix}$ and $\sigma^2S^{-1}=0.5I$. Adding: $B=\begin{pmatrix}2.5&2\\2&4.5\end{pmatrix}$, with determinant $11.25-4=7.25$. Also $\Psi^\top y=(1+2,\ 0+4)=(3,\ 4)$.
+
+**Part 2.** $B^{-1}=\frac{1}{7.25}\begin{pmatrix}4.5&-2\\-2&2.5\end{pmatrix}$, so
+
+$$\mu=\frac{1}{7.25}\begin{pmatrix}13.5-8\\-6+10\end{pmatrix}\approx\begin{pmatrix}0.759\\0.552\end{pmatrix}$$
+
+$$\Sigma=\frac{0.5}{7.25}\begin{pmatrix}4.5&-2\\-2&2.5\end{pmatrix}\approx\begin{pmatrix}0.310&-0.138\\-0.138&0.172\end{pmatrix}.$$
+
+**Part 3.** The line through both points is $y=1+0.5x$, so least squares gives $(1,\ 0.5)$. The posterior mean $(0.759,\ 0.552)$ has a smaller intercept: the prior pulls toward zero, and with only two noisy points that pull is visible. (The slope even rose slightly, because the intercept and slope trade off.) $\Sigma_{12}<0$: lines with a larger intercept tend to have a smaller slope. Both data points have $x\ge0$, so the plausible lines pivot around a point to the right of the origin, where raising one weight must be compensated by lowering the other.
+
+**Answer.** (1) $B=\begin{pmatrix}2.5&2\\2&4.5\end{pmatrix}$, $\Psi^\top y=(3,4)$. (2) $\mu\approx(0.759,\ 0.552)$, $\Sigma\approx\begin{pmatrix}0.310&-0.138\\-0.138&0.172\end{pmatrix}$. (3) Shrunk relative to least squares $(1,0.5)$; negative correlation because the lines pivot around the data.
+
+**Key takeaways.**
+
+- The posterior mean is a ridge solution, here with $\lambda=\sigma^2/1=0.5$, so it is pulled toward zero compared with least squares.
+- The posterior covariance depends only on where the inputs are, not on the targets, and its off-diagonal sign tells how the weights trade off to keep the line near the data.
+:::
+
+::: {.callout-tip collapse="true" .clarification title="Question: Which equations does this problem use, and how does it map onto them?"}
+**Key equations.**
+
+$$\mu=\big(\Psi^\top\Psi+\sigma^2S^{-1}\big)^{-1}\Psi^\top y,\qquad \Sigma=\sigma^2\big(\Psi^\top\Psi+\sigma^2S^{-1}\big)^{-1}$$
+
+**Variables.**
+
+- $\Psi$: rows $(1,0)$ and $(1,2)$. $y=(1,2)$.
+- $S=I$: the prior covariance. $\sigma^2=0.5$.
+
+**How the problem maps onto them.**
+
+1. Part 1 builds the shared matrix inside both formulas and the vector $\Psi^\top y$.
+2. Part 2 inverts that matrix once and uses it in both formulas.
+3. Part 3 compares $\mu$ with $\lambda=0$ (least squares) and reads $\Sigma_{12}$.
+:::
+
+## Sequential Bayesian learning {#sec-w9p-seq}
+
+### Problem 9: One point at a time, in either order {#prb-9}
+
+One weight, $\psi(x)=x$, prior $w\sim\mathcal N(0,2)$, noise variance $\sigma^2=0.5$. Two observations: $(1,\ 1.5)$ and $(-2,\ -2)$.
+
+1. Update on the first point, then on the second.
+2. Update in the reverse order.
+3. Compute the batch posterior from both points at once. Compare all three.
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+This uses [Week 9, Sequential Bayesian learning](week09.qmd#sec-w9-seq).
+
+The prior precision is $1/2=0.5$. Each point adds $x^2/\sigma^2$ to the precision and $xy/\sigma^2$ to the "precision times mean".
+
+- Point $(1,1.5)$ adds precision $1/0.5=2$ and $xy/\sigma^2=1.5/0.5=3$.
+- Point $(-2,-2)$ adds precision $4/0.5=8$ and $xy/\sigma^2=4/0.5=8$.
+
+**Part 1.** After the first point: precision $0.5+2=2.5$, mean $\frac{0.5\cdot0+3}{2.5}=1.2$, variance $0.4$. After the second, with $\mathcal N(1.2,0.4)$ as the prior: precision $2.5+8=10.5$, mean $\frac{2.5\cdot1.2+8}{10.5}=\frac{11}{10.5}\approx1.048$, variance $\approx0.095$.
+
+**Part 2.** After $(-2,-2)$ first: precision $8.5$, mean $8/8.5\approx0.941$. Then $(1,1.5)$: precision $10.5$, mean $\frac{8.5\cdot0.941+3}{10.5}=\frac{11}{10.5}\approx1.048$.
+
+**Part 3.** Batch: precision $0.5+2+8=10.5$, mean $\frac{0+3+8}{10.5}\approx1.048$. All three agree.
+
+The intermediate posteriors differ (mean $1.2$ or $0.941$), but the final one does not. The point at $x=-2$ contributes four times the precision of the point at $x=1$, so it moves the estimate most: a point far from the origin pins down a slope better.
+
+**Answer.** All three give $w\mid\mathcal D\sim\mathcal N(1.048,\ 0.095)$; the intermediate means are $1.2$ (forward) and $0.941$ (reverse).
+
+**Key takeaways.**
+
+- Each observation adds its own precision and its own "precision times mean" contribution. Addition does not care about order, so sequential and batch updates agree.
+- Inputs far from the origin carry more information about a slope, because $x^2$ enters the precision.
+:::
+
+::: {.callout-tip collapse="true" .clarification title="Question: Which equations does this problem use, and how does it map onto them?"}
+**Key equations.**
+
+$$\text{prec}_{\text{new}}=\text{prec}_{\text{old}}+\frac{x^2}{\sigma^2}$$
+
+$$\text{mean}_{\text{new}}=\frac{\text{prec}_{\text{old}}\cdot\text{mean}_{\text{old}}+xy/\sigma^2}{\text{prec}_{\text{new}}}$$
+
+$$p(w\mid\mathcal D_1,\mathcal D_2)\propto p(\mathcal D_2\mid w)\,p(w\mid\mathcal D_1)$$
+
+**Variables.**
+
+- $\text{prec}$: one over the variance of $w$; the prior has $0.5$.
+- $(x,y)$: the observation being added; $\sigma^2=0.5$.
+
+**How the problem maps onto them.**
+
+1. Parts 1 and 2 apply the first line once per point, in two orders, with each posterior becoming the next prior (the second line).
+2. Part 3 adds both points' contributions to the prior at once.
+:::
+
+### Problem 10: Two observations at the same input {#prb-10}
+
+With $\psi(x)=(1,x)$, two observations are made at the same input: $(2,\ 1)$ and $(2,\ 1.4)$.
+
+1. Write the noise-free set of weights consistent with each observation, as a line in weight space. How are the two lines related?
+2. Describe the posterior after both observations. What is well determined and what is not?
+3. What kind of third observation would pin down both weights?
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+This uses [Week 9, Sequential Bayesian learning](week09.qmd#sec-w9-seq).
+
+**Part 1.** A line $y=w_0+w_1x$ passes through $(2,y)$ when $w_0=y-2w_1$. The two observations give $w_0=1-2w_1$ and $w_0=1.4-2w_1$: parallel lines in weight space, with the same slope $-2$. With noise, each likelihood is a band around its line, and the two bands are parallel too.
+
+**Part 2.** Multiplying parallel bands gives another band in the same direction, centred between them (around $w_0+2w_1\approx1.2$, the average of the two targets) and a little narrower, since two noisy readings at $x=2$ are better than one. Across the band the weights are well determined; along it, only the prior limits them. In terms of lines: the height of the line at $x=2$ is well determined (about $1.2$), but the slope is not. The plausible lines all pivot around the point $(2,\ 1.2)$.
+
+**Part 3.** Any observation at an input other than $x=2$. Its band has a different slope $-x$ in weight space, crosses the first band, and the posterior shrinks to a small ellipse around the intersection.
+
+**Answer.** (1) $w_0=1-2w_1$ and $w_0=1.4-2w_1$, parallel. (2) An elongated posterior: the line's height at $x=2$ is pinned near $1.2$, the slope is not. (3) An observation at any $x\ne2$.
+
+**Key takeaways.**
+
+- Each observation constrains one combination of weights, the line's height at that input. Repeating the same input sharpens that one combination and nothing else.
+- Identifying a line needs observations spread over different inputs, so their bands cross at an angle.
+:::
+
+::: {.callout-tip collapse="true" .clarification title="Question: Which equations does this problem use, and how does it map onto them?"}
+**Key equations.** The facts used are:
+
+- All noise-free lines through $(x,y)$ satisfy $w_0=y-w_1x$: a line in weight space with slope $-x$.
+- The posterior is the prior times one likelihood band per observation.
+
+**Variables.**
+
+- $(w_0,w_1)$: a point in weight space, standing for the line $y=w_0+w_1x$.
+- $x=2$: the shared input, which fixes the bands' direction.
+
+**How the problem maps onto them.**
+
+1. Part 1 writes the first fact for each observation and compares the slopes $-x$.
+2. Part 2 multiplies two bands with the same direction.
+3. Part 3 asks for a band with a different slope, which needs a different $x$.
+:::
+
+## RBF features and the predictive distribution {#sec-w9p-pred}
+
+### Problem 11: Bumps near and far (stretch) {#prb-11}
+
+A Bayesian linear regression uses three **[radial basis function](https://en.wikipedia.org/wiki/Radial_basis_function)** features with centres $\mu_j=(-1,\ 0,\ 1)$ and width $s=0.5$ (so $2s^2=0.5$), and no constant feature.
+
+1. Compute $\psi(x)$ at $x=0.25$ and at $x=3$.
+2. Using the predictive formulas, what are the predictive mean and the weight-uncertainty term at $x=3$, whatever the posterior?
+3. Compare with the model $\psi(x)=(1,x)$ far from the data. Is the RBF model's behaviour at $x=3$ trustworthy?
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+This uses [Week 9, Nonlinear features: radial basis functions](week09.qmd#sec-w9-rbf) and [The posterior predictive distribution](week09.qmd#sec-w9-pred).
+
+**Part 1.** $\psi_j(x)=\exp\big(-(x-\mu_j)^2/0.5\big)$.
+
+- $x=0.25$: squared distances $1.5625$, $0.0625$, $0.5625$, so $\psi\approx(e^{-3.125},\ e^{-0.125},\ e^{-1.125})\approx(0.044,\ 0.883,\ 0.325)$.
+- $x=3$: squared distances $16$, $9$, $4$, so $\psi\approx(e^{-32},\ e^{-18},\ e^{-8})\approx(0,\ 0,\ 0.0003)$.
+
+**Part 2.** With $\psi(3)\approx0$, the mean $\mu^\top\psi(3)\approx0$ and the weight-uncertainty term $\psi(3)^\top\Sigma\,\psi(3)\approx0$, for any $\mu$ and $\Sigma$. So the predictive distribution at $x=3$ is about $\mathcal N(0,\ \sigma^2)$: noise only.
+
+**Part 3.** With $\psi(x)=(1,x)$, the weight-uncertainty term grows like $x^2$ away from the data, so the model admits it does not know. The RBF model instead claims to know the function is 0 at $x=3$, with no uncertainty beyond noise, only because none of its bumps reaches there. That is overconfidence produced by the features, not by evidence. The posterior over weights is honest; the features simply cannot express any function value far from their centres. Gaussian processes with a kernel like the Gaussian kernel avoid this: far from the data their variance returns to the prior variance, not to zero.
+
+**Answer.** (1) $\psi(0.25)\approx(0.044,\ 0.883,\ 0.325)$, $\psi(3)\approx(0,\ 0,\ 0.0003)$. (2) Mean $\approx0$, weight term $\approx0$, predictive variance $\approx\sigma^2$. (3) Not trustworthy: the small variance comes from the features vanishing, not from data.
+
+**Key takeaways.**
+
+- The predictive variance can only express uncertainty in directions the features can represent. Where every feature is near 0, the model's error bars collapse to the noise level.
+- So "small error bars" are only meaningful within the region the features cover. Choosing the features is part of the prior.
+:::
+
+::: {.callout-tip collapse="true" .clarification title="Question: Which equations does this problem use, and how does it map onto them?"}
+**Key equations.**
+
+$$\psi_j(x)=\exp\Big(-\frac{(x-\mu_j)^2}{2s^2}\Big),\qquad \mu_{\text{pred}}=\mu^\top\psi(x)$$
+
+$$\sigma^2_{\text{pred}}=\psi(x)^\top\Sigma\,\psi(x)+\sigma^2$$
+
+**Variables.**
+
+- $\mu_j$: the fixed centres $(-1,0,1)$; $s=0.5$ (here $\mu_j$ is not the posterior mean $\mu$).
+- $\mu$, $\Sigma$: any posterior over the three weights.
+
+**How the problem maps onto them.**
+
+1. Part 1 evaluates the first equation at two inputs.
+2. Part 2 plugs $\psi(3)\approx0$ into the other two; both $\mu$- and $\Sigma$-dependent terms vanish.
+3. Part 3 compares with $\psi(x)=(1,x)$, where $\psi(x)^\top\Sigma\psi(x)$ grows with $x$.
+:::
+
+### Problem 12: Predictions near and far from the data {#prb-12}
+
+Use the posterior of Problem 8: $\mu\approx(0.759,\ 0.552)$, $\Sigma\approx\begin{pmatrix}0.310&-0.138\\-0.138&0.172\end{pmatrix}$, $\sigma^2=0.5$, $\psi(x)=(1,x)$.
+
+1. Compute the predictive mean and variance at $x=1$ (between the two data inputs 0 and 2).
+2. Repeat at $x=5$.
+3. In each case, what fraction of the predictive variance is weight uncertainty?
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+This uses [Week 9, The posterior predictive distribution](week09.qmd#sec-w9-pred).
+
+For $\psi=(1,x)$, $\psi^\top\Sigma\psi=\Sigma_{11}+2x\Sigma_{12}+x^2\Sigma_{22}$.
+
+**Part 1 ($x=1$).** Mean $0.759+0.552=1.310$. Weight term $0.310-0.276+0.172\approx0.207$. Predictive variance $0.207+0.5\approx0.707$.
+
+**Part 2 ($x=5$).** Mean $0.759+5(0.552)\approx3.517$. Weight term $0.310+10(-0.138)+25(0.172)\approx0.310-1.379+4.310\approx3.241$. Predictive variance $\approx3.741$.
+
+**Part 3.** At $x=1$ the weight term is $0.207/0.707\approx29\%$ of the total; at $x=5$ it is $3.241/3.741\approx87\%$. Between the data, the noise dominates; far from it, uncertainty about the line itself dominates. The negative $\Sigma_{12}$ helps at $x=1$ (the cross term subtracts) but cannot stop the $x^2\Sigma_{22}$ term from growing at $x=5$.
+
+**Answer.** (1) $\mathcal N(1.310,\ 0.707)$. (2) $\mathcal N(3.517,\ 3.741)$. (3) About $29\%$ and $87\%$.
+
+**Key takeaways.**
+
+- The predictive variance is noise plus weight uncertainty, and only the second depends on where we predict. For a line it grows quadratically away from the inputs we have seen.
+- Between data points, more data mostly cannot help (noise dominates); far from them, the error bars mainly reflect what the model has not learned.
+:::
+
+::: {.callout-tip collapse="true" .clarification title="Question: Which equations does this problem use, and how does it map onto them?"}
+**Key equations.**
+
+$$\mu_{\text{pred}}=\mu^\top\psi(x),\qquad \sigma^2_{\text{pred}}=\psi(x)^\top\Sigma\,\psi(x)+\sigma^2$$
+
+$$\psi^\top\Sigma\psi=\Sigma_{11}+2x\Sigma_{12}+x^2\Sigma_{22}$$
+
+**Variables.**
+
+- $\mu$, $\Sigma$: Problem 8's posterior.
+- $\psi(x)=(1,x)$ at $x=1$ and $x=5$; $\sigma^2=0.5$.
+
+**How the problem maps onto them.**
+
+1. Parts 1 and 2 evaluate the first two equations, using the third to expand the quadratic form.
+2. Part 3 divides the weight term $\psi^\top\Sigma\psi$ by the total.
+:::
+
+### Problem 13: What more data removes {#prb-13}
+
+Problem 8's data set is duplicated ten times: each of the two points is observed ten times, with the same targets.
+
+1. Predict, before computing, which part of the predictive variance at $x=5$ shrinks, and which does not.
+2. The new posterior gives weight-uncertainty terms of about $0.024$ at $x=1$ and $0.410$ at $x=5$. Compute the predictive variances and compare with Problem 12.
+3. What does the predictive variance tend to as the number of copies grows without bound?
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+This uses [Week 9, The posterior predictive distribution](week09.qmd#sec-w9-pred).
+
+**Part 1.** Duplicating the data multiplies $\Psi^\top\Psi$ by 10, so the posterior precision grows and $\Sigma$ shrinks: the weight-uncertainty term falls. The noise $\sigma^2$ is a property of the targets and does not change.
+
+**Part 2.** At $x=1$: $0.024+0.5=0.524$, against $0.707$. At $x=5$: $0.410+0.5=0.910$, against $3.741$. The weight term fell by about a factor of 8 at both inputs (not exactly 10, because the prior's contribution to the precision did not grow). The posterior mean also moves toward the least-squares line $1+0.5x$, since the prior's pull is now relatively weaker.
+
+**Part 3.** The weight term goes to 0, so the predictive variance tends to $\sigma^2=0.5$, at every input, as long as the inputs pin down both weights (here they do: $x=0$ and $x=2$). The noise is a floor that no amount of data removes.
+
+**Answer.** (1) The weight term shrinks, the noise does not. (2) $0.524$ at $x=1$ and $0.910$ at $x=5$. (3) $\sigma^2=0.5$.
+
+**Key takeaways.**
+
+- Data removes uncertainty about the model, not the randomness of the targets. The two parts of the predictive variance behave differently as data grows.
+- So "more data" makes predictions as good as the noise allows, never better.
+:::
+
+::: {.callout-tip collapse="true" .clarification title="Question: Which equations does this problem use, and how does it map onto them?"}
+**Key equations.**
+
+$$\Sigma=\sigma^2\big(\Psi^\top\Psi+\sigma^2S^{-1}\big)^{-1},\qquad \sigma^2_{\text{pred}}=\psi(x)^\top\Sigma\,\psi(x)+\sigma^2$$
+
+**Variables.**
+
+- $\Psi^\top\Psi$: becomes $10\times$ Problem 8's when every point is copied ten times.
+- $\sigma^2=0.5$: unchanged.
+
+**How the problem maps onto them.**
+
+1. Part 1 sees $\Psi^\top\Psi$ grow inside the first equation, so $\Sigma$ shrinks, while $\sigma^2$ in the second stays.
+2. Part 2 adds the given weight terms to $\sigma^2$.
+3. Part 3 lets $\Psi^\top\Psi\to\infty$ in the first equation.
+:::
+
+## From weights to Gaussian processes, and kernels {#sec-w9p-gp}
+
+### Problem 14: The kernel of a quadratic feature map {#prb-14}
+
+Use $\psi(x)=(1,\ x,\ x^2)$ and $\alpha=1$ (prior $w\sim\mathcal N(0,I)$).
+
+1. Write the kernel $k(x,x')$, and the matrix $K$ on the inputs $(-1,\ 0,\ 1)$.
+2. What is the prior variance of the function value at $x=2$? Check it in weight space.
+3. On any four distinct inputs, $K$ is $4\times4$. Can it be invertible? Why?
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+This uses [Week 9, From Bayesian regression to Gaussian processes](week09.qmd#sec-w9-to-gp).
+
+**Part 1.** $k(x,x')=\psi(x)^\top\psi(x')=1+xx'+x^2x'^2$. On $(-1,0,1)$:
+
+$$K=\begin{pmatrix}k(-1,-1)&k(-1,0)&k(-1,1)\\k(0,-1)&k(0,0)&k(0,1)\\k(1,-1)&k(1,0)&k(1,1)\end{pmatrix}=\begin{pmatrix}3&1&1\\1&1&1\\1&1&3\end{pmatrix}.$$
+
+For example, $k(-1,1)=1-1+1=1$: the linear feature makes the values at $-1$ and $1$ anticorrelated, the constant and quadratic features make them correlated, and the net covariance is $1$.
+
+**Part 2.** $k(2,2)=1+4+16=21$. In weight space, $\hat y(2)=w_0+2w_1+4w_2$ with independent unit-variance weights, so its variance is $1+4+16=21$. The prior variance grows quickly with $\lvert x\rvert$, because the quadratic feature does.
+
+**Part 3.** No. $K=\Psi\Psi^\top$ for the $4\times3$ matrix $\Psi$, so its rank is at most $M=3$. A $4\times4$ matrix of rank 3 is singular. In function terms: a quadratic is determined by its values at three points, so its value at a fourth is a fixed combination of the other three, and the four values are not free.
+
+**Answer.** (1) $k=1+xx'+x^2x'^2$, $K=\begin{pmatrix}3&1&1\\1&1&1\\1&1&3\end{pmatrix}$. (2) $21$. (3) No: its rank is at most 3.
+
+**Key takeaways.**
+
+- A feature map with $M$ features gives a kernel whose matrices have rank at most $M$. That is the GP view of "this model can only draw functions from an $M$-dimensional family".
+- Kernels without a finite feature map, such as the Gaussian kernel, give full-rank matrices: their functions are not confined to a finite family.
+:::
+
+::: {.callout-tip collapse="true" .clarification title="Question: Which equations does this problem use, and how does it map onto them?"}
+**Key equations.**
+
+$$k(x,x')=\psi(x)^\top\psi(x'),\qquad K_{ij}=\tfrac1\alpha k(x^{(i)},x^{(j)}),\qquad K=\tfrac1\alpha\Psi\Psi^\top$$
+
+**Variables.**
+
+- $\psi(x)=(1,x,x^2)$, $M=3$; $\alpha=1$.
+- $\Psi$: the matrix with rows $\psi(x^{(i)})$, of size $N\times3$.
+
+**How the problem maps onto them.**
+
+1. Part 1 uses the first two equations.
+2. Part 2 is $k(2,2)$, checked as the variance of $w^\top\psi(2)$.
+3. Part 3 uses the third equation: a product through a $3$-column matrix has rank at most 3.
+:::
+
+### Problem 15: Valid kernels and invalid ones {#prb-15}
+
+For each candidate, decide whether it is a valid (positive semidefinite) kernel on the real line. For a valid one give a feature map or a reason; for an invalid one give inputs and a vector $v$ with $v^\top Kv<0$.
+
+1. $k(x,x')=xx'$.
+2. $k(x,x')=\lvert x-x'\rvert$.
+3. $k(x,x')=\cos(x-x')$.
+4. $k(x,x')=-\exp\big(-(x-x')^2\big)$.
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+This uses [Week 9, Choosing a kernel](week09.qmd#sec-w9-kernel), the **[positive semidefinite kernel](https://en.wikipedia.org/wiki/Positive-definite_kernel)** condition.
+
+1. **Valid.** $xx'=\psi(x)\psi(x')$ with the single feature $\psi(x)=x$. Its functions are lines through the origin.
+2. **Invalid.** On the inputs $0$ and $1$, $K=\begin{pmatrix}0&1\\1&0\end{pmatrix}$. With $v=(1,-1)$, $v^\top Kv=0-1-1+0=-2<0$. Even before that, the diagonal says every function value has variance 0, which contradicts the nonzero covariances. A distance is a dissimilarity; a kernel must be a similarity.
+3. **Valid.** $\cos(x-x')=\cos x\cos x'+\sin x\sin x'=\psi(x)^\top\psi(x')$ with $\psi(x)=(\cos x,\ \sin x)$. Its functions are $w_1\cos x+w_2\sin x$, sinusoids of period $2\pi$ with random amplitude and phase.
+4. **Invalid.** For any single input, $K=(-1)$: a negative variance. ($v=1$ gives $v^\top Kv=-1$.)
+
+**Answer.** 1 valid ($\psi=x$); 2 invalid ($v=(1,-1)$ on inputs 0, 1 gives $-2$); 3 valid ($\psi=(\cos x,\sin x)$); 4 invalid (negative diagonal).
+
+**Key takeaways.**
+
+- Writing a candidate as $\psi(x)^\top\psi(x')$ proves it is valid; one input set and one vector with $v^\top Kv<0$ proves it is not.
+- The quickest checks: the diagonal $k(x,x)$ is a variance and must be nonnegative, and a kernel should be largest for similar inputs, not for distant ones.
+:::
+
+::: {.callout-tip collapse="true" .clarification title="Question: Which equations does this problem use, and how does it map onto them?"}
+**Key equations.**
+
+$$k(x,x')=\psi(x)^\top\psi(x')\ \Longrightarrow\ \text{valid},\qquad v^\top Kv=\operatorname{Var}\Big(\sum_iv_i\,\hat y(x^{(i)})\Big)\ge0$$
+
+**Variables.**
+
+- $K$: the matrix the candidate builds on a chosen set of inputs.
+- $v$: a test vector; a negative $v^\top Kv$ would be a negative variance.
+
+**How the problem maps onto them.**
+
+1. Candidates 1 and 3: find features so the first statement applies.
+2. Candidates 2 and 4: choose inputs and $v$ so the second statement fails.
+:::
+
+### Problem 16: How far does the correlation reach? {#prb-16}
+
+1. For the Gaussian kernel $\exp(-d^2/\ell)$ and the exponential kernel $\exp(-d/\ell)$, compute the correlation between function values at distance $d=0.2$ and $d=0.5$, for $\ell=0.05$ and $\ell=1$.
+2. For each kernel, find the distance at which the correlation falls to $0.5$, as a formula in $\ell$, and evaluate it for both values of $\ell$.
+3. Note that $\ell$ does not have the same units in the two kernels. Explain.
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+This uses [Week 9, Choosing a kernel](week09.qmd#sec-w9-kernel).
+
+**Part 1.**
+
+| $\ell$ | $d$ | Gaussian $e^{-d^2/\ell}$ | exponential $e^{-d/\ell}$ |
+|---|---|---|---|
+| 0.05 | 0.2 | $e^{-0.8}\approx0.449$ | $e^{-4}\approx0.018$ |
+| 0.05 | 0.5 | $e^{-5}\approx0.0067$ | $e^{-10}\approx0.00005$ |
+| 1 | 0.2 | $e^{-0.04}\approx0.961$ | $e^{-0.2}\approx0.819$ |
+| 1 | 0.5 | $e^{-0.25}\approx0.779$ | $e^{-0.5}\approx0.607$ |
+
+**Part 2.** Gaussian: $e^{-d^2/\ell}=0.5$ gives $d=\sqrt{\ell\ln2}$: about $0.186$ for $\ell=0.05$ and $0.833$ for $\ell=1$. Exponential: $e^{-d/\ell}=0.5$ gives $d=\ell\ln2$: about $0.035$ and $0.693$.
+
+**Part 3.** In the Gaussian kernel (as written on the slides) $\ell$ divides a **squared** distance, so it has the units of a squared length; the reach grows like $\sqrt\ell$. In the exponential kernel it divides a distance, so it is a length and the reach grows like $\ell$. That is why, at $\ell=0.05$, the Gaussian kernel still correlates points $0.2$ apart at $0.45$ while the exponential kernel has dropped to $0.02$. Comparing the two kernels "at the same $\ell$" compares different reaches.
+
+**Answer.** (1) The table above. (2) Gaussian $\sqrt{\ell\ln2}$: $0.186$, $0.833$; exponential $\ell\ln2$: $0.035$, $0.693$. (3) $\ell$ is a squared length in the Gaussian kernel and a length in the exponential one.
+
+**Key takeaways.**
+
+- The length-scale sets how far apart two inputs can be and still have strongly related function values; small $\ell$ means wiggly functions.
+- Read $\ell$ through the kernel's formula: whether it divides $d$ or $d^2$ changes what a given number means.
+:::
+
+::: {.callout-tip collapse="true" .clarification title="Question: Which equations does this problem use, and how does it map onto them?"}
+**Key equations.**
+
+$$k_{\text{Gauss}}(d)=e^{-d^2/\ell},\qquad k_{\text{exp}}(d)=e^{-d/\ell},\qquad k=0.5\iff d^2=\ell\ln2\ \ \text{or}\ \ d=\ell\ln2$$
+
+**Variables.**
+
+- $d=\lvert x-x'\rvert$: the distance between the two inputs.
+- $\ell$: the length-scale, $0.05$ or $1$.
+
+**How the problem maps onto them.**
+
+1. Part 1 evaluates the first two formulas eight times.
+2. Part 2 solves each formula for $d$ at the value $0.5$.
+3. Part 3 compares how $\ell$ enters the two formulas.
+:::
+
+## Conditioning and GP regression {#sec-w9p-gpr}
+
+### Problem 17: Conditioning a three-dimensional Gaussian {#prb-17}
+
+A zero-mean Gaussian vector $(x_1,x_2,x_3)$ has covariance
+
+$$\begin{pmatrix}1&0.5&0.8\\0.5&1&0.2\\0.8&0.2&1\end{pmatrix}.$$
+
+1. Find the conditional distribution of $(x_1,x_2)$ given $x_3=1.5$.
+2. Which variable learned more from $x_3$, and why?
+3. What changes if instead $x_3=-1.5$?
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+This uses [Week 9, A prerequisite: conditioning a multivariate Gaussian](week09.qmd#sec-w9-cond).
+
+Take $a=(x_1,x_2)$ and $b=x_3$. Then $\Sigma_{aa}=\begin{pmatrix}1&0.5\\0.5&1\end{pmatrix}$, $\Sigma_{ab}=(0.8,\ 0.2)^\top$, $\Sigma_{bb}=1$.
+
+**Part 1.**
+
+- Mean: $\Sigma_{ab}\Sigma_{bb}^{-1}b=(0.8,\ 0.2)\cdot1.5=(1.2,\ 0.3)$.
+- Covariance: $\Sigma_{aa}-\Sigma_{ab}\Sigma_{ba}=\begin{pmatrix}1-0.64&0.5-0.16\\0.5-0.16&1-0.04\end{pmatrix}=\begin{pmatrix}0.36&0.34\\0.34&0.96\end{pmatrix}$.
+
+**Part 2.** $x_1$: its variance fell from 1 to $0.36$, against $0.96$ for $x_2$. Its covariance with $x_3$ is $0.8$, against $0.2$, so $x_3$ carries much more information about it. Its mean also moved further ($1.2$ against $0.3$).
+
+**Part 3.** The means flip sign, to $(-1.2,\ -0.3)$. The covariance is unchanged: it depends on which variable was observed, not on the value.
+
+**Answer.** (1) Mean $(1.2,\ 0.3)$, covariance $\begin{pmatrix}0.36&0.34\\0.34&0.96\end{pmatrix}$. (2) $x_1$, because it is more strongly correlated with $x_3$. (3) Means $(-1.2,-0.3)$, same covariance.
+
+**Key takeaways.**
+
+- Conditioning shifts each mean in proportion to its covariance with what was observed, and removes from each variance the part that observation explains.
+- The conditional covariance does not depend on the observed value. In GP regression this is why the error bars depend only on where the data is, not on what it says.
+:::
+
+::: {.callout-tip collapse="true" .clarification title="Question: Which equations does this problem use, and how does it map onto them?"}
+**Key equations.**
+
+$$\mathbb E[a\mid b]=\mu_a+\Sigma_{ab}\Sigma_{bb}^{-1}(b-\mu_b),\qquad \operatorname{Cov}[a\mid b]=\Sigma_{aa}-\Sigma_{ab}\Sigma_{bb}^{-1}\Sigma_{ba}$$
+
+**Variables.**
+
+- $a=(x_1,x_2)$, $b=x_3$; both means are 0.
+- $\Sigma_{aa}$: the top-left $2\times2$ block. $\Sigma_{ab}$: the first two entries of the last column. $\Sigma_{bb}=1$.
+
+**How the problem maps onto them.**
+
+1. Part 1 partitions the matrix into blocks and applies both formulas.
+2. Part 2 compares the two diagonal entries of the conditional covariance with the prior's.
+3. Part 3 changes $b$ in the first formula only; the second does not contain $b$.
+:::
+
+### Problem 18: GP regression reproduces Problem 12 (stretch) {#prb-18}
+
+Treat Problem 8's model as a Gaussian process: $k(x,x')=1+xx'$ (the kernel of $\psi(x)=(1,x)$), $\frac1\alpha=1$, $\sigma^2=0.5$, data $(0,1)$ and $(2,2)$.
+
+1. Build $C$, $\mathbf k$ for the new input $x=1$, and $c$.
+2. Compute the GP predictive mean and variance at $x=1$.
+3. Compare with Problem 12. Which matrix did each approach invert?
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+This uses [Week 9, Gaussian process regression](week09.qmd#sec-w9-gpr).
+
+**Part 1.** $k(0,0)=1$, $k(0,2)=1$, $k(2,2)=5$, so $K=\begin{pmatrix}1&1\\1&5\end{pmatrix}$ and $C=K+0.5I=\begin{pmatrix}1.5&1\\1&5.5\end{pmatrix}$. For $x=1$: $\mathbf k=(k(0,1),\ k(2,1))=(1,\ 3)$ and $c=k(1,1)+0.5=2.5$.
+
+**Part 2.** $\det C=8.25-1=7.25$, so $C^{-1}=\frac{1}{7.25}\begin{pmatrix}5.5&-1\\-1&1.5\end{pmatrix}$.
+
+- $C^{-1}y_N=\frac{1}{7.25}(5.5-2,\ -1+3)=\frac{1}{7.25}(3.5,\ 2)\approx(0.483,\ 0.276)$, so the mean is $\mathbf k^\top C^{-1}y_N\approx0.483+3(0.276)\approx1.310$.
+- $C^{-1}\mathbf k=\frac{1}{7.25}(5.5-3,\ -1+4.5)=\frac{1}{7.25}(2.5,\ 3.5)$, so $\mathbf k^\top C^{-1}\mathbf k=\frac{2.5+10.5}{7.25}\approx1.793$ and the variance is $2.5-1.793\approx0.707$.
+
+**Part 3.** Problem 12 gave $\mathcal N(1.310,\ 0.707)$ at $x=1$: the same. Bayesian linear regression inverted the $M\times M=2\times2$ matrix $\Psi^\top\Psi+\sigma^2S^{-1}$ (one row per feature); GP regression inverted the $N\times N=2\times2$ matrix $C$ (one row per data point). Here both are $2\times2$, which is a coincidence of $M=N=2$.
+
+**Answer.** (1) $C=\begin{pmatrix}1.5&1\\1&5.5\end{pmatrix}$, $\mathbf k=(1,3)$, $c=2.5$. (2) $\mathcal N(1.310,\ 0.707)$. (3) Identical; BLR inverts an $M\times M$ matrix, GP an $N\times N$ one.
+
+**Key takeaways.**
+
+- When the kernel comes from features, function space and weight space are two routes to the same predictive distribution.
+- Which route is cheaper depends on whether there are fewer features or fewer data points.
+:::
+
+::: {.callout-tip collapse="true" .clarification title="Question: Which equations does this problem use, and how does it map onto them?"}
+**Key equations.**
+
+$$C=K+\sigma^2I,\qquad \mathbf k_i=\tfrac1\alpha k(x^{(i)},x^{(N+1)}),\qquad c=\tfrac1\alpha k(x^{(N+1)},x^{(N+1)})+\sigma^2$$
+
+$$y^{(N+1)}\mid y_N\sim\mathcal N\big(\mathbf k^\top C^{-1}y_N,\ c-\mathbf k^\top C^{-1}\mathbf k\big)$$
+
+**Variables.**
+
+- $k(x,x')=1+xx'$, $\frac1\alpha=1$, $\sigma^2=0.5$.
+- $y_N=(1,2)$ at inputs $(0,2)$; the new input is $x^{(N+1)}=1$.
+
+**How the problem maps onto them.**
+
+1. Part 1 builds the three quantities in the first line.
+2. Part 2 evaluates the second line.
+3. Part 3 compares with Problem 12's weight-space answer.
+:::
+
+### Problem 19: A symmetric pair of observations {#prb-19}
+
+A GP uses the Gaussian kernel with $\ell=0.5$, $\frac1\alpha=1$, and $\sigma^2=0.1$. It observes $y=1$ at $x=0$ and $y=-1$ at $x=1$.
+
+1. Build $C$ and solve $C^{-1}y_N$.
+2. Predict the target at $x=0.5$. Explain the mean without computing it.
+3. Predict at $x=0.25$ and at $x=3$.
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+This uses [Week 9, Gaussian process regression](week09.qmd#sec-w9-gpr).
+
+**Part 1.** $k(0,1)=e^{-1/0.5}=e^{-2}\approx0.135$, so $C=\begin{pmatrix}1.1&0.135\\0.135&1.1\end{pmatrix}$. By symmetry $C^{-1}y_N=(u,-u)$ with $(1.1-0.135)u=1$, so $u\approx1.037$.
+
+**Part 2.** $x=0.5$ is equally far from both inputs, so $\mathbf k=(e^{-0.5},\ e^{-0.5})\approx(0.607,\ 0.607)$, and the mean is $0.607(1.037)-0.607(1.037)=0$: equal pulls from $+1$ and $-1$ cancel. The variance is not back to the prior, though: $\mathbf k^\top C^{-1}\mathbf k=2(0.607)^2/(1.1+0.135)\approx0.596$, so the variance is $1.1-0.596\approx0.504$. The observations tell us little about the value at 0.5, but they do tell us it is constrained by two nearby points.
+
+**Part 3.**
+
+- $x=0.25$: $\mathbf k=(e^{-0.125},\ e^{-1.125})\approx(0.883,\ 0.325)$. Mean $\approx0.883(1.037)-0.325(1.037)\approx0.578$; variance $\approx0.349$. The prediction leans toward the nearer observation, shrunk toward 0.
+- $x=3$: $\mathbf k\approx(e^{-18},\ e^{-8})\approx(0,\ 0.0003)$. Mean $\approx0$, variance $\approx1.1$: the prior, plus noise.
+
+**Answer.** (1) $C=\begin{pmatrix}1.1&0.135\\0.135&1.1\end{pmatrix}$, $C^{-1}y_N\approx(1.037,\ -1.037)$. (2) Mean $0$ by symmetry, variance $\approx0.504$. (3) $x=0.25$: $\mathcal N(0.578,\ 0.349)$; $x=3$: about $\mathcal N(0,\ 1.1)$.
+
+**Key takeaways.**
+
+- A mean of zero does not mean "no information": the variance shows how much the data constrains a point, separately from what value it suggests.
+- Far from all data a GP with a decaying kernel returns to its prior, mean and variance alike. This is the honest behaviour the RBF features of Problem 11 lacked.
+:::
+
+::: {.callout-tip collapse="true" .clarification title="Question: Which equations does this problem use, and how does it map onto them?"}
+**Key equations.**
+
+$$k(x,x')=e^{-(x-x')^2/\ell},\qquad \mu_*=\mathbf k^\top C^{-1}y_N,\qquad \sigma_*^2=c-\mathbf k^\top C^{-1}\mathbf k$$
+
+**Variables.**
+
+- $\ell=0.5$, $\frac1\alpha=1$, $\sigma^2=0.1$, so $c=1.1$ at every new input.
+- $y_N=(1,-1)$ at inputs $(0,1)$; $\mathbf k$ changes with the new input.
+
+**How the problem maps onto them.**
+
+1. Part 1 builds $C=K+\sigma^2I$ from the kernel and solves it once.
+2. Parts 2 and 3 compute $\mathbf k$ for each new input and apply the mean and variance formulas.
+:::
+
+### Problem 20: Interpolating or smoothing {#prb-20}
+
+A GP with $\frac1\alpha k(x,x)=1$ observes one target, $y=2$, at $x=0$. We predict the **target** at the same input $x=0$.
+
+1. With $\sigma^2=0$, compute the predictive mean and variance.
+2. With $\sigma^2=1$, compute them again. Why is the mean no longer 2?
+3. In case 2, what is the predictive variance of the noise-free **function value** at $x=0$?
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+This uses [Week 9, Gaussian process regression](week09.qmd#sec-w9-gpr).
+
+With one observation at the same input, $C=1+\sigma^2$, $\mathbf k=1$, and $c=1+\sigma^2$.
+
+**Part 1 ($\sigma^2=0$).** Mean $\frac{1}{1}\cdot2=2$, variance $1-\frac11=0$. Without noise the GP passes exactly through the data and is certain there.
+
+**Part 2 ($\sigma^2=1$).** Mean $\frac12\cdot2=1$, variance $2-\frac12=1.5$. The observation is a noisy reading of the function. The prior says function values are typically near 0 with variance 1, and the noise has variance 1, so the evidence and the prior are equally reliable and the estimate lands halfway, at 1. The variance $1.5$ is the remaining uncertainty about the function ($0.5$) plus fresh noise on the new target ($1$).
+
+**Part 3.** Drop the noise from the new target's own variance: $1-\frac12=0.5$. That is the uncertainty about $\hat y(0)$ itself.
+
+**Answer.** (1) $\mathcal N(2,\ 0)$. (2) $\mathcal N(1,\ 1.5)$: the mean is shrunk halfway to the prior mean because noise and prior are equally uncertain. (3) $0.5$.
+
+**Key takeaways.**
+
+- With noise, a GP smooths instead of interpolating: its mean is a compromise between the observed value and the prior mean.
+- Predicting a new noisy target and predicting the underlying function value differ by exactly $\sigma^2$ in the variance.
+:::
+
+::: {.callout-tip collapse="true" .clarification title="Question: Which equations does this problem use, and how does it map onto them?"}
+**Key equations.**
+
+$$\mu_*=\frac{\mathbf k\,y}{C},\qquad \sigma_*^2=c-\frac{\mathbf k^2}{C},\qquad C=1+\sigma^2,\ \ \mathbf k=1,\ \ c=1+\sigma^2$$
+
+**Variables.**
+
+- $y=2$: the single observation, at the same input as the prediction.
+- $\sigma^2$: $0$ or $1$.
+- $c$: includes $\sigma^2$ for a new target; drop it for the function value.
+
+**How the problem maps onto them.**
+
+1. Parts 1 and 2 are the one-observation versions of the GP prediction formulas.
+2. Part 3 uses $c=1$ instead of $1+\sigma^2$.
+:::
+
+### Problem 21: Reading a GP prediction function {#prb-21}
+
+```python
+def gp_predict(X, y, x_new, kern, sigmasq):
+    C = kern(X[:, None], X[None, :]) + sigmasq * np.eye(len(X))
+    k = kern(X, x_new)
+    c = kern(x_new, x_new) + sigmasq
+    mean = k @ np.linalg.solve(C, y)
+    var = c - k @ np.linalg.solve(C, k)
+    return mean, var
+```
+
+Here `kern` is the Gaussian kernel with $\ell=0.1$ (and $\frac1\alpha=1$), applied elementwise.
+
+1. Match each line to the formulas of GP regression.
+2. A variant deletes `+ sigmasq * np.eye(len(X))`. With two training inputs $0$ and $0.001$ and targets $(1,\ 1.2)$, roughly what does `np.linalg.solve(C, y)` return, with and without the noise term $\sigma^2=0.01$? Why does the variant misbehave?
+3. A data set has $N=10^4$ points. Compare the size of the matrix `solve` works with here against Bayesian linear regression with $M=10$ features. Which approach is available for the Gaussian kernel?
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+This uses [Week 9, Gaussian process regression](week09.qmd#sec-w9-gpr).
+
+**Part 1.** The first line builds $C=K+\sigma^2I$ (the `[:, None]` and `[None, :]` broadcast the kernel over all pairs). The second builds $\mathbf k$, the third $c$. The last two compute $\mathbf k^\top C^{-1}y_N$ and $c-\mathbf k^\top C^{-1}\mathbf k$, using `solve` instead of forming $C^{-1}$.
+
+**Part 2.** The kernel value between the inputs is $r=e^{-0.000001/0.1}=e^{-0.00001}\approx0.99999$.
+
+- Without noise: $C=\begin{pmatrix}1&r\\r&1\end{pmatrix}$ has determinant $1-r^2\approx2\times10^{-5}$. Then $C^{-1}y\approx\frac{1}{2\times10^{-5}}(1-1.2r,\ 1.2-r)\approx(-10^4,\ 10^4)$: huge, opposite-signed coefficients. The model insists on passing exactly through two nearly identical inputs with different targets, which needs a function with an enormous slope between them. Small rounding errors in $C$ then change the answer a lot.
+- With $\sigma^2=0.01$: the diagonal becomes $1.01$, the determinant $\approx0.0201$, and $C^{-1}y\approx(-9.4,\ 10.5)$. The noise term says the two targets may differ because of noise, and the problem becomes well conditioned.
+
+**Part 3.** GP regression solves with the $N\times N=10^4\times10^4$ matrix $C$, about $10^{12}$ operations for a direct solve. Bayesian linear regression with $M=10$ features inverts a $10\times10$ matrix. With a finite feature map, weight space is far cheaper here. But the Gaussian kernel has no finite feature map, so for it only the GP route is available, and large $N$ calls for approximations.
+
+**Answer.** (1) $C$, $\mathbf k$, $c$, the mean and the variance, in that order. (2) About $(-10^4,\ 10^4)$ without noise, about $(-9.4,\ 10.5)$ with it; without noise $C$ is nearly singular. (3) $10^4\times10^4$ against $10\times10$; only the GP handles the Gaussian kernel.
+
+**Key takeaways.**
+
+- The noise term is also numerical insurance: it keeps $C$ well conditioned when inputs nearly coincide. Implementations add a small "jitter" even for noise-free problems.
+- The GP's cost grows with the number of data points, the weight-space cost with the number of features. Pick the route that matches the problem.
+:::
+
+::: {.callout-tip collapse="true" .clarification title="Question: Which equations does this problem use, and how does it map onto them?"}
+**Key equations.**
+
+$$C=K+\sigma^2I$$
+
+$$\mu_*=\mathbf k^\top C^{-1}y_N$$
+
+$$\sigma_*^2=c-\mathbf k^\top C^{-1}\mathbf k$$
+
+$$\begin{pmatrix}1&r\\r&1\end{pmatrix}^{-1}=\frac{1}{1-r^2}\begin{pmatrix}1&-r\\-r&1\end{pmatrix}$$
+
+**Variables.**
+
+- `C`, `k`, `c`: the code's names for $C$, $\mathbf k$, $c$.
+- $r$: the kernel value between two nearly identical inputs, very close to 1.
+- $N$, $M$: the number of data points and of features.
+
+**How the problem maps onto them.**
+
+1. Part 1 matches each code line to one of the first three formulas.
+2. Part 2 uses the $2\times2$ inverse: as $r\to1$ the determinant $1-r^2$ goes to 0 unless $\sigma^2$ is added to the diagonal.
+3. Part 3 compares the size of $C$ ($N\times N$) with the weight-space matrix ($M\times M$).
+:::
+
+## GP classification {#sec-w9p-gpc}
+
+### Problem 22: Squashing an uncertain latent value {#prb-22}
+
+In GP classification, $p(y=1\mid a)=\sigma(a)$ with the **[logistic sigmoid](https://en.wikipedia.org/wiki/Logistic_function)** $\sigma$.
+
+1. Suppose the latent value at a new input is equally likely to be $0$ or $4$ (a two-point stand-in for an uncertain posterior). Compute the average of $\sigma(a)$, and compare with $\sigma$ of the average.
+2. Two training inputs have latent values $a_1=1.5$ and $a_2=-0.5$, and labels $y_1=1$, $y_2=0$. Compute the likelihood $p(y_1,y_2\mid a_1,a_2)$.
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+This uses [Week 9, Gaussian process classification](week09.qmd#sec-w9-gpc).
+
+**Part 1.** $\sigma(0)=0.5$ and $\sigma(4)=\frac{1}{1+e^{-4}}\approx0.982$. Their average is $\approx0.741$. The average latent value is 2, and $\sigma(2)\approx0.881$. The two disagree by $0.14$: because the sigmoid flattens out near 1, the high value $4$ gains little over $2$, while the low value $0$ loses a lot. Plugging the mean latent value into the sigmoid overstates confidence.
+
+**Part 2.** The labels are independent given the latent values, and $p(y\mid a)=\sigma(a)^y(1-\sigma(a))^{1-y}$:
+
+- $y_1=1$: $\sigma(1.5)\approx0.818$.
+- $y_2=0$: $1-\sigma(-0.5)=\sigma(0.5)\approx0.622$.
+
+The product is $\approx0.509$.
+
+**Answer.** (1) Average $\approx0.741$ against $\sigma(2)\approx0.881$. (2) $\approx0.818\times0.622\approx0.509$.
+
+**Key takeaways.**
+
+- The average of a sigmoid is not the sigmoid of the average. Uncertainty in the latent value pulls the predicted probability toward $0.5$, so the prediction needs the whole distribution of $a$, not its mean.
+- Given the latent values, the label likelihood is a simple product of Bernoulli terms. The difficulty lies entirely in not knowing the latent values.
+:::
+
+::: {.callout-tip collapse="true" .clarification title="Question: Which equations does this problem use, and how does it map onto them?"}
+**Key equations.**
+
+$$\sigma(a)=\frac{1}{1+e^{-a}},\qquad p(y\mid a)=\sigma(a)^y\big(1-\sigma(a)\big)^{1-y},\qquad 1-\sigma(a)=\sigma(-a)$$
+
+$$p(y^{(N+1)}=1\mid y_N)=\int\sigma(a)\,p(a\mid y_N)\,da$$
+
+**Variables.**
+
+- $a$: a latent function value; in part 1 it takes $0$ or $4$ with probability $\tfrac12$ each.
+- $y\in\{0,1\}$: a label.
+
+**How the problem maps onto them.**
+
+1. Part 1 is the second line with a two-point distribution in place of $p(a\mid y_N)$, compared with $\sigma(\mathbb E[a])$.
+2. Part 2 applies the label model to each point and multiplies.
+:::
+
+### Problem 23: Why the posterior is not Gaussian {#prb-23}
+
+In GP classification the log-posterior over latent values is the Gaussian log-prior plus $\sum_i\log p(y_i\mid a_i)$.
+
+1. For a label $y=1$, the log-likelihood term is $\log\sigma(a)$. Its second derivative is $-\sigma(a)(1-\sigma(a))$. Evaluate it at $a=-4,\ 0,\ 4$.
+2. Use this to explain why completing the square does not give the posterior exactly.
+3. Name the approaches the lecture lists for making predictions anyway.
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+This uses [Week 9, Gaussian process classification](week09.qmd#sec-w9-gpc) and [Completing the square for Gaussians](week09.qmd#sec-w9-cts).
+
+**Part 1.** $\sigma(-4)\approx0.018$, $\sigma(0)=0.5$, $\sigma(4)\approx0.982$, so the second derivatives are about $-0.018$, $-0.25$ and $-0.018$.
+
+**Part 2.** A Gaussian log-density is a quadratic, whose second derivative is the same constant everywhere (minus the precision). Here the prior contributes a constant curvature, but each label adds a term whose curvature changes with $a$: strong near $a=0$, almost none far away. So the log-posterior is not a quadratic, and there is no single $A$ and $b$ to read off. Completing the square needs the log-density to be exactly quadratic; GP regression had that because its likelihood was Gaussian.
+
+**Part 3.** MCMC (Week 5) and numerical integration, as the lecture says, and variational methods (Week 7) as another family.
+
+**Answer.** (1) About $-0.018$, $-0.25$, $-0.018$. (2) The curvature is not constant, so the log-posterior is not quadratic and is not a Gaussian. (3) MCMC, numerical integration, or variational inference.
+
+**Key takeaways.**
+
+- "Gaussian prior times Gaussian likelihood" is what made Part 1 and GP regression exact. One non-Gaussian likelihood term breaks the quadratic form.
+- A useful test for "is this Gaussian?" is whether the log-density's curvature is constant.
+:::
+
+::: {.callout-tip collapse="true" .clarification title="Question: Which equations does this problem use, and how does it map onto them?"}
+**Key equations.**
+
+$$\log p(a\mid y)=-\tfrac12a^\top K^{-1}a+\sum_i\log p(y_i\mid a_i)+\text{const},\qquad \frac{d^2}{da^2}\log\sigma(a)=-\sigma(a)\big(1-\sigma(a)\big)$$
+
+**Variables.**
+
+- $a$: the latent values at the training inputs; $K$: their prior covariance.
+- $\sigma(a)$: the sigmoid, so $\sigma(a)(1-\sigma(a))$ is at most $0.25$.
+
+**How the problem maps onto them.**
+
+1. Part 1 evaluates the second formula at three points.
+2. Part 2 compares: the first term has constant curvature $-K^{-1}$, the sum adds curvature that varies with $a$, so the whole is not quadratic.
+3. Part 3 recalls the lecture's list of approximations.
+:::
+
+## Learning the hyperparameters {#sec-w9p-hyper}
+
+### Problem 24: Choosing a length-scale by evidence (stretch) {#prb-24}
+
+A GP with the Gaussian kernel, $\frac1\alpha=1$ and $\sigma^2=0.1$, observes $y=(1,\ -1)$ at $x=(0,\ 0.3)$. Compare $\ell=0.01$, $0.1$ and $1$.
+
+1. For each $\ell$, compute $r=k(0,0.3)$, $|C|$, and $y^\top C^{-1}y$.
+2. Compute $\log p(y\mid\ell)$ up to the shared constant $-\log2\pi$. Which $\ell$ does the evidence prefer?
+3. Explain the ranking in terms of the two terms of the objective.
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+This uses [Week 9, Learning the hyperparameters](week09.qmd#sec-w9-hyper).
+
+$C=\begin{pmatrix}1.1&r\\r&1.1\end{pmatrix}$, so $|C|=1.21-r^2$. For $y=(1,-1)$, $y^\top C^{-1}y=\frac{1.1+2r+1.1}{1.21-r^2}=\frac{2(1.1+r)}{1.21-r^2}=\frac{2}{1.1-r}$.
+
+**Part 1.**
+
+| $\ell$ | $r=e^{-0.09/\ell}$ | $\lvert C\rvert$ | $y^\top C^{-1}y$ |
+|---|---|---|---|
+| 0.01 | $e^{-9}\approx0.0001$ | $1.210$ | $1.818$ |
+| 0.1 | $e^{-0.9}\approx0.407$ | $1.045$ | $2.884$ |
+| 1 | $e^{-0.09}\approx0.914$ | $0.375$ | $10.75$ |
+
+**Part 2.** $-\frac12\log|C|-\frac12y^\top C^{-1}y$:
+
+- $\ell=0.01$: $-0.095-0.909\approx-1.005$.
+- $\ell=0.1$: $-0.022-1.442\approx-1.464$.
+- $\ell=1$: $+0.491-5.374\approx-4.884$.
+
+The evidence prefers $\ell=0.01$.
+
+**Part 3.** With $\ell=1$ the kernel says the function values at 0 and 0.3 are strongly positively correlated ($r\approx0.91$), so targets of opposite sign are very surprising: the data-fit term is $-5.4$. Its complexity term is actually the best ($|C|$ is small because the two targets are nearly redundant), but that cannot make up for the misfit. A short length-scale treats the two values as nearly independent, which explains opposite signs easily. The data prefers the kernel under which it is unsurprising.
+
+**Answer.** (1) The table above. (2) About $-1.005$, $-1.464$, $-4.884$; $\ell=0.01$ wins. (3) Long length-scales predict similar values at nearby inputs and are penalized heavily by targets of opposite sign.
+
+**Key takeaways.**
+
+- The marginal likelihood scores a hyperparameter by how probable it makes the observed targets, with the function integrated out.
+- Opposite targets at nearby inputs are evidence for a short length-scale, that is, for wiggly functions.
+:::
+
+::: {.callout-tip collapse="true" .clarification title="Question: Which equations does this problem use, and how does it map onto them?"}
+**Key equations.**
+
+$$\log p(y\mid\ell)=-\tfrac12\log|C_\ell|-\tfrac12\,y^\top C_\ell^{-1}y+\text{const}$$
+
+$$C_\ell=\begin{pmatrix}1+\sigma^2&r\\r&1+\sigma^2\end{pmatrix},\quad r=e^{-0.09/\ell}$$
+
+**Variables.**
+
+- $\ell$: the length-scale being chosen.
+- $r$: the prior correlation between the function values at 0 and 0.3 (their distance squared is $0.09$).
+- $y=(1,-1)$; $\sigma^2=0.1$.
+
+**How the problem maps onto them.**
+
+1. Part 1 builds $C_\ell$ for each $\ell$ and computes its determinant and the quadratic form.
+2. Part 2 combines them in the first equation.
+3. Part 3 compares the two terms separately across the three values.
+:::
+
+### Problem 25: When the evidence says "no signal" (stretch) {#prb-25}
+
+A single target $y$ is modelled as a function value with prior variance $v$ plus noise of fixed variance $\sigma^2=0.5$, so $C=v+0.5$. The hyperparameter is $v\ge0$.
+
+1. Show that, ignoring the constraint, $\log p(y\mid v)$ is maximized where $v+\sigma^2=y^2$.
+2. For $y=0.5$, evaluate $\log p(y\mid v)$ (up to its constant) at $v=0$, $0.25$ and $1$. What is the best $v\ge0$?
+3. For $y=2$, what is the best $v$? Interpret both cases.
+
+::: {.callout-tip collapse="true" .practice-answer title="Worked solution"}
+This uses [Week 9, Learning the hyperparameters](week09.qmd#sec-w9-hyper).
+
+**Part 1.** $\log p(y\mid v)=-\tfrac12\log C-\frac{y^2}{2C}+\text{const}$ with $C=v+0.5$. The derivative in $C$ is $-\frac{1}{2C}+\frac{y^2}{2C^2}$, which is zero at $C=y^2$, that is $v=y^2-\sigma^2$.
+
+**Part 2.** For $y=0.5$, $y^2/2=0.125$:
+
+- $v=0$: $C=0.5$, $-\tfrac12\log0.5-\frac{0.125}{0.5}\approx0.347-0.25=0.097$.
+- $v=0.25$: $C=0.75$, $\approx0.144-0.167=-0.023$.
+- $v=1$: $C=1.5$, $\approx-0.203-0.083=-0.286$.
+
+The unconstrained optimum would be $v=0.25-0.5=-0.25$, which is not allowed. The log-evidence falls as $v$ increases from 0, so the best allowed value is $v=0$.
+
+**Part 3.** For $y=2$, $v=4-0.5=3.5$. With $y=2$ the target is too large to be explained by noise of variance $0.5$ alone, so the evidence assigns the excess to the signal. With $y=0.5$ the target is small enough to be explained by noise, and any signal variance would only spread the probability more thinly. The evidence then decides there is no signal at all.
+
+**Answer.** (1) $v=y^2-\sigma^2$. (2) $0.097$, $-0.023$, $-0.286$; best $v=0$. (3) $v=3.5$; the evidence splits the observed spread into noise and signal, and gives the signal only what the noise cannot explain.
+
+**Key takeaways.**
+
+- Maximizing the marginal likelihood matches the model's total variance to the data's spread, and assigns signal variance only to what noise cannot account for.
+- A hyperparameter can legitimately be driven to the edge of its range. "The best signal variance is 0" is a real conclusion: these data are consistent with pure noise.
+:::
+
+::: {.callout-tip collapse="true" .clarification title="Question: Which equations does this problem use, and how does it map onto them?"}
+**Key equations.**
+
+$$\log p(y\mid v)=-\tfrac12\log C-\frac{y^2}{2C}+\text{const},\qquad C=v+\sigma^2$$
+
+$$\frac{d}{dC}\Big(-\tfrac12\log C-\frac{y^2}{2C}\Big)=-\frac{1}{2C}+\frac{y^2}{2C^2}$$
+
+**Variables.**
+
+- $v\ge0$: the signal variance, the hyperparameter.
+- $\sigma^2=0.5$: the fixed noise variance.
+- $y$: the single observed target, $0.5$ or $2$.
+
+**How the problem maps onto them.**
+
+1. Part 1 sets the derivative to zero and solves for $C$, then for $v$.
+2. Part 2 evaluates the first equation at three values of $v$ and checks the sign of the unconstrained optimum.
+3. Part 3 repeats part 1's formula with $y=2$.
+:::
